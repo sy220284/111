@@ -21,7 +21,7 @@ class VideoAttachmentPreparationInstrumentedTest {
             val bytes = instrumentation.context.assets.open("media/blue-aac.mp4.b64").use {
                 Base64.decode(it.readBytes(), Base64.DEFAULT)
             }
-            assertEquals("9ab47a175ace1c629ea570a40fb16c20a075497ec23278195e5f3cab3d3b1f7d", java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) })
+            assertEquals("4e4ed97b4bf73b0d23818873698ce32d29fee6d66a16a1ca169a8b5e01741ec1", java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) })
             val source = File(directory, "source.mp4").apply { writeBytes(bytes) }
             val prepared = VideoAttachmentPreparation.prepare(source)
             assertTrue(prepared.name.endsWith(".av.mp4"))

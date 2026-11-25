@@ -343,9 +343,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         else "屏幕共享中 · 等待画面", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
                     if (sharing.owner == draftOwner && sharing.hasFrame && !attachmentBusy && remote == null &&
                         sharing.revision == previewAccountRevision && attachedImages.size < LocalImageAttachments.MAX_FILES) {
-                        TextButton(onClick = { vm.composerContent.attachSharedScreen(draftOwner) }) { Text("添加画面") }
+                        CodexTextAction(onClick = { vm.composerContent.attachSharedScreen(draftOwner) }) { Text("添加画面") }
                     }
-                    TextButton(onClick = { vm.composerContent.stopScreenShare() }) { Text("停止") }
+                    CodexTextAction(onClick = { vm.composerContent.stopScreenShare() }) { Text("停止") }
                 }
             } else if (sharing.message.isNotBlank()) {
                 CodexNotice(sharing.message, NoticeTone.Warning)

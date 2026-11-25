@@ -128,6 +128,25 @@ class FakeRunner:
 
 
 class NativeReuseTests(unittest.TestCase):
+    def test_transient_api_error_retries_and_validates_json(self):
+        from unittest.mock import patch
+        from collections import deque
+        results = deque([SelectionError("unexpected end of JSON input"), "{", '{"jobs":[]}'])
+        def runner(args):
+            value = results.popleft()
+            if isinstance(value, Exception):
+                raise value
+            return value
+        with patch("select_native_artifacts.time.sleep") as sleep:
+            self.assertEqual(ArtifactSelector(runner).api_json("repos/a/b/actions/runs/1/jobs"), {"jobs": []})
+            self.assertEqual(sleep.call_count, 2)
+
+    def test_invalid_api_response_never_becomes_verified_receipt(self):
+        from unittest.mock import patch
+        with patch("select_native_artifacts.time.sleep"):
+            with self.assertRaises(SelectionError):
+                ArtifactSelector(lambda args: "[]").api_json("repos/a/b/actions/runs/1")
+
     def test_trigger_and_upload_changes_do_not_invalidate_binary(self):
         edited = COMPILER_JOB.replace("paths: [x]", "paths: [y]")
         edited = edited.replace("retention-days: 90", "retention-days: 30")

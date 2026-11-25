@@ -10,6 +10,7 @@ import json
 import re
 import subprocess
 import sys
+import time
 
 
 class SelectionError(RuntimeError):
@@ -107,6 +108,20 @@ class ArtifactSelector:
     def __init__(self, runner=command):
         self.run = runner
 
+    def api_json(self, endpoint):
+        """Retry only read-only GitHub API requests; never accept an unverified receipt."""
+        for attempt in range(3):
+            try:
+                response = json.loads(self.run(["gh", "api", endpoint]))
+                if not isinstance(response, dict):
+                    raise SelectionError("GitHub API 返回非对象响应")
+                return response
+            except (SelectionError, json.JSONDecodeError) as exc:
+                if attempt == 2:
+                    raise SelectionError(f"GitHub API 三次读取仍失败：{endpoint}: {exc}") from exc
+                print(f"GitHub API 读取失败，重新核验 ({attempt + 1}/3): {endpoint}", file=sys.stderr)
+                time.sleep(attempt + 1)
+
     def signature(self, sha, abi='arm64-v8a'):
         # Changes to upstream SDKs, docs or archived CI do not alter Android ELF files.
         upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex/codex-rs"])
@@ -147,7 +162,7 @@ class ArtifactSelector:
         matches = set()
         page = 1
         while True:
-            response = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/artifacts?name={name}&per_page=100&page={page}"]))
+            response = self.api_json(f"repos/{repository}/actions/artifacts?name={name}&per_page=100&page={page}")
             artifacts = response.get("artifacts", [])
             matches.update(a["workflow_run"]["id"] for a in artifacts if not a.get("expired", True) and a.get("workflow_run"))
             if len(artifacts) < 100:
@@ -169,7 +184,7 @@ class ArtifactSelector:
                 if item["repository"] == repository}
 
     def source(self, repository, run_id, target, branch):
-        run = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/runs/{run_id}"]))
+        run = self.api_json(f"repos/{repository}/actions/runs/{run_id}")
         if (run.get("head_repository") or {}).get("full_name") != repository:
             return None
         if run.get("path", "").split("@", 1)[0] not in {
@@ -181,7 +196,7 @@ class ArtifactSelector:
         return old if old and self.is_ancestor(old, target) else None
 
     def jobs(self, repository, run_id):
-        jobs = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100"]))
+        jobs = self.api_json(f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100")
         return {job.get("name", "").rsplit(" / ", 1)[-1]
                 for job in jobs.get("jobs", []) if job.get("conclusion") == "success"}
 
@@ -226,9 +241,7 @@ class ArtifactSelector:
             except SelectionError as exc:
                 print(f"跳过无法核对原生编译指纹的历史候选 {old}: {exc}", file=sys.stderr)
                 continue
-            response = json.loads(self.run([
-                "gh", "api", f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
-            ]))
+            response = self.api_json(f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100")
             available = {a["name"]: a for a in response.get("artifacts", [])
                          if not a.get("expired", True) and a.get("size_in_bytes", 0) > 0}
             if not expected <= available.keys():
