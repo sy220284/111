@@ -6,11 +6,11 @@
 
 Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面 · 全链走官方 `app-server` 协议
 
-![版本](https://img.shields.io/badge/版本-v0.1.0--111.9-805A3F)
+![版本](https://img.shields.io/github/v/release/sy220284/111?label=版本&color=805A3F)
 ![平台](https://img.shields.io/badge/平台-Android_10%2B_(ARM64)-263139)
 ![架构](https://img.shields.io/badge/内核-Codex_Rust_官方快照-AC363A)
 ![界面](https://img.shields.io/badge/界面-Jetpack_Compose_典雅白-246F54)
-![验收](https://img.shields.io/badge/验收-360/393/411dp_逐页真机-56646D)
+![验收](https://img.shields.io/badge/验收-360/393/411dp_模拟器-56646D)
 
 </div>
 
@@ -24,7 +24,7 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 
 </div>
 
-四层结构，职责单一：**界面层**只做呈现，**状态与策略层**决策全部抽成可单测的纯函数，**协议层**直连官方 `app-server` 不建自有云端，**原生内核层**是官方源码快照的 NDK 原生构建。CI 验收与发布门禁横贯全部层级。
+四层结构，职责单一：**界面层**只做呈现，**状态与策略层**核心决策集中管理，并通过策略单测验证，**协议层**直连官方 `app-server` 不建自有云端，**原生内核层**是官方源码快照的 NDK 原生构建。CI 验收与发布门禁横贯全部层级。
 
 ---
 
@@ -41,7 +41,7 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 | 渐进式回复 | 长任务输出逐步呈现，工具调用链完整保留 |
 | 对话复制 | 原生复制能力，长详情滚动可达 |
 | 草稿与附件保护 | 未发送内容持久化恢复，正在执行的附件不清理 |
-| 会话分组与权限方案 | 侧栏分组导航，首会话创建/切换期间的任务保护 |
+| 会话管理与权限方案 | 统一侧栏、置顶、排序与筛选，首会话创建/切换期间的任务保护 |
 
 ### 开发工具
 
@@ -61,7 +61,7 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 |---|---|
 | ChatGPT 账号登录 | 设备码 / 浏览器授权两种方式 |
 | 国内模型服务商 | 内置预设模板，凭证本地管理，按需切换 |
-| 模型选择 · 引擎参数 | 模型选择页 + 引擎参数滑杆 |
+| 模型选择 · 引擎参数 | 按真实模型目录与支持的思考强度选择 |
 | 技能 · 插件 · 应用 | Codex 生态页面，外部内容保持原文不改写 |
 | Hooks 管理 | 生命周期钩子配置 |
 | MCP 智能体管理 | 对话中直接说"接入某个 MCP 服务"，由智能体完成配置认证与验证；页面只读展示真实可用目录 |
@@ -83,7 +83,7 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 ## 快速上手
 
 1. 从 [Releases](https://github.com/sy220284/111/releases) 下载 `codex-android-arm64` 正式版 APK（ARM64 手机，Android 10+）
-2. 安装后进入聊天首页，完成账号登录（设备码或浏览器）
+2. 安装后进入聊天首页，按所选服务商完成所需授权（ChatGPT 支持设备码或浏览器登录）
 3. 在对话中直接描述任务——文件修改、命令执行会按官方协议弹出审批
 4. 需要接入 MCP 服务时，直接在对话里说，智能体会完成配置并验证连接
 5. 应用内「检查更新」走增量下载与系统安装器，无需手动刷机重装
@@ -110,10 +110,10 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 
 | 层 | 组成 | 关键机制 |
 |---|---|---|
-| 界面层 | Jetpack Compose，27 个页面路由 | 典雅白 tokens 驱动，深浅双模式，动效含无障碍归零 |
+| 界面层 | Jetpack Compose，31 项已登记功能入口（含内嵌能力） | 典雅白 tokens 驱动，深浅双模式，动效含无障碍归零 |
 | 状态与策略层 | ViewModel + 纯函数策略类 | 线程执行所有权、审批决策归口、请求票券门闩、双阶段发送状态机、全局操作快照 |
 | 协议层 | 官方 `app-server` JSON-RPC 直连 | 协议动作台账、Kotlin↔Rust 字段级 CI 校验、响应完整性核验、512 容量背压 |
-| 原生内核层 | Codex Rust 内核 + App Server + Code Mode Host + Git + ripgrep | 官方快照锁定，NDK/Bionic aarch64 静态 ELF，ELF 16KB 页对齐，strip 后核验 |
+| 原生内核层 | Codex Rust 内核 + App Server + Code Mode Host 组件 + Git + ripgrep | 官方快照锁定，NDK/Bionic aarch64 静态 ELF，ELF 16KB 页对齐，strip 后核验 |
 | 发布链 | 正式签名 + 输入寻址复用 | 仅打包输入变化时发版，版本号单调递增 |
 
 ---
@@ -142,7 +142,7 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 | 安卓原生上游升级预演 | MXC / Code Mode 升级兼容性 |
 | 手动同步官方源码 | 指定上游 SHA，生成中文审核 PR |
 
-**验收基线**：Android 35 模拟器 360/393/411dp 逐页交互测试与截图证据，200% 字号与深色模式回归；正式发布要求同一源码提交的 APK 核验与设备验收全部成功。
+**验收基线**：Android 35 模拟器 360/393/411dp 逐页交互测试与截图证据，200% 字号与深色模式回归；正式发布要求同一源码提交的 APK 核验与设备验收全部成功。ARM64 实体手机、真实账号和服务商回执须独立验证；模拟器截图、APK 静态核验及已打包的 Code Mode Host 组件不能替代这些证据。
 
 ## 关键原则
 
@@ -150,5 +150,7 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 - 用户数据本地持久化、按会话隔离；不建设自有云端数据存储或 AI 服务
 - 高风险操作按官方协议单独审批，决策归口单一策略层
 - 官方源码保留并可追溯，升级逐一比对协议变化
+
+Android 原生核心使用锁定的 Rust 1.99.1、NDK 27.2.12479018 与 API 29 构建；原生输入未变化时复用既有产物。调试 APK 在 Actions 构建产物中提供，正式签名 APK 见 Releases。
 
 上游 Codex 授权见 `upstream/codex/LICENSE` 与相关 NOTICE。

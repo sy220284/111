@@ -9,7 +9,7 @@
     <!-- ═══ L1 界面层 ═══ -->
     <rect x="56" y="92" width="1168" height="268" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
     <rect x="56" y="92" width="1168" height="34" rx="10" fill="#F6F7F8"/>
-    <text x="76" y="115" font-size="15" font-weight="700" fill="#805A3F">界面层 · Jetpack Compose（27 个页面路由，手机竖屏，典雅白视觉系统）</text>
+    <text x="76" y="115" font-size="15" font-weight="700" fill="#805A3F">界面层 · Jetpack Compose（31 项已登记功能入口，手机竖屏，典雅白视觉系统）</text>
 
     <!-- L1 组1 -->
     <rect x="76" y="140" width="262" height="204" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
@@ -20,7 +20,7 @@
     <text x="92" y="259" font-size="13" fill="#263139">任务队列与目标管理</text>
     <text x="92" y="282" font-size="13" fill="#263139">渐进式回复 · 对话复制</text>
     <text x="92" y="305" font-size="13" fill="#263139">草稿与附件保护</text>
-    <text x="92" y="328" font-size="13" fill="#263139">会话分组 · 权限方案</text>
+    <text x="92" y="328" font-size="13" fill="#263139">统一侧栏 · 排序 · 权限</text>
 
     <!-- L1 组2 -->
     <rect x="358" y="140" width="262" height="204" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
@@ -63,7 +63,7 @@
     <!-- ═══ L2 状态与策略层 ═══ -->
     <rect x="56" y="392" width="1168" height="140" rx="10" fill="#FFFFFF" stroke="#D8DEE1"/>
     <rect x="56" y="392" width="1168" height="34" rx="10" fill="#F6F7F8"/>
-    <text x="76" y="415" font-size="15" font-weight="700" fill="#805A3F">状态与策略层 · ViewModel + 纯函数策略类（决策可单测，UI 只做呈现）</text>
+    <text x="76" y="415" font-size="15" font-weight="700" fill="#805A3F">状态与策略层 · ViewModel + 纯函数策略类（核心策略可单测，UI 负责呈现）</text>
 
     <rect x="76" y="440" width="262" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
     <text x="92" y="464" font-size="13" font-weight="700" fill="#263139">线程执行所有权</text>
@@ -143,12 +143,12 @@
     <rect x="852" y="784" width="160" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
     <text x="868" y="808" font-size="13" font-weight="700" fill="#263139">Git</text>
     <text x="868" y="828" font-size="12" fill="#56646D">版本控制工具</text>
-    <text x="868" y="846" font-size="12" fill="#56646D">真机命令验证</text>
+    <text x="868" y="846" font-size="12" fill="#56646D">命令运行另行验收</text>
 
     <rect x="1032" y="784" width="172" height="76" rx="8" fill="#FCFBFA" stroke="#D8DEE1"/>
     <text x="1048" y="808" font-size="13" font-weight="700" fill="#263139">ripgrep</text>
     <text x="1048" y="828" font-size="12" fill="#56646D">全文检索引擎</text>
-    <text x="1048" y="846" font-size="12" fill="#56646D">四件工具装配进包</text>
+    <text x="1048" y="846" font-size="12" fill="#56646D">随原生运行时装配</text>
 
     <!-- ═══ 底部 CI 条 ═══ -->
     <rect x="56" y="908" width="1168" height="76" rx="10" fill="#F6F7F8" stroke="#D8DEE1"/>
