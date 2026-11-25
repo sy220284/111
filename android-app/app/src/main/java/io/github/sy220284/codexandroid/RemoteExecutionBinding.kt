@@ -73,6 +73,10 @@ internal class RemoteExecutionBindings(private val preferences: SharedPreference
         preferences.getString("thread:$it", null)?.let { value -> RemoteExecutionBinding.read(JSONObject(value)) }
     }
 
+    fun savedDevices(): List<Pair<String, String>> = preferences.all.entries
+        .filter { it.key.startsWith("environment:") && it.value is String }
+        .map { it.key.removePrefix("environment:") to (it.value as String) }.sortedBy { it.first }
+
     fun permitsRegistration(id: String, endpoint: String): Boolean =
         preferences.getString("environment:$id", null)?.let { it == endpoint } != false &&
         preferences.all.filterKeys { it.startsWith("thread:") }.values.none {

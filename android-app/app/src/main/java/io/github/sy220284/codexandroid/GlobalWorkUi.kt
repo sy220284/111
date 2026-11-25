@@ -7,6 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -39,9 +40,12 @@ internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
  * snapshot because workspace editors, settings and child sheets mutate data.
  */
 @Composable
-internal fun DataTransferBusyOverlay(transfer: DataTransferState) {
+internal fun DataTransferBusyOverlay(transfer: DataTransferState, vm: CodexViewModel? = null) {
     if (!transfer.busy) return
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var closing by remember { mutableStateOf(false) }
+    var failure by remember { mutableStateOf<String?>(null) }
     Dialog(
         // Let back/outside gestures be acknowledged while retaining the modal:
         // the archive is still writing and dismissing it would expose edit actions.
@@ -66,13 +70,44 @@ internal fun DataTransferBusyOverlay(transfer: DataTransferState) {
                 modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                CodexActivityIndicator()
+                if (!transfer.pendingRestore || closing) CodexActivityIndicator()
                 Text(
                     text = transfer.result.ifBlank { "正在处理本机工作数据…" },
                     modifier = Modifier.testTag("data-transfer-busy-message"),
                     style = MaterialTheme.typography.titleMedium
                 )
-                Text(
+                if (transfer.pendingRestore) {
+                    Text("备份已经暂存；恢复前暂停新任务和文件写入，避免覆盖新数据。",
+                        style = MaterialTheme.typography.bodyMedium)
+                    failure?.let { ErrorText(it) }
+                    CodexPrimaryButton(onClick = {
+                        val owner = vm ?: return@CodexPrimaryButton
+                        closing = true
+                        failure = null
+                        scope.launch {
+                            try {
+                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { owner.bridge.close() }
+                                kotlinx.coroutines.withTimeout(15_000) {
+                                    owner.bridge.retirementBusy.first { !it }
+                                }
+                                check(owner.bridge.connectedSession.value == null) { "旧内核尚未退出" }
+                                context.stopService(android.content.Intent(context, CodexForegroundService::class.java))
+                                // Explicit user action only, after the old core has exited.
+                                // Next launch applies the verified archive before constructing the ViewModel.
+                                android.os.Process.killProcess(android.os.Process.myPid())
+                            } catch (error: Exception) {
+                                failure = error.message ?: "无法关闭应用，请完全退出后重新打开"
+                                closing = false
+                            }
+                        }
+                    }, enabled = !closing && vm != null, modifier = Modifier.fillMaxWidth().testTag("restore-close-app")) {
+                        Text(if (closing) "正在关闭应用" else "关闭应用以恢复")
+                    }
+                    CodexSecondaryButton(onClick = { AppDataTransfer.cancelPending(context) },
+                        enabled = !closing, modifier = Modifier.fillMaxWidth().testTag("restore-cancel-pending")) {
+                        Text("取消本次恢复")
+                    }
+                } else Text(
                     text = "请保持应用在前台，处理完成后即可继续编辑项目、发送指令和调整设置。",
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -83,9 +118,9 @@ internal fun DataTransferBusyOverlay(transfer: DataTransferState) {
 
 /** Keep changing archive progress in its own overlay rather than invalidating the page shell. */
 @Composable
-internal fun ObserveDataTransferBusyOverlay() {
+internal fun ObserveDataTransferBusyOverlay(vm: CodexViewModel) {
     val transfer by AppDataTransfer.state.collectAsState()
-    DataTransferBusyOverlay(transfer)
+    DataTransferBusyOverlay(transfer, vm)
 }
 
 /** A failed stop survives navigation and remains actionable on every page. */

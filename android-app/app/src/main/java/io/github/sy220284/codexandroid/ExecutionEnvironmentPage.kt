@@ -95,6 +95,7 @@ fun EnvironmentsPage(vm: CodexViewModel, onRemoteTask: () -> Unit = {}) {
     }
 
     if (remoteControl) RemoteControlSheet(vm) { remoteControl = false }
+    val savedDevices = remember(results[addKey], session) { vm.remoteBindings.savedDevices() }
     ScreenColumn {
         SectionIntro("运行管理",
             "管理本机执行环境，并登记和检查已部署的外部执行服务。")
@@ -136,6 +137,13 @@ fun EnvironmentsPage(vm: CodexViewModel, onRemoteTask: () -> Unit = {}) {
             if (useRemote) CodexIcon(CodexGlyph.TaskComplete, "已选择")
         }
 
+        if (savedDevices.isNotEmpty()) {
+            AtlasListHeading("已保存的设备", savedDevices.size, suffix = "台")
+            savedDevices.forEach { (name, address) ->
+                AtlasChoiceRow(name, "选择后验证连接，可直接新建任务", useRemote && remoteName == name && endpoint == address,
+                    onClick = { customRemoteName = name; endpoint = address; editingField = null; useRemote = true })
+            }
+        }
         if (useRemote) {
             MaterialPanel(Modifier.fillMaxWidth()) {
                 Text("连接外部执行服务", style = MaterialTheme.typography.titleMedium)

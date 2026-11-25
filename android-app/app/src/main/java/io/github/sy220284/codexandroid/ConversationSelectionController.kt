@@ -38,8 +38,11 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
             val nativeThread = history.getJSONObject("thread")
             val remote = remoteBindings.forThread(id)
             check(remote != null || !RemoteExecutionBinding.hasRemote(nativeThread)) { "远端会话缺少本机连接记录，请先核对执行环境" }
-            val threadDirectory = workspaceTasks.resumeDirectory(id, nativeThread.getString("cwd"),
-                nativeThread.optString("projectId").takeUnless { value -> value == "null" }.orEmpty(), remote, session)
+            // Local history reads do not need to reach the remote executor. Resume and
+            // verify the remote binding only when a user actually starts execution.
+            val threadDirectory = if (remote != null) WorkspaceSelectionContract.validate(java.io.File(workingDirectory), java.io.File(workingDirectory))
+                else workspaceTasks.resumeDirectory(id, nativeThread.getString("cwd"),
+                    nativeThread.optString("projectId").takeUnless { value -> value == "null" }.orEmpty(), null, session)
             val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                 .put("sortDirection", "desc").put("limit", 120), expectedSession = session)
             check(bridge.connectedSession.value == session && catalogWarmup.accountRevision.value == accountRevision) { "会话连接已变化，请重新打开" }

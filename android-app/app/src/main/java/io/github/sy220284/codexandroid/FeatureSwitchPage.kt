@@ -24,7 +24,7 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
     val securityBusy by vm.securitySaveBusy.collectAsState()
     val transfer by AppDataTransfer.state.collectAsState()
     val snapshot = controller.snapshot?.takeIf { it.session == session }
-    var filter by rememberSaveable { mutableStateOf("all") }
+    var filter by rememberSaveable { mutableStateOf("preferred") }
     var category by rememberSaveable { mutableStateOf("all") }
     var picker by remember(session) { mutableStateOf("") }
     var confirm by remember(session) { mutableStateOf<Pair<CoreFeatureSwitch, Boolean>?>(null) }
@@ -60,8 +60,10 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
                 if (snapshot != null) {
                     Text("全部 ${rows.size} 项 · 已开启 ${rows.count { it.enabled }} 项",
                         style = MaterialTheme.typography.titleMedium)
-                    Text("管理全局内核功能。项目、账号及运行环境可能有额外限制。",
+                    Text(if (filter == "preferred") "常用能力 · 根据实际内核目录显示" else "全部能力 · 包含高级及实验选项",
                         color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+                    CodexTextAction(onClick = { filter = if (filter == "preferred") "all" else "preferred"; category = "all" },
+                        modifier = Modifier.testTag("feature-show-all")) { Text(if (filter == "preferred") "查看全部功能" else "返回常用能力") }
                     CodexAdaptiveActions(
                         first = { modifier ->
                             CodexSecondaryButton(onClick = { picker = "category" },
@@ -93,7 +95,7 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
             }
         }
         if (snapshot != null && grouped.isEmpty()) item(key = "empty") {
-            Text("此分类暂无功能", color = Ink.muted)
+            Text(if (filter == "preferred") "当前核心未提供常用能力，可查看全部功能。" else "此分类暂无功能", color = Ink.muted)
         }
         for (group in FeatureSwitchPolicy.UseGroup.entries) {
             val entries = grouped[group].orEmpty()

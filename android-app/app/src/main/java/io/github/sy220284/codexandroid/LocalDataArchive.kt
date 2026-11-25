@@ -183,6 +183,17 @@ internal object LocalDataArchive {
         }
     }
 
+    fun hasPending(context: Context): Boolean = File(context.filesDir, READY).isFile
+
+    /** Only cancel a staged import before any restore has begun in this process. */
+    fun cancelStaged(context: Context) {
+        val marker = File(context.filesDir, READY)
+        check(marker.isFile && marker.readText() == "pending") { "没有可取消的待恢复备份" }
+        check(marker.delete()) { "无法取消恢复标记，请重试" }
+        check(File(context.filesDir, STAGED).deleteRecursively()) { "恢复已取消，暂存目录清理失败" }
+        saveResult(context, "已取消待恢复备份，当前数据保持不变。")
+    }
+
     /** Called before creating a process-wide ViewModel or a native subprocess. */
     fun restoreIfPending(context: Context) {
         val marker = File(context.filesDir, READY)
@@ -259,7 +270,8 @@ internal object LocalDataArchive {
 
 internal data class DataTransferState(
     val busy: Boolean = false,
-    val result: String = ""
+    val result: String = "",
+    val pendingRestore: Boolean = false
 )
 
 /** Device-local operations survive leaving the settings page. */
@@ -325,11 +337,28 @@ internal object AppDataTransfer {
                 val input = context.contentResolver.openInputStream(source)
                     ?: throw IOException("所选备份文件无法打开")
                 val count = input.use { LocalDataArchive.stageImport(context.applicationContext, it) }
-                DataTransferState(result = "已验证 $count 项。请完全关闭应用并重新启动以恢复数据。")
+                DataTransferState(busy = true, pendingRestore = true, result = "已验证 $count 项。关闭并重新打开应用即可恢复。")
             } catch (failure: Exception) {
-                DataTransferState(result = "导入失败：" + (failure.message ?: "备份文件无效"))
+                DataTransferState(busy = LocalDataArchive.hasPending(context), pendingRestore = LocalDataArchive.hasPending(context),
+                    result = "导入检查未完成：" + (failure.message ?: "备份文件无效"))
             }
         }
         return true
     }
+
+    @Synchronized fun cancelPending(context: Context) {
+        if (!state.value.pendingRestore) return
+        state.value = DataTransferState(busy = true, result = "正在取消待恢复备份")
+        scope.launch {
+            state.value = try {
+                LocalDataArchive.cancelStaged(context.applicationContext)
+                DataTransferState(result = "已取消待恢复备份")
+            } catch (failure: Exception) {
+                val pending = LocalDataArchive.hasPending(context)
+                DataTransferState(busy = pending, pendingRestore = pending,
+                    result = failure.message ?: "取消失败，请检查存储")
+            }
+        }
+    }
+
 }

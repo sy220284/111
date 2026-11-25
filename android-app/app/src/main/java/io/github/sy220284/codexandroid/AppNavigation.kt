@@ -420,7 +420,7 @@ fun CodexShell(vm: CodexViewModel) {
         if (activeSheet == "models") ModelChoiceSurface(vm) { closeSheet("models") }
         if (activeSheet == "about") AboutInfoSheet(vm) { closeSheet("about") }
         // Archive transfer must block all foreground pages and sheets.
-        ObserveDataTransferBusyOverlay()
+        ObserveDataTransferBusyOverlay(vm)
     }
 }
 

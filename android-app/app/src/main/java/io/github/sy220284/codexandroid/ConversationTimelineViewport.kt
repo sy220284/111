@@ -147,10 +147,6 @@ internal fun ConversationTimelineViewport(
                     Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted)
                     AnswerVersionSwitcher(fallbackVersion, if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null, "empty-version")
                 } else if (!compactWorkArea) {
-                    if (!shortViewport) {
-                        CodexStateArtwork(R.drawable.ic_empty_thread,
-                            Modifier.size(width = 112.dp, height = 76.dp))
-                    }
                     Text("今天想做什么？",
                         style = if (shortViewport) MaterialTheme.typography.titleLarge
                             else MaterialTheme.typography.headlineSmall,

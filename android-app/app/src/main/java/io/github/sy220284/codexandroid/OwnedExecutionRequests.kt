@@ -11,8 +11,17 @@ internal fun accountScopedRead(method: String): Boolean = method in setOf(
 internal suspend fun CodexViewModel.ensureRemoteThread(
     id: String, binding: RemoteExecutionBinding, running: Boolean = false,
     expectedSession: Long = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" }
-) = remoteBindings.ensureThread(expectedSession, id, binding, running) { method, params ->
-    bridge.request(method, params, expectedSession = expectedSession)
+) {
+    val request: suspend (String, JSONObject) -> JSONObject = { method, params ->
+        bridge.request(method, params, expectedSession = expectedSession)
+    }
+    remoteBindings.ready(expectedSession, binding, request)
+    if (!running) {
+        // Remote history may have been viewed without loading the execution thread.
+        // Resume with sticky environments intact and never override cwd with a local path.
+        request("thread/resume", JSONObject().put("threadId", id).put("excludeTurns", true))
+    }
+    RemoteEnvironmentProtocol.confirmThread(id, binding, running, request)
 }
 
 internal suspend fun CodexViewModel.dispatchOwnedRequest(

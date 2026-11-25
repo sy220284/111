@@ -48,13 +48,20 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
         errors.value = errors.value + (key to "连接尚未就绪，输入已保留")
         return
     }
+    val epoch = bridge.connectedSession.value ?: return
+    val accountRevision = catalogWarmup.accountRevision.value
+    val permit = { catalogWarmup.accountRevision.value == accountRevision }
     if (queue) loading.value = loading.value + key else steerBusy.value = true
     errors.value = errors.value - key
     pendingComposerImages.value = pendingComposerImages.value + draft.images
     viewModelScope.launch {
         var dispatched = false
         try {
-            remoteBindings.forThread(thread)?.requireTextOnly(draft.images, draft.references)
+            check(bridge.connectedSession.value == epoch && permit()) { "连接或账号已变化，原输入已保留" }
+            remoteBindings.forThread(thread)?.let {
+                it.requireTextOnly(draft.images, draft.references)
+                ensureRemoteThread(thread, it, running = true, expectedSession = epoch)
+            }
             ComposerInputPolicy.validate(draft.images, draft.references, LocalImageAttachments.directory(getApplication()), File(workspace))
             if (queue) {
                 check(threadExecutions.value[thread]?.turnId == turn && thread in threadExecutions.value) {
@@ -65,7 +72,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                     .put("clientUserMessageId", UUID.randomUUID().toString())
                     .put("input", TurnRequestContract.input(draft.text, draft.images, draft.references))
                 dispatched = true
-                bridge.request("thread/queue/add", params)
+                bridge.request("thread/queue/add", params, expectedSession = epoch, sendPermit = permit)
                 accepted()
                 actionFeedback.tryEmit(ActionFeedbackReceipt("已加入后续指令"))
                 refresh("queue:$thread", "thread/queue/list", JSONObject().put("threadId", thread).put("limit", 100))
@@ -84,7 +91,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                 LocalImageAttachments.preserveForHistory(getApplication(), draft.images)
                 check(threadExecutions.value[thread]?.turnId == turn) { "当前运行回合已变化，原指令已保留" }
                 dispatched = true
-                bridge.request("turn/steer", params)
+                bridge.request("turn/steer", params, expectedSession = epoch, sendPermit = permit)
                 accepted()
                 actionFeedback.tryEmit(ActionFeedbackReceipt("引导指令已发送"))
             }

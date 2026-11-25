@@ -27,7 +27,8 @@ internal data class GlobalWorkSnapshot(
     val restarting: Boolean = false,
     val realtimeVoiceActive: Boolean = false,
     val inFlightUserRequests: Int = 0,
-    val localMutations: Int = 0
+    val localMutations: Int = 0,
+    val pendingRestore: Boolean = false
 ) {
     val hasActiveWork: Boolean
         get() = visibleTurnRunning || executingThreads > 0 ||
@@ -49,6 +50,7 @@ internal data class GlobalWorkSnapshot(
 
     val blockReason: String
         get() = when {
+            pendingRestore -> "备份已验证，完成或取消恢复后即可继续操作"
             dataTransferBusy -> "本机数据正在备份或恢复，请完成后再操作"
             localMutations > 0 -> "本机文件或草稿正在保存，请完成后再备份、恢复或重启"
             inFlightRequests > 0 || loginBusy || planApprovalBusy ||
@@ -78,7 +80,8 @@ internal fun CodexViewModel.globalWorkSnapshot(): GlobalWorkSnapshot = GlobalWor
     restarting = connectionRestarter.busy.value,
     realtimeVoiceActive = realtimeVoiceLease.active.value,
     inFlightUserRequests = bridge.userRpcRequests.value,
-    localMutations = AppDataTransfer.localMutations.value
+    localMutations = AppDataTransfer.localMutations.value,
+    pendingRestore = AppDataTransfer.state.value.pendingRestore
 )
 
 

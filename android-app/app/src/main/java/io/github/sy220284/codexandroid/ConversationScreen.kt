@@ -355,7 +355,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 add(ComposerShortcut("project", if (remote == null) "当前项目 · " + PresentationPolicy.workspaceName(selectedWorkspace) else "执行设备 · " + remote.id,
                     if (remote == null) "切换手机工作区中的项目与目录" else "查看远端运行环境", CodexGlyph.Folder, enabled = optionsEnabled,
                     onOpen = { keyboard?.hide(); if (remote == null) composerMenu = "projects" else navigate("environments") }))
-                add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
+                add(ComposerShortcut("environment", "选择执行设备", "本机或已保存的远端设备", CodexGlyph.Computer,
+                    enabled = optionsEnabled, onOpen = { keyboard?.hide(); navigate("environments") }))
+                add(ComposerShortcut("terminal", if (remote == null) "项目终端" else "远端命令", if (remote == null) "打开实际命令输入" else "由当前智能体执行", CodexGlyph.Terminal,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("terminal") }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
                     enabled = modelOptionsEnabled, onOpen = { composerMenu = "models" }))
@@ -438,7 +440,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }) else null,
                 voiceEnabled = !switching && !transferBusy && !attachmentBusy && !documentBusy,
                 imageImporting = attachmentBusy || documentBusy,
-                onAddContent = { if (remote == null) composerMenu = "add" else vm.actionFeedback.tryEmit(ActionFeedbackReceipt("远端任务请直接描述远端文件路径，手机附件不会自动传输")) },
+                onAddContent = { if (remote == null) composerMenu = "add" else composerMenu = "tools" },
                 compactControls = compactWorkArea,
                 modelLabel = (if (busy) "下轮 · " else "") +
                     (ComposerModelPolicy.model(availableModels, shownModel)
@@ -454,7 +456,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onTaskOptions = { composerMenu = "tools" },
                 onReference = if (remote == null) ({ query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" }) else null,
                 statusContent = {
-                    if (remote != null) Text("远端 · " + remote.id + " · " + remote.cwd, color = Ink.muted, style = MaterialTheme.typography.labelSmall, maxLines = 1, modifier = Modifier.testTag("remote-task-context"))
+                    if (remote != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("远端 · " + remote.id, color = Ink.muted, style = MaterialTheme.typography.labelMedium, maxLines = 1,
+                            overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f).testTag("remote-task-context"))
+                        CodexTextAction(onClick = { navigate("environments") }) { Text("设备") }
+                    }
                     if (thread == null && remote == null && (agentDraft || composerDrafts[agentOwner]?.hasInput == true)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(if (agentDraft) "配置任务草稿" else "另有配置任务草稿",
