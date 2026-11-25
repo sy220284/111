@@ -69,6 +69,11 @@ pub trait ModelsEndpointClient: fmt::Debug + Send + Sync {
     /// Return `None` when identity is unavailable; cached catalog reuse is then disabled.
     fn identity(&self) -> Option<String>;
 
+    /// Apply process-local, account-scoped evidence without modifying the stored catalog.
+    fn refine_catalog<'a>(&self, models: &'a [ModelInfo]) -> Cow<'a, [ModelInfo]> {
+        Cow::Borrowed(models)
+    }
+
     /// Whether auth must be resolved before checking catalog identity.
     fn auth_requires_resolution(&self) -> bool {
         true
@@ -786,7 +791,7 @@ impl OpenAiModelsManager {
             && entry.identity.is_some()
             && entry.identity == self.endpoint_client.identity()
         {
-            SelectedCatalog::CurrentSnapshot(Cow::Borrowed(&entry.models))
+            SelectedCatalog::CurrentSnapshot(self.endpoint_client.refine_catalog(&entry.models))
         } else {
             SelectedCatalog::Fallback(Cow::Borrowed(
                 self.catalog_source.fallback_models().unwrap_or_default(),

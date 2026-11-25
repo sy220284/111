@@ -42,15 +42,24 @@ class UiNavigationInstrumentedTest {
     /** Dispatch a physical display tap so WindowManager can deliver ACTION_OUTSIDE. */
     private fun tapOutsideFloatingMenu() {
         rule.waitForIdle()
-        val center = rule.onNodeWithTag("conversation-top-bar").fetchSemanticsNode().boundsInWindow.center
-        val screen = IntArray(2)
-        val window = IntArray(2)
-        rule.runOnUiThread {
-            rule.activity.window.decorView.getLocationOnScreen(screen)
-            rule.activity.window.decorView.getLocationInWindow(window)
+        // Popup and activity use distinct windows; compare actual display coordinates.
+        // The middle of the top bar can be covered by a tall IME-constrained popup.
+        val bar = rule.onNodeWithTag("conversation-top-bar").fetchSemanticsNode()
+        val menu = rule.onNodeWithTag("codex-floating-menu").fetchSemanticsNode()
+        val point = rule.runOnIdle {
+            val barCoordinates = bar.layoutInfo.coordinates
+            val menuCoordinates = menu.layoutInfo.coordinates
+            val origin = menuCoordinates.localToScreen(Offset.Zero)
+            val size = menuCoordinates.size
+            val bounds = androidx.compose.ui.geometry.Rect(origin, androidx.compose.ui.geometry.Size(size.width.toFloat(), size.height.toFloat()))
+            val barSize = barCoordinates.size
+            listOf(.5f, .1f, .9f).map { fraction ->
+                barCoordinates.localToScreen(Offset(barSize.width * fraction, barSize.height * .5f))
+            }.firstOrNull { it.x.isFinite() && it.y.isFinite() && !bounds.contains(it) }
+                ?: error("顶部工具栏没有可用于验证外部点击的实际位置")
         }
-        val x = center.x + screen[0] - window[0]
-        val y = center.y + screen[1] - window[1]
+        val x = point.x
+        val y = point.y
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val downTime = android.os.SystemClock.uptimeMillis()
         for (action in listOf(android.view.MotionEvent.ACTION_DOWN, android.view.MotionEvent.ACTION_UP)) {

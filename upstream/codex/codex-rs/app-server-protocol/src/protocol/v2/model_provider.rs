@@ -256,3 +256,21 @@ pub struct ModelProviderDefaultSetParams {
     /// Configured provider to use by default for new threads and unscoped model lists.
     pub provider_id: String,
 }
+
+/// User-confirmed, potentially billed, synthetic two-round model verification.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ModelProviderModelVerifyParams {
+    pub model_provider: String,
+    pub model: String,
+    pub confirm_paid_request: bool,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ModelProviderModelVerifyResponse {
+    pub model_identity_confirmed: bool,
+    pub usage_reported: bool,
+}

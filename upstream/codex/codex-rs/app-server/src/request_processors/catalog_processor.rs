@@ -238,6 +238,39 @@ impl CatalogRequestProcessor {
             .map(|response| Some(response.into()))
     }
 
+    pub(crate) async fn model_provider_model_verify(
+        &self,
+        params: codex_app_server_protocol::ModelProviderModelVerifyParams,
+    ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
+        if !params.confirm_paid_request || params.model.trim().is_empty() {
+            return Err(invalid_request("需要确认真实模型验证请求可能产生费用"));
+        }
+        let (active_config, _) = self.model_catalog.current().await.map_err(|err| config_load_error(&err))?;
+        let config = config_for_provider(&active_config, &params.model_provider)?;
+        self.config_manager.check_thread_model_provider(&config).await.map_err(|err| config_load_error(&err))?;
+        if !codex_model_provider::is_domestic_live_catalog(config.model_provider.base_url.as_deref()) {
+            return Err(invalid_request("该服务商没有可验证的国内实时目录"));
+        }
+        let manager = self.thread_manager.temporary_models_manager_for_config(
+            &config, &codex_models_manager::manager::ModelCatalogSettings::default());
+        let catalog = self.list_models(ModelListParams {
+            model_provider: Some(params.model_provider.clone()),
+            include_hidden: Some(true), ..Default::default()
+        }, config.clone(), manager).await?;
+        if !catalog.data.iter().any(|model| model.id == params.model) {
+            return Err(invalid_request("所选模型不在当前账号的实时目录中"));
+        }
+        let challenge = uuid::Uuid::now_v7().to_string();
+        let result_challenge = uuid::Uuid::now_v7().to_string();
+        let result = codex_model_provider::verify_domestic_model(
+            config.model_provider.clone(), &params.model, &challenge, &result_challenge, config.http_client_factory(),
+        ).await.map_err(|err| invalid_request(err.to_string()))?;
+        Ok(Some(codex_app_server_protocol::ModelProviderModelVerifyResponse {
+            model_identity_confirmed: result.model_identity_confirmed,
+            usage_reported: result.usage_reported,
+        }.into()))
+    }
+
     pub(crate) async fn experimental_feature_list(
         &self,
         params: ExperimentalFeatureListParams,

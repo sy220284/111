@@ -2023,6 +2023,30 @@
             },
             "method": {
               "enum": [
+                "modelProvider/model/verify"
+              ],
+              "title": "ModelProvider/model/verifyRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ModelProviderModelVerifyParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ModelProvider/model/verifyRequest",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
                 "experimentalFeature/list"
               ],
               "title": "ExperimentalFeature/listRequestMethod",
@@ -3425,7 +3449,7 @@
         "indices": {
           "items": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "type": [
@@ -3444,7 +3468,7 @@
         },
         "score": {
           "format": "uint32",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": "integer"
         }
       },
@@ -4019,7 +4043,7 @@
         },
         "maxLength": {
           "format": "uint32",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4027,7 +4051,7 @@
         },
         "minLength": {
           "format": "uint32",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4092,7 +4116,7 @@
         },
         "maxItems": {
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4100,7 +4124,7 @@
         },
         "minItems": {
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4201,7 +4225,7 @@
         },
         "maxItems": {
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4209,7 +4233,7 @@
         },
         "minItems": {
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -6830,7 +6854,7 @@
           "default": null,
           "description": "@deprecated Use `isBlocking` to decide whether the request should block.",
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -7406,7 +7430,7 @@
           },
           "globScanMaxDepth": {
             "format": "uint",
-            "minimum": 1.0,
+            "minimum": 1,
             "type": [
               "integer",
               "null"
@@ -7506,7 +7530,7 @@
                   1
                 ],
                 "format": "uint8",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               }
             },
@@ -7533,7 +7557,7 @@
                   1
                 ],
                 "format": "uint8",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               }
             },
@@ -7560,7 +7584,7 @@
                   1
                 ],
                 "format": "uint8",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               }
             },
@@ -8463,7 +8487,7 @@
           "limit": {
             "description": "Optional page size; defaults to a reasonable server-side value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -9042,12 +9066,12 @@
         "properties": {
           "end": {
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "start": {
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -9172,7 +9196,7 @@
                 "properties": {
                   "httpStatusCode": {
                     "format": "uint16",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "type": [
                       "integer",
                       "null"
@@ -9196,7 +9220,7 @@
                 "properties": {
                   "httpStatusCode": {
                     "format": "uint16",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "type": [
                       "integer",
                       "null"
@@ -9220,7 +9244,7 @@
                 "properties": {
                   "httpStatusCode": {
                     "format": "uint16",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "type": [
                       "integer",
                       "null"
@@ -9244,7 +9268,7 @@
                 "properties": {
                   "httpStatusCode": {
                     "format": "uint16",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "type": [
                       "integer",
                       "null"
@@ -9617,7 +9641,7 @@
           "outputBytesCap": {
             "description": "Optional per-stream stdout/stderr capture cap in bytes.\n\nWhen omitted, the server default applies. Cannot be combined with `disableOutputCap`.",
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -9741,13 +9765,13 @@
           "cols": {
             "description": "Terminal width in character cells.",
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "rows": {
             "description": "Terminal height in character cells.",
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -11049,7 +11073,7 @@
               "additionalContextLimit": {
                 "description": "Approximate token threshold for spilling this hook's `additionalContext` to disk. `null` uses 2,500 tokens; `0` disables spilling for this hook. The threshold is evaluated against the original context; a spilled preview also includes recovery metadata.",
                 "format": "uint",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": [
                   "integer",
                   "null"
@@ -11075,7 +11099,7 @@
               },
               "timeoutSec": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": [
                   "integer",
                   "null"
@@ -11114,7 +11138,7 @@
               },
               "timeoutSec": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": [
                   "integer",
                   "null"
@@ -11893,7 +11917,7 @@
           "limit": {
             "description": "Optional page size; defaults to a reasonable server-side value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -11992,7 +12016,7 @@
           "maxSessionAgeDays": {
             "description": "Maximum age in days for detected sessions. Missing values use the default limit.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -12001,7 +12025,7 @@
           "maxSessions": {
             "description": "Maximum number of sessions to detect. Missing values use the default limit.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -12453,7 +12477,7 @@
           },
           "sessionCount": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "source": {
@@ -12481,7 +12505,7 @@
           },
           "sessionCount": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "source": {
@@ -13097,7 +13121,7 @@
           "sizeBytes": {
             "description": "Size in bytes if the path resolves to a regular file, otherwise null. Older servers omit this field.",
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -14113,7 +14137,7 @@
               },
               "port": {
                 "format": "uint16",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "protocol": {
@@ -14428,7 +14452,7 @@
           "additionalContextLimit": {
             "description": "Configured `additionalContext` spill threshold. `null` uses 2,500 tokens; `0` disables spilling.",
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -14486,7 +14510,7 @@
           },
           "timeoutSec": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "trustStatus": {
@@ -14919,7 +14943,7 @@
             "default": null,
             "description": "Native content tokens for the completed assistant message, including a sampled footer. Null when unavailable. Completion telemetry is not part of the stored thread item.",
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -15103,7 +15127,7 @@
           "limit": {
             "description": "Optional page size; defaults to a server-defined value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -15170,7 +15194,7 @@
               },
               "timeout_ms": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": [
                   "integer",
                   "null"
@@ -16493,12 +16517,12 @@
         "properties": {
           "lineEnd": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "lineStart": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "note": {
@@ -16857,7 +16881,7 @@
           "limit": {
             "description": "Optional page size; defaults to a reasonable server-side value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -17062,6 +17086,44 @@
           "defaultProviderId"
         ],
         "title": "ModelProviderListResponse",
+        "type": "object"
+      },
+      "ModelProviderModelVerifyParams": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "confirmPaidRequest": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "modelProvider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmPaidRequest",
+          "model",
+          "modelProvider"
+        ],
+        "title": "ModelProviderModelVerifyParams",
+        "type": "object"
+      },
+      "ModelProviderModelVerifyResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "modelIdentityConfirmed": {
+            "type": "boolean"
+          },
+          "usageReported": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "modelIdentityConfirmed",
+          "usageReported"
+        ],
+        "title": "ModelProviderModelVerifyResponse",
         "type": "object"
       },
       "ModelProviderSummary": {
@@ -17407,7 +17469,7 @@
           },
           "httpPort": {
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -17432,7 +17494,7 @@
           },
           "socksPort": {
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -17666,7 +17728,7 @@
           },
           "headers_helper_refresh_interval_ms": {
             "format": "uint64",
-            "minimum": 1.0,
+            "minimum": 1,
             "type": [
               "integer",
               "null"
@@ -17777,7 +17839,7 @@
         "properties": {
           "max_bytes": {
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -17893,7 +17955,7 @@
           "limit": {
             "description": "Optional page size; defaults to the full result set.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -19479,13 +19541,13 @@
           "cols": {
             "description": "Terminal width in character cells.",
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "rows": {
             "description": "Terminal height in character cells.",
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -21879,7 +21941,7 @@
               },
               "intervalHours": {
                 "format": "uint32",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "type": {
@@ -22056,7 +22118,7 @@
           },
           "value": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -22070,12 +22132,12 @@
         "properties": {
           "id": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "physicalFootprintBytes": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -22083,7 +22145,7 @@
           },
           "residentMemoryBytes": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -22796,13 +22858,13 @@
           "column": {
             "description": "1-based column number (in Unicode scalar values).",
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "line": {
             "description": "1-based line number.",
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -23195,7 +23257,7 @@
           },
           "limit": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -23284,7 +23346,7 @@
           },
           "limit": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -24663,7 +24725,7 @@
             "properties": {
               "durationMs": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "id": {
@@ -24976,7 +25038,7 @@
           "limit": {
             "description": "Optional item page size.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -25108,7 +25170,7 @@
           "limit": {
             "description": "Optional page size; defaults to a reasonable server-side value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -25231,7 +25293,7 @@
           "limit": {
             "description": "Optional page size; defaults to no limit.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -25569,17 +25631,17 @@
           },
           "numChannels": {
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "sampleRate": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "samplesPerChannel": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -25632,7 +25694,7 @@
             "properties": {
               "index": {
                 "format": "uint32",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "type": {
@@ -25687,7 +25749,7 @@
           },
           "position": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -26275,7 +26337,7 @@
           "limit": {
             "description": "Optional turn page size.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -26758,7 +26820,7 @@
           "limit": {
             "description": "Maximum number of sections to return.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -27385,7 +27447,7 @@
               },
               "position": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "turnId": {
@@ -27415,7 +27477,7 @@
               },
               "position": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "type": {
@@ -27438,7 +27500,7 @@
             "properties": {
               "position": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "started_at": {
@@ -27495,7 +27557,7 @@
               },
               "position": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "started_at": {
@@ -27597,7 +27659,7 @@
           "limit": {
             "description": "Optional turn page size.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -29136,7 +29198,7 @@
         "properties": {
           "extraCount": {
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "failedScan": {

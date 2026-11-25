@@ -157,6 +157,7 @@ fn decode_codex_catalog(profile: &DomesticProfile, body: &[u8]) -> Result<Vec<Mo
             && entry.shell_type == Some(ConfigShellToolType::UnifiedExec)
             && context.is_some()
             && modalities.contains(&InputModality::Text);
+        model.supported_in_api = entry.supported_in_api != Some(false);
         model.context_window = context;
         model.max_context_window = entry.max_context_window.filter(|n| *n > 0)
             .or(context);

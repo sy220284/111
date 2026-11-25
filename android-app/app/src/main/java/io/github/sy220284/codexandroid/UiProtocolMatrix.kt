@@ -137,6 +137,7 @@ object UiProtocolMatrix {
         ProtocolSurface("modelProvider/config/write", ApiExposure.Contextual, "模型服务商", false),
         ProtocolSurface("modelProvider/default/set", ApiExposure.Direct, "模型服务商", false),
         ProtocolSurface("modelProvider/capabilities/read", ApiExposure.Contextual, "模型服务商", false),
+        ProtocolSurface("modelProvider/model/verify", ApiExposure.Contextual, "模型服务商", false),
         ProtocolSurface("experimentalFeature/list", ApiExposure.Advanced, "引擎配置高级", false),
         ProtocolSurface("permissionProfile/list", ApiExposure.Direct, "任务对话", false),
         ProtocolSurface("experimentalFeature/enablement/set", ApiExposure.Advanced, "引擎配置高级", false),
