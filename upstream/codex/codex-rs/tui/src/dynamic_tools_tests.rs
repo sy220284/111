@@ -130,6 +130,7 @@ async fn call_tool(
     execute(
         server.request_handle(),
         DynamicToolCallParams {
+            supported_result_format: None,
             thread_id: source.to_string(),
             turn_id: "persisted-turn".to_string(),
             call_id: "call-1".to_string(),
@@ -307,7 +308,8 @@ stream_max_retries = 0
                         return Ok::<_, color_eyre::eyre::Report>(());
                     }
                 }
-                codex_app_server_client::AppServerEvent::ThreadStreamReconnected(_)
+                codex_app_server_client::AppServerEvent::CloudInventoryChanged(_)
+                | codex_app_server_client::AppServerEvent::ThreadStreamReconnected(_)
                 | codex_app_server_client::AppServerEvent::ThreadStreamDisconnected(_) => {}
                 codex_app_server_client::AppServerEvent::Lagged { .. }
                 | codex_app_server_client::AppServerEvent::Disconnected { .. } => {

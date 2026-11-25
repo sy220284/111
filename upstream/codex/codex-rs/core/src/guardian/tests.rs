@@ -1360,7 +1360,7 @@ async fn guardian_reuse_respects_effective_policy_and_personality_opt_out(
         .auto_review
         .as_mut()
         .unwrap()
-        .policy = Some("changed action policy".to_string());
+        .policy = Some("changed action policy".into());
     let mut different_personality = changed_policy.clone();
     different_personality.personality = Some(codex_protocol::config_types::Personality::Pragmatic);
     let mut omit_personality = different_personality.clone();
@@ -2733,7 +2733,7 @@ async fn guardian_review_retries_two_parse_failures_then_approves() -> anyhow::R
         tracker: Arc::new(tokio::sync::Mutex::new(
             crate::turn_diff_tracker::TurnDiffTracker::new(),
         )),
-        call_id: "action".to_owned(),
+        call_id: "action".into(),
         tool_name: codex_tools::ToolName::namespaced("team", "send_message"),
         source: crate::tools::context::ToolCallSource::Direct,
         native_call: Some(native_call),

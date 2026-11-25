@@ -3096,6 +3096,24 @@
       "title": "CommandExecutionRequestApprovalResponse",
       "type": "object"
     },
+    "DynamicToolCallContentItems": {
+      "properties": {
+        "contentItems": {
+          "items": {
+            "$ref": "#/definitions/v2/DynamicToolCallOutputContentItem"
+          },
+          "type": "array"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "contentItems",
+        "success"
+      ],
+      "type": "object"
+    },
     "DynamicToolCallParams": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
@@ -3108,6 +3126,17 @@
             "string",
             "null"
           ]
+        },
+        "supportedResultFormat": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DynamicToolResultFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional response format supported by the runtime serving this call."
         },
         "threadId": {
           "type": "string"
@@ -3131,23 +3160,68 @@
     },
     "DynamicToolCallResponse": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "properties": {
-        "contentItems": {
-          "items": {
-            "$ref": "#/definitions/v2/DynamicToolCallOutputContentItem"
-          },
-          "type": "array"
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DynamicToolCallContentItems"
         },
-        "success": {
-          "type": "boolean"
+        {
+          "properties": {
+            "structuredContent": true,
+            "success": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "structuredContent",
+            "success"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "errorMessage": {
+              "type": "string"
+            },
+            "success": {
+              "const": false,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "errorMessage",
+            "success"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "contentItems",
-        "success"
       ],
-      "title": "DynamicToolCallResponse",
-      "type": "object"
+      "description": "A dynamic tool reply carrying content items, structured JSON, or an error message.",
+      "oneOf": [
+        {
+          "required": [
+            "contentItems"
+          ],
+          "title": "ContentItemsDynamicToolCallResponse"
+        },
+        {
+          "required": [
+            "structuredContent"
+          ],
+          "title": "StructuredContentDynamicToolCallResponse"
+        },
+        {
+          "required": [
+            "errorMessage"
+          ],
+          "title": "ErrorMessageDynamicToolCallResponse"
+        }
+      ],
+      "title": "DynamicToolCallResult"
+    },
+    "DynamicToolResultFormat": {
+      "enum": [
+        "structuredContent"
+      ],
+      "type": "string"
     },
     "ExecCommandApprovalParams": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -7330,6 +7404,21 @@
         "title": "AccountUpdatedNotification",
         "type": "object"
       },
+      "AccountVoiceOption": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "voice": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "voice"
+        ],
+        "type": "object"
+      },
       "ActivePermissionProfile": {
         "properties": {
           "extends": {
@@ -10114,17 +10203,6 @@
               }
             ]
           },
-          "client_search_provider": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/v2/WebSearchProvider"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Effective tools.client_search_provider hint. Model-selected providers take precedence."
-          },
           "compact_prompt": {
             "type": [
               "string",
@@ -11042,6 +11120,13 @@
         ],
         "type": "object"
       },
+      "ConfiguredHookFailurePolicy": {
+        "enum": [
+          "continue",
+          "block"
+        ],
+        "type": "string"
+      },
       "ConfiguredHookHandler": {
         "oneOf": [
           {
@@ -11065,6 +11150,16 @@
                 "type": [
                   "string",
                   "null"
+                ]
+              },
+              "onFailure": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/v2/ConfiguredHookFailurePolicy"
+                  },
+                  {
+                    "type": "null"
+                  }
                 ]
               },
               "statusMessage": {
@@ -11102,6 +11197,16 @@
               "input": {
                 "additionalProperties": true,
                 "type": "object"
+              },
+              "onFailure": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/v2/ConfiguredHookFailurePolicy"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
               },
               "server": {
                 "type": "string"
@@ -13598,7 +13703,7 @@
         "type": "object"
       },
       "GatewayOAuthLoginParams": {
-        "description": "Authorize a configured provider without changing the default or any thread's provider.",
+        "description": "Authorize a configured service without changing the selected model provider.",
         "properties": {
           "deviceAuth": {
             "description": "Select device authorization when the server advertises support for it.",
@@ -13610,6 +13715,17 @@
               "string",
               "null"
             ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/v2/GatewayOAuthTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Available only on `--startup-oauth`. Mutually exclusive with `modelProvider`."
           }
         },
         "type": "object"
@@ -13716,6 +13832,26 @@
           "failed"
         ],
         "type": "string"
+      },
+      "GatewayOAuthTarget": {
+        "description": "An explicit service to authorize instead of the selected model provider.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "configServer"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "title": "ConfigServerGatewayOAuthTarget",
+            "type": "object"
+          }
+        ]
       },
       "GcpProviderId": {
         "enum": [
@@ -16280,6 +16416,15 @@
       "McpServerStatusUpdatedNotification": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
+          "durationMs": {
+            "description": "Elapsed startup time for a measured attempt. Older servers omit this field.",
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "environmentId": {
             "description": "Registration scope, not necessarily the server's execution environment.",
             "type": [
@@ -22620,6 +22765,28 @@
         ],
         "type": "object"
       },
+      "StartupGatewayOAuthChangedNotification": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "description": "Browser handoff on the dedicated `--startup-oauth` connection.",
+        "properties": {
+          "authUrl": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/definitions/v2/GatewayOAuthStatus"
+          },
+          "target": {
+            "$ref": "#/definitions/v2/GatewayOAuthTarget"
+          }
+        },
+        "required": [
+          "authUrl",
+          "status",
+          "target"
+        ],
+        "title": "StartupGatewayOAuthChangedNotification",
+        "type": "object"
+      },
       "StrictReviewRequiredNotification": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -24735,6 +24902,11 @@
               },
               "id": {
                 "type": "string"
+              },
+              "imageMetadata": {
+                "additionalProperties": true,
+                "description": "Per-image metadata selected by the backend for the receiving surface.",
+                "type": "object"
               },
               "inputImages": {
                 "description": "Observed local inputs for a completed generation, absent on older items.",
@@ -28990,14 +29162,6 @@
           "cached",
           "indexed",
           "live"
-        ],
-        "type": "string"
-      },
-      "WebSearchProvider": {
-        "description": "Provider preference selected by the resolved model catalog entry.",
-        "enum": [
-          "standalone",
-          "search_mcp"
         ],
         "type": "string"
       },

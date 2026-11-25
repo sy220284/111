@@ -161,6 +161,9 @@ mod restored_history_prewarm;
 #[path = "scenarios_retained_tool_outputs.rs"]
 mod retained_tool_outputs;
 
+#[path = "scenarios_encrypted_hooks.rs"]
+mod encrypted_hooks;
+
 #[path = "scenarios_exec_tools.rs"]
 mod exec_tools;
 #[path = "scenarios_incremental_tools.rs"]
@@ -220,10 +223,10 @@ mod guardian_async_elastic;
 mod guardian_sender_context;
 
 #[path = "scenarios_guardian_direct_review.rs"]
-mod guardian_direct_review;
+pub(super) mod guardian_direct_review;
 
 #[path = "scenarios_guardian_direct_mcp.rs"]
-mod guardian_direct_mcp;
+pub(super) mod guardian_direct_mcp;
 
 #[path = "scenarios_guardian_extra_policy.rs"]
 mod guardian_extra_policy;
@@ -255,6 +258,10 @@ mod guardian_agent_messages;
 #[cfg(not(target_os = "windows"))]
 #[path = "scenarios_guardian_handoff.rs"]
 mod guardian_handoff;
+
+#[cfg(not(target_os = "windows"))]
+#[path = "scenarios_guardian_hosted.rs"]
+mod guardian_hosted;
 
 #[path = "scenarios_guardian_heartbeat.rs"]
 mod guardian_heartbeat;
@@ -606,17 +613,18 @@ async fn admitted_prompt_id_reaches_responses() -> Result<()> {
 async fn additional_context_tool_outputs(tool_outputs: bool) -> Result<()> {
     skip_if_no_network!(Ok(()));
     let server = start_mock_server().await;
-    let test = test_codex()
-        .with_config(move |config| {
-            configure_scenario_catalog(config);
-            config.include_environment_context = false;
-            if !tool_outputs {
-                config
-                    .features
-                    .disable(Feature::UntrustedAsToolOutput)
-                    .expect("test config should allow feature update");
-            }
-        })
+    let configure = move |config: &mut Config| {
+        configure_scenario_catalog(config);
+        config.include_environment_context = false;
+        if !tool_outputs {
+            config
+                .features
+                .disable(Feature::UntrustedAsToolOutput)
+                .expect("test config should allow feature update");
+        }
+    };
+    let mut test = test_codex()
+        .with_config(configure)
         .build_with_auto_env(&server)
         .await?;
     let mock = mount_sse_sequence(
@@ -627,7 +635,7 @@ async fn additional_context_tool_outputs(tool_outputs: bool) -> Result<()> {
     )
     .await;
 
-    for (prompt, name, value) in [
+    for (index, (prompt, name, value)) in [
         (
             "Summarize the selected document.",
             Some("browser"),
@@ -648,7 +656,17 @@ async fn additional_context_tool_outputs(tool_outputs: bool) -> Result<()> {
             None,
             "The launch is on Tuesday.",
         ),
-    ] {
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if index == 2 {
+            // The unchanged submission must use the baseline restored from the rollout.
+            test = test_codex()
+                .with_config(configure)
+                .restart_with_auto_env(&server, &test)
+                .await?;
+        }
         test.codex
             .start_or_steer_turn(
                 TurnInputRequest::user_input(vec![text(prompt)]).with_additional_context(
@@ -721,6 +739,95 @@ async fn additional_context_tool_outputs(tool_outputs: bool) -> Result<()> {
         context_snapshot::format_request_history_snapshot(
             "Named context changes are appended before the user; unchanged values are deduplicated.",
             &requests,
+            &ContextSnapshotOptions::default().rewrite_known_segments(),
+        )
+    );
+    Ok(())
+}
+
+// The shared MCP scenario is compiled only on non-Windows hosts.
+#[cfg(not(target_os = "windows"))]
+#[test_case::test_case("PreToolUse"; "pre_tool_use")]
+#[test_case::test_case("PostToolUse"; "post_tool_use")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn hook_failure_blocks_tool_execution(event: &'static str) -> Result<()> {
+    skip_if_no_network!(Ok(()));
+    skip_if_wine_exec!(
+        Ok(()),
+        "requires a Windows test_stdio_server in the Wine-exec environment"
+    );
+    let requests =
+        super::hooks_mcp::failed_mcp_hook_scenario(event, "block", "unavailable-scanner").await?;
+    let (name, description) = if event == "PreToolUse" {
+        (
+            "hook_failure_blocks_tool_execution",
+            "A required PreToolUse check fails; onFailure:block rejects the tool call and reports the failure to the model.",
+        )
+    } else {
+        (
+            "hook_failure_blocks_tool_result",
+            "A required PostToolUse check fails; onFailure:block withholds the completed tool's result and reports the failure to the model.",
+        )
+    };
+    insta::assert_snapshot!(
+        name,
+        context_snapshot::format_request_history_snapshot(
+            description,
+            &requests,
+            &ContextSnapshotOptions::default().rewrite_known_segments(),
+        )
+    );
+    Ok(())
+}
+
+#[cfg(not(target_os = "windows"))]
+#[tokio::test]
+async fn hook_failure_blocks_completion_until_recovery() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+    let server = start_mock_server().await;
+    let responses = mount_sse_sequence(
+        &server,
+        vec![
+            sse(vec![
+                ev_assistant_message("draft", "initial draft"),
+                ev_completed("resp-1"),
+            ]),
+            sse(vec![
+                ev_assistant_message("final", "reviewed draft"),
+                ev_completed("resp-2"),
+            ]),
+        ],
+    )
+    .await;
+    let test = test_codex()
+        .with_pre_build_hook(|home| {
+            super::hooks::write_stop_hook(home, &["failed check"], Some("block"))
+                .expect("write failing stop hook");
+        })
+        .with_config(core_test_support::hooks::trust_discovered_hooks)
+        // Command hooks execute on the host and need a host-native working directory.
+        .build(&server)
+        .await?;
+    test.submit_turn("write a draft").await?;
+    let requests = responses.requests();
+    assert_eq!(requests.len(), 2);
+    let mut bodies = requests
+        .iter()
+        .map(core_test_support::responses::ResponsesRequest::body_json)
+        .collect::<Vec<_>>();
+    for body in &mut bodies {
+        // Normalize the hook run's temporary path before snapshot truncation and hashing.
+        body["input"] = serde_json::from_str(&body["input"].to_string().replace(
+            test.codex_home_path().to_string_lossy().as_ref(),
+            "<CODEX_HOME>",
+        ))?;
+    }
+    let entries = bodies.iter().map(SnapshotEntry::body).collect::<Vec<_>>();
+    insta::assert_snapshot!(
+        "hook_failure_blocks_completion_until_recovery",
+        context_snapshot::format_context_snapshot(
+            "A Stop hook fails once with onFailure:block; completion resumes only after a subsequent hook run succeeds.",
+            &entries,
             &ContextSnapshotOptions::default().rewrite_known_segments(),
         )
     );
@@ -1097,7 +1204,7 @@ async fn astra_asks_an_async_question_and_receives_the_answer_while_working() ->
                 .tools
                 .get_or_insert_with(Default::default)
                 .send_user_message_async = Some(ToolMessage {
-                parameters: Some(catalog_parameters),
+                parameters: Some(catalog_parameters.into()),
                 ..Default::default()
             });
             config.model_provider.base_url = Some(base_url);
@@ -2298,6 +2405,7 @@ async fn multi_agent_catalog_parameters(
     let test = test_codex()
         .with_config(move |config| {
             configure_scenario_catalog(config);
+            config.multi_agent_v2.expose_spawn_agent_service_tier = true;
             config.multi_agent_v2.disable_native_tools = disable_native_tools;
             config.workspace_roots = vec![config.cwd.clone()];
         })
@@ -2356,7 +2464,7 @@ async fn multi_agent_catalog_parameters(
     } else if disable_native_tools {
         (
             "multi_agent_native_tools_hidden",
-            "Native tools and native usage guidance are unavailable.",
+            "The root receives the session concurrency limit with native tools hidden.",
         )
     } else {
         (
@@ -2847,11 +2955,11 @@ async fn code_mode_catalog_messages(ranked_search: bool) -> Result<()> {
             model.model_messages.as_mut().expect("model messages").tools
                 .get_or_insert_with(Default::default).code_mode = Some(CodeModeToolMessages {
                     exec: Some(ToolMessage {
-                        description: Some("Catalog exec instructions. Default yield: {{ default_exec_yield_time_ms }} ms.\n{{ image_helper }}".to_string()),
+                        description: Some("Catalog exec instructions. Default yield: {{ default_exec_yield_time_ms }} ms.\n{{ image_helper }}".into()),
                         ..Default::default()
                     }),
                     wait: Some(ToolMessage {
-                        description: Some("Catalog wait instructions: resume the yielded cell.".to_string()),
+                        description: Some("Catalog wait instructions: resume the yielded cell.".into()),
                         parameters: Some(json!({
                             "type": "object",
                             "properties": {
@@ -2862,10 +2970,10 @@ async fn code_mode_catalog_messages(ranked_search: bool) -> Result<()> {
                             },
                             "required": ["cell_id"],
                             "additionalProperties": false
-                        }).to_string()),
+                        }).to_string().into()),
                     }),
-                    deferred_nested_tools_guidance: Some("Catalog discovery: find nested tools by name and description in ALL_TOOLS.".to_string()),
-                    mcp_typescript_preamble: Some("type CallToolResult<T = unknown> = { content: unknown[]; structuredContent?: T; isError?: boolean };".to_string()),
+                    deferred_nested_tools_guidance: Some("Catalog discovery: find nested tools by name and description in ALL_TOOLS.".into()),
+                    mcp_typescript_preamble: Some("type CallToolResult<T = unknown> = { content: unknown[]; structuredContent?: T; isError?: boolean };".into()),
                 });
         })
         .build_with_auto_env(&server)
@@ -3402,8 +3510,8 @@ async fn subagent_waits_for_its_inherited_environment_configuration() -> Result<
             "<ENVIRONMENTS_INSTRUCTIONS>",
         ),
         (
-            r"(?ms)(^\d+:message/developer:\n    You are (?:`/root`, the primary agent|an agent) in a team of agents[^\n]+)\n.*?(\n^\d+:message/developer:)",
-            "${1}\n    <STANDARD_MULTI_AGENT_INSTRUCTIONS>${2}",
+            r"(?s)<multi_agent_role>([^\n]+)\n.*?</multi_agent_role>[^\n]*",
+            "${1}\n    <STANDARD_MULTI_AGENT_INSTRUCTIONS>",
         ),
         (
             r#"(environment_id"\s*:\s*"|<environment id=")(?:local|remote)"#,
@@ -3422,6 +3530,53 @@ async fn subagent_waits_for_its_inherited_environment_configuration() -> Result<
             "subagent_inherits_pending_environment"
         };
     insta::assert_snapshot!(snapshot_name, snapshot);
+    Ok(())
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn indexed_search_rollout_request_context() -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let server = start_mock_server().await;
+    let mock = mount_sse_sequence(
+        &server,
+        vec![sse(vec![ev_completed("indexed-search-request")])],
+    )
+    .await;
+    let test = test_codex()
+        .with_model("gpt-5.4")
+        .with_config(|config| {
+            config.workspace_roots = vec![config.cwd.clone()];
+        })
+        .with_pre_build_hook(|codex_home| {
+            std::fs::write(
+                codex_home.join("config.toml"),
+                "[features]\nweb_search_indexed_default = true\n",
+            )
+            .expect("write indexed search rollout config");
+        })
+        .build_with_auto_env(&server)
+        .await?;
+
+    test.submit_text_turn("Find the latest release notes.")
+        .await?;
+    let requests = mock.requests();
+    let body = requests[0].body_json();
+    assert_eq!(
+        body["tools"]
+            .as_array()
+            .and_then(|tools| { tools.iter().find(|tool| tool["type"] == "web_search") }),
+        Some(&json!({
+            "type": "web_search",
+            "external_web_access": true,
+            "indexed_web_access": true,
+        })),
+    );
+    insta::assert_snapshot!(context_snapshot::format_request_history_snapshot(
+        "A restricted thread with the indexed-search rollout enabled advertises indexed web search in its first model request.",
+        &requests,
+        &ContextSnapshotOptions::default().include_request_settings(),
+    ));
     Ok(())
 }
 
@@ -4210,13 +4365,15 @@ async fn astra_async_compaction_keeps_work_added_after_its_snapshot(
         assert_eq!(positions.len(), 1, "{text}");
         positions[0]
     };
-    let default = position("# Collaboration Mode: Default");
+    let permissions = position("<permissions instructions>");
     let draft = position("Draft the launch notes.");
     let compaction = position("ASYNC_LAUNCH_CHECKPOINT");
     let plan = position("Plan Mode");
     if matches!(suffix, LiveSuffix::User) {
         let user = position("Check who can finish the notes.");
-        assert!(draft < compaction && compaction < default && default < plan && plan < user);
+        assert!(
+            draft < compaction && compaction < permissions && permissions < plan && plan < user
+        );
         let entries = requests.iter().map(SnapshotEntry::body).collect::<Vec<_>>();
         insta::assert_snapshot!(
             "astra_async_compaction_with_live_suffix",
@@ -4232,9 +4389,11 @@ async fn astra_async_compaction_keeps_work_added_after_its_snapshot(
             suffix,
             LiveSuffix::RetainedTool | LiveSuffix::OverBudgetRetainedTool
         ) {
-            assert!(draft < compaction && compaction < default && default < plan && plan < tool);
+            assert!(
+                draft < compaction && compaction < permissions && permissions < plan && plan < tool
+            );
         } else {
-            assert!(default < draft && draft < compaction && compaction < plan && plan < tool);
+            assert!(permissions < draft && draft < compaction && compaction < plan && plan < tool);
         }
         let assistant = position("I will check who is available.");
         let call = input
@@ -4360,8 +4519,8 @@ async fn astra_async_compaction_preserves_exec_catalog(change: ExecCatalogRefres
                 .code_mode
                 .get_or_insert_default();
             messages.exec.get_or_insert_default().description =
-                Some("Previous exec instructions.".to_string());
-            messages.mcp_typescript_preamble = Some("type PreviousResult = string;".to_string());
+                Some("Previous exec instructions.".into());
+            messages.mcp_typescript_preamble = Some("type PreviousResult = string;".into());
         }
     }
     mount_models_once_with_etag(&model_server, catalog.clone(), "\"exec-mode-v2\"").await;
@@ -4503,34 +4662,29 @@ async fn astra_async_compaction_preserves_exec_catalog(change: ExecCatalogRefres
                 core_test_support::responses::namespace_child_tool(item, "functions", "exec")
             })
             .expect("initial exec declaration");
-        assert_eq!(exec_declarations, vec![initial_exec]);
-        assert!(exec_positions[0] < compaction && compaction < user);
-        let is_view_image_update = |item: &&serde_json::Value| {
-            item["role"] == "developer"
-                && item["content"][0]["text"]
-                    .as_str()
-                    .is_some_and(|text| text.lines().any(|line| line == "### `view_image`"))
-        };
-        let live_update = requests[2]["input"]
+        let live_exec = requests[2]["input"]
             .as_array()
             .expect("input before adoption")
             .iter()
-            .find(is_view_image_update)
-            .expect("view_image redefinition during background compaction");
+            .rev()
+            .find_map(|item| {
+                core_test_support::responses::namespace_child_tool(item, "functions", "exec")
+            })
+            .expect("full exec refresh during background compaction");
+        let live_description = live_exec["description"].as_str().expect("exec description");
+        assert!(live_description.starts_with("Previous exec instructions."));
         assert!(
-            live_update["content"][0]["text"]
-                .as_str()
-                .expect("view_image update text")
-                .contains("detail?: \"high\" | \"original\"")
+            live_description
+                .split_once("### `view_image`\n")
+                .and_then(|(_, tool)| tool.split("\n### ").next())
+                .is_some_and(|tool| tool.contains("detail?: \"high\" | \"original\""))
         );
-        assert_eq!(
-            input
-                .iter()
-                .filter(is_view_image_update)
-                .collect::<Vec<_>>(),
-            vec![live_update]
+        assert_eq!(exec_declarations, vec![initial_exec, live_exec]);
+        assert!(
+            exec_positions[0] < compaction
+                && compaction < exec_positions[1]
+                && exec_positions[1] < user
         );
-        assert!(input[compaction + 1..].contains(live_update));
         return Ok(());
     }
     assert_eq!(exec_declarations.len(), 2);

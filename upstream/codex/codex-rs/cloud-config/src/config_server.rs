@@ -7,7 +7,6 @@ use crate::backend::RetryableFailureKind;
 use crate::backend::fetch_bundle;
 use crate::bundle_loader::managed_config_bundle_loader_for_service;
 use crate::config_source::BundleSource;
-use crate::discovery::ConfigServerDiscovery;
 use crate::discovery::resolve_config_server;
 use crate::service::CLOUD_CONFIG_BUNDLE_TIMEOUT;
 use crate::service::CloudConfigBundleService;
@@ -19,6 +18,7 @@ use codex_config::CloudConfigBundleLoader;
 use codex_config::CloudConfigBundlePolicy;
 use codex_config::CloudConfigBundleSnapshot;
 use codex_config::ConfigServer;
+use codex_config::ConfigServerResolution;
 use codex_http_client::HttpClientFactory;
 use codex_keyring_store::DefaultKeyringStore;
 use codex_login::AuthRouteConfig;
@@ -38,34 +38,54 @@ pub async fn config_server_bundle_loader(
     config: ConfigServer,
     codex_home: PathBuf,
     routes: &AuthRouteConfig,
-    discovery: ConfigServerDiscovery,
+    previous: Option<&ConfigServerResolution>,
 ) -> CloudConfigBundleLoader {
-    let service = create_config_server_service(&config, &codex_home, routes, discovery).await;
-
-    let loader = match service {
-        Ok(service) => {
+    match create_config_server_service(&config, &codex_home, routes, previous).await {
+        Ok((service, resolution)) => {
             let (loader, _) = managed_config_bundle_loader_for_service(service);
-            loader
+            loader.with_config_server_resolution(resolution)
         }
-        Err(error) => config_server_loader_after_failure(
-            config.clone(),
-            codex_home,
-            routes.clone(),
-            discovery,
-            error,
-        ),
-    };
+        Err(error) => {
+            config_server_loader_after_failure(config.clone(), codex_home, routes.clone(), error)
+                .with_config_server(config)
+        }
+    }
+}
 
-    loader.with_config_server(config)
+/// Git must apply the same policy as Codex without opening the OS keyring.
+/// Use the checked resolution directly so a second discovery cannot select OAuth.
+pub async fn anonymous_config_server_bundle_loader(
+    config: &ConfigServer,
+    codex_home: PathBuf,
+    routes: &AuthRouteConfig,
+) -> std::io::Result<CloudConfigBundleLoader> {
+    let resolved = resolve_config_server(config, routes, /*previous*/ None)
+        .await?
+        .resolved;
+    if resolved.oauth.is_some() {
+        return Err(std::io::Error::other(
+            "Git cannot verify Codex workspace policy using a protected login",
+        ));
+    }
+    let service =
+        config_server_service(resolved, &codex_home, routes).map_err(std::io::Error::other)?;
+    let (loader, _) = managed_config_bundle_loader_for_service(service);
+    Ok(loader.with_config_server(config.clone()))
 }
 
 async fn create_config_server_service(
     config: &ConfigServer,
     codex_home: &Path,
     routes: &AuthRouteConfig,
-    discovery: ConfigServerDiscovery,
-) -> Result<CloudConfigBundleService<ConfigServerSource>, CloudConfigBundleLoadError> {
-    let resolved = resolve_config_server(config, routes, discovery)
+    previous: Option<&ConfigServerResolution>,
+) -> Result<
+    (
+        CloudConfigBundleService<ConfigServerSource>,
+        ConfigServerResolution,
+    ),
+    CloudConfigBundleLoadError,
+> {
+    let resolution = resolve_config_server(config, routes, previous)
         .await
         .map_err(|error| {
             CloudConfigBundleLoadError::new(
@@ -75,6 +95,15 @@ async fn create_config_server_service(
             )
         })?;
 
+    let service = config_server_service(resolution.resolved.clone(), codex_home, routes)?;
+    Ok((service, resolution))
+}
+
+fn config_server_service(
+    resolved: ConfigServer,
+    codex_home: &Path,
+    routes: &AuthRouteConfig,
+) -> Result<CloudConfigBundleService<ConfigServerSource>, CloudConfigBundleLoadError> {
     let factory = config_server_http_client_factory(&resolved, routes);
     let codex_home = codex_home.to_path_buf();
     let source = ConfigServerSource::from_config_server(resolved, codex_home.clone(), factory)?;
@@ -90,7 +119,6 @@ fn config_server_loader_after_failure(
     config: ConfigServer,
     codex_home: PathBuf,
     routes: AuthRouteConfig,
-    discovery: ConfigServerDiscovery,
     error: CloudConfigBundleLoadError,
 ) -> CloudConfigBundleLoader {
     let initialized = Arc::new(OnceCell::new());
@@ -115,11 +143,11 @@ fn config_server_loader_after_failure(
                 None => {
                     initialized
                         .get_or_try_init(|| async move {
-                            let mut service = create_config_server_service(
+                            let (mut service, _) = create_config_server_service(
                                 &config,
                                 &codex_home,
                                 &routes,
-                                discovery,
+                                /*previous*/ None,
                             )
                             .await?;
                             service.policy = policy;
@@ -153,11 +181,13 @@ pub async fn config_server_auth_manager(
     service_config: &ConfigServer,
     codex_home: PathBuf,
     routes: &AuthRouteConfig,
-    discovery: ConfigServerDiscovery,
-) -> std::io::Result<Option<OAuthSessionManager>> {
-    let resolved = resolve_config_server(service_config, routes, discovery).await?;
-    let factory = config_server_http_client_factory(&resolved, routes);
-    oauth_session_manager(resolved.oauth.as_deref(), codex_home, &factory)
+    previous: Option<&ConfigServerResolution>,
+) -> std::io::Result<(ConfigServerResolution, Option<OAuthSessionManager>)> {
+    let resolution = resolve_config_server(service_config, routes, previous).await?;
+    let factory = config_server_http_client_factory(&resolution.resolved, routes);
+    let manager =
+        oauth_session_manager(resolution.resolved.oauth.as_deref(), codex_home, &factory)?;
+    Ok((resolution, manager))
 }
 
 fn config_server_http_client_factory(
@@ -356,9 +386,7 @@ fn auth_io_error(error: std::io::Error) -> CloudConfigBundleLoadError {
         .and_then(|source| source.downcast_ref::<OAuthSessionError>())
         == Some(&OAuthSessionError::LoginRequired)
     {
-        CloudConfigBundleLoadError::new(
-            CloudConfigBundleLoadErrorCode::Auth,
-            /*status_code*/ None,
+        CloudConfigBundleLoadError::login_required(
             "Sign in to the configuration server to load your organization's settings",
         )
     } else {

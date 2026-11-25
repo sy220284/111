@@ -18,8 +18,6 @@ pub use compaction_checkpoint::CompactionCheckpoint;
 mod initialization;
 pub use initialization::HistoryInitialization;
 
-mod legacy_mcp_attribution;
-
 use std::borrow::Borrow;
 use std::borrow::Cow;
 use std::ops::Deref;
@@ -41,6 +39,7 @@ use codex_protocol::protocol::SessionMeta;
 use codex_protocol::protocol::SessionMetaLine;
 use codex_protocol::protocol::SessionSource;
 use codex_protocol::protocol::ThreadHistoryMode;
+use codex_protocol::protocol::ThreadSettingsSnapshot;
 use codex_protocol::protocol::ThreadSource;
 use codex_protocol::protocol::TokenUsageRecord;
 use codex_protocol::protocol::TurnContextItem;
@@ -66,18 +65,6 @@ use serde::de::Error as _;
 pub struct ResponseItemEnvelope {
     pub item: ResponseItem,
     pub metadata: Option<CodexHarnessMetadata>,
-}
-
-/// Persisted search-provider state for a thread.
-///
-/// A missing checkpoint means the history predates this field and may contain Search MCP
-/// references. `Unused` means the writer knows that neither provider has run yet.
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum ModelSearchState {
-    Unused,
-    SearchMcp,
-    Standalone,
 }
 
 /// Metadata owned by the Codex harness and persisted with a response item.
@@ -172,6 +159,10 @@ pub struct CodexHarnessMetadata {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub delivered_assistant_message: Option<String>,
 
+    /// A confirmed delivery whose full text was unavailable within the retention limit.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub delivered_assistant_message_incomplete: bool,
+
     /// Whether a response configuration update was created by the Codex harness itself.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub harness_authored_configuration: bool,
@@ -197,25 +188,6 @@ pub struct CodexHarnessMetadata {
     /// The serialized field name is retained for compatibility with saved history.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub inherited_user_message: bool,
-
-    /// Whether an old `mcp_attribution` value indicates Search MCP may have been used.
-    #[serde(
-        default,
-        rename = "mcp_attribution",
-        skip_serializing,
-        deserialize_with = "legacy_mcp_attribution::deserialize_search_mcp_use"
-    )]
-    #[schemars(skip)]
-    #[doc(hidden)]
-    pub legacy_search_mcp_used: Option<bool>,
-
-    /// Search provider already used by this thread, or confirmation that neither has run yet.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub model_search_state: Option<ModelSearchState>,
-
-    /// Native search ran during automatic fallback, so its browsing references stay on native.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub native_search_fallback_used: bool,
 
     /// Sender context captured by the host when this task message was accepted.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -258,6 +230,16 @@ impl std::fmt::Debug for ImageReplaySource {
 }
 
 impl CodexHarnessMetadata {
+    /// The captured delivery text and whether it is incomplete.
+    pub fn confirmed_delivery(&self) -> Option<(&str, bool)> {
+        if self.delivered_assistant_message_incomplete {
+            return Some(("", true));
+        }
+        self.delivered_assistant_message
+            .as_deref()
+            .map(|text| (text, text.is_empty()))
+    }
+
     /// Shortened messages no longer prove complete instruction or review delivery.
     pub fn mark_retained_sources_incomplete(&mut self) {
         self.guardian_review_ids.clear();
@@ -457,12 +439,36 @@ pub enum RolloutItem {
     WorldState(WorldStateItem),
     SecurityRiskScore(SecurityRiskScore),
     RetainedContext(RetainedContextEvent),
-    EventMsg(EventMsg),
+    /// A protocol event and optional metadata owned by rollout storage.
+    EventMsg {
+        event: EventMsg,
+        metadata: Option<RolloutEventMetadata>,
+    },
     /// Sparse, model-invisible facts used to reconstruct realtime presentation.
     RealtimeItem(RealtimeItem),
 }
 
 impl RolloutItem {
+    /// Constructs a rollout event without host metadata.
+    #[allow(
+        non_snake_case,
+        reason = "preserve the existing event constructor syntax"
+    )]
+    pub fn EventMsg(event: EventMsg) -> Self {
+        Self::EventMsg {
+            event,
+            metadata: None,
+        }
+    }
+
+    /// Returns the protocol event carried by this rollout item.
+    pub fn event_msg(&self) -> Option<&EventMsg> {
+        match self {
+            Self::EventMsg { event, .. } => Some(event),
+            _ => None,
+        }
+    }
+
     /// Returns the handoff ID only when the rollout item is a valid acceptance receipt.
     pub fn realtime_handoff_id(&self) -> Option<&str> {
         match self {
@@ -512,6 +518,13 @@ impl RolloutItem {
     }
 }
 
+/// Host-only data saved with a rollout event to support recovery.
+#[derive(Debug, Clone)]
+pub struct RolloutEventMetadata {
+    /// Exact audio file identities rejected by the provider for the failed turn.
+    pub rejected_audio_file_ids: Vec<String>,
+}
+
 impl Serialize for RolloutItem {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -559,6 +572,7 @@ pub use sender_user_messages::SenderUserMessages;
 
 pub use reconciled_retained_context::ReconciledRetainedContext;
 pub use retained_context::AcceptedFileAudio;
+pub use retained_context::MessageRetention;
 pub use retained_context::RetainedContext;
 pub use retained_context::RetainedContextEntry;
 pub use retained_context::RetainedContextEvent;
@@ -799,6 +813,19 @@ impl InitialHistory {
         }
     }
 
+    pub fn resumed_thread_settings(&self) -> Option<&ThreadSettingsSnapshot> {
+        let Self::Resumed(resumed) = self else {
+            return None;
+        };
+        resumed.history.iter().rev().find_map(|item| match item {
+            RolloutItem::EventMsg {
+                event: EventMsg::ThreadSettingsApplied(event),
+                ..
+            } if event.thread_id == Some(resumed.conversation_id) => Some(&event.thread_settings),
+            _ => None,
+        })
+    }
+
     fn get_resumed_session_meta(&self) -> Option<&SessionMeta> {
         match self {
             Self::New | Self::Cleared | Self::Forked(_) => None,
@@ -850,7 +877,10 @@ pub fn latest_dynamic_tools(items: &[RolloutItem]) -> Option<&[DynamicToolSpec]>
 /// selection; a missing field must not resurrect a selection from an older turn.
 pub fn latest_disabled_plugin_ids(items: &[RolloutItem], thread_id: ThreadId) -> Option<&[String]> {
     if let Some(ids) = items.iter().rev().find_map(|item| {
-        if let RolloutItem::EventMsg(EventMsg::ThreadSettingsApplied(event)) = item
+        if let RolloutItem::EventMsg {
+            event: EventMsg::ThreadSettingsApplied(event),
+            ..
+        } = item
             && event.thread_id == Some(thread_id)
         {
             Some(event.thread_settings.disabled_plugin_ids.as_slice())

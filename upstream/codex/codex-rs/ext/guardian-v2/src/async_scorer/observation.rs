@@ -446,11 +446,6 @@ impl GuardianV2Extension {
         let sync_reviews = guardian_evidence.snapshot();
         let authorization_version =
             guardian_evidence.authorization_version(input.conversation_history.as_ref());
-        let trusted_user_inputs = input
-            .conversation_history
-            .retained_context()
-            .map(codex_guardian_context::collect_verified_answer_candidates)
-            .unwrap_or_default();
         let history = Arc::clone(&input.conversation_history);
         let local_trusted_skill_paths = guardian_evidence.trusted_skill_paths(input.turn_id);
         let node_repl_images = if guardian_config.transcript.include_images {
@@ -465,7 +460,23 @@ impl GuardianV2Extension {
         // Capture root evidence before background metadata resolution or model I/O.
         // Later root authorization or review-context changes invalidate this sample.
         let root_snapshot = if context_mode != GuardianContextMode::Legacy {
-            thread.guardian_root_snapshot().await
+            match thread.guardian_root_snapshot().await {
+                Ok(snapshot) => snapshot,
+                Err(_) => {
+                    tracing::warn!("Guardian root evidence unavailable for async scoring");
+                    score_progress.fail_closed(sampled_at, tool_call_index);
+                    record_classification(
+                        metrics.as_deref(),
+                        probe_comparison.as_ref(),
+                        context_mode,
+                        classification_started_at.elapsed(),
+                        "failure",
+                        /*classification_risk*/ None,
+                        Some("root_evidence_unavailable"),
+                    );
+                    return;
+                }
+            }
         } else {
             None
         };
@@ -483,7 +494,20 @@ impl GuardianV2Extension {
             );
             return;
         };
-        let score_authorization = ScoreAuthorization::current(&thread, &permissions).await;
+        let score_authorization = ScoreAuthorization {
+            permissions,
+            settings: thread.thread_settings_snapshot().await,
+            environments: thread
+                .config_snapshot()
+                .await
+                .environment_selections()
+                .to_vec(),
+            local: authorization_version,
+            review_context_revision: history.guardian_review_context_revision(),
+            root: None,
+            root_review_context_revision: None,
+            model: parent_model.clone(),
+        };
         let classification = Classification {
             probe_comparison,
             reservation,
@@ -514,7 +538,6 @@ impl GuardianV2Extension {
             mcp_tool,
             planned_action,
             sync_reviews,
-            trusted_user_inputs,
             authorization_version,
             history,
             local_trusted_skill_paths,

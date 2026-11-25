@@ -100,6 +100,14 @@ class AccountUpdateReason(Enum):
     unknown = "unknown"
 
 
+class AccountVoiceOption(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    name: str
+    voice: str
+
+
 class ActivePermissionProfile(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -1032,6 +1040,11 @@ class ConfigReadParams(BaseModel):
     include_layers: Annotated[bool | None, Field(alias="includeLayers")] = None
 
 
+class ConfiguredHookFailurePolicy(Enum):
+    continue_ = "continue"
+    block = "block"
+
+
 class CommandConfiguredHookHandler(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -1047,6 +1060,7 @@ class CommandConfiguredHookHandler(BaseModel):
     async_: Annotated[bool, Field(alias="async")]
     command: str
     command_windows: Annotated[str | None, Field(alias="commandWindows")] = None
+    on_failure: Annotated[ConfiguredHookFailurePolicy | None, Field(alias="onFailure")] = None
     status_message: Annotated[str | None, Field(alias="statusMessage")] = None
     timeout_sec: Annotated[int | None, Field(alias="timeoutSec", ge=0)] = None
     type: Annotated[Literal["command"], Field(title="CommandConfiguredHookHandlerType")]
@@ -1057,6 +1071,7 @@ class McpToolConfiguredHookHandler(BaseModel):
         populate_by_name=True,
     )
     input: dict[str, Any]
+    on_failure: Annotated[ConfiguredHookFailurePolicy | None, Field(alias="onFailure")] = None
     server: str
     status_message: Annotated[str | None, Field(alias="statusMessage")] = None
     timeout_sec: Annotated[int | None, Field(alias="timeoutSec", ge=0)] = None
@@ -1933,23 +1948,6 @@ class GatewayOAuthCancelResponse(BaseModel):
     )
 
 
-class GatewayOAuthLoginParams(BaseModel):
-    model_config = ConfigDict(
-        populate_by_name=True,
-    )
-    device_auth: Annotated[
-        bool | None,
-        Field(
-            alias="deviceAuth",
-            description="Select device authorization when the server advertises support for it.",
-        ),
-    ] = None
-    model_provider: Annotated[
-        str | None,
-        Field(alias="modelProvider", description="Defaults to the current provider when omitted."),
-    ] = None
-
-
 class GatewayOAuthPrompt(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -1974,6 +1972,22 @@ class GatewayOAuthStatus(Enum):
     started = "started"
     succeeded = "succeeded"
     failed = "failed"
+
+
+class ConfigServerGatewayOAuthTarget(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    kind: Literal["configServer"]
+
+
+class GatewayOAuthTarget(RootModel[ConfigServerGatewayOAuthTarget]):
+    root: Annotated[
+        ConfigServerGatewayOAuthTarget,
+        Field(
+            description="An explicit service to authorize instead of the selected model provider."
+        ),
+    ]
 
 
 class GcpProviderId(RootModel[Literal["gcp"]]):
@@ -2835,6 +2849,14 @@ class McpServerStatusUpdatedNotification(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
     )
+    duration_ms: Annotated[
+        int | None,
+        Field(
+            alias="durationMs",
+            description="Elapsed startup time for a measured attempt. Older servers omit this field.",
+            ge=0,
+        ),
+    ] = None
     environment_id: Annotated[
         str | None,
         Field(
@@ -3266,10 +3288,6 @@ class NetworkUnixSocketPermission(Enum):
 class NonSteerableTurnKind(Enum):
     review = "review"
     compact = "compact"
-
-
-class NullableGatewayOAuthLoginParams(RootModel[GatewayOAuthLoginParams | None]):
-    root: Annotated[GatewayOAuthLoginParams | None, Field(title="Nullable_GatewayOAuthLoginParams")]
 
 
 class NullableGatewayOAuthReadParams(RootModel[GatewayOAuthReadParams | None]):
@@ -5391,6 +5409,15 @@ class SpendControlLimitSnapshot(BaseModel):
     used: str
 
 
+class StartupGatewayOAuthChangedNotification(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    auth_url: Annotated[str, Field(alias="authUrl")]
+    status: GatewayOAuthStatus
+    target: GatewayOAuthTarget
+
+
 class StrictReviewRequiredNotification(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -6028,6 +6055,13 @@ class FileIdThreadItem(BaseModel):
         ),
     ] = None
     id: str
+    image_metadata: Annotated[
+        dict[str, Any] | None,
+        Field(
+            alias="imageMetadata",
+            description="Per-image metadata selected by the backend for the receiving surface.",
+        ),
+    ] = None
     input_images: Annotated[
         list[ImageGenerationInputImage] | None,
         Field(
@@ -6070,6 +6104,13 @@ class ResultThreadItem(BaseModel):
         ),
     ] = None
     id: str
+    image_metadata: Annotated[
+        dict[str, Any] | None,
+        Field(
+            alias="imageMetadata",
+            description="Per-image metadata selected by the backend for the receiving surface.",
+        ),
+    ] = None
     input_images: Annotated[
         list[ImageGenerationInputImage] | None,
         Field(
@@ -7370,11 +7411,6 @@ class WebSearchMode(Enum):
     live = "live"
 
 
-class WebSearchProvider(Enum):
-    standalone = "standalone"
-    search_mcp = "search_mcp"
-
-
 class WebSearchToolConfig(BaseModel):
     model_config = ConfigDict(
         extra="forbid",
@@ -8271,18 +8307,6 @@ class AccountGatewayOAuthReadRequest(BaseModel):
         Literal["account/gatewayOAuth/read"], Field(title="Account/gatewayOAuth/readRequestMethod")
     ]
     params: GatewayOAuthReadParams | None = None
-
-
-class AccountGatewayOAuthLoginRequest(BaseModel):
-    model_config = ConfigDict(
-        populate_by_name=True,
-    )
-    id: RequestId
-    method: Annotated[
-        Literal["account/gatewayOAuth/login"],
-        Field(title="Account/gatewayOAuth/loginRequestMethod"),
-    ]
-    params: GatewayOAuthLoginParams | None = None
 
 
 class AccountGatewayOAuthCancelRequest(BaseModel):
@@ -9208,6 +9232,29 @@ class GatewayOAuthChangedNotification(BaseModel):
     status: GatewayOAuthStatus
 
 
+class GatewayOAuthLoginParams(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    device_auth: Annotated[
+        bool | None,
+        Field(
+            alias="deviceAuth",
+            description="Select device authorization when the server advertises support for it.",
+        ),
+    ] = None
+    model_provider: Annotated[
+        str | None,
+        Field(alias="modelProvider", description="Defaults to the current provider when omitted."),
+    ] = None
+    target: Annotated[
+        GatewayOAuthTarget | None,
+        Field(
+            description="Available only on `--startup-oauth`. Mutually exclusive with `modelProvider`."
+        ),
+    ] = None
+
+
 class GatewayOAuthLoginResponse(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -9860,6 +9907,10 @@ class NewThreadModelDefaults(BaseModel):
         ReasoningEffort | None, Field(alias="modelReasoningEffort")
     ] = None
     service_tier: Annotated[str | None, Field(alias="serviceTier")] = None
+
+
+class NullableGatewayOAuthLoginParams(RootModel[GatewayOAuthLoginParams | None]):
+    root: Annotated[GatewayOAuthLoginParams | None, Field(title="Nullable_GatewayOAuthLoginParams")]
 
 
 class OtlpHttp(BaseModel):
@@ -12000,6 +12051,18 @@ class ReviewStartRequest(BaseModel):
     params: ReviewStartParams
 
 
+class AccountGatewayOAuthLoginRequest(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+    )
+    id: RequestId
+    method: Annotated[
+        Literal["account/gatewayOAuth/login"],
+        Field(title="Account/gatewayOAuth/loginRequestMethod"),
+    ]
+    params: GatewayOAuthLoginParams | None = None
+
+
 class ModelProviderConfigWriteRequest(BaseModel):
     model_config = ConfigDict(
         populate_by_name=True,
@@ -12106,12 +12169,6 @@ class Config(BaseModel):
         ),
     ] = None
     browser_use: BrowserUseConfig | None = None
-    client_search_provider: Annotated[
-        WebSearchProvider | None,
-        Field(
-            description="Effective tools.client_search_provider hint. Model-selected providers take precedence."
-        ),
-    ] = None
     compact_prompt: str | None = None
     computer_use: ComputerUseConfig | None = None
     desktop: dict[str, Any] | None = None

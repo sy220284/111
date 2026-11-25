@@ -2,6 +2,7 @@
 //! Explicit OAuth settings take precedence, and discovered settings stay in memory.
 
 use codex_config::ConfigServer;
+use codex_config::ConfigServerResolution;
 use codex_exec_server::RouteAwareHttpClient;
 use codex_login::AuthRouteConfig;
 use codex_login::OAuthSessionConfig;
@@ -13,31 +14,41 @@ use std::time::Duration;
 
 const DISCOVERY_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Controls OAuth discovery when the config server has no explicit OAuth settings.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub enum ConfigServerDiscovery {
-    #[default]
-    Disabled,
-    Enabled,
-}
-
 pub(crate) async fn resolve_config_server(
     config: &ConfigServer,
     routes: &AuthRouteConfig,
-    discovery: ConfigServerDiscovery,
-) -> io::Result<ConfigServer> {
+    previous: Option<&ConfigServerResolution>,
+) -> io::Result<ConfigServerResolution> {
     config.validated_base_url().map_err(io::Error::other)?;
+    let factory = routes.bootstrap_http_client_factory();
+    let outbound_proxy_policy = factory.outbound_proxy_policy();
+    let system_proxy_fallback = factory.allows_system_proxy_fallback();
+    if let Some(previous) = previous
+        && previous.configured == *config
+        && previous.outbound_proxy_policy == outbound_proxy_policy
+        && previous.system_proxy_fallback == system_proxy_fallback
+    {
+        previous
+            .resolved
+            .validated_base_url()
+            .map_err(io::Error::other)?;
+        return Ok(previous.clone());
+    }
     let mut resolved = config.clone();
 
-    if discovery == ConfigServerDiscovery::Enabled
-        && config.oauth.is_none()
+    if config.oauth.is_none()
         && let Some(oauth) = discover_oauth(&config.base_url, routes).await?
     {
         resolved.oauth = Some(Box::new(oauth));
         resolved.validated_base_url().map_err(io::Error::other)?;
     }
 
-    Ok(resolved)
+    Ok(ConfigServerResolution {
+        outbound_proxy_policy,
+        system_proxy_fallback,
+        configured: config.clone(),
+        resolved,
+    })
 }
 
 async fn discover_oauth(

@@ -56,6 +56,7 @@ use codex_login::AuthManager;
 use codex_login::CodexAuth;
 use codex_models_manager::manager::ModelCatalogSettings;
 use codex_models_manager::model_info::model_info_from_slug;
+use codex_prompts::ResolvedIncrementalToolMessages;
 use codex_protocol::AgentPath;
 use codex_protocol::RequestCountry;
 use codex_protocol::ResponseItemId;
@@ -567,7 +568,6 @@ async fn on_event_updates_status_from_task_complete() {
                 misalignment: None,
                 message: "denied".to_string(),
                 codex_error_info: None,
-                rejected_audio_file_ids: Vec::new(),
             }),
             AgentStatus::Errored("denied".to_string()),
         ),
@@ -592,7 +592,6 @@ async fn on_event_updates_status_from_error() {
         misalignment: None,
         message: "boom".to_string(),
         codex_error_info: None,
-        rejected_audio_file_ids: Vec::new(),
     }));
 
     let expected = AgentStatus::Errored("boom".to_string());
@@ -1127,6 +1126,7 @@ async fn cancelled_v2_send_finishes_reload_registration() {
         input: AgentInput::Message {
             message: AgentMessage::Plaintext(message.to_string()),
             mode: MessageDeliveryMode::TriggerTurn,
+            source_tool_call_id: None,
         },
         start_options: Default::default(),
     };
@@ -1817,7 +1817,7 @@ async fn cold_resume_with_thread_instructions_preserves_lazy_v2_child_inheritanc
                 step_context: issuing_step,
                 cancellation_token: CancellationToken::new(),
                 tracker: Default::default(),
-                call_id: "queue-only-cold-load".to_string(),
+                call_id: "queue-only-cold-load".into(),
                 tool_name: codex_tools::ToolName::plain("send_message"),
                 source: ToolCallSource::DirectPlaintextMessage,
                 payload: ToolPayload::Function {
@@ -1979,6 +1979,7 @@ async fn v2_reload_preserves_shared_instructions_after_root_unloads(
             input: crate::AgentInput::Message {
                 message: AgentMessage::Plaintext("wake the unloaded target".to_string()),
                 mode: MessageDeliveryMode::QueueOnly,
+                source_tool_call_id: None,
             },
             start_options: TurnStartOptions {
                 root_turn_id: sender_turn.turn_metadata_state.root_turn_id(),
@@ -2151,6 +2152,7 @@ async fn v2_spawn_resolves_reported_effort_without_changing_child_selection(
             input: AgentInput::Message {
                 message: AgentMessage::Plaintext("child task".to_string()),
                 mode: MessageDeliveryMode::TriggerTurn,
+                source_tool_call_id: None,
             },
             source,
             options: SpawnAgentOptions {
@@ -2440,7 +2442,9 @@ async fn spawn_agent_fork_from_paginated_parent_uses_model_context_prefix(
                 ThreadSettingsAppliedEvent {
                     thread_id: Some(parent_thread_id),
                     thread_settings: ThreadSettingsSnapshot {
+                        spawn_service_tier_override: None,
                         disabled_plugin_ids: Vec::new(),
+                        guardian_retention: None,
                         model: "parent-only-model".to_string(),
                         model_provider_id: "parent-only-provider".to_string(),
                         service_tier: None,
@@ -2558,9 +2562,10 @@ async fn spawn_agent_fork_from_paginated_parent_uses_model_context_prefix(
         !copied_prefix.iter().any(|line| {
             matches!(
                 &line.item,
-                RolloutItem::EventMsg(
-                    EventMsg::ItemCompleted(_) | EventMsg::ThreadSettingsApplied(_)
-                )
+                RolloutItem::EventMsg {
+                    event: EventMsg::ItemCompleted(_) | EventMsg::ThreadSettingsApplied(_),
+                    ..
+                }
             )
         }),
         "copied non-structural presentation and metadata records should not enter the child rollout"
@@ -3281,10 +3286,8 @@ async fn spawn_agent_can_fork_parent_thread_history_with_sanitized_items() {
         .expect("parent shutdown should submit");
 }
 
-#[test_case::test_case(true; "marked catalog hints")]
-#[test_case::test_case(false; "unmarked bundled hints")]
 #[tokio::test]
-async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history(marked: bool) {
+async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history() {
     let harness = AgentControlHarness::new().await;
     let mut parent_config = harness.config.clone();
     let _ = parent_config.features.enable(Feature::MultiAgentV2);
@@ -3314,7 +3317,6 @@ async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history(marke
     let parent_spawn_call_id = "spawn-call-compacted-usage-hints".to_string();
     let catalog_role = |base: &str| MultiAgentRoleInstructions::Composed {
         base: base.to_string(),
-        marked,
         omit_update_plan_instructions: false,
         max_concurrency: 2,
         wait_agent_enabled: false,
@@ -3333,7 +3335,9 @@ async fn spawn_agent_fork_strips_parent_usage_hints_from_compacted_history(marke
         tools: Arc::from([serde_json::json!({"type": "function", "name": "compacted_tool"})]),
     };
     let tools_update = ContextualUserFragment::into(IncrementalToolsUpdate(
-        codex_prompts::ResolvedIncrementalToolMessages::default().tool_update_hint,
+        ResolvedIncrementalToolMessages::default()
+            .tool_update_hint
+            .as_cow(),
     ));
     let replacement_history = vec![
         tools_update.clone(),
@@ -3910,7 +3914,9 @@ async fn spawn_agent_full_fork_legacy_compaction_rebuilds_child_instructions_onc
         ]);
         rollout_items.push(rollout_response_item(ContextualUserFragment::into(
             IncrementalToolsUpdate(
-                codex_prompts::ResolvedIncrementalToolMessages::default().tool_update_hint,
+                ResolvedIncrementalToolMessages::default()
+                    .tool_update_hint
+                    .as_cow(),
             ),
         )));
         rollout_items.push(rollout_response_item(ResponseItem::AdditionalTools {
@@ -4498,7 +4504,15 @@ async fn multi_agent_v2_completion_ignores_dead_direct_parent() {
 #[test]
 fn terminal_result_writes_require_confirmation_after_the_parent_claims_mail() {
     let count = Arc::new(std::sync::atomic::AtomicUsize::default());
-    let publish = || MessageDelivery::publish(ThreadId::new(), &[], Some(&count)).unwrap();
+    let publish = || {
+        MessageDelivery::publish(
+            ThreadId::new(),
+            /*source_tool_call_id*/ None,
+            &[],
+            Some(&count),
+        )
+        .unwrap()
+    };
     let parent = ThreadId::new();
     drop(publish().consumed(parent));
     let saved = publish();

@@ -129,6 +129,7 @@ impl ChatWidget {
             config,
             local_settings,
             config_panel_tui,
+            config_panel_reasoning_summary: None,
             effective_service_tier,
             skills_all: Vec::new(),
             skills_initial_state: None,
@@ -330,7 +331,6 @@ impl ChatWidget {
             widget.local_settings.codex_home.as_path(),
             widget.local_settings.history.persistence,
         );
-        widget.prefetch_rate_limits();
         if let Some(keymap) = runtime_keymap {
             widget.bottom_pane.set_keymap_bindings(&keymap);
         }

@@ -193,6 +193,15 @@ the choice unset. Ephemeral threads cannot save it.
 Use `thread/metadata/update` for later changes. This preference does not select
 `turn/start.cyberAccessProgram` or grant access to an access program.
 
+With `experimentalApi`, a client preparing a thread for later use can pass
+`daybreakProgramPropagationEnrolled: false` to `thread/start` to opt that root
+out of Daybreak propagation. A managed requirement to enable propagation takes
+precedence. Omitted, null, or true uses the configured enrollment rule.
+`thread.daybreakProgramPropagationEnrolled` reports actual enrollment for the
+live thread, including in the start response and `thread/started` notification.
+Stored metadata alone yields null. Reusing the same live session preserves its
+enrollment. Starting a new session from storage yields false.
+
 # Application network policy
 
 App-server loads application network policy at startup and existing explicit
@@ -265,6 +274,46 @@ later. Existing trust decisions and permission checks for projects are unchanged
 Clients that used `"detached"` should call `thread/start` and pass the new thread id
 to `review/start`. To keep the original conversation history with custom review
 instructions, use `thread/fork` followed by `turn/start`.
+
+## Recorded Guardian reviews (experimental)
+
+On an idle thread, `thread/guardianReview` assesses the supplied `toolCall`
+without appending or executing it. To review an archived worker's action,
+start a dedicated ephemeral thread and load the worker's history with
+`thread/inject_items`. Supply the action and parent messages in the review request.
+
+```json
+{
+  "method": "thread/guardianReview",
+  "id": 1,
+  "params": {
+    "threadId": "<ephemeral-thread-id>",
+    "toolCall": {
+      "type": "function_call",
+      "name": "exec_command",
+      "call_id": "pending",
+      "arguments": "{\"cmd\":\"git ls-files\"}"
+    },
+    "rootEvidence": {
+      "messages": [{ "role": "user", "text": "List the tracked files." }],
+      "missingUserInstructions": false,
+      "missingAssistantContext": true
+    }
+  }
+}
+```
+
+Supply bounded root messages in order with role `user` or `assistant`.
+Set both omission flags from the source. The server renders the native root
+section alongside the worker transcript. Send the evidence on every review.
+The reviewer can keep its private history when the evidence is unchanged.
+Changing or omitting the evidence invalidates that history. Parent messages
+never enter the worker history. Check for both
+`usedRootEvidence: true` and the expected `callId` before using the result.
+Older servers may ignore the parent evidence and review only the injected history.
+The result measures the supplied recording under the thread's current policy,
+tool catalog and environment. It grants no permission to execute the call.
+Direct client input to V2 workers remains restricted.
 
 # Thread removal
 
@@ -408,7 +457,16 @@ enabled = true
 
 Codex reads `[network_proxy]` and its alias `[experimental_network]` as
 `[permissions.network]` within each source before merging managed requirements.
-Across sources, use the same surface (legacy or nested). Use at most one top-level spelling per layer.
+Choose the merge operation with the domain syntax under either table name:
+`allowed_domains` and `denied_domains` each replace the previous list of that kind.
+A host in both surviving lists is denied, including when a keyed grant appears between the lists. Use `[permissions.network.domains]` (or
+the legacy table's `domains` map) for per-host updates. Source priority decides
+a shared selector; unrelated keyed rules survive a nonempty list replacement.
+A surviving `allowed_domains = []` clears lower managed grants. An empty domain
+map contributes no updates. Neither operation changes `managed_allowed_domains_only`.
+When layering mirrored declarations, use the same domain operation in both copies.
+Use the same network table spelling across sources when specifying Unix socket paths.
+Use at most one top-level spelling per layer.
 If a layer also sets `[permissions.network]`, both tables must describe the same policy.
 `configRequirements/read` returns the result in `requirements.network`.
 
@@ -530,8 +588,9 @@ Plugin summaries returned by `plugin/list`, `plugin/installed`, `plugin/read`,
 and `plugin/share/list` report effective `enabled` state. When
 `plugins._default.enabled` is configured, an explicit
 `plugins."<plugin-name>@<marketplace-name>".enabled` overrides that default;
-a plugin disabled at its source remains disabled. Omitting the default preserves
-existing source and account enablement. Other plugin settings, including remembered
+a plugin disabled at its source remains disabled. When `_default` is absent,
+an explicit `enabled: false` still disables the plugin without changing its
+installation or account settings. Other plugin settings, including remembered
 tool approvals, inherit the activation default unless `enabled` is explicitly set.
 `plugin/search` retains its discovery behavior: results report `enabled: false`
 while preserving their installation state.
@@ -568,6 +627,14 @@ switching models. Setting `friendly` or `pragmatic` can replace a previous
 `none` setting for that purpose. Changing the setting does not rewrite the
 thread's existing instructions or change explicitly supplied base instructions.
 The old `features.personality` flag is ignored.
+
+# MCP server startup
+
+`mcpServer/startupStatus/updated` reports each server's startup state. On
+`ready` or `failed`, `durationMs` gives the elapsed milliseconds for that
+server's startup attempt, even when notifications arrive together. It is null
+when there is no new measurement, including for reused connections, `starting`
+and `cancelled`. Older servers omit the field.
 
 # MCP server capabilities
 
@@ -624,6 +691,8 @@ authenticated account metadata, when available. API-only and signed-out sessions
 return `null`. The ID belongs to the same account snapshot as the rest of the
 response. Clients should also accept an absent field from older app servers.
 PAT sessions continue to return no bearer token from `getAuthStatus`.
+
+The experimental `account/voiceSettings/read` method returns the selected ChatGPT voice and the available voice IDs and display names. Pass an ID as `{ "voice": "juniper" }` to `account/voiceSettings/write` to save it. Both methods use the connected app-server's ChatGPT account, including when the client connects to a remote host.
 
 # Selected workspace routing
 
@@ -779,6 +848,41 @@ credential discovery/signing, are disabled while restrictions apply. Supported
 HTTP, WebSocket, and code-mode gRPC requests use the shared destination checks.
 User-directed Git, SSH, shell, and other subprocess traffic retain their existing
 execution and sandbox policies.
+
+### Configuration server sign-in during startup
+
+`codex app-server --print-startup-config` reads requirements without starting
+the app server. If a required configuration server uses OAuth and needs a new
+grant, the command exits with an error whose `data` contains
+`"reason": "configServer"` and `"action": "configServerLogin"`.
+
+To share OAuth discovery across startup and sign-in, start
+`codex app-server --startup-oauth` and send
+`{"id":0,"method":"configRequirements/read"}`. The result is the usual
+requirements response with an additional `appServerVersion` field. The helper
+performs the same validation and reports the same errors as
+`--print-startup-config`.
+
+This dedicated stdio connection accepts one JSON request per line without an
+initialize handshake. Each reply echoes the string or integer request ID.
+If the read reports `configServerLogin`, keep the connection open.
+
+1. After the user chooses Sign in, send
+   `{"id":1,"method":"account/gatewayOAuth/login","params":{"target":{"kind":"configServer"}}}`.
+   The helper resolves the target from local managed requirements.
+2. On this pipe, `account/gatewayOAuth/changed` sends the browser handoff with
+   `{"target":{"kind":"configServer"},"status":"started","authUrl":"..."}`.
+   Open that URL on the user's desktop. Rust handles the callback, token exchange,
+   and credential storage.
+3. The original login request stays pending and returns `{"prompt":null}` on
+   success, or an error on failure. To cancel, send
+   `{"id":2,"method":"account/gatewayOAuth/cancel"}`. Closing stdin also ends the
+   pending attempt.
+4. On success, send `configRequirements/read` again on the same pipe. The
+   helper reloads policy with the saved credentials and reuses OAuth discovery
+   if the server and proxy settings still match. Close the pipe and continue
+   only after validating the requirements. Older clients can still use the
+   one-shot command before and after sign-in.
 
 # Item history anchors
 

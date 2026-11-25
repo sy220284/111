@@ -178,6 +178,16 @@ impl AgentsOverviewView {
         {
             hints.push(("?".into(), "help".into()));
         }
+        if state.searching
+            && state.rename_target.is_none()
+            && state.connection_notice.is_none()
+            && self.search_sort_key(KeyEvent::new(KeyCode::Tab, KeyModifiers::NONE))
+        {
+            hints.push((
+                "Tab".into(),
+                format!("sort ({})", state.search_sort.label()),
+            ));
+        }
         let cancel = if state.help {
             self.keymap.primary_hint(ListAction::Cancel)
         } else if state.editing_metadata() || self.can_return_to_chat {
@@ -203,15 +213,11 @@ impl AgentsOverviewView {
             }
         }
         if let Some(hint) = self.center_list_hint(ListAction::Accept) {
-            hints.push((
-                hint.display_label(),
-                if state.rename_target.is_some() {
-                    "rename"
-                } else {
-                    "open"
-                }
-                .into(),
-            ));
+            let action = match self.selected {
+                _ if state.rename_target.is_some() => "rename",
+                _ => "open",
+            };
+            hints.push((hint.display_label(), action.into()));
         }
         if !state.editing_metadata()
             && let Some(hint) = self

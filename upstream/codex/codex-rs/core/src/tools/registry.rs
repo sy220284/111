@@ -31,6 +31,7 @@ use crate::tools::router::tool_log_payload;
 use crate::tools::tool_dispatch_trace::ToolDispatchTrace;
 use crate::util::error_or_panic;
 use codex_analytics::ControlToolCallStatus;
+use codex_code_mode::CodeModeToolResult;
 use codex_extension_api::ToolCallOutcome;
 use codex_extension_api::ToolPolicy;
 use codex_history::CodexHarnessMetadata;
@@ -39,11 +40,13 @@ use codex_protocol::models::FunctionCallOutputPayload;
 use codex_protocol::models::ResponseInputItem;
 use codex_protocol::models::ResponseItem;
 use codex_protocol::models::ToolResultMetadata;
+use codex_protocol::openai_models::ToolDescriptionPrefixes;
 use codex_protocol::parse_command::ParsedCommand;
 use codex_protocol::protocol::EventMsg;
 use codex_rollout::state_db;
 use codex_rollout_trace::ExecutionStatus;
 use codex_shell_command::parse_command::parse_shell_script;
+use codex_tool_call_id::ToolCallId;
 use codex_tools::FunctionsNamespaceFunctionPrefixes;
 use codex_tools::ToolName;
 use codex_tools::ToolSearchInfo;
@@ -145,34 +148,7 @@ pub(crate) trait CoreToolRuntime: ToolExecutor<ToolInvocation> {
         invocation: &ToolInvocation,
         result: &dyn ToolOutput,
     ) -> Option<PostToolUsePayload> {
-        let ToolPayload::Function { arguments } = &invocation.payload else {
-            return None;
-        };
-
-        Some(PostToolUsePayload {
-            tool_cwd: result.post_tool_use_cwd(),
-            tool_name: function_hook_tool_name(invocation),
-            tool_use_id: result.post_tool_use_id(&invocation.call_id),
-            tool_input: result
-                .post_tool_use_input(&invocation.payload)
-                .unwrap_or_else(|| function_hook_tool_input(arguments)),
-            tool_response: result
-                .post_tool_use_response(&invocation.call_id, &invocation.payload)
-                .or_else(|| {
-                    // Most function tools can expose their model-facing output
-                    // as the hook response. Outputs with a more stable hook
-                    // contract should override post_tool_use_response above.
-                    let ResponseInputItem::FunctionCallOutput {
-                        output: FunctionCallOutputPayload { body, .. },
-                        ..
-                    } = result.to_response_item(&invocation.call_id, &invocation.payload)
-                    else {
-                        return None;
-                    };
-
-                    serde_json::to_value(body).ok()
-                })?,
-        })
+        function_post_tool_use_payload(invocation, result, function_hook_tool_name(invocation))
     }
 
     fn pre_tool_use_payload(&self, invocation: &ToolInvocation) -> Option<PreToolUsePayload> {
@@ -325,7 +301,7 @@ pub(crate) trait ToolArgumentDiffConsumer: Send {
 }
 
 pub(crate) struct AnyToolResult {
-    pub(crate) call_id: String,
+    pub(crate) call_id: ToolCallId,
     pub(crate) payload: ToolPayload,
     pub(crate) result: Box<dyn ToolOutput>,
     pub(crate) post_tool_use_payload: Option<PostToolUsePayload>,
@@ -356,11 +332,11 @@ impl AnyToolResult {
         }
     }
 
-    pub(crate) fn code_mode_result(self) -> serde_json::Value {
+    pub(crate) fn code_mode_result(self) -> CodeModeToolResult {
         let Self {
             payload, result, ..
         } = self;
-        result.code_mode_result(&payload)
+        result.into_code_mode_result(&payload)
     }
 }
 
@@ -390,8 +366,12 @@ impl ToolOutput for PostToolUseFeedbackOutput {
         self.model_visible.to_response_item(call_id, payload)
     }
 
-    fn code_mode_result(&self, payload: &ToolPayload) -> Value {
+    fn code_mode_result(&self, payload: &ToolPayload) -> CodeModeToolResult {
         self.original.code_mode_result(payload)
+    }
+
+    fn into_code_mode_result(self: Box<Self>, payload: &ToolPayload) -> CodeModeToolResult {
+        self.original.into_code_mode_result(payload)
     }
 
     fn tool_result_metadata(&self) -> ToolResultMetadata {
@@ -491,7 +471,7 @@ impl ToolRegistry {
     /// Prepare registered functions and the exec/wait wrappers added later in the plan.
     pub(crate) fn apply_functions_namespace_function_prefixes(
         &mut self,
-        prefixes: Option<&BTreeMap<String, String>>,
+        prefixes: Option<&ToolDescriptionPrefixes>,
     ) {
         let registered = self
             .tools
@@ -1201,7 +1181,11 @@ async fn handle_any_tool(
         result: output,
         post_tool_use_payload,
     };
-    super::user_messaging::capture_delivery(&result, call_state);
+    super::user_messaging::capture_delivery(
+        &result,
+        call_state,
+        invocation.turn.config.guardian_context_budgeting(),
+    );
     if result.result.contains_external_context()
         && invocation.turn.config.memories.disable_on_external_context
     {
@@ -1235,7 +1219,7 @@ pub(crate) async fn apply_pre_tool_use(
     let outcome = run_pre_tool_use_hooks(
         &invocation.session,
         &invocation.step_context,
-        invocation.call_id.clone(),
+        invocation.call_id.to_string(),
         &payload.tool_name,
         &payload.tool_input,
         cwd,
@@ -1266,7 +1250,42 @@ pub(crate) async fn apply_pre_tool_use(
     }
 }
 
-fn function_hook_tool_name(invocation: &ToolInvocation) -> HookToolName {
+pub(super) fn function_post_tool_use_payload(
+    invocation: &ToolInvocation,
+    result: &dyn ToolOutput,
+    tool_name: HookToolName,
+) -> Option<PostToolUsePayload> {
+    let ToolPayload::Function { arguments } = &invocation.payload else {
+        return None;
+    };
+
+    Some(PostToolUsePayload {
+        tool_cwd: result.post_tool_use_cwd(),
+        tool_name,
+        tool_use_id: result.post_tool_use_id(&invocation.call_id),
+        tool_input: result
+            .post_tool_use_input(&invocation.payload)
+            .unwrap_or_else(|| function_hook_tool_input(arguments)),
+        tool_response: result
+            .post_tool_use_response(&invocation.call_id, &invocation.payload)
+            .or_else(|| {
+                // Most function tools can expose their model-facing output
+                // as the hook response. Outputs with a more stable hook
+                // contract should override post_tool_use_response above.
+                let ResponseInputItem::FunctionCallOutput {
+                    output: FunctionCallOutputPayload { body, .. },
+                    ..
+                } = result.to_response_item(&invocation.call_id, &invocation.payload)
+                else {
+                    return None;
+                };
+
+                serde_json::to_value(body).ok()
+            })?,
+    })
+}
+
+pub(super) fn function_hook_tool_name(invocation: &ToolInvocation) -> HookToolName {
     if invocation.tool_name.name == "spawn_agent"
         && (invocation.tool_name.is_default_namespace()
             || invocation.tool_name.namespace.as_deref() == Some(MULTI_AGENT_V1_NAMESPACE))

@@ -640,7 +640,7 @@ async fn run_resume_picker_with_launch_context(
             .map(AppServerSession::backend_id)
             .collect(),
         use_theme_colors: local_settings.tui.status_line_use_colors,
-        copy_on_select: local_settings.copy_on_select(&codex_terminal_detection::terminal_info()),
+        copy_on_select: local_settings.copy_on_select(),
         copy_on_select_clear_selection: local_settings.tui.copy_on_select_clear_selection,
         mouse_scroll_speed: local_settings.tui.mouse_scroll_speed.unwrap_or(1.0),
         show_all,
@@ -698,7 +698,7 @@ pub async fn run_fork_picker_with_app_server(
             .into_iter()
             .collect(),
         use_theme_colors: local_settings.tui.status_line_use_colors,
-        copy_on_select: local_settings.copy_on_select(&codex_terminal_detection::terminal_info()),
+        copy_on_select: local_settings.copy_on_select(),
         copy_on_select_clear_selection: local_settings.tui.copy_on_select_clear_selection,
         mouse_scroll_speed: local_settings.tui.mouse_scroll_speed.unwrap_or(1.0),
         show_all,
@@ -4178,6 +4178,14 @@ fn format_timestamp(ts: DateTime<Utc>, clock_format: ClockFormat) -> String {
     .to_string()
 }
 
+pub(crate) fn loading_sessions_line() -> Line<'static> {
+    Line::from(
+        "Loading sessions…"
+            .set_style(secondary_text_style())
+            .italic(),
+    )
+}
+
 fn render_empty_state_line(state: &PickerState) -> Line<'static> {
     if !state.query.is_empty() {
         if state.search_state.is_active()
@@ -4202,12 +4210,7 @@ fn render_empty_state_line(state: &PickerState) -> Line<'static> {
 
     if state.pagination.is_loading() {
         if state.all_rows.is_empty() && state.pagination.num_scanned_files == 0 {
-            return vec![
-                "Loading sessions…"
-                    .set_style(secondary_text_style())
-                    .italic(),
-            ]
-            .into();
+            return loading_sessions_line();
         }
         return vec![
             "Loading older sessions…"
@@ -7735,6 +7738,7 @@ session_picker_view = "dense"
             section_entered_at: None,
             project_id: None,
             daybreak_enabled: None,
+            daybreak_program_propagation_enrolled: None,
             history_mode: Default::default(),
             model_provider: String::from("openai"),
             model: None,
@@ -7783,6 +7787,7 @@ session_picker_view = "dense"
             section_entered_at: None,
             project_id: None,
             daybreak_enabled: None,
+            daybreak_program_propagation_enrolled: None,
             history_mode: Default::default(),
             model_provider: String::from("openai"),
             model: None,
@@ -7886,6 +7891,7 @@ session_picker_view = "dense"
             section_entered_at: None,
             project_id: None,
             daybreak_enabled: None,
+            daybreak_program_propagation_enrolled: None,
             history_mode: Default::default(),
             model_provider: String::from("openai"),
             model: None,
@@ -7966,6 +7972,7 @@ session_picker_view = "dense"
             section_entered_at: None,
             project_id: None,
             daybreak_enabled: None,
+            daybreak_program_propagation_enrolled: None,
             history_mode: Default::default(),
             model_provider: String::from("openai"),
             model: None,

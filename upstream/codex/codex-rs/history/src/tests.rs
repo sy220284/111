@@ -17,6 +17,40 @@ use serde_json::json;
 use super::*;
 
 #[test]
+fn legacy_audio_rejection_survives_rollout_rewriting_without_exposing_ids_in_events() -> Result<()>
+{
+    let wire = json!({
+        "type": "event_msg",
+        "payload": {
+            "type": "task_complete",
+            "turn_id": "turn-1",
+            "last_agent_message": null,
+            "error": {
+                "message": "Invalid recording",
+                "codex_error_info": "bad_request",
+                "rejected_audio_file_ids": ["file_audio"]
+            }
+        }
+    });
+    let item: RolloutItem = serde_json::from_value(wire.clone())?;
+    assert!(matches!(
+        item,
+        RolloutItem::EventMsg {
+            metadata: Some(_),
+            ..
+        }
+    ));
+    assert_eq!(serde_json::to_value(&item)?, wire);
+    let mut expected_event = wire["payload"].clone();
+    expected_event["error"]
+        .as_object_mut()
+        .expect("turn error object")
+        .remove("rejected_audio_file_ids");
+    assert_eq!(serde_json::to_value(item.event_msg())?, expected_event);
+    Ok(())
+}
+
+#[test]
 fn accepted_realtime_input_projects_from_the_canonical_response_item() -> Result<()> {
     let mut item: ResponseItem = serde_json::from_value(json!({
         "type": "message",
@@ -129,10 +163,16 @@ fn thread_settings_snapshot(disabled_plugin_ids: Vec<String>) -> Result<ThreadSe
 }
 
 #[test]
-fn latest_disabled_plugin_ids_preserves_owned_updates_and_clears() -> Result<()> {
+fn latest_thread_settings_preserve_owned_updates_and_clears() -> Result<()> {
     let thread_id = ThreadId::new();
     let ancestor_id = ThreadId::new();
-    let selected = thread_settings_snapshot(vec!["example@marketplace".to_string()])?;
+    let mut selected = thread_settings_snapshot(vec!["example@marketplace".to_string()])?;
+    const RECORD_BYTES: usize = 4_096;
+    let policy = codex_protocol::protocol::GuardianRetentionPolicy {
+        assistant_record_bytes: Some(RECORD_BYTES),
+        user_record_bytes: None,
+    };
+    selected.guardian_retention = Some(policy);
     let cleared = thread_settings_snapshot(Vec::new())?;
     let item = |thread_id, thread_settings| {
         RolloutItem::EventMsg(EventMsg::ThreadSettingsApplied(
@@ -148,11 +188,16 @@ fn latest_disabled_plugin_ids_preserves_owned_updates_and_clears() -> Result<()>
     ];
     assert_eq!(latest_disabled_plugin_ids(&foreign_items, thread_id), None);
 
-    let mut history = vec![item(Some(thread_id), selected.clone())];
+    let saved_settings = serde_json::to_value(item(Some(thread_id), selected.clone()))?;
+    let mut history = vec![serde_json::from_value(saved_settings)?];
     history.extend(foreign_items.clone());
     assert_eq!(
         latest_disabled_plugin_ids(&history, thread_id),
         Some(selected.disabled_plugin_ids.as_slice())
+    );
+    assert_eq!(
+        MessageRetention::saved(&history, thread_id),
+        Some(MessageRetention { thread_id, policy })
     );
 
     history.push(item(Some(thread_id), cleared.clone()));
@@ -164,6 +209,7 @@ fn latest_disabled_plugin_ids_preserves_owned_updates_and_clears() -> Result<()>
         latest_disabled_plugin_ids(&history, thread_id),
         Some(cleared.disabled_plugin_ids.as_slice())
     );
+    assert_eq!(MessageRetention::saved(&history, thread_id), None);
     Ok(())
 }
 
@@ -266,35 +312,6 @@ fn response_item_envelope_accessors_preserve_item() {
     *envelope = replacement_item.clone();
 
     assert_eq!(envelope.into_item(), replacement_item);
-}
-
-#[test]
-fn old_rollout_metadata_restores_search_mcp_use() -> Result<()> {
-    let metadata: CodexHarnessMetadata = serde_json::from_value(json!({
-        "mcp_attribution": {
-            "status": "complete",
-            "sources": [{
-                "connector_id": "connector_openai_search_service",
-                "server_name": "example",
-                "tool_name": "search",
-                "first_turn_id": "turn_1"
-            }]
-        }
-    }))?;
-
-    assert_eq!(metadata.legacy_search_mcp_used, Some(true));
-
-    let clean: CodexHarnessMetadata = serde_json::from_value(json!({
-        "mcp_attribution": {
-            "status": "none",
-            "sources": []
-        }
-    }))?;
-    assert_eq!(clean.legacy_search_mcp_used, Some(false));
-
-    let missing: CodexHarnessMetadata = serde_json::from_value(json!({}))?;
-    assert_eq!(missing.legacy_search_mcp_used, None);
-    Ok(())
 }
 
 #[test]

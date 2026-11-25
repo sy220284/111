@@ -28,6 +28,7 @@ use crate::app_server_session::app_server_rate_limit_snapshots;
 use crate::bottom_pane::AppLinkViewParams;
 use crate::bottom_pane::ApplyPatchApprovalRequest;
 use crate::bottom_pane::ApprovalRequest;
+use crate::bottom_pane::BottomPaneView;
 use crate::bottom_pane::ExecApprovalRequest;
 use crate::bottom_pane::FeedbackAudience;
 use crate::bottom_pane::McpElicitationApprovalRequest;
@@ -79,6 +80,7 @@ use crate::resume_picker::SessionSelection;
 use crate::resume_picker::SessionTarget;
 use crate::session_state::ThreadSessionState;
 use crate::startup_draft::StartupDraftPump;
+use crate::terminal_capabilities::user_agent;
 #[cfg(test)]
 use crate::test_support::PathBufExt;
 #[cfg(test)]
@@ -109,8 +111,6 @@ use codex_app_server_protocol::GetAccountRateLimitsResponse;
 use codex_app_server_protocol::HooksListEntry;
 use codex_app_server_protocol::ListMcpServerStatusParams;
 use codex_app_server_protocol::ListMcpServerStatusResponse;
-#[cfg(test)]
-use codex_app_server_protocol::McpAuthStatus;
 use codex_app_server_protocol::McpServerStatus;
 use codex_app_server_protocol::McpServerStatusDetail;
 use codex_app_server_protocol::MergeStrategy;
@@ -160,7 +160,6 @@ use codex_protocol::openai_models::ModelPreset;
 use codex_protocol::openai_models::ModelUpgrade;
 use codex_protocol::openai_models::ReasoningEffort as ReasoningEffortConfig;
 use codex_rollout::StateDbHandle;
-use codex_terminal_detection::user_agent;
 use codex_utils_absolute_path::AbsolutePathBuf;
 use codex_utils_approval_presets::builtin_permission_profile_for_active_permission_profile;
 use color_eyre::eyre::Result;
@@ -230,6 +229,7 @@ mod composer_hints;
 mod config_panel;
 mod config_persistence;
 mod connector_mentions;
+mod conversation_workspace;
 mod daemon_menu;
 mod daybreak;
 mod empty_state_policy;
@@ -291,6 +291,10 @@ mod sidebar_close;
 mod sidebar_document;
 mod sidebar_files;
 pub(crate) mod sidebar_loading;
+mod sidebar_model_documents;
+#[cfg(all(test, not(windows)))]
+#[path = "app/sidebar_open_in_codex_tests.rs"]
+mod sidebar_open_in_codex_tests;
 mod sidebar_subagents;
 mod startup;
 pub(crate) mod startup_bootstrap;
@@ -516,6 +520,12 @@ impl AppExitInfo {
 pub use exit_summary::DisconnectInfo;
 pub use exit_summary::ResumableThread;
 
+#[derive(Clone, Copy)]
+enum ThreadTransition {
+    PromptReverted(ThreadId),
+    DiscardTypeahead,
+}
+
 #[derive(Debug)]
 pub(crate) enum AppRunControl {
     Continue,
@@ -558,6 +568,7 @@ pub(crate) struct App {
     statusline_metrics: crate::statusline_metrics::StatuslineMetrics,
     provider_writes: HashMap<crate::backend_id::BackendId, crate::model_catalog::ProviderWrite>,
     feature_write_lock: Arc<tokio::sync::Mutex<()>>,
+    voice_settings_pending: bool,
     config_notification_test_generation: u64,
     config_notification_test_pending: Option<u64>,
     model_catalog: Arc<ModelCatalog>,
@@ -569,6 +580,7 @@ pub(crate) struct App {
     workspace_command_runner: Option<WorkspaceCommandRunner>,
     /// Legacy bootstrap and server-setting inputs; local preferences live in `local_settings`.
     pub(crate) config: Config,
+    realtime_call_client: Arc<crate::realtime_call::Client>,
     pub(crate) local_settings: crate::local_settings::LocalSettings,
     backend_preference_context: backend_selection::BackendPreferenceContext,
     launch_cwd: PathBuf,
@@ -608,6 +620,7 @@ pub(crate) struct App {
     transcript_reflow: TranscriptReflowState,
     initial_history_replay_buffer: Option<InitialHistoryReplayBuffer>,
     pending_thread_switch_resets: usize,
+    pending_input_drain: Option<ThreadTransition>,
     pub(crate) scrollback_has_older_history: bool,
 
     pub(crate) enhanced_keys_supported: bool,
@@ -681,6 +694,7 @@ pub(crate) struct App {
     side_threads: HashMap<ThreadId, SideThreadState>,
     saved_openings: sidebar_loading::Openings,
     sidebars: HashMap<Option<ThreadId>, sidebar::SidebarPane>,
+    model_preview_load: Option<uuid::Uuid>,
     /// A parked parent view survives child cleanup until its own replay finishes.
     side_companions: HashMap<ThreadId, SideCompanion>,
     zoomed_thread: Option<ThreadId>,
@@ -692,7 +706,6 @@ pub(crate) struct App {
     sidebar_press: Option<side_focus::SidebarPress>,
     abandoned_side_threads: HashSet<ThreadId>,
     active_thread_id: Option<ThreadId>,
-    active_thread_rx: Option<mpsc::Receiver<ThreadBufferedEvent>>,
     primary_thread_id: Option<ThreadId>,
     last_subagent_backfill_attempt: Option<ThreadId>,
     primary_session_configured: Option<ThreadSessionState>,
@@ -884,6 +897,13 @@ impl App {
         app_server: &mut AppServerSession,
         event: TuiEvent,
     ) -> Result<AppRunControl> {
+        if matches!(event, TuiEvent::Draw) && tui::mouse_capture_disabled() {
+            self.sidebar_press = None;
+            self.divider_drag = None;
+            self.agents_overview.workspace.divider_drag_viewport = None;
+            self.chat_widget.end_composer_drag();
+            self.chat_widget.rendered_selection.borrow_mut().end_drag();
+        }
         match &event {
             TuiEvent::Draw
             | TuiEvent::Mouse(crossterm::event::MouseEvent {
@@ -898,7 +918,10 @@ impl App {
                     return Ok(AppRunControl::Continue);
                 }
             }
-            _ => self.sidebar_press = None,
+            _ => {
+                self.sidebar_press = None;
+                self.agents_overview.workspace.divider_drag_viewport = None;
+            }
         }
         self.transcript_view.agent_links = self
             .side_retention_enabled(tui)
@@ -953,6 +976,9 @@ impl App {
             return Ok(AppRunControl::Continue);
         }
         self.refresh_link_hover(tui)?;
+        if self.guard_pending_paste_submission(tui, &event) {
+            return Ok(AppRunControl::Continue);
+        }
         self.invalidate_right_click_paste(&event);
         self.finish_clipboard(tui, &event);
         // Clipboard reads started by the composer already have a validated target.
@@ -1000,12 +1026,57 @@ impl App {
         {
             return Ok(AppRunControl::Continue);
         }
+        if self.workspace_center_owns_input() {
+            match &event {
+                TuiEvent::Key(key) => {
+                    Box::pin(self.handle_workspace_key(tui, app_server, *key)).await;
+                    if !self.agents_overview.workspace.is_open() {
+                        self.cancel_cloud_inventory_refresh(app_server).await;
+                        if self.reconnect.presentation == reconnect::ReconnectPresentation::Overview
+                        {
+                            self.reconnect.presentation =
+                                reconnect::ReconnectPresentation::Conversation;
+                        }
+                    }
+                    return Ok(AppRunControl::Continue);
+                }
+                TuiEvent::Paste(text) if !composer_paste => {
+                    self.cancel_pending_key_chord();
+                    if let Some(view) = &mut self.agents_overview.workspace.view {
+                        view.handle_paste(text.clone());
+                    }
+                    tui.frame_requester().schedule_frame();
+                    return Ok(AppRunControl::Continue);
+                }
+                _ => {}
+            }
+        }
+        if let TuiEvent::Mouse(mouse) = &event
+            && self.handle_workspace_mouse(tui, *mouse)
+        {
+            if mouse.kind == MouseEventKind::Down(MouseButton::Left)
+                && self
+                    .agents_overview
+                    .workspace
+                    .divider_drag_viewport
+                    .is_some()
+            {
+                self.refresh_link_hover(tui)?;
+            }
+            return Ok(AppRunControl::Continue);
+        }
         if matches!(&event, TuiEvent::Key(_))
             && self.handle_composer_copy_event(tui, &event, |tui, text| {
                 tui.copy_transcript_selection(text, crate::clipboard_copy::CopyFormat::PlainText)
             })
         {
             return Ok(AppRunControl::Continue);
+        }
+        if matches!(&event, TuiEvent::Resize(_) | TuiEvent::Resume) {
+            self.chat_widget
+                .empty_state_animation
+                .borrow_mut()
+                .invalidate_window_size();
         }
         // Resume arrives after suspension; retain the last painted phase across hidden owners.
         if matches!(&event, TuiEvent::Resume) || !tui.is_owned_screen() || self.overlay.is_some() {
@@ -1059,22 +1130,52 @@ impl App {
                 .active_view_accepts_input_when_disconnected()
             && let TuiEvent::Key(key) = &event
             && matches!(key.kind, KeyEventKind::Press | KeyEventKind::Repeat)
-            && key.modifiers.contains(KeyModifiers::CONTROL)
             && let KeyCode::Char(character) = key.code
-            && (character.eq_ignore_ascii_case(&'c')
-                || (character.eq_ignore_ascii_case(&'d')
-                    && self.chat_widget.composer_is_empty()
-                    && self.chat_widget.no_modal_or_popup_active()))
         {
-            return Ok(AppRunControl::Exit(ExitReason::UserRequested));
+            if key.modifiers.contains(KeyModifiers::CONTROL)
+                && (character.eq_ignore_ascii_case(&'c')
+                    || (character.eq_ignore_ascii_case(&'d')
+                        && self.chat_widget.composer_is_empty()
+                        && self.chat_widget.no_modal_or_popup_active()))
+            {
+                return Ok(AppRunControl::Exit(ExitReason::UserRequested));
+            }
+            if crate::key_hint::ctrl(KeyCode::Char('r')).is_press(*key)
+                && self.overlay.is_none()
+                && self.can_retry_reconnect()
+                && !self.key_chord_matcher.is_pending()
+                && self.chat_widget.accepts_reconnect_shortcut()
+                && !self
+                    .chat_widget
+                    .active_view_is(agents_overview::AGENTS_OVERVIEW_VIEW_ID)
+            {
+                self.retry_reconnect();
+                return Ok(AppRunControl::Continue);
+            }
         }
         let screen_size = tui.screen_size_for_event(&event)?;
-        if !matches!(
-            &event,
-            TuiEvent::Key(_) | TuiEvent::Mouse(_) | TuiEvent::Paste(_) | TuiEvent::FocusLost
-        ) {
+        let draws_history = matches!(
+            event,
+            TuiEvent::Draw | TuiEvent::Resume | TuiEvent::Resize(_) | TuiEvent::FocusGained
+        );
+        if draws_history && self.model_preview_load.is_none() {
+            self.model_preview_load = self
+                .start_queued_model_document(tui, app_server, screen_size.width)
+                .await;
+        }
+        // Reflow and paint must agree on width. Final inserts still use the last
+        // painted width until consolidation completes. Offline sessions drop those events.
+        let defer_inline_draw = draws_history
+            && self.overlay.is_none()
+            && !self.reconnect.offline
+            && !tui.is_owned_screen()
+            && self.chat_widget.has_pending_stream_consolidation()
+            && !self.chat_widget.has_active_modal();
+        if draws_history {
             self.expire_pending_key_chord(tui);
-            self.handle_draw_pre_render(tui, screen_size)?;
+            if !defer_inline_draw {
+                self.handle_draw_pre_render(tui, screen_size)?;
+            }
         }
 
         let dismiss_chord = match &event {
@@ -1152,7 +1253,7 @@ impl App {
             if let Some(current) = side_pane::layout(self, tui, size.into())
                 && current.passive_thread == painted.passive_thread
                 && let Some(peer) = self.current_displayed_thread_id()
-                && painted.passive.union(painted.focused) == Rect::from(size)
+                && painted.passive.union(painted.focused) == self.workspace_chat_area(size.into())
             {
                 let painted_area = painted.passive;
                 if let Some(link) = self.transcript_link_at(*press) {
@@ -1202,20 +1303,10 @@ impl App {
             return Ok(AppRunControl::Continue);
         }
         self.cancel_primed_browsing_for_event(&event);
-        let voice_toggle = |app: &Self, key: KeyEvent| {
-            key.kind == KeyEventKind::Press
-                && app
-                    .active_keymap_contexts()
-                    .contains_action(crate::keymap::KeymapActionId {
-                        context: crate::keymap::KeymapContext::Chat,
-                        action: "toggle_voice",
-                    })
-                && app.keymap.chat.toggle_voice.is_pressed(key)
-        };
         // Transcript interactions consume otherwise-unhandled keys; let enabled voice controls
         // reach App.
         if !matches!(&event, TuiEvent::Key(key)
-            if voice_toggle(self, *key)
+            if self.voice_toggle_pressed(*key)
                 && (!self.transcript_view.owns_interaction_key(*key)
                     || self.transcript_view.is_select_mode()))
             && !composer_paste
@@ -1246,12 +1337,8 @@ impl App {
             }
         }
         if let TuiEvent::Key(key_event) = &event
-            && voice_toggle(self, *key_event)
+            && self.handle_voice_toggle_key(tui, *key_event).await
         {
-            self.cancel_transcript_browsing(tui);
-            if !self.chat_widget.handle_startup_submission_key(*key_event) {
-                self.control_voice(crate::app_event::VoiceControl::Toggle);
-            }
             return Ok(AppRunControl::Continue);
         }
         if let TuiEvent::Key(key_event) = &event
@@ -1262,7 +1349,8 @@ impl App {
             && self.keymap.chat.toggle_voice_mute.is_pressed(*key_event)
         {
             if !self.chat_widget.handle_startup_submission_key(*key_event) {
-                self.control_voice(crate::app_event::VoiceControl::Mute);
+                self.control_voice(crate::app_event::VoiceControl::Mute)
+                    .await;
             }
             return Ok(AppRunControl::Continue);
         }
@@ -1332,10 +1420,11 @@ impl App {
             _ => {}
         }
 
-        let draws_history = matches!(
-            event,
-            TuiEvent::Draw | TuiEvent::Resume | TuiEvent::Resize(_) | TuiEvent::FocusGained
-        );
+        if defer_inline_draw {
+            tui.defer_screen_size(screen_size);
+            tui.frame_requester().schedule_frame();
+            return Ok(AppRunControl::Continue);
+        }
         if self.overlay.is_some() {
             let _ = self
                 .handle_backtrack_overlay_event(tui, app_server, event)
@@ -1438,6 +1527,7 @@ impl App {
             let visible = self.current_displayed_thread_id().filter(|&id| {
                 tui.is_terminal_focused()
                     && !self.conversation_frame.panel_covers_transcript()
+                    && !self.conversation_area(screen_size.into()).is_empty()
                     && matches!(self.overlay, None | Some(Overlay::Transcript(_)))
                     && self.chat_widget.no_modal_or_popup_active()
                     && self.initial_history_replay_buffer.is_none()
@@ -1493,7 +1583,7 @@ impl App {
     }
 
     fn preview_image_protocol(&self, tui: &tui::Tui) -> Option<crate::pets::ImageProtocol> {
-        match tui.herdr_kitty_graphics {
+        match tui.probed_kitty_graphics {
             Some(true) => Some(crate::pets::ImageProtocol::Kitty),
             Some(false) => None,
             None => self.chat_widget.pet_image_support().protocol(),
@@ -1540,13 +1630,14 @@ impl App {
             self.maybe_run_resize_reflow(tui, screen_size)?;
         }
         let hud = self.workspace_hud(tui, screen_size.into());
+        self.chat_widget.begin_steer_hint_draw();
+        let mut rendered_area = Rect::default();
         self.with_chat_widget_frame(screen_size.width, |desired_height, chat_widget| {
             let desired_height = if dashboard_visible {
                 screen_size.height
             } else {
                 desired_height
             };
-            let mut rendered_area = Rect::default();
             tui.draw_with_resize_reflow(desired_height, screen_size, hud, |frame| {
                 let area = frame.area();
                 rendered_area = area;
@@ -1559,9 +1650,10 @@ impl App {
                     frame.set_cursor_style(chat_widget.cursor_style(area));
                     frame.set_cursor_position((x, y));
                 }
-            })?;
-            Ok(rendered_area)
-        })
+            })
+        })?;
+        self.chat_widget.finish_steer_hint_draw();
+        Ok(rendered_area)
     }
 
     fn with_chat_widget_frame<T>(

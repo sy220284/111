@@ -686,7 +686,6 @@ pub enum RealtimeTransport {
 }
 
 pub use codex_protocol::protocol::RealtimeConversationVersion as RealtimeWsVersion;
-pub use codex_protocol::protocol::RealtimeVoice;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
 #[schemars(deny_unknown_fields)]
@@ -695,7 +694,6 @@ pub struct RealtimeConfig {
     #[serde(rename = "type")]
     pub session_type: RealtimeWsMode,
     pub transport: RealtimeTransport,
-    pub voice: Option<RealtimeVoice>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
@@ -705,7 +703,9 @@ pub struct RealtimeToml {
     #[serde(rename = "type")]
     pub session_type: Option<RealtimeWsMode>,
     pub transport: Option<RealtimeTransport>,
-    pub voice: Option<RealtimeVoice>,
+    #[serde(rename = "voice", skip_serializing)]
+    #[schemars(skip)]
+    pub legacy_voice: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, Eq, JsonSchema)]
@@ -720,8 +720,6 @@ pub struct RealtimeAudioToml {
 #[derive(Serialize, Deserialize, Debug, Clone, Default, PartialEq, JsonSchema)]
 #[schemars(deny_unknown_fields)]
 pub struct ToolsToml {
-    /// Client provider preference when the model does not select a provider.
-    pub client_search_provider: Option<codex_protocol::openai_models::WebSearchProvider>,
     #[serde(
         default,
         deserialize_with = "deserialize_optional_web_search_tool_config"

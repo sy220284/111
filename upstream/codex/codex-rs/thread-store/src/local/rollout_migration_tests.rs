@@ -384,15 +384,25 @@ async fn migration_publishes_canonical_projected_history_and_is_idempotent() {
     assert_eq!(
         lines
             .iter()
-            .filter(|line| matches!(line.item, RolloutItem::EventMsg(EventMsg::ItemCompleted(_))))
+            .filter(|line| matches!(
+                line.item,
+                RolloutItem::EventMsg {
+                    event: EventMsg::ItemCompleted(_),
+                    ..
+                }
+            ))
             .count(),
         2
     );
     let user_item = lines.iter().find_map(|line| match &line.item {
-        RolloutItem::EventMsg(EventMsg::ItemCompleted(ItemCompletedEvent {
-            item: TurnItem::UserMessage(item),
+        RolloutItem::EventMsg {
+            event:
+                EventMsg::ItemCompleted(ItemCompletedEvent {
+                    item: TurnItem::UserMessage(item),
+                    ..
+                }),
             ..
-        })) => Some(item),
+        } => Some(item),
         _ => None,
     });
     let expected_content = vec![
@@ -567,6 +577,7 @@ async fn migration_preserves_image_generation_failure_metadata() {
         input_images: Vec::new(),
         imagegen_request_id: None,
         generation_id: None,
+        image_metadata: Default::default(),
     };
     let image_completion =
         RolloutItem::EventMsg(EventMsg::ImageGenerationEnd(ImageGenerationEndEvent {
@@ -579,6 +590,7 @@ async fn migration_preserves_image_generation_failure_metadata() {
             saved_path: expected_item.saved_path.clone(),
             input_images: Vec::new(),
             generation_id: expected_item.generation_id.clone(),
+            image_metadata: expected_item.image_metadata.clone(),
         }));
     let path = write_rollout(
         home.path(),
@@ -600,7 +612,10 @@ async fn migration_preserves_image_generation_failure_metadata() {
     let migrated_item = read_rollout(&path)
         .into_iter()
         .find_map(|line| match line.item {
-            RolloutItem::EventMsg(EventMsg::ItemCompleted(event)) => Some(event.item),
+            RolloutItem::EventMsg {
+                event: EventMsg::ItemCompleted(event),
+                ..
+            } => Some(event.item),
             _ => None,
         })
         .expect("migrated image completion");
@@ -631,6 +646,10 @@ async fn migration_preserves_image_generation_input_observations() {
         }],
         imagegen_request_id: None,
         generation_id: Some("gen-image-123".to_string()),
+        image_metadata: serde_json::Map::from_iter([(
+            "futureKey".to_string(),
+            json!({"nestedKey": [0, false, null]}),
+        )]),
     };
     let image_completion =
         RolloutItem::EventMsg(EventMsg::ImageGenerationEnd(ImageGenerationEndEvent {
@@ -643,6 +662,7 @@ async fn migration_preserves_image_generation_input_observations() {
             saved_path: expected_item.saved_path.clone(),
             input_images: expected_item.input_images.clone(),
             generation_id: expected_item.generation_id.clone(),
+            image_metadata: expected_item.image_metadata.clone(),
         }));
     let path = write_rollout(
         home.path(),
@@ -664,7 +684,10 @@ async fn migration_preserves_image_generation_input_observations() {
     let migrated_item = read_rollout(&path)
         .into_iter()
         .find_map(|line| match line.item {
-            RolloutItem::EventMsg(EventMsg::ItemCompleted(event)) => Some(event.item),
+            RolloutItem::EventMsg {
+                event: EventMsg::ItemCompleted(event),
+                ..
+            } => Some(event.item),
             _ => None,
         })
         .expect("migrated image completion");
@@ -714,7 +737,10 @@ async fn migration_keeps_late_completions_in_their_original_turn() {
     let started_turn_ids = read_rollout(&path)
         .into_iter()
         .filter_map(|line| match line.item {
-            RolloutItem::EventMsg(EventMsg::TurnStarted(event)) => Some(event.turn_id),
+            RolloutItem::EventMsg {
+                event: EventMsg::TurnStarted(event),
+                ..
+            } => Some(event.turn_id),
             _ => None,
         })
         .collect::<Vec<_>>();
@@ -838,7 +864,13 @@ async fn migration_preserves_valid_final_record_without_newline() {
     assert_eq!(
         read_rollout(&path)
             .iter()
-            .filter(|line| matches!(line.item, RolloutItem::EventMsg(EventMsg::ItemCompleted(_))))
+            .filter(|line| matches!(
+                line.item,
+                RolloutItem::EventMsg {
+                    event: EventMsg::ItemCompleted(_),
+                    ..
+                }
+            ))
             .count(),
         2
     );
@@ -883,7 +915,10 @@ async fn migration_applies_historical_rollbacks_before_sqlite_projection() {
     let lines = read_rollout(&path);
     assert!(!lines.iter().any(|line| matches!(
         line.item,
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(_))
+        RolloutItem::EventMsg {
+            event: EventMsg::ThreadRolledBack(_),
+            ..
+        }
     )));
     let turns = list_active_summary_turns(&store, thread_id).await;
     assert_eq!(
@@ -1172,26 +1207,26 @@ async fn migration_keeps_late_completions_for_surviving_turns_across_rollback() 
     let lines = read_rollout(&path);
     assert!(!lines.iter().any(|line| matches!(
         &line.item,
-        RolloutItem::EventMsg(EventMsg::ItemCompleted(event))
+        RolloutItem::EventMsg { event: EventMsg::ItemCompleted(event), .. }
             if event.item.id() == "call-remove"
     )));
     assert!(lines.iter().any(|line| matches!(
         &line.item,
-        RolloutItem::EventMsg(EventMsg::ItemCompleted(event))
+        RolloutItem::EventMsg { event: EventMsg::ItemCompleted(event), .. }
             if event.turn_id == "old" && event.item.id() == "call-old"
     )));
     assert!(lines.iter().any(|line| matches!(
         &line.item,
-        RolloutItem::EventMsg(EventMsg::ItemCompleted(event))
+        RolloutItem::EventMsg { event: EventMsg::ItemCompleted(event), .. }
             if event.turn_id == "old" && event.item.id() == "reason-old"
     )));
     assert!(lines.iter().any(|line| matches!(
         &line.item,
-        RolloutItem::EventMsg(EventMsg::TurnComplete(event)) if event.turn_id == "old"
+        RolloutItem::EventMsg { event: EventMsg::TurnComplete(event), .. } if event.turn_id == "old"
     )));
     assert!(!lines.iter().any(|line| matches!(
         &line.item,
-        RolloutItem::EventMsg(EventMsg::TurnComplete(event)) if event.turn_id == "remove"
+        RolloutItem::EventMsg { event: EventMsg::TurnComplete(event), .. } if event.turn_id == "remove"
     )));
     let turns = store
         .list_turns(ListTurnsParams {
@@ -2159,7 +2194,10 @@ async fn migration_applies_cumulative_and_overflowing_rollbacks() {
     assert_eq!(turns.turns.len(), 1);
     assert!(!read_rollout(&path).iter().any(|line| matches!(
         line.item,
-        RolloutItem::EventMsg(EventMsg::ThreadRolledBack(_))
+        RolloutItem::EventMsg {
+            event: EventMsg::ThreadRolledBack(_),
+            ..
+        }
     )));
 }
 
@@ -2392,7 +2430,13 @@ async fn migration_keeps_small_uncompacted_subagent_replay_as_prefix() {
     assert_eq!(
         lines
             .iter()
-            .filter(|line| matches!(line.item, RolloutItem::EventMsg(EventMsg::ItemCompleted(_))))
+            .filter(|line| matches!(
+                line.item,
+                RolloutItem::EventMsg {
+                    event: EventMsg::ItemCompleted(_),
+                    ..
+                }
+            ))
             .count(),
         2
     );

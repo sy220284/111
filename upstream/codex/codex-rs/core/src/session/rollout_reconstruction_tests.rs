@@ -132,6 +132,7 @@ async fn sender_context_follows_its_delivery_through_checkpoint_and_rollback() {
         /*reuse_parent_compaction*/ true,
         codex_guardian_context::ContextBudgeting::Fixed,
         thread_context_ids(),
+        /*retention*/ None,
     );
     let mut items = Vec::new();
     let mut snapshots = Vec::new();
@@ -1672,7 +1673,10 @@ async fn bounded_replay_matches_full_replay_after_empty_turn_compactions(
         wake_items.retain(|item| {
             !matches!(
                 item,
-                RolloutItem::EventMsg(EventMsg::UserMessage(_) | EventMsg::TurnComplete(_))
+                RolloutItem::EventMsg {
+                    event: EventMsg::UserMessage(_) | EventMsg::TurnComplete(_),
+                    ..
+                }
             )
         });
         wake_items.push(RolloutItem::EventMsg(EventMsg::TurnAborted(
@@ -1792,14 +1796,22 @@ async fn reconstruct_attribution_ignores_previous_turn_terminal(evidence: Attrib
     current_context.turn_id = Some(expected.turn_id.clone());
     current_context.root_turn_id = expected.root_turn_id.clone();
     let mut rollout = completed_user_turn_rollout(turn_context.to_turn_context_item(), Vec::new());
-    let RolloutItem::EventMsg(EventMsg::TurnStarted(start)) = &mut rollout[0] else {
+    let RolloutItem::EventMsg {
+        event: EventMsg::TurnStarted(start),
+        ..
+    } = &mut rollout[0]
+    else {
         panic!("expected previous turn start");
     };
     start.turn_attribution = Some(older_attribution.clone());
     let mut late_terminal = rollout.pop().expect("previous turn completion");
     let mut current = completed_user_turn_rollout(current_context, Vec::new());
     current.pop().expect("current turn completion");
-    let RolloutItem::EventMsg(EventMsg::TurnStarted(start)) = &mut current[0] else {
+    let RolloutItem::EventMsg {
+        event: EventMsg::TurnStarted(start),
+        ..
+    } = &mut current[0]
+    else {
         panic!("expected current turn start");
     };
     start.turn_attribution = Some(expected.clone());

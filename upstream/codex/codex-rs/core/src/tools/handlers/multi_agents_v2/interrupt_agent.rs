@@ -73,7 +73,7 @@ async fn handle_interrupt_agent(
         SubAgentActivityItem {
             model: None,
             reasoning_effort: None,
-            id: call_id,
+            id: call_id.into(),
             agent_thread_id: agent_id,
             agent_path,
             kind: SubAgentActivityKind::Interrupted,
@@ -114,7 +114,7 @@ impl ToolOutput for InterruptAgentResult {
         tool_output_response_item(call_id, payload, self, Some(true), "interrupt_agent")
     }
 
-    fn code_mode_result(&self, _payload: &ToolPayload) -> JsonValue {
+    fn code_mode_result(&self, _payload: &ToolPayload) -> CodeModeToolResult {
         tool_output_code_mode_result(self, "interrupt_agent")
     }
 }

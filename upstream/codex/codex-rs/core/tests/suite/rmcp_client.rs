@@ -2177,7 +2177,7 @@ async fn interrupt_during_mcp_startup_preserves_user_input_in_history(
             .iter()
             .any(|item| matches!(
                 item,
-                RolloutItem::EventMsg(EventMsg::ThreadSettingsApplied(applied))
+                RolloutItem::EventMsg { event: EventMsg::ThreadSettingsApplied(applied), .. }
                     if applied.thread_id == Some(fixture.session_configured.thread_id)
             ))
     );
@@ -2561,8 +2561,8 @@ async fn stdio_mcp_tool_call_includes_sandbox_state_meta(
         .as_mut()
         .expect("bundled model messages");
     messages.confirmation_policies = Some(ConfirmationPolicies {
-        browser_use: browser_policy.map(str::to_owned),
-        computer_use: computer_policy.map(str::to_owned),
+        browser_use: browser_policy.map(Into::into),
+        computer_use: computer_policy.map(Into::into),
     });
     let models_mock = mount_models_once(&server, models).await;
 
@@ -3656,7 +3656,6 @@ async fn stdio_image_responses_are_sanitized_for_text_only_model() -> anyhow::Re
                 availability_nux: None,
                 apply_patch_tool_type: None,
                 web_search_tool_type: Default::default(),
-                web_search_provider: None,
                 truncation_policy: TruncationPolicyConfig::bytes(/*limit*/ 10_000),
                 supports_image_detail_original: false,
                 context_window: Some(272_000),
