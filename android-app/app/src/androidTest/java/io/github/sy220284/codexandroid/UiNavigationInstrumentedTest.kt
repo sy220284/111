@@ -1141,9 +1141,7 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("queue")
-        rule.onNodeWithTag("thread-queue-draft").performClick()
-        rule.onNodeWithTag("action-reply-input").performTextInput("保留未发送的队列内容")
-        rule.onNodeWithTag("action-reply-send").performClick()
+        rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)

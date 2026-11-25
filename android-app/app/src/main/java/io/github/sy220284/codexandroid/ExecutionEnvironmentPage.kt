@@ -126,6 +126,8 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                     error = if (endpoint.isNotBlank() && !ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint))
                         "连接地址格式不正确，或不符合安全连接要求。" else null,
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
+                    validate = { address -> if (address.isNotBlank() && !ExecutionEnvironmentConnectionPolicy.supportsEndpoint(address))
+                        "连接地址格式不正确，或不符合安全连接要求。" else null },
                     modifier = Modifier.testTag("environment-endpoint"))
                 if (remoteName.isNotBlank()) ActionQuestionRow(remoteName, { remoteName = it.trim().ifBlank { ExecutionEnvironmentConnectionPolicy.defaultName(endpoint) } },
                     "连接名称", helper = "根据地址自动生成，可按需修改",

@@ -67,7 +67,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             val name = names.getOrNull(index)
             val field = name?.let(fields::optJSONObject)
             if (name != null && field != null) {
-                Text("问题 ${index + 1} / ${names.size}", color = Ink.muted)
+                Text("问题 ${index + 1} / ${names.size} · 已回答 ${names.count { !answers[it].isNullOrBlank() }} 项", color = Ink.muted)
                 val type = field.optString("type")
                 val mandatory = (0 until required.length()).any { required.optString(it) == name }
                 val title = field.optString("title").ifBlank { name }
@@ -80,10 +80,10 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     "boolean" -> Column(Modifier.selectableGroup(),
                         verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         AtlasChoiceRow("允许", "", selected = answers[name] == "true",
-                            onClick = { answers[name] = "true" },
+                            onClick = { answers[name] = "true"; if (index + 1 < names.size) questionIndex = index + 1 },
                             modifier = Modifier.testTag("elicitation-allow-" + name))
                         AtlasChoiceRow("不允许", "", selected = answers[name] == "false",
-                            onClick = { answers[name] = "false" },
+                            onClick = { answers[name] = "false"; if (index + 1 < names.size) questionIndex = index + 1 },
                             modifier = Modifier.testTag("elicitation-deny-" + name))
                     }
                     "string" -> {
@@ -91,11 +91,11 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                         if (options != null) {
                             Column(Modifier.selectableGroup(),
                                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                for (index in 0 until options.length()) {
-                                    val value = options.optString(index)
+                                for (optionIndex in 0 until options.length()) {
+                                    val value = options.optString(optionIndex)
                                     AtlasChoiceRow(value, "", selected = answers[name] == value,
-                                        onClick = { answers[name] = value },
-                                        modifier = Modifier.testTag("elicitation-option-" + name + "-" + index))
+                                        onClick = { answers[name] = value; if (index + 1 < names.size) questionIndex = index + 1 },
+                                        modifier = Modifier.testTag("elicitation-option-" + name + "-" + optionIndex))
                                 }
                             }
                         } else {

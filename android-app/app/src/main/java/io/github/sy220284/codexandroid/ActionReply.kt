@@ -35,10 +35,12 @@ internal fun ActionReplyRow(
     isError: Boolean = false, visualTransformation: VisualTransformation = VisualTransformation.None,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     singleLine: Boolean = false, maxLines: Int = if (singleLine) 1 else 6, minLines: Int = 1,
-    confirmedValid: Boolean = false
+    confirmedValid: Boolean = false,
+    directText: Boolean = false,
+    validate: ((String) -> String?)? = null
 ) {
     val secret = visualTransformation is PasswordVisualTransformation
-    if (secret) {
+    if (secret || directText) {
         CodexInputField(value, onValueChange, modifier = modifier.fillMaxWidth(), enabled = enabled,
             label = label, placeholder = placeholder, supportingText = supportingText,
             visualTransformation = visualTransformation, keyboardOptions = keyboardOptions,
@@ -52,11 +54,13 @@ internal fun ActionReplyRow(
     val clipboard = LocalClipboardManager.current
     var clipboardEmpty by remember { mutableStateOf(false) }
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val draftError = validate?.invoke(draft)
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(modifier.fillMaxWidth().heightIn(min = 48.dp).codexPressable(enabled = enabled, role = Role.Button) {
             if (!open) draft = value
             open = !open
-            if (!open) focus.clearFocus()
+            if (!open) { focus.clearFocus(); keyboard?.hide() }
         }, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 label()
@@ -79,7 +83,8 @@ internal fun ActionReplyRow(
                 CodexInputField(draft, { draft = it }, modifier = Modifier.fillMaxWidth().testTag("action-reply-input"),
                     placeholder = placeholder ?: { Text("输入内容…") },
                     enabled = enabled && open, keyboardOptions = keyboardOptions, singleLine = singleLine,
-                    maxLines = maxLines, minLines = minLines)
+                    maxLines = maxLines, minLines = minLines, isError = draftError != null,
+                    supportingText = draftError?.let { reason -> { Text(reason, color = Ink.red) } })
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     CodexTextAction(onClick = {
                         val pasted = clipboard.getText()?.text
@@ -90,10 +95,10 @@ internal fun ActionReplyRow(
                 }
                 if (clipboardEmpty) Text("剪贴板没有可用文字", color = Ink.muted)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CodexTextAction(onClick = { draft = value; open = false; focus.clearFocus() },
+                    CodexTextAction(onClick = { draft = value; open = false; focus.clearFocus(); keyboard?.hide() },
                         modifier = Modifier.weight(1f).testTag("action-reply-cancel")) { Text("取消") }
-                    CodexPrimaryButton(onClick = { onValueChange(draft); open = false; focus.clearFocus() },
-                        modifier = Modifier.weight(1f).testTag("action-reply-send"), enabled = enabled && open) { Text("应用") }
+                    CodexPrimaryButton(onClick = { onValueChange(draft); open = false; focus.clearFocus(); keyboard?.hide() },
+                        modifier = Modifier.weight(1f).testTag("action-reply-send"), enabled = enabled && open && draftError == null) { Text("应用") }
                 }
             }
         }
@@ -107,20 +112,25 @@ internal fun ActionNumberStepper(value: String, onValueChange: (String) -> Unit,
     allowUnset: Boolean = false, initial: Long = min) {
     require(min <= max && step > 0 && initial in min..max)
     val number = value.toLongOrNull()?.takeIf { it in min..max }
+    var precise by rememberSaveable { mutableStateOf(false) }
+    val increment = if (precise) 1L else step
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(label, style = MaterialTheme.typography.titleSmall)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             CodexSecondaryButton(onClick = {
                 val n = number ?: initial
-                onValueChange(if (n - min < step) min.toString() else (n - step).toString())
+                onValueChange(if (n - min < increment) min.toString() else (n - increment).toString())
             }, enabled = enabled && (number == null || number > min)) { Text("−") }
             Text(number?.toString() ?: "由系统决定", modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.titleMedium)
             CodexSecondaryButton(onClick = {
                 val n = number ?: initial
-                onValueChange(if (max - n < step) max.toString() else (n + step).toString())
+                onValueChange(if (max - n < increment) max.toString() else (n + increment).toString())
             }, enabled = enabled && (number == null || number < max)) { Text("+") }
+        }
+        if (step > 1) CodexTextAction(onClick = { precise = !precise }, enabled = enabled) {
+            Text(if (precise) "恢复常用调整幅度" else "精确调整（每次 1）")
         }
         if (allowUnset) CodexTextAction(onClick = { onValueChange("") },
             enabled = enabled && value.isNotEmpty()) { Text("恢复默认") }
@@ -131,14 +141,15 @@ internal fun ActionNumberStepper(value: String, onValueChange: (String) -> Unit,
 internal fun ActionQuestionRow(value: String, onValueChange: (String) -> Unit,
     label: String, modifier: Modifier = Modifier, placeholder: String = "",
     helper: String = "", error: String? = null, keyboardType: androidx.compose.ui.text.input.KeyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
-    enabled: Boolean = true, singleLine: Boolean = true, confirmedValid: Boolean = false) {
+    enabled: Boolean = true, singleLine: Boolean = true, confirmedValid: Boolean = false,
+    directText: Boolean = false, validate: ((String) -> String?)? = null) {
     ActionReplyRow(value, onValueChange, modifier = modifier,
         label = { Text(label) }, placeholder = if (placeholder.isNotBlank()) {{ Text(placeholder) }} else null,
         supportingText = if (error != null || helper.isNotBlank()) {{
             Text(error ?: helper, color = if (error != null) Ink.red else Ink.muted)
         }} else null, singleLine = singleLine, enabled = enabled,
         isError = error != null, confirmedValid = confirmedValid,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType))
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType), directText = directText, validate = validate)
 }
 
 internal object AgentActionDraftPolicy {
@@ -164,9 +175,9 @@ internal fun AgentActionRow(vm: CodexViewModel, title: String, detail: String, r
         modifier = modifier, outlined = false)
     if (preview) CodexConfirmDialog(
         title = "交给 Codex 处理",
-        message = if (!canPrepare) "此工作区有未发送的新会话草稿。请先处理该草稿，避免混入配置任务。"
-            else failure.ifBlank { "将打开独立的新任务草稿，当前会话与任务继续保留；发送前可检查和修改内容。" },
-        detail = "工作区：" + PresentationPolicy.workspaceName(workspace) + "\\n\\n" + request,
+        message = failure.ifBlank { if (!canPrepare) "此工作区有未发送的新会话草稿。请先处理该草稿，避免混入配置任务。"
+            else "将打开独立的新任务草稿，当前会话与任务继续保留；发送前可检查和修改内容。" },
+        detail = "工作区：" + PresentationPolicy.workspaceName(workspace) + "\n\n" + request,
         confirmLabel = if (canPrepare) "打开任务草稿" else "查看已有草稿",
         confirmEnabled = enabled && !transferring.busy && !switching && !creating,
         onConfirm = {

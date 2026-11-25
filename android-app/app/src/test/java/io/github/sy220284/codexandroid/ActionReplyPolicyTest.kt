@@ -12,6 +12,12 @@ class ActionReplyPolicyTest {
         assertFalse(AgentActionDraftPolicy.canPrepare(ComposerDraft(), ""))
     }
 
+    @Test fun defaultNamesRemainUniqueWhenChangingCreationType() {
+        val occupied = setOf("新建文件.txt", "新建文件 2.txt", "新建文件夹")
+        assertEquals("新建文件 3.txt", defaultWorkspaceContentName("file", occupied))
+        assertEquals("新建文件夹 2", defaultWorkspaceContentName("folder", occupied))
+    }
+
     @Test fun endpointDerivesNameOnlyFromValidatedAddress() {
         assertEquals("example.com", ProviderAddressPolicy.defaultName("https://example.com/v1"))
         assertEquals("", ProviderAddressPolicy.defaultName("https://user:password@example.com"))

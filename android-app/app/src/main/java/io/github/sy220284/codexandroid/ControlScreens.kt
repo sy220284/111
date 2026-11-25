@@ -200,7 +200,10 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         if (question) {
             val items = prompt.params.optJSONArray("questions") ?: org.json.JSONArray()
             val index = questionIndex.coerceIn(0, (items.length() - 1).coerceAtLeast(0))
-            Text("问题 ${index + 1} / ${items.length()}", color = Ink.muted)
+            val answered = (0 until items.length()).count { n ->
+                answers[items.optJSONObject(n)?.optString("id").orEmpty()]?.isNotBlank() == true
+            }
+            Text("问题 ${index + 1} / ${items.length()} · 已回答 $answered 项", color = Ink.muted)
             items.optJSONObject(index)?.let { q ->
                 val id = q.optString("id")
                 val options = q.optJSONArray("options")
@@ -214,7 +217,10 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             val label = choice.optString("label")
                             AtlasChoiceRow(label, choice.optString("description"),
                                 selected = answers[id] == label,
-                                onClick = { answers[id] = label },
+                                onClick = {
+                                    answers[id] = label
+                                    if (index + 1 < items.length()) questionIndex = index + 1
+                                },
                                 modifier = Modifier.testTag("approval-answer-" + id + "-" + opt))
                         }
                     }
@@ -225,7 +231,8 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                     visualTransformation = if (q.optBoolean("isSecret"))
                         androidx.compose.ui.text.input.PasswordVisualTransformation()
                     else androidx.compose.ui.text.input.VisualTransformation.None,
-                    modifier = Modifier.fillMaxWidth(), singleLine = !q.optBoolean("isOther")
+                    modifier = Modifier.fillMaxWidth(), singleLine = !q.optBoolean("isOther"),
+                    directText = options == null
                 )
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

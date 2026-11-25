@@ -100,7 +100,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 vm.editTaskPanelDraft(active) { it.copy(goalText = text) }
             }, modifier = Modifier.fillMaxWidth(),
                 label = { Text("目标说明") }, placeholder = { Text("写明期望结果与验收标准") },
-                minLines = 3, maxLines = 7)
+                minLines = 3, maxLines = 7, directText = true)
             Text("执行状态", style = MaterialTheme.typography.titleMedium)
             AtlasStatusSelector(
                 selected = status,
@@ -318,7 +318,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             }, modifier = Modifier.fillMaxWidth().testTag("thread-queue-draft"),
                 minLines = 2, maxLines = 6,
                 label = { Text("完成当前任务后做什么") },
-                placeholder = { Text("描述明确任务及完成条件") })
+                placeholder = { Text("描述明确任务及完成条件") }, directText = true)
             CodexSecondaryButton(onClick = {
                 val originalDraft = draft
                 val args = JSONObject().put("threadId", active)
@@ -505,7 +505,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                     ActionReplyRow(
                         value = editText, onValueChange = { editText = it },
                         modifier = Modifier.fillMaxWidth(),
-                        label = { Text("任务内容") }, minLines = 2, maxLines = 6
+                        label = { Text("任务内容") }, minLines = 2, maxLines = 6, directText = true
                     )
                     errors["queueWrite"]?.let {
                         Text("保存失败：" + PresentationPolicy.readableError(it), color = Ink.red)
