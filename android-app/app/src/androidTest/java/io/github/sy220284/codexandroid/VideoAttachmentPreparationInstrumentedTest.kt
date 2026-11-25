@@ -27,18 +27,23 @@ class VideoAttachmentPreparationInstrumentedTest {
             assertArrayEquals(bytes, prepared.readBytes())
             val bitmap = BitmapFactory.decodeFile(LocalMediaAttachmentPolicy.frames(prepared.path))
             assertNotNull(bitmap)
-            assertEquals(1280, bitmap.width)
-            assertEquals(1170, bitmap.height)
+            assertEquals(VideoAttachmentPreparation.SHEET_WIDTH, bitmap.width)
+            val timeline = VideoTimeline.read(prepared.path)
+            assertEquals(1, timeline.segments.size)
+            assertTrue(timeline.durationMs in 1900..2100)
+            assertEquals(0L, timeline.segments.first().startMs)
+            assertTrue(timeline.segments.first().times.size >= 3)
             bitmap.recycle()
             val audio = MediaExtractor()
             try {
-                audio.setDataSource(LocalMediaAttachmentPolicy.sound(prepared.path))
+                audio.setDataSource(VideoTimeline.audio(prepared.path, 0))
                 assertEquals(1, audio.trackCount)
                 assertEquals(MediaFormat.MIMETYPE_AUDIO_AAC, audio.getTrackFormat(0).getString(MediaFormat.KEY_MIME))
             } finally { audio.release() }
             val input = TurnRequestContract.input("", listOf(prepared.path))
-            assertEquals("localImage", input.getJSONObject(1).getString("type"))
-            assertEquals("localAudio", input.getJSONObject(2).getString("type"))
+            assertEquals("localImage", input.getJSONObject(2).getString("type"))
+            assertEquals("localAudio", input.getJSONObject(3).getString("type"))
+            assertTrue(LocalMediaAttachmentPolicy.ownedPaths(prepared.path).all { File(it).length() > 0 })
         } finally { directory.deleteRecursively() }
     }
 }

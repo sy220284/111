@@ -105,22 +105,23 @@ class ComposerProviderScopeTest {
         val dir = java.nio.file.Files.createTempDirectory("video-attachment-test").toFile()
         try {
             val video = java.io.File(dir, "sample.av.mp4").path
-            LocalMediaAttachmentPolicy.ownedPaths(video).forEach { java.io.File(it).writeText("test") }
+            createVideoFixture(video, true)
             val input = TurnRequestContract.input("", listOf(video))
             assertEquals("text", input.getJSONObject(0).getString("type"))
-            assertEquals("localImage", input.getJSONObject(1).getString("type"))
-            assertEquals("localAudio", input.getJSONObject(2).getString("type"))
+            assertEquals("text", input.getJSONObject(1).getString("type"))
+            assertEquals("localImage", input.getJSONObject(2).getString("type"))
+            assertEquals("localAudio", input.getJSONObject(3).getString("type"))
             assertEquals(setOf("image", "audio"), LocalMediaAttachmentPolicy.modalities(listOf(video)))
             val onlyImage = JSONObject().put("id", "vision").put("inputModalities", org.json.JSONArray().put("text").put("image"))
             assertThrows(IllegalArgumentException::class.java) {
                 TurnRequestContract.build("t", "分析", "vision", "default", listOf(onlyImage), listOf(video))
             }
-            java.io.File(LocalMediaAttachmentPolicy.sound(video)).delete()
+            java.io.File(VideoTimeline.audio(video, 0)).delete()
             assertThrows(IllegalArgumentException::class.java) { TurnRequestContract.input("", listOf(video)) }
             val silent = java.io.File(dir, "sample.silent.mp4").path
-            LocalMediaAttachmentPolicy.ownedPaths(silent).forEach { java.io.File(it).writeText("test") }
+            createVideoFixture(silent, false)
             assertEquals(setOf("image"), LocalMediaAttachmentPolicy.modalities(listOf(silent)))
-            assertEquals(2, TurnRequestContract.input("", listOf(silent)).length())
+            assertEquals(3, TurnRequestContract.input("", listOf(silent)).length())
         } finally { dir.deleteRecursively() }
     }
 }

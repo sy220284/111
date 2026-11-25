@@ -58,8 +58,8 @@ class AttachmentRetentionPolicyTest {
         try {
             val path = File(folder, "source.av.mp4").canonicalPath
             val now = System.currentTimeMillis()
+            createVideoFixture(path, true)
             val owned = LocalMediaAttachmentPolicy.ownedPaths(path).map { File(it).apply {
-                writeText("test")
                 setLastModified(now - 2 * AttachmentRetentionPolicy.ORPHAN_TTL_MILLIS)
             } }
             assertEquals(0, AttachmentRetentionPolicy.prune(folder, setOf(path), now))
