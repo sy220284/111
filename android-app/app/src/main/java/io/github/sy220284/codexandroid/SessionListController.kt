@@ -15,10 +15,10 @@ internal object SessionListPolicy {
     fun title(row: JSONObject) = PresentationPolicy.threadTitle(row.optString("name"), row.optString("preview"))
     fun recency(row: JSONObject) = sequenceOf("recencyAt", "updatedAt", "createdAt")
         .map { row.optLong(it, 0) }.firstOrNull { it > 0 } ?: 0
-    fun ordered(rows: List<JSONObject>, pinned: Set<String>) = rows
+    fun ordered(rows: List<JSONObject>, pinned: Set<String>, sort: SessionSort = SessionSort.Recent) = rows
         .filter { id(it).isNotBlank() }.distinctBy(::id)
         .sortedWith(compareByDescending<JSONObject> { id(it) in pinned }
-            .thenByDescending(::recency).thenByDescending(::id))
+            .thenByDescending { sort.timestamp(it) }.thenByDescending(::id))
     fun titleMatches(row: JSONObject, query: String) =
         query.isBlank() || title(row).contains(query.trim(), ignoreCase = true)
     fun unread(receipt: JSONObject?) = receipt?.optJSONObject("firstUnread") != null
