@@ -29,7 +29,7 @@ internal class WorkspaceTaskOperations(
         if (remote != null) {
             val selected = WorkspaceSelectionContract.validate(workspaceRoot, workspaceRoot)
             val epoch = expectedSession
-            vm.remoteBindings.ready(remote) { method, params -> bridge.request(method, params, expectedSession = epoch) }
+            vm.remoteBindings.ready(epoch, remote) { method, params -> bridge.request(method, params, expectedSession = epoch) }
             // Do not override cwd on a loaded remote thread: doing so resets sticky environments.
             bridge.request("thread/resume", org.json.JSONObject().put("threadId", id).put("excludeTurns", true),
                 expectedSession = epoch)

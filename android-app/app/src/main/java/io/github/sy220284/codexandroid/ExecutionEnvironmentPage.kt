@@ -40,7 +40,7 @@ internal object ExecutionEnvironmentConnectionPolicy {
         } catch (ex: URISyntaxException) {
             return false
         }
-        if (uri.host.isNullOrBlank() || uri.userInfo != null || uri.fragment != null ||
+        if (uri.host.isNullOrBlank() || uri.userInfo != null || uri.fragment != null || uri.rawQuery != null ||
             uri.port == 0 || uri.port > 65535) return false
         return uri.scheme.equals("wss", ignoreCase = true) ||
             (uri.scheme.equals("ws", ignoreCase = true) &&
@@ -199,7 +199,7 @@ fun EnvironmentsPage(vm: CodexViewModel, onRemoteTask: () -> Unit = {}) {
                         CodexNotice("服务已登记，连接状态待核实。", NoticeTone.Info)
                 }
                 if (!vm.remoteBindings.permitsRegistration(remoteName.trim(), endpoint.trim()))
-                    ErrorText("该连接名称已绑定历史任务，请使用原地址或选择新的名称。")
+                    ErrorText("该连接名称已绑定原设备，请使用原地址或选择新的名称。")
                 val bindingResult = remember(targetId, endpoint, lastSubmittedRemote, results[infoKey], results[statusKey]) {
                     if (lastSubmittedRemote == targetId && results[statusKey]?.optString("status") == "ready")
                         runCatching { RemoteExecutionBinding(targetId, endpoint.trim(),

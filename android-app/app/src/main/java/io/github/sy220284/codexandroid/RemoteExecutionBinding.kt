@@ -68,11 +68,13 @@ data class RemoteExecutionBinding(val id: String, val endpoint: String, val cwd:
 
 /** Per-thread durable binding survives native-process restart; no implicit local fallback. */
 internal class RemoteExecutionBindings(private val preferences: SharedPreferences) {
+    private val protocol = RemoteEnvironmentProtocol()
     fun forThread(threadId: String?): RemoteExecutionBinding? = threadId?.let {
         preferences.getString("thread:$it", null)?.let { value -> RemoteExecutionBinding.read(JSONObject(value)) }
     }
 
     fun permitsRegistration(id: String, endpoint: String): Boolean =
+        preferences.getString("environment:$id", null)?.let { it == endpoint } != false &&
         preferences.all.filterKeys { it.startsWith("thread:") }.values.none {
             val binding = RemoteExecutionBinding.read(JSONObject(it as String))
             binding.id == id && binding.endpoint != endpoint
@@ -86,30 +88,26 @@ internal class RemoteExecutionBindings(private val preferences: SharedPreference
         }
     }
 
-    suspend fun ready(binding: RemoteExecutionBinding, request: suspend (String, JSONObject) -> JSONObject) {
-        val params = JSONObject().put("environmentId", binding.id)
-        val status = request("environment/status", params)
-        if (status.optString("status") == "unknown") {
-            request("environment/add", JSONObject().put("environmentId", binding.id).put("execServerUrl", binding.endpoint))
+    suspend fun register(epoch: Long, id: String, endpoint: String,
+                         request: suspend (String, JSONObject) -> JSONObject): JSONObject {
+        require(ExecutionEnvironmentConnectionPolicy.supportsRemoteName(id) &&
+            ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint)) { "远端连接信息无效" }
+        require(permitsRegistration(id, endpoint)) { "该环境名称已绑定其他设备，请使用新的名称" }
+        return protocol.register(epoch, id, endpoint, request) {
+            check(permitsRegistration(id, endpoint)) { "该环境名称已绑定其他设备" }
+            check(preferences.edit().putString("environment:$id", endpoint).commit()) { "远端连接归属无法保存" }
         }
-        val info = request("environment/info", params)
-        require(RemoteExecutionBinding.nativePath(info.getString("cwd")) == binding.cwd) {
-            "远端默认工作目录已变化，请重新连接并创建对应任务"
-        }
-        val checked = request("environment/status", params)
-        check(checked.optString("status") == "ready") { "远端未连接：" + checked.optString("error", "请检查执行服务") }
     }
 
-    suspend fun ensureThread(id: String, binding: RemoteExecutionBinding, running: Boolean,
+    suspend fun ready(epoch: Long, binding: RemoteExecutionBinding,
+                      request: suspend (String, JSONObject) -> JSONObject) {
+        register(epoch, binding.id, binding.endpoint, request)
+        RemoteEnvironmentProtocol.verifyReady(binding, request)
+    }
+
+    suspend fun ensureThread(epoch: Long, id: String, binding: RemoteExecutionBinding, running: Boolean,
                              request: suspend (String, JSONObject) -> JSONObject) {
-        ready(binding, request)
-        val params = JSONObject().put("threadId", id)
-        val thread = request("thread/read", params).getJSONObject("thread")
-        if (binding.matches(thread)) return
-        check(!running) { "正在执行的远端回合归属无法确认，请先停止任务" }
-        request("thread/settings/update", binding.apply(JSONObject().put("threadId", id)))
-        check(binding.matches(request("thread/read", params).getJSONObject("thread"))) {
-            "运行核心未确认远端环境归属，任务未发送"
-        }
+        ready(epoch, binding, request)
+        RemoteEnvironmentProtocol.confirmThread(id, binding, running, request)
     }
 }

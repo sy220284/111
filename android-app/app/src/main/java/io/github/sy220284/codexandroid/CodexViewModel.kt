@@ -428,7 +428,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 chosenRemote?.requireTextOnly(images, references)
                 check(bridge.connectedSession.value == epoch && permit()) { "连接或账号已变化，草稿已保留" }
                 if (chosenRemote != null) {
-                    if (submittedThread == null) remoteBindings.ready(chosenRemote) { method, params ->
+                    if (submittedThread == null) remoteBindings.ready(epoch, chosenRemote) { method, params ->
                         bridge.request(method, params, expectedSession = epoch)
                     } else ensureRemoteThread(submittedThread, chosenRemote, expectedSession = epoch)
                 }
