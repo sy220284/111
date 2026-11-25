@@ -511,7 +511,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     }
                                 }
                             }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                                description = "音频直接发送；MP4 视频抽帧并提取音轨", testTag = "composer-add-media"))
+                                description = "音频直接发送；MP4 视频智能抽帧、分段及音画对齐", testTag = "composer-add-media"))
                             add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
                                 if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
                                     try { documentPicker.launch(arrayOf("*/*")) }

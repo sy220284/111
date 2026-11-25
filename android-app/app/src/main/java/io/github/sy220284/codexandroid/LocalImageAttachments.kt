@@ -21,6 +21,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
@@ -76,7 +78,10 @@ object LocalImageAttachments {
             // Validate the actual file signature after copying, not just
             // the provider's MIME label. Unsupported/corrupt files stay local.
             when (kind) {
-                "video" -> VideoAttachmentPreparation.prepare(output).canonicalPath
+                "video" -> {
+                    val jobContext = currentCoroutineContext()
+                    VideoAttachmentPreparation.prepare(output) { jobContext.ensureActive() }.canonicalPath
+                }
                 "audio" -> {
                     val extractor = android.media.MediaExtractor()
                     try {
@@ -117,7 +122,7 @@ object LocalImageAttachments {
         val folder = directory(context).canonicalFile
         val target = File(path).canonicalFile
         require(target.parentFile == folder) { "图片路径不属于本应用的私有附件目录" }
-        for (owned in LocalMediaAttachmentPolicy.ownedPaths(target.path)) {
+        for (owned in LocalMediaAttachmentPolicy.recoveryPaths(target.path)) {
             val file = File(owned).canonicalFile
             require(file.parentFile == folder) { "附件路径不属于私有目录" }
             if (file.exists() && !AttachmentRetentionPolicy.isHistorical(folder, file))
@@ -178,7 +183,12 @@ fun LocalImageAttachmentStrip(
             }
         }
         val previews = paths.filter { LocalMediaAttachmentPolicy.kind(it) != "audio" }
-            .associateBy { if (LocalMediaAttachmentPolicy.kind(it) == "video") LocalMediaAttachmentPolicy.frames(it) else it }
+            .flatMap { owner ->
+                val pictures = if (LocalMediaAttachmentPolicy.kind(owner) == "video")
+                    LocalMediaAttachmentPolicy.recoveryPaths(owner).filter { it.endsWith(".jpg") && File(it).isFile }
+                    else listOf(owner)
+                pictures.map { it to owner }
+            }.toMap()
         previewPath?.takeIf { it in previews }?.let { path ->
             AttachmentPreviewDialog(previews.keys.toList(), path,
                 onDismiss = { previewPath = null }, onRemove = {

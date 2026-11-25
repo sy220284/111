@@ -13,11 +13,17 @@ object TurnRequestContract {
     fun input(text: String, localImages: List<String> = emptyList(),
               references: List<ComposerReference> = emptyList()): JSONArray {
         require(text.isNotBlank() || localImages.isNotEmpty() || references.isNotEmpty()) { "任务内容不能为空" }
-        require(localImages.size <= LocalImageAttachments.MAX_FILES && localImages.all { it.startsWith("/") }) { "图片附件路径或数量无效" }
+        require(localImages.size <= LocalImageAttachments.MAX_FILES && localImages.all { it.startsWith("/") }) { "媒体附件路径或数量无效" }
         val files = references.filter { it.kind == "file" }
         val prompt = listOf(text.trim(), files.takeIf { it.isNotEmpty() }?.joinToString(
             separator = "\n", prefix = "请读取这些已引用的本地文件：\n") { JSONObject.quote(it.path) }.orEmpty())
             .filter { it.isNotBlank() }.joinToString("\n\n")
+        // A single turn must not multiply the bounded video/audio payload by three.
+        val videoInputs = localImages.filter { LocalMediaAttachmentPolicy.kind(it) == "video" }
+        val derivedBytes = videoInputs.sumOf { path -> LocalMediaAttachmentPolicy.ownedPaths(path)
+            .filter { it.endsWith(".jpg") || it.endsWith(".m4a") }.sumOf { java.io.File(it).length() } }
+        val audioBytes = localImages.filter { LocalMediaAttachmentPolicy.kind(it) == "audio" }.sumOf { java.io.File(it).length() }
+        require(derivedBytes + audioBytes <= 60L * 1024 * 1024) { "本轮视频解析和音频附件总量超过60 MB，请分轮发送" }
         val result = JSONArray()
         if (prompt.isNotBlank()) result.put(JSONObject().put("type", "text").put("text", prompt))
         localImages.forEach { LocalMediaAttachmentPolicy.append(result, it) }

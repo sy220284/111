@@ -31,7 +31,7 @@ internal object AttachmentRetentionPolicy {
         require(root.isDirectory) { "私有附件路径不是文件夹" }
         val dir = root.canonicalFile
         val protected = referenced.flatMap { path ->
-            if (File(path).extension == "mp4") LocalMediaAttachmentPolicy.ownedPaths(path) else listOf(path)
+            if (File(path).extension == "mp4") LocalMediaAttachmentPolicy.recoveryPaths(path) else listOf(path)
         }.map { File(it).canonicalPath }.toSet()
         val entries = root.listFiles() ?: throw IllegalStateException("无法读取私有附件目录")
         var deleted = 0
