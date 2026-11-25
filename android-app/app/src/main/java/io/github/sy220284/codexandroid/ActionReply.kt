@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -37,7 +38,10 @@ internal fun ActionReplyRow(
     singleLine: Boolean = false, maxLines: Int = if (singleLine) 1 else 6, minLines: Int = 1,
     confirmedValid: Boolean = false,
     directText: Boolean = false,
-    validate: ((String) -> String?)? = null
+    validate: ((String) -> String?)? = null,
+    replyTag: String = "action-reply",
+    expanded: Boolean? = null,
+    onExpandedChange: ((Boolean) -> Unit)? = null
 ) {
     val secret = visualTransformation is PasswordVisualTransformation
     if (secret || directText) {
@@ -48,7 +52,11 @@ internal fun ActionReplyRow(
             isError = isError, confirmedValid = confirmedValid)
         return
     }
-    var open by rememberSaveable { mutableStateOf(false) }
+    var localOpen by rememberSaveable { mutableStateOf(false) }
+    val open = expanded ?: localOpen
+    fun setOpen(next: Boolean) {
+        if (expanded == null) localOpen = next else requireNotNull(onExpandedChange)(next)
+    }
     var draft by rememberSaveable(value) { mutableStateOf(value) }
     val reduced by UiPreferences.reducedMotion.collectAsState()
     val clipboard = LocalClipboardManager.current
@@ -59,8 +67,8 @@ internal fun ActionReplyRow(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(modifier.fillMaxWidth().heightIn(min = 48.dp).codexPressable(enabled = enabled, role = Role.Button) {
             if (!open) draft = value
-            open = !open
-            if (!open) { focus.clearFocus(); keyboard?.hide() }
+            setOpen(!open)
+            if (open) { focus.clearFocus(); keyboard?.hide() }
         }, horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 label()
@@ -79,8 +87,9 @@ internal fun ActionReplyRow(
                 fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reduced))),
             exit = shrinkVertically(tween(CodexMotion.duration(CodexMotion.release, reduced))) +
                 fadeOut(tween(CodexMotion.duration(CodexMotion.release, reduced)))) {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                CodexInputField(draft, { draft = it }, modifier = Modifier.fillMaxWidth().testTag("action-reply-input"),
+            Column(Modifier.fillMaxWidth().then(if (!open) Modifier.clearAndSetSemantics { } else Modifier),
+                verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                CodexInputField(draft, { draft = it }, modifier = Modifier.fillMaxWidth().testTag("$replyTag-input"),
                     placeholder = placeholder ?: { Text("输入内容…") },
                     enabled = enabled && open, keyboardOptions = keyboardOptions, singleLine = singleLine,
                     maxLines = maxLines, minLines = minLines, isError = draftError != null,
@@ -95,10 +104,10 @@ internal fun ActionReplyRow(
                 }
                 if (clipboardEmpty) Text("剪贴板没有可用文字", color = Ink.muted)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CodexTextAction(onClick = { draft = value; open = false; focus.clearFocus(); keyboard?.hide() },
-                        modifier = Modifier.weight(1f).testTag("action-reply-cancel")) { Text("取消") }
-                    CodexPrimaryButton(onClick = { onValueChange(draft); open = false; focus.clearFocus(); keyboard?.hide() },
-                        modifier = Modifier.weight(1f).testTag("action-reply-send"), enabled = enabled && open && draftError == null) { Text("应用") }
+                    CodexTextAction(onClick = { draft = value; setOpen(false); focus.clearFocus(); keyboard?.hide() },
+                        modifier = Modifier.weight(1f).testTag("$replyTag-cancel")) { Text("取消") }
+                    CodexPrimaryButton(onClick = { onValueChange(draft); setOpen(false); focus.clearFocus(); keyboard?.hide() },
+                        modifier = Modifier.weight(1f).testTag("$replyTag-send"), enabled = enabled && open && draftError == null) { Text("应用") }
                 }
             }
         }
@@ -142,14 +151,17 @@ internal fun ActionQuestionRow(value: String, onValueChange: (String) -> Unit,
     label: String, modifier: Modifier = Modifier, placeholder: String = "",
     helper: String = "", error: String? = null, keyboardType: androidx.compose.ui.text.input.KeyboardType = androidx.compose.ui.text.input.KeyboardType.Text,
     enabled: Boolean = true, singleLine: Boolean = true, confirmedValid: Boolean = false,
-    directText: Boolean = false, validate: ((String) -> String?)? = null) {
+    directText: Boolean = false, validate: ((String) -> String?)? = null,
+    replyTag: String = "action-reply", expanded: Boolean? = null,
+    onExpandedChange: ((Boolean) -> Unit)? = null) {
     ActionReplyRow(value, onValueChange, modifier = modifier,
         label = { Text(label) }, placeholder = if (placeholder.isNotBlank()) {{ Text(placeholder) }} else null,
         supportingText = if (error != null || helper.isNotBlank()) {{
             Text(error ?: helper, color = if (error != null) Ink.red else Ink.muted)
         }} else null, singleLine = singleLine, enabled = enabled,
         isError = error != null, confirmedValid = confirmedValid,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType), directText = directText, validate = validate)
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType), directText = directText, validate = validate, replyTag = replyTag,
+        expanded = expanded, onExpandedChange = onExpandedChange)
 }
 
 internal object AgentActionDraftPolicy {

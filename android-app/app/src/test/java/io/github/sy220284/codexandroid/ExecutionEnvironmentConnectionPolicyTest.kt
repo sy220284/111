@@ -1,10 +1,19 @@
 package io.github.sy220284.codexandroid
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExecutionEnvironmentConnectionPolicyTest {
+    @Test fun nameFollowsEndpointOnlyWhenNoCustomNameWasProvided() {
+        assertEquals("example.com", ExecutionEnvironmentConnectionPolicy.resolvedName("wss://example.com/exec", ""))
+        assertEquals("工作电脑", ExecutionEnvironmentConnectionPolicy.resolvedName("wss://example.com/exec", " 工作电脑 "))
+        assertEquals("工作电脑", ExecutionEnvironmentConnectionPolicy.resolvedName("wss://other.example/exec", "工作电脑"))
+        assertEquals("other.example", ExecutionEnvironmentConnectionPolicy.resolvedName("wss://other.example/exec", " "))
+        assertEquals("", ExecutionEnvironmentConnectionPolicy.resolvedName("wss://", ""))
+    }
+
     @Test fun acceptsEncryptedRemoteServiceAndExplicitLoopbackOnly() {
         assertTrue(ExecutionEnvironmentConnectionPolicy.supportsEndpoint("wss://host.example/exec"))
         assertTrue(ExecutionEnvironmentConnectionPolicy.supportsEndpoint(" wss://host.example:443/exec "))
