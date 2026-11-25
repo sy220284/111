@@ -1,4 +1,4 @@
-//! Optimistic image admission with bounded, account-scoped rejection evidence.
+//! Optimistic media admission with bounded, account-scoped rejection evidence.
 //! A catalog's missing or stale modality declaration is not runtime evidence.
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -62,7 +62,7 @@ impl MediaInputEvidence {
         let Some(path) = &self.path else { return Ok(Vec::new()); };
         match std::fs::metadata(path) {
             Ok(metadata) if metadata.len() > MAX_FILE_BYTES =>
-                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "image evidence file too large")),
+                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "media evidence file too large")),
             Ok(_) => {}
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
             Err(err) => return Err(err),
@@ -101,7 +101,7 @@ impl MediaInputEvidence {
         let disk = match self.load() {
             Ok(records) => records,
             Err(error) => {
-                tracing::warn!(%error, "image capability evidence read failed; retaining process evidence");
+                tracing::warn!(%error, "media capability evidence read failed; retaining process evidence");
                 Vec::new()
             }
         };
@@ -115,7 +115,7 @@ impl MediaInputEvidence {
     pub(crate) fn apply(&self, scope: &str, models: &mut [ModelInfo]) {
         let records = self.snapshot();
         for model in models {
-            // Do not change admission, tool privileges, audio or any other modality.
+            // Do not change model admission or tool privileges.
             if !model.input_modalities.contains(&InputModality::Text) {
                 continue;
             }
@@ -151,7 +151,7 @@ impl MediaInputEvidence {
             std::fs::write(&temporary, bytes)?;
             if let Err(err) = std::fs::rename(&temporary, path) {
                 if let Err(cleanup) = std::fs::remove_file(&temporary) {
-                    tracing::warn!(%cleanup, "image evidence temporary file cleanup failed");
+                    tracing::warn!(%cleanup, "media evidence temporary file cleanup failed");
                 }
                 return Err(err);
             }

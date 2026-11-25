@@ -52,4 +52,21 @@ class AttachmentRetentionPolicyTest {
             File(root, "absent"), emptySet())) }
         finally { root.deleteRecursively() }
     }
+
+    @Test fun videoAndSidecarsAreRetainedTogether() {
+        val folder = Files.createTempDirectory("codex-video-retention").toFile()
+        try {
+            val path = File(folder, "source.av.mp4").canonicalPath
+            val now = System.currentTimeMillis()
+            val owned = LocalMediaAttachmentPolicy.ownedPaths(path).map { File(it).apply {
+                writeText("test")
+                setLastModified(now - 2 * AttachmentRetentionPolicy.ORPHAN_TTL_MILLIS)
+            } }
+            assertEquals(0, AttachmentRetentionPolicy.prune(folder, setOf(path), now))
+            assertTrue(owned.all { it.isFile })
+            AttachmentRetentionPolicy.preserveForHistory(folder, listOf(path))
+            assertEquals(0, AttachmentRetentionPolicy.prune(folder, emptySet(), now))
+            assertTrue(owned.all { AttachmentRetentionPolicy.isHistorical(folder, it) })
+        } finally { folder.deleteRecursively() }
+    }
 }

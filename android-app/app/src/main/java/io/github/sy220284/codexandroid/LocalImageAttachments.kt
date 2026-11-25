@@ -134,7 +134,7 @@ fun LocalImageAttachmentStrip(
     if (paths.isEmpty()) return
     var previewPath by remember { mutableStateOf<String?>(null) }
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("待发送媒体 · ${paths.size}/${LocalImageAttachments.MAX_FILES}",
+        Text("${if (paths.all { LocalMediaAttachmentPolicy.kind(it) == "image" }) "待发送图片" else "待发送媒体"} · ${paths.size}/${LocalImageAttachments.MAX_FILES}",
             style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {

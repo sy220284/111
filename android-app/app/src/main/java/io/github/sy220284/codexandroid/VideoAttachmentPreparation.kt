@@ -29,9 +29,11 @@ internal object VideoAttachmentPreparation {
             require(duration in 1..MAX_DURATION_MS) { "视频时长上限10分钟" }
             require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes") { "文件不含可读取的视频轨" }
             extractor.setDataSource(source.absolutePath)
-            val track = (0 until extractor.trackCount).firstOrNull {
+            val audioTracks = (0 until extractor.trackCount).filter {
                 extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
             }
+            require(audioTracks.size <= 1) { "多音轨视频请先选择并导出所需音轨" }
+            val track = audioTracks.singleOrNull()
             if (track != null) require(extractor.getTrackFormat(track).getString(MediaFormat.KEY_MIME) == MediaFormat.MIMETYPE_AUDIO_AAC) {
                 "视频音轨须为 AAC；请先转为 AAC 编码的 MP4 或分别上传音频和无声视频"
             }
@@ -94,7 +96,8 @@ internal object VideoAttachmentPreparation {
                 if (size < 0) break
                 total += size
                 require(total <= MAX_AUDIO_BYTES - 1024 * 1024) { "视频音轨超过50 MB" }
-                info.set(0, size, extractor.sampleTime, extractor.sampleFlags)
+                require(extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_ENCRYPTED == 0) { "加密音轨无法读取" }
+                info.set(0, size, extractor.sampleTime, if (extractor.sampleFlags and MediaExtractor.SAMPLE_FLAG_SYNC != 0) MediaCodec.BUFFER_FLAG_KEY_FRAME else 0)
                 muxer.writeSampleData(outputTrack, buffer, info)
                 extractor.advance()
             }
