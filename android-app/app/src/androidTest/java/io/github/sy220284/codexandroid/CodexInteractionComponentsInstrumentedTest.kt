@@ -21,6 +21,44 @@ import org.junit.Test
 class CodexInteractionComponentsInstrumentedTest {
     @get:Rule val rule = createComposeRule()
 
+    @Test fun asynchronousUiStateCancelsOldOwnerAndPublishesOnMain() {
+        val request = mutableStateOf("old")
+        val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val oldRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val newRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val cancelled = kotlinx.coroutines.CompletableDeferred<Unit>()
+        rule.setContent {
+            val owner = request.value
+            val result by produceCodexUiState("loading-" + owner, owner) {
+                try {
+                    val output = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        if (owner == "old") {
+                            started.complete(Unit)
+                            oldRelease.await()
+                        } else newRelease.await()
+                        "result-" + owner
+                    }
+                    check(android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
+                    value = output
+                } finally {
+                    if (owner == "old") cancelled.complete(Unit)
+                }
+            }
+            Text(result, Modifier.testTag("shared-async-result"))
+        }
+        rule.waitUntil(5000L) { started.isCompleted }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("loading-old")
+        rule.runOnIdle { request.value = "new" }
+        rule.waitUntil(5000L) { cancelled.isCompleted }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("loading-new")
+        oldRelease.complete(Unit)
+        newRelease.complete(Unit)
+        rule.waitUntil(5000L) {
+            rule.onAllNodesWithText("result-new").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("result-new")
+    }
+
     @Test fun inlineModelSliderCommitsOneActualChoiceAndSupportsReset() {
         val setting = EngineSettings.byKey("model_verbosity")!!
         val writes = mutableListOf<Any>()

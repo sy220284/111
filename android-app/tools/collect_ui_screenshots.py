@@ -8,10 +8,12 @@ import argparse
 from html import escape
 from pathlib import Path
 import subprocess
+import struct
+import zlib
 import json
 import re
 
-REQUIRED_SCREENS = """sidebar chat settings-hub terminal-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar diff-reader plugins account-sessions plugin-search audit-providers audit-skills audit-apps audit-mcp audit-environments audit-security-selection audit-config audit-diagnostics audit-queue audit-approvals audit-conversation-approval audit-provider-editor audit-config-editor audit-environment-editor audit-security-profiles audit-about audit-permission-request audit-thread-context audit-thread-history audit-advanced-timeline audit-thread-attachments audit-review-sheet audit-goals-sheet audit-mcp-elicitation audit-mcp-usable-directory audit-mcp-chatgpt-available audit-mcp-service-boundary audit-plugin-detail audit-sidebar-thread audit-sidebar-filtered audit-composer-running audit-composer-edit audit-rtl-200font-bulk audit-backup-background-block audit-backup-in-progress audit-attachment-preview audit-message-menu audit-file-editor audit-update-progress audit-full-text-match audit-models audit-personalization audit-context audit-tools engine-settings-editor""".split()
+REQUIRED_SCREENS = """sidebar chat settings-hub terminal-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar chat-keyboard-open diff-reader plugins account-sessions plugin-search audit-providers audit-skills audit-apps audit-mcp audit-environments audit-security-selection audit-config audit-diagnostics audit-queue audit-approvals audit-conversation-approval audit-provider-editor audit-config-editor audit-environment-editor audit-security-profiles audit-about audit-permission-request audit-thread-context audit-thread-history audit-advanced-timeline audit-thread-attachments audit-review-sheet audit-goals-sheet audit-mcp-elicitation audit-mcp-usable-directory audit-mcp-chatgpt-available audit-mcp-service-boundary audit-plugin-detail audit-sidebar-thread audit-sidebar-filtered audit-composer-running audit-composer-edit audit-rtl-200font-bulk audit-backup-background-block audit-backup-in-progress audit-attachment-preview audit-message-menu audit-file-editor audit-update-progress audit-full-text-match audit-models audit-personalization audit-context audit-tools engine-settings-editor""".split()
 OPTIONAL_SCREENS = ["audit-thread-history-transition"]
 DEVICE_ROOT = "/sdcard/Android/data/io.github.sy220284.codexandroid/files"
 DESTINATION = Path("ui-screenshots")
@@ -41,11 +43,35 @@ def discover_device_screens() -> list[str]:
 
 
 def valid_png(path):
-    if not path.is_file() or path.stat().st_size < 24:
+    """Reject truncated files and corrupted chunks, not just invalid signatures."""
+    if not path.is_file():
         return False
-    with path.open("rb") as stream:
-        header = stream.read(24)
-    return header[:8] == b"\x89PNG\r\n\x1a\n" and header[12:16] == b"IHDR" and int.from_bytes(header[16:20], "big") > 0 and int.from_bytes(header[20:24], "big") > 0
+    data = path.read_bytes()
+    if not data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return False
+    offset, seen_header, seen_image = 8, False, False
+    while offset + 12 <= len(data):
+        length, kind = struct.unpack_from(">I4s", data, offset)
+        end = offset + 12 + length
+        if end > len(data):
+            return False
+        payload = data[offset + 8:end - 4]
+        checksum = struct.unpack_from(">I", data, end - 4)[0]
+        if zlib.crc32(kind + payload) != checksum:
+            return False
+        if not seen_header:
+            if kind != b"IHDR" or length != 13:
+                return False
+            width, height = struct.unpack_from(">II", payload)
+            if not width or not height:
+                return False
+            seen_header = True
+        elif kind == b"IDAT":
+            seen_image = True
+        elif kind == b"IEND":
+            return seen_image and length == 0 and end == len(data)
+        offset = end
+    return False
 
 
 def main():

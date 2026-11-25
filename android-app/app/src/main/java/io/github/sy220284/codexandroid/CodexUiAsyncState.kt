@@ -1,23 +1,25 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.ProduceStateScope
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.State
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-/** Compose state is always published by the Android UI thread. Producers retain
- * their composition cancellation and frame clock, and explicitly move expensive
- * computation or disk operations to Default/IO. Keys belong to the calling surface.
+/** A changed key owns a new state and a new cancellable effect. Work may switch to
+ * Default/IO, but all publication to the Compose state resumes on Android Main.
  */
 @Composable
 internal fun <T> produceCodexUiState(
-    initialValue: T, vararg keys: Any?, producer: suspend ProduceStateScope<T>.() -> Unit
+    initialValue: T, vararg keys: Any?, producer: suspend MutableState<T>.() -> Unit
 ): State<T> = key(*keys) {
-    produceState(initialValue) {
-        val destination = this
-        withContext(Dispatchers.Main.immediate) { destination.producer() }
+    val state = remember { mutableStateOf(initialValue) }
+    LaunchedEffect(Unit) {
+        withContext(Dispatchers.Main.immediate) { state.producer() }
     }
+    state
 }

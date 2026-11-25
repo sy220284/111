@@ -16,8 +16,18 @@ class ScreenshotDiscoveryTest(unittest.TestCase):
             self.assertFalse(valid_png(path))
             path.write_bytes(b"not a png")
             self.assertFalse(valid_png(path))
-            path.write_bytes(b"\x89PNG\r\n\x1a\n" + b"\x00\x00\x00\x0dIHDR" + b"\x00\x00\x01h\x00\x00\x03 ")
+            # Build a real PNG with checksummed chunks rather than relying on header bytes.
+            import struct
+            import zlib
+            def chunk(kind, data):
+                return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+            valid = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(b"\0\0\0\0")) + chunk(b"IEND", b"")
+            path.write_bytes(valid)
             self.assertTrue(valid_png(path))
+            path.write_bytes(valid[:-5])
+            self.assertFalse(valid_png(path))
+            path.write_bytes(valid[:35] + bytes([valid[35] ^ 1]) + valid[36:])
+            self.assertFalse(valid_png(path))
 
     def test_discovers_current_and_future_ui_screenshots(self):
         output = "home-android35.png\r\naudit-rtl-200font-bulk-android35.png\nnew-component-android35.png\n"

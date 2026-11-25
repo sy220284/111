@@ -31,7 +31,7 @@ internal fun ProvideCodexViewport(content: @Composable () -> Unit) {
 internal fun rememberCodexViewport(): CodexViewport {
     val view = LocalView.current
     val shared = LocalCodexWindowViewport.current
-    return if (shared?.view === view) shared.viewport else observeCodexViewport(view)
+    return if (shared != null && shared.view === view) shared.viewport else observeCodexViewport(view)
 }
 
 /** Observe WindowManager's actual visible rectangle after resize/IME/system-bar changes.

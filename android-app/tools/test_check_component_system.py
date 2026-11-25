@@ -11,6 +11,21 @@ class ComponentSystemTest(unittest.TestCase):
         sources["CodexControlPrimitives"] = "fun CodexInputField() { OutlinedTextField() }"
         self.assertEqual(audit(sources)["errors"], [])
 
+    def test_direct_display_dimensions_and_system_only_font_scale_are_rejected(self):
+        sources = fixture()
+        sources["BusinessPage"] += "\nscreenHeightDp\nLocalDensity.current.fontScale\nproduceState<Int>(0) {}"
+        errors = audit(sources)["errors"]
+        self.assertEqual(len(errors), 3)
+        self.assertTrue(any("screenHeightDp" in error for error in errors))
+        self.assertTrue(any("fontScale" in error for error in errors))
+        self.assertTrue(any("produceCodexUiState" in error for error in errors))
+
+    def test_shared_window_source_is_allowed(self):
+        sources = fixture()
+        sources["CodexViewport"] = "val height = config.screenHeightDp\nval size = LocalDensity.current.fontScale"
+        sources["CodexUiAsyncState"] = "produceState(0) {}"
+        self.assertEqual(audit(sources)["errors"], [])
+
     def test_legacy_control_in_business_page_rejected(self):
         sources = fixture()
         sources["BusinessPage"] += "\nOutlinedTextField()\nTextButton()"
