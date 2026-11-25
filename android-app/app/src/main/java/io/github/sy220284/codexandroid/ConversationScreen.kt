@@ -156,6 +156,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         ActivityResultContracts.PickMultipleVisualMedia(2)
     ) { selected -> vm.importPickedImages(selected) }
     val sharing by screenShareSession.state.collectAsState()
+    val mediaAnalysis by vm.composerContent.mediaAnalysis.state.collectAsState()
+    var mediaChoice by remember(draftOwner) { mutableStateOf<Pair<String, QwenMediaWire.Mode>?>(null) }
+    var reviewMedia by remember(draftOwner) { mutableStateOf(false) }
+    val qwenProvider = records(scopedCatalog["providers"]).firstOrNull { provider ->
+        provider.optString("id") == providerId &&
+            provider.optJSONObject("settings")?.optJSONObject("auth")?.optString("envKey") == "CODEX_ANDROID_DOMESTIC_QWEN_KEY" &&
+            provider.optString("baseUrl").contains(".cn-beijing.maas.aliyuncs.com/compatible-mode/v1")
+    }
     val screenConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         vm.composerContent.finishScreenShare(if (result.resultCode == android.app.Activity.RESULT_OK) result.data else null)
     }
@@ -616,11 +624,43 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 },
                 attachmentContent = {
                     LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
+                    if (qwenProvider != null && remote == null) MediaAnalysisActions(
+                        paths = attachedImages, state = mediaAnalysis, owner = draftOwner,
+                        enabled = !busy && !switching && !attachmentBusy && !transferBusy && !restarting,
+                        onChoose = { path, mode -> mediaChoice = path to mode },
+                        onCancel = { vm.composerContent.mediaAnalysis.cancel() },
+                        onReview = { reviewMedia = true },
+                        onDismiss = { vm.composerContent.mediaAnalysis.dismiss(draftOwner) }
+                    )
                     ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(draftOwner, it) }
                 }
             )
 
         }
+    }
+    mediaChoice?.let { (path, mode) ->
+        CodexConfirmDialog(
+            title = mode.label,
+            message = "将本机所选媒体发送至当前已授权的阿里云百炼工作空间，调用 ${mode.model}。此操作可能产生模型费用，结果先供你确认，不自动发送对话。",
+            detail = when (mode) {
+                QwenMediaWire.Mode.NativeVideo -> "完整原视频（最大7 MB），不经过公开图床或临时 OSS。"
+                QwenMediaWire.Mode.SegmentedVideo -> "逐段独立请求，最多10段，保留各段时间轴。"
+                QwenMediaWire.Mode.Transcription -> "每段独立转录，单段最大5分钟、7 MB；提供分段时间范围。"
+            },
+            confirmLabel = "确认分析",
+            onConfirm = {
+                mediaChoice = null
+                qwenProvider?.let { vm.composerContent.mediaAnalysis.start(draftOwner, it.getString("id"), path, mode, draft) }
+            },
+            onDismiss = { mediaChoice = null }
+        )
+    }
+    if (reviewMedia && mediaAnalysis.owner == draftOwner && mediaAnalysis.result != null) {
+        MediaAnalysisReview(mediaAnalysis, onDismiss = { reviewMedia = false },
+            onApply = { textOnly ->
+                vm.composerContent.mediaAnalysis.apply(draftOwner, textOnly)
+                reviewMedia = false
+            })
     }
     if (composerMenu == "thread-memory" && thread != null) {
         MemoryManagementSheet(vm, thread) { closeComposerMenu("thread-memory") }

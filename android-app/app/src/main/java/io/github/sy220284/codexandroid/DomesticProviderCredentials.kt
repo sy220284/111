@@ -116,6 +116,14 @@ internal object DomesticProviderCredentials {
     fun matchesStoredEndpoint(context: Context, preset: DomesticModelPreset, endpoint: String): Boolean =
         has(context, preset) && decrypt(context, preset).first == endpoint.trim().trimEnd('/')
 
+    /** Only the explicitly chosen workspace's auxiliary media request may use this credential. */
+    fun <T> withBoundCredential(context: Context, preset: DomesticModelPreset, endpoint: String, block: (String) -> T): T {
+        require(preset.id == "qwen-cn" && preset.workspaceId(endpoint) != null)
+        val (bound, secret) = synchronized(this) { decrypt(context, preset) }
+        require(bound == endpoint) { "密钥所属工作空间已变化" }
+        return block(secret)
+    }
+
     @Synchronized
     fun bootstrap(context: Context): DomesticCredentialBootstrap {
         val result = JSONObject()
