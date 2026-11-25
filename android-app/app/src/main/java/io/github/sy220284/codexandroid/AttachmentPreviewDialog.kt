@@ -1,6 +1,5 @@
 package io.github.sy220284.codexandroid
 
-import android.graphics.BitmapFactory
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.tween
@@ -16,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -55,14 +53,8 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
     var retry by remember(path) { mutableIntStateOf(0) }
     val preview by key(path, retry) {
         produceState<Pair<Boolean, ImageBitmap?>>(false to null) {
-            value = true to withContext(Dispatchers.IO) {
-                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                BitmapFactory.decodeFile(path, bounds)
-                if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
-                var sample = 1
-                while (maxOf(bounds.outWidth, bounds.outHeight) / sample > 1600) sample *= 2
-                BitmapFactory.decodeFile(path,
-                    BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
+            withContext(Dispatchers.Main.immediate) {
+                value = true to decodeAttachmentBitmap(path, 1600)
             }
         }
     }

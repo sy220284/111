@@ -16,7 +16,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -113,13 +112,9 @@ fun LocalImageAttachmentStrip(
             paths.forEachIndexed { idx, path ->
                 key(path) {
                     val thumbnail by produceState<ImageBitmap?>(initialValue = null, path) {
-                        value = withContext(Dispatchers.IO) {
-                            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                            BitmapFactory.decodeFile(path, bounds)
-                            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
-                            val scale = maxOf(1, maxOf(bounds.outWidth, bounds.outHeight) / 160)
-                            BitmapFactory.decodeFile(path,
-                                BitmapFactory.Options().apply { inSampleSize = scale })?.asImageBitmap()
+                        // Explicitly publish on Android Main, including dialog/test recomposition.
+                        withContext(Dispatchers.Main.immediate) {
+                            value = decodeAttachmentBitmap(path, 160)
                         }
                     }
                     Surface(shape = RoundedCornerShape(13.dp),

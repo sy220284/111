@@ -47,7 +47,8 @@ internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: L
             vm.bridge.connectedSession.value == epoch &&
             vm.catalogWarmup.accountRevision.value == revision &&
             vm.data.value["account"]?.optJSONObject("account")?.toString() == identity &&
-            "account" !in vm.loading.value && !vm.loginBusy.value &&
+            "account" !in vm.loading.value && "accountSessionSwitch" !in vm.loading.value &&
+            !vm.loginBusy.value &&
             vm.activeLoginId.value.isBlank() && !AppDataTransfer.state.value.busy
 
     suspend fun read(): AccountVoiceSettingsSnapshot {

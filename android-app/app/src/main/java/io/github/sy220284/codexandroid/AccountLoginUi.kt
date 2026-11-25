@@ -175,7 +175,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 val epoch = voiceEpoch
                 if (identity != null && authMode == "chatgpt" && epoch != null && !loginBusy &&
-                    !pending && "account" !in loading) {
+                    !pending && "account" !in loading && "accountSessionSwitch" !in loading) {
                     DividerLine()
                     key(identity.toString(), epoch, voiceAccountRevision) {
                         AccountVoiceSettings(vm, identity.toString(), epoch, voiceAccountRevision)

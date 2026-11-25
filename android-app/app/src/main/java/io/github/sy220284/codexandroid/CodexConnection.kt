@@ -19,6 +19,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -499,7 +500,7 @@ class CodexConnection internal constructor(private val appContext: Context,
         return true
     }
 
-    internal fun closeForRestart(canClose: () -> Boolean) {
+    internal suspend fun closeForRestart(canClose: () -> Boolean) {
         val epoch = synchronized(ownership) {
             check(ownership.canRetireReserved(activeRpcRequests.value.size + if (writingState.value) 1 else 0, prompts.value.size)) {
                 "重启前出现了新请求或审批，已取消重启"
@@ -508,6 +509,15 @@ class CodexConnection internal constructor(private val appContext: Context,
         } ?: return
         check(retireSession(epoch, "连接已关闭", reservedRestart = true, canClose = canClose)) {
             "重启前出现了新请求或审批，已取消重启"
+        }
+        // Retirement may continue after the bounded terminate() attempt. The caller
+        // must not change/delete credentials or start a successor before actual exit.
+        val completion = synchronized(ownership) { retirementCompletion }
+        if (completion != null) {
+            check(withTimeoutOrNull(RpcScheduling.RETIRE_TIMEOUT_MS) {
+                completion.await()
+                true
+            } == true) { "旧内核尚未退出，已取消本次重启或凭据变更，请等待进程回收" }
         }
     }
 
