@@ -127,7 +127,7 @@ object UiProtocolMatrix {
         ProtocolSurface("thread/realtime/stop", ApiExposure.Advanced, "会话/对话", true),
         ProtocolSurface("thread/timeline/list", ApiExposure.Contextual, "会话/对话", true),
         ProtocolSurface("thread/realtime/list", ApiExposure.Advanced, "会话/对话", true),
-        ProtocolSurface("thread/realtime/listVoices", ApiExposure.Advanced, "会话/对话", true),
+        ProtocolSurface("thread/realtime/listVoices", ApiExposure.Internal, "会话/对话", true),
         ProtocolSurface("review/start", ApiExposure.Direct, "代码审查", false),
         ProtocolSurface("model/list", ApiExposure.Direct, "模型选择", false),
         ProtocolSurface("account/gatewayOAuth/read", ApiExposure.Advanced, "账号/额度", false),

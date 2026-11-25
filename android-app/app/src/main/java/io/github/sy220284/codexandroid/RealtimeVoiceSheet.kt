@@ -31,9 +31,12 @@ internal fun RealtimeVoiceSheet(
     var permissionError by remember { mutableStateOf(false) }
     var permissionGrantedStart by remember { mutableStateOf(false) }
     val operation = rememberCapabilityOperation(vm)
-    var voices by remember { mutableStateOf(emptyList<String>()) }
-    var voice by remember { mutableStateOf("") }
-    var showVoices by remember { mutableStateOf(false) }
+    val loading by vm.loading.collectAsState()
+    val account by vm.data.collectEntries("account")
+    val voiceEpoch by vm.bridge.connectedSession.collectAsState()
+    val voiceRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val threadProvider by vm.activeModelProvider.collectAsState()
+    val identity = account["account"]?.optJSONObject("account")
     var input by remember { mutableStateOf("") }
     var history by remember { mutableStateOf<JSONObject?>(null) }
     var snapshot by remember { mutableLongStateOf(0L) }
@@ -42,17 +45,16 @@ internal fun RealtimeVoiceSheet(
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
         permissionError = !it
         if (it) {
-            if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) controller.start(voice)
+            if (owner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) controller.start()
             else permissionGrantedStart = true
         }
     }
-    val currentVoice by rememberUpdatedState(voice)
     DisposableEffect(controller, owner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_RESUME -> if (permissionGrantedStart) {
                     permissionGrantedStart = false
-                    controller.start(currentVoice)
+                    controller.start()
                 }
                 Lifecycle.Event.ON_STOP -> {
                     permissionGrantedStart = false
@@ -65,17 +67,6 @@ internal fun RealtimeVoiceSheet(
         onDispose {
             owner.lifecycle.removeObserver(observer)
             controller.stop()
-        }
-    }
-    fun loadVoices() {
-        operation.launch {
-            val options = vm.capabilityRequest("thread/realtime/listVoices").getJSONObject("voices")
-            // The selected provider validates the voice against its configured protocol version.
-            val lists = listOf("v1", "v2", "v3").mapNotNull(options::optJSONArray).filter { it.length() > 0 }
-            voices = lists.flatMap { items ->
-                (0 until items.length()).map(items::getString)
-            }.distinct()
-            showVoices = true
         }
     }
     fun loadHistory(next: Boolean) {
@@ -137,18 +128,18 @@ internal fun RealtimeVoiceSheet(
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                     PackageManager.PERMISSION_GRANTED) {
                     permissionError = false
-                    controller.start(voice)
+                    controller.start()
                 } else permission.launch(Manifest.permission.RECORD_AUDIO)
-            }, modifier = Modifier.fillMaxWidth()) { Text("开始实时语音") }
-            Box {
-                CodexTextAction(onClick = { if (voices.isEmpty()) loadVoices() else showVoices = true },
-                    enabled = !operation.busy) { Text(voice.ifBlank { "选择声音 · 账号/服务器默认" }) }
-                CodexPopupMenu(showVoices, { showVoices = false }) {
-                    DropdownMenuItem(text = { Text("账号/服务器默认") }, onClick = { voice = ""; showVoices = false })
-                    voices.forEach { option ->
-                        DropdownMenuItem(text = { Text(option) }, onClick = { voice = option; showVoices = false })
-                    }
+            }, enabled = AccountVoiceSettingsLease.key !in loading,
+                modifier = Modifier.fillMaxWidth()) { Text("开始实时语音") }
+            val epoch = voiceEpoch
+            if (threadProvider == "openai" && identity?.optString("type") == "chatgpt" && epoch != null) {
+                key(identity.toString(), epoch, voiceRevision) {
+                    AccountVoiceSettings(vm, identity.toString(), epoch, voiceRevision)
                 }
+            } else {
+                Text("声音由当前服务端决定；ChatGPT 账号声音可在账号设置中管理。",
+                    color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             }
         } else if (controller.state != RealtimeVoiceController.State.Stopping) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {

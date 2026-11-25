@@ -9,8 +9,8 @@ class UiProtocolMatrixTest {
         assertEquals(198, UiProtocolMatrix.byMethod.size)
         assertEquals(37, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
         assertEquals(47, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
-        assertEquals(53, UiProtocolMatrix.advanced.size)
-        assertEquals(61, UiProtocolMatrix.systemOnly.size)
+        assertEquals(52, UiProtocolMatrix.advanced.size)
+        assertEquals(62, UiProtocolMatrix.systemOnly.size)
     }
 
     @Test fun newlyExposedConversationOperationsAreContextual() {
@@ -19,6 +19,10 @@ class UiProtocolMatrixTest {
             "thread/realtime/appendText", "thread/realtime/appendSpeech").forEach { method ->
             assertEquals(method, ApiExposure.Contextual, UiProtocolMatrix.byMethod[method]?.exposure)
         }
+    }
+
+    @Test fun builtinVoiceDirectoryIsNotAnEditableSessionPreference() {
+        assertEquals(ApiExposure.Internal, UiProtocolMatrix.byMethod.getValue("thread/realtime/listVoices").exposure)
     }
 
     @Test fun accountVoiceSettingsAreAccountScopedAdvancedActions() {

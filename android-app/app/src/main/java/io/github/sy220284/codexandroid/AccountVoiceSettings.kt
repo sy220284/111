@@ -35,12 +35,24 @@ internal data class AccountVoiceSettingsSnapshot(val selected: String, val voice
     }
 }
 
-/** Account preference is distinct from a session-only realtime voice override. */
+/** The upstream runtime uses the account voice preference; no per-session voice override. */
 @Composable
 internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: Long, revision: Long) {
     val operation = rememberCapabilityOperation(vm)
     var snapshot by remember { mutableStateOf<AccountVoiceSettingsSnapshot?>(null) }
     var menu by remember { mutableStateOf(false) }
+    val engine by vm.bridge.status.collectAsState()
+    val session by vm.bridge.connectedSession.collectAsState()
+    val accountRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val data by vm.data.collectEntries("account")
+    val loading by vm.loading.collectAsState()
+    val loginBusy by vm.loginBusy.collectAsState()
+    val loginId by vm.activeLoginId.collectAsState()
+    val transfer by AppDataTransfer.state.collectAsState()
+    val canOperate = engine == EngineStatus.Connected && session == epoch && accountRevision == revision &&
+        data["account"]?.optJSONObject("account")?.toString() == identity &&
+        "account" !in loading && "accountSessionSwitch" !in loading && !loginBusy &&
+        loginId.isBlank() && !transfer.busy && AccountVoiceSettingsLease.key !in loading
 
     fun ownsAccount(): Boolean =
         vm.bridge.status.value == EngineStatus.Connected &&
@@ -69,7 +81,7 @@ internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: L
     Column(Modifier.fillMaxWidth().testTag("account-voice-settings"),
         verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("ChatGPT 账号默认声音", style = MaterialTheme.typography.titleSmall)
-        Text("此设置与 ChatGPT 账号同步；单次实时语音仍可单独选择声音。",
+        Text("修改会同步到当前 ChatGPT 账号，供后续实时语音使用。",
             color = Ink.muted, style = MaterialTheme.typography.bodySmall)
         Box {
             CodexSecondaryButton(
@@ -80,14 +92,14 @@ internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: L
                         menu = snapshot?.voices?.isNotEmpty() == true
                     }
                 },
-                enabled = !operation.busy && ownsAccount() && AccountVoiceSettingsLease.key !in vm.loading.value,
+                enabled = !operation.busy && canOperate,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
             ) {
                 val current = snapshot
                 Text(if (current == null) "读取并选择默认声音" else
                     "当前：" + (current.voices.firstOrNull { it.voice == current.selected }?.name ?: current.selected))
             }
-            CodexPopupMenu(menu, { menu = false }) {
+            CodexPopupMenu(menu && canOperate, { menu = false }) {
                 snapshot?.voices.orEmpty().forEach { option ->
                     DropdownMenuItem(text = {
                         Text(if (option.voice == snapshot?.selected) option.name + " · 当前" else option.name)
