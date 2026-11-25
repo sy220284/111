@@ -95,8 +95,9 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     }.filter { it.id.isNotBlank() }
     val providerName = providers.firstOrNull { it.id == (scopedProvider ?: currentProvider) }?.title
         ?: (scopedProvider ?: currentProvider ?: "默认服务商")
-    val selectable = connected && !creating && !switching && !restarting && !transfer &&
-        (active == null || currentProvider != null) && (targetProvider == null || !running)
+    val selectable = connected && ComposerOptionAccess.canChange(active != null, running,
+        targetProvider == null, creating, switching, restarting, transfer) &&
+        (active == null || currentProvider != null)
     val catalogReady = selectable && models[catalogKey] != null
     fun reload() {
         if (connected) vm.refresh(catalogKey, "model/list", ComposerProviderScope.request(scopedProvider, true))

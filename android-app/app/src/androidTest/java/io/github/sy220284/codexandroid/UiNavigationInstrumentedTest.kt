@@ -570,7 +570,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("chat-changes-summary").assertExists()
         rule.onNodeWithText("查看", substring = false).performClick()
         rule.onNodeWithText("本次改动").assertExists()
-        rule.onNodeWithText("代码审查").assertExists()
+        rule.onNodeWithTag("diff-reader-review").performScrollTo().assertIsDisplayed().assertTextContains("代码审查")
+        rule.onNodeWithTag("diff-reader-copy").performScrollTo().assertIsDisplayed().assertTextContains("复制全部差异")
         rule.onNodeWithText("src/main.kt").assertExists()
         capture("diff-reader-android35.png")
     }

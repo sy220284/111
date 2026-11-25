@@ -70,6 +70,14 @@ internal object ComposerModelPolicy {
     }
 }
 
+/** One access policy for the composer, model picker and actual draft writes. */
+internal object ComposerOptionAccess {
+    fun canChange(hasThread: Boolean, running: Boolean, allowRunning: Boolean,
+        starting: Boolean, switching: Boolean, restarting: Boolean, transferring: Boolean): Boolean =
+        !starting && !switching && !restarting && !transferring &&
+            (!running || (allowRunning && hasThread))
+}
+
 internal fun CodexViewModel.restoreComposerOptions(threadId: String?) {
     val options = composerDrafts.value[composerOwner(threadId)]?.options ?: ComposerTaskOptions()
     modelId.value = options.model
@@ -77,8 +85,9 @@ internal fun CodexViewModel.restoreComposerOptions(threadId: String?) {
 }
 internal fun CodexViewModel.changeComposerOptions(allowRunning: Boolean = false, transform: (ComposerTaskOptions) -> ComposerTaskOptions) {
     val thread = activeThread.value
-    if (threadSwitching.value || firstThreadStarting.value || (running.value && (!allowRunning || thread == null)) ||
-        connectionRestarter.busy.value || AppDataTransfer.state.value.busy) return
+    if (!ComposerOptionAccess.canChange(thread != null, running.value, allowRunning,
+            firstThreadStarting.value, threadSwitching.value, connectionRestarter.busy.value,
+            AppDataTransfer.state.value.busy)) return
     composerDrafts.update { drafts ->
         val original = drafts[composerOwner(thread)]?.options ?: ComposerTaskOptions()
         ThreadComposerDrafts.options(drafts, composerOwner(thread), transform(original))

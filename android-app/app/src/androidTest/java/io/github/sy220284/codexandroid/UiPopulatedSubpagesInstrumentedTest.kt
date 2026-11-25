@@ -385,7 +385,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("thread-bulk-delete").assertIsNotEnabled()
         rule.onNodeWithTag("thread-bulk-organize").assertIsNotEnabled()
         rule.onNodeWithContentDescription("全选当前结果").performClick()
-        rule.onNodeWithText("已选 2 条").assertExists()
+        rule.onNodeWithTag("thread-bulk-count").assertIsDisplayed().assertTextEquals("已选 2 条")
         rule.onNodeWithTag("thread-bulk-archive").assertIsEnabled()
         for ((label, action) in listOf(
             "移动到分组" to "move", "批量置顶" to "pin", "批量取消置顶" to "unpin"

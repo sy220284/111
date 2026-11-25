@@ -344,8 +344,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     onManage = { keyboard?.hide(); navigate("queue") },
                     onStart = { vm.startQueuedComposer(thread) })
             }
-            val optionsEnabled = !busy && !firstThreadStarting && !switching
-            val modelOptionsEnabled = !firstThreadStarting && !switching && !transferBusy && !restarting
+            val optionsEnabled = ComposerOptionAccess.canChange(thread != null, busy, false,
+                firstThreadStarting, switching, restarting, transferBusy)
+            val modelOptionsEnabled = ComposerOptionAccess.canChange(thread != null, busy, true,
+                firstThreadStarting, switching, restarting, transferBusy)
             val tools = buildList {
                 add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))

@@ -118,24 +118,28 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                 filePicker = false
                             }, wide = true, anchored = true, onDismiss = { filePicker = false })
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    CodexPrimaryButton(onClick = { navigate("review") },
-                        enabled = active != null && files.isNotEmpty(),
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        CodexIcon(CodexGlyph.FactCheck, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text("代码审查")
+                CodexAdaptiveActions(
+                    first = { actionModifier ->
+                        CodexPrimaryButton(onClick = { navigate("review") },
+                            enabled = active != null && files.isNotEmpty(),
+                            modifier = actionModifier.testTag("diff-reader-review")) {
+                            CodexIcon(CodexGlyph.FactCheck, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text("代码审查")
+                        }
+                    },
+                    second = { actionModifier ->
+                        CodexSecondaryButton(onClick = {
+                            clipboard.setText(AnnotatedString(displayedDiff))
+                            copied = true
+                        }, enabled = displayedDiff.isNotBlank(),
+                            modifier = actionModifier.testTag("diff-reader-copy")) {
+                            CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(5.dp))
+                            Text(if (copied) "已复制" else "复制全部差异")
+                        }
                     }
-                    CodexSecondaryButton(onClick = {
-                        clipboard.setText(AnnotatedString(displayedDiff))
-                        copied = true
-                    }, enabled = displayedDiff.isNotBlank(),
-                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                        CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(5.dp))
-                        Text(if (copied) "已复制" else "复制全部差异")
-                    }
-                }
+                )
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     CodexCheckBox(checked = wrapLines, onCheckedChange = { wrapLines = it },
                         modifier = Modifier.testTag("diff-line-wrap"))

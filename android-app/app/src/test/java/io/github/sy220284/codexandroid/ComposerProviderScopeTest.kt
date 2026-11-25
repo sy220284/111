@@ -7,6 +7,20 @@ import org.junit.Test
 class ComposerProviderScopeTest {
     private val catalog = listOf(JSONObject().put("id", "deepseek-flash").put("isDefault", true))
 
+    @Test fun composerOptionAccessMatchesRuntimeAndNextTurnRules() {
+        for (hasThread in listOf(false, true))
+            for (running in listOf(false, true))
+                for (allowRunning in listOf(false, true)) {
+                    assertEquals(!running || (hasThread && allowRunning),
+                        ComposerOptionAccess.canChange(hasThread, running, allowRunning,
+                            false, false, false, false))
+                    for (blocked in 0..3) {
+                        assertFalse(ComposerOptionAccess.canChange(hasThread, running, allowRunning,
+                            blocked == 0, blocked == 1, blocked == 2, blocked == 3))
+                    }
+                }
+    }
+
     @Test fun providerOwnsModelAndThread() {
         assertEquals("deepseek", ComposerProviderScope.resolve("deepseek", null, "openai"))
         assertEquals("deepseek", ComposerProviderScope.resolve(null, "deepseek", "openai"))

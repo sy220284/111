@@ -265,7 +265,7 @@
       ],
       "business": "目录、检索、安装状态、空结果与能力详情",
       "tests": [
-        "UiNavigationInstrumentedTest.pluginDiscoveryCanOpenSearchWithoutInventedResults",
+        "UiNavigationInstrumentedTest.pluginDiscoveryUsesClipboardWithoutSearchField",
         "UiPopulatedSubpagesInstrumentedTest.pluginDetailShowsCapabilitiesRatherThanRawMetadata",
         "UiPopulatedSubpagesInstrumentedTest.installedPluginRowsOpenDetailsWithoutInlineUninstall",
         "UiPopulatedSubpagesInstrumentedTest.discoveryRowSeparatesInstallFromDetail"

@@ -56,8 +56,10 @@ internal fun ThreadBulkToolbar(
                     .padding(horizontal = 14.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(5.dp)
             ) {
-                Text("已选 $selectedCount 条 · 仅针对当前筛选结果",
+                Text("已选 $selectedCount 条", modifier = Modifier.testTag("thread-bulk-count"),
                     color = Ink.parchment, style = MaterialTheme.typography.labelMedium)
+                Text("仅针对当前筛选结果", color = Ink.muted,
+                    style = MaterialTheme.typography.labelSmall)
                 Row(Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically) {
@@ -106,7 +108,7 @@ internal fun ThreadBulkToolbar(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                Text("已选 $selectedCount 条", modifier = Modifier.weight(1f),
+                Text("已选 $selectedCount 条", modifier = Modifier.weight(1f).testTag("thread-bulk-count"),
                     style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
                 CodexIconAction(onClick = onSelectAll, enabled = enabled,
                     modifier = Modifier.size(48.dp).testTag("thread-bulk-select-all")) {
