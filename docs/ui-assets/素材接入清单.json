@@ -53,12 +53,14 @@
         "SidebarSessions",
         "ThreadBulkToolbar",
         "SessionListController",
-        "ThreadHistorySheet"
+        "ThreadHistorySheet",
+        "SidebarQueryFilters"
       ],
       "business": "侧栏全量连续列表、置顶、未读、搜索、归档、批量管理",
       "tests": [
         "UiNavigationInstrumentedTest.threadLibraryExposesServerBackedManagementLayout",
-        "UiPopulatedSubpagesInstrumentedTest.sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection"
+        "UiPopulatedSubpagesInstrumentedTest.sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection",
+        "CodexOverlayInstrumentedTest.sidebarFilterPanelKeepsQueryAndSelectionWhenReopened"
       ],
       "screens": [
         "sidebar",
@@ -621,7 +623,8 @@
       ],
       "tests": [
         "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
-        "CodexInteractionComponentsInstrumentedTest.detailsOpenAsOverlayAndCloseWithoutChangingTheList"
+        "CodexInteractionComponentsInstrumentedTest.detailsOpenAsOverlayAndCloseWithoutChangingTheList",
+        "CodexOverlayInstrumentedTest.longDetailContextScrollsWithoutDisplacingFooterOrClose"
       ]
     },
     {
@@ -764,7 +767,8 @@
       ],
       "tests": [
         "CodexInteractionComponentsInstrumentedTest.v8BusyButtonRetainsWidthAndSecretCanBeHidden",
-        "CodexInteractionComponentsInstrumentedTest.v8ControlBordersHaveAccessibleContrastInBothThemes"
+        "CodexInteractionComponentsInstrumentedTest.v8ControlBordersHaveAccessibleContrastInBothThemes",
+        "CodexOverlayInstrumentedTest.longDetailContextScrollsWithoutDisplacingFooterOrClose"
       ]
     },
     {
@@ -889,7 +893,9 @@
     "audit-attachment-preview",
     "audit-message-menu",
     "audit-update-progress",
-    "engine-settings-editor"
+    "engine-settings-editor",
+    "audit-sidebar-query-filters",
+    "audit-detail-long-context"
   ],
   "optionalStateScreens": [
     "audit-goal-budget-editor"

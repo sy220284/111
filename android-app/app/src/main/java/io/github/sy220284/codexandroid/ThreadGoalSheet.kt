@@ -14,13 +14,9 @@ fun ThreadGoalSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     CodexOverlayFrame(onDismissRequest = onDismiss, fullScreen = true,
         containerColor = Ink.canvas, contentColor = Ink.parchment) {
         Column(Modifier.fillMaxSize()) {
-            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                Text("任务目标", style = MaterialTheme.typography.titleLarge,
-                    modifier = Modifier.weight(1f))
-                CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭任务目标")
-                }
+            Box(Modifier.padding(horizontal = 16.dp, vertical = 4.dp)) {
+                CodexPanelHeader("任务目标", onDismiss, titleTag = "goal-title", closeTag = "goal-close",
+                    closeDescription = "关闭任务目标")
             }
             Box(Modifier.fillMaxWidth().weight(1f)) {
                 ThreadGoalPage(vm, inSheet = true)

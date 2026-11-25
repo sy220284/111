@@ -200,15 +200,7 @@ internal fun SidebarSessions(
                     historyError = ""
                 } catch (failure: Exception) { historyError = failure.message ?: "搜索记录保存失败" }
             }, onClear = { state.search = "" }, tag = "sidebar-clipboard-query")
-            AtlasCompactChoice(if (state.fullText) "full" else "title",
-                listOf("title" to "标题搜索", "full" to "全文搜索"),
-                onSelect = { state.fullText = it == "full" })
-            AtlasCompactChoice(if (state.archived) "archived" else "active",
-                listOf("active" to "会话", "archived" to "已归档"),
-                onSelect = { state.archived = it == "archived" })
-            AtlasCompactChoice(if (state.projectOnly) "project" else "all",
-                listOf("all" to "全部项目", "project" to "当前项目"),
-                onSelect = { state.projectOnly = it == "project" })
+            SidebarQueryFilters(state)
             val recent = if (state.fullText) recentFull else recentTitle
             if (recent.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
