@@ -17,14 +17,16 @@ def dimensions(profile, mode):
     return {k: spec[k] for k in ("width_px", "height_px", "density_dpi")} | {
         "font_scale": 1.0 if mode == "baseline" else spec["font_scale"]}
 
-def matrix():
-    return {"include": [{"profile": p["id"], "width_px": p["width_px"],
-                          "height_px": p["height_px"], "density_dpi": p["density_dpi"],
-                          "self_update": p["self_update"], "api": API,
-                          "android_release": RELEASE} for p in CONFIG["profiles"]]}
+MODES = ("baseline", "adaptive")
 
-def job_name(profile):
-    return f"Android {RELEASE} (API {API}) · {profile} UI 交互与截图验收"
+def matrix():
+    return {"include": [{"profile": p["id"], "mode": mode, **dimensions(p["id"], "baseline"),
+                          "self_update": p["self_update"] and mode == "baseline",
+                          "motion": mode == "baseline", "api": API,
+                          "android_release": RELEASE} for p in CONFIG["profiles"] for mode in MODES]}
+
+def job_name(profile, mode):
+    return f"Android {RELEASE} (API {API}) · {profile} {mode} UI 交互与截图验收"
 
 def configure_avd(path, profile):
     spec = dimensions(profile, "baseline")

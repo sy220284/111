@@ -6,13 +6,14 @@ import subprocess
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'android-app/tools'))
-from device_matrix import PROFILES, job_name
+from device_matrix import PROFILES, MODES, job_name
 
 REQUIRED_JOBS = {
     "ci.yml": frozenset({
         "111 合并验收", "build", "ARM64 手机安装包二次核验",
         "Kotlin 编译、协议单元测试与 Android Lint",
-        *(job_name(profile) for profile in PROFILES),
+        "协议、视觉规范与静态覆盖检查", "六组 UI 用例与证据一致性验收",
+        *(job_name(profile, mode) for profile in PROFILES for mode in MODES),
         "原生核心统一验收", "发布脚本回归检查", "MXC 和 Code Mode Host 源码适配预演",
     }),
 }

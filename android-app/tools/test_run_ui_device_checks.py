@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import unittest
 from unittest.mock import patch
-from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens
+from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens, completed_test_ids
 
 
 class DeviceEvidenceTest(unittest.TestCase):
@@ -29,6 +29,17 @@ class DeviceEvidenceTest(unittest.TestCase):
     def test_success_text_inside_test_log_is_not_a_complete_pass(self):
         self.assertEqual("failed", parse_instrumentation("test message OK (1 test)\n", 0)["status"])
         self.assertEqual("failed", parse_instrumentation("OK (1 test)\nOK (1 test)\n", 0)["status"])
+
+    def test_completed_test_ids_count_only_real_success_records(self):
+        log = ("INSTRUMENTATION_STATUS: class=example.Test\n"
+               "INSTRUMENTATION_STATUS: test=first\nINSTRUMENTATION_STATUS_CODE: 1\n"
+               "INSTRUMENTATION_STATUS: class=example.Test\n"
+               "INSTRUMENTATION_STATUS: test=first\nINSTRUMENTATION_STATUS_CODE: 0\n"
+               "INSTRUMENTATION_STATUS: class=example.Test\n"
+               "INSTRUMENTATION_STATUS: test=second\nINSTRUMENTATION_STATUS_CODE: 1\n")
+        self.assertEqual(["example.Test#first"], completed_test_ids(log))
+        with self.assertRaises(ValueError):
+            completed_test_ids("INSTRUMENTATION_STATUS_CODE: 0\n")
 
     def test_actual_device_parameters_are_required(self):
         from device_matrix import dimensions, CONFIG

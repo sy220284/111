@@ -56,8 +56,8 @@ def diff(old, new):
 def gh(*args):
     return subprocess.check_output(["gh", *args], text=True)
 
-def baseline(repo, profile):
-    name = f"codex-android-ui-visual-api{API}-{profile}"
+def baseline(repo, profile, mode):
+    name = f"codex-android-ui-visual-api{API}-{profile}-{mode}"
     # Only nonexpired artifacts from successful main CI; never from PRs or this current run.
     pages = json.loads(gh("api", "--paginate", "--slurp",
                          f"repos/{repo}/actions/artifacts?name={name}&per_page=100"))
@@ -76,18 +76,19 @@ def baseline(repo, profile):
             gh("run", "download", str(run_id), "--repo", repo, "--name", name, "--dir", folder)
             record = json.loads((Path(folder)/"fingerprints.json").read_text())
         if (record["commit"] != run["head_sha"] or record["profile"] != profile
-            or record["api"] != API or record["version"] != VERSION or record["errors"]):
+            or record["api"] != API or record["version"] != VERSION or record["errors"]
+            or set(record["modes"]) != {mode}):
             raise ValueError("Main visual baseline provenance mismatch")
         return record
     return None
 
-def audit(profile, root):
+def audit(profile, root, mode):
     source = os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA")
     if not source:
         raise ValueError("Missing source SHA")
     record = {"version": VERSION, "api": API, "profile": profile, "commit": source,
               "modes": {}, "errors": []}
-    for mode, folder in (("baseline", "ui-screenshots"), ("adaptive", "ui-screenshots-adaptive")):
+    for mode, folder in [(mode, "ui-screenshots" if mode == "baseline" else "ui-screenshots-adaptive")]:
         path = root/folder
         try:
             manifest = json.loads((path/"manifest.json").read_text())
@@ -164,13 +165,14 @@ def main():
     p=argparse.ArgumentParser()
     p.add_argument("--profile",required=True)
     p.add_argument("--repo",required=True)
+    p.add_argument("--mode",choices=("baseline","adaptive"),required=True)
     args=p.parse_args()
     output=Path("ui-visual-evidence");output.mkdir(exist_ok=True)
-    record=audit(args.profile,Path.cwd())
+    record=audit(args.profile,Path.cwd(),args.mode)
     report={"structural_errors":record["errors"]}
     if not record["errors"]:
         try:
-            previous=baseline(args.repo,args.profile)
+            previous=baseline(args.repo,args.profile,args.mode)
             report.update(compare(previous,record))
             write_gallery(previous,record,report,output)
         except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as exc:

@@ -48,6 +48,22 @@ def parse_instrumentation(log, exit_code):
     return result
 
 
+def completed_test_ids(log):
+    """Read the runner's successful completion records, not start messages."""
+    current = {}
+    tests = []
+    for line in log.splitlines():
+        match = re.fullmatch(r"INSTRUMENTATION_STATUS: (class|test)=(.+)", line.strip())
+        if match:
+            current[match[1]] = match[2]
+        elif line.strip().startswith("INSTRUMENTATION_STATUS_CODE:"):
+            if line.strip() == "INSTRUMENTATION_STATUS_CODE: 0":
+                if set(current) != {"class", "test"}:
+                    raise ValueError("Incomplete JUnit completion record")
+                tests.append(current["class"]+"#"+current["test"])
+            current = {}
+    return sorted(tests)
+
 def adb(*args):
     return subprocess.check_output(["adb", *args], text=True).strip()
 
@@ -62,7 +78,12 @@ def execute_instrumentation(classes, log_path):
                 evidence.write(line)
                 print(line, end="", flush=True)
             code = process.wait()
-    return parse_instrumentation(Path(log_path).read_text(encoding="utf-8"), code)
+    log = Path(log_path).read_text(encoding="utf-8")
+    result = parse_instrumentation(log, code)
+    result["test_ids"] = completed_test_ids(log)
+    if result["status"] == "passed" and (len(result["test_ids"]) != result["tests"] or len(set(result["test_ids"])) != result["tests"]):
+        result.update(status="failed", evidence_category="missing_or_duplicate_test_ids")
+    return result
 
 
 def clear_device_screens():
@@ -120,7 +141,7 @@ def run_fresh_suite(profile, mode, log, destination):
         evidence.update(run_id=run_id, started_at_epoch=started,
                         commit=os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA"), **measured)
         manifest.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    result.update(run_id=run_id, **measured, missing_screens=missing, screenshot_collection_exit=code)
+    result.update(run_id=run_id, commit=os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA"), **measured, missing_screens=missing, screenshot_collection_exit=code)
     if missing or code:
         result.update(status="failed", evidence_category="screenshot_missing_or_collection_error")
     return result
@@ -148,12 +169,8 @@ def adaptive(profile):
         adb("shell", "wm", "size", f"{spec['width_px']}x{spec['height_px']}")
         adb("shell", "wm", "density", str(spec["density_dpi"]))
         adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
-        result = run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive")
-        baseline_result = json.loads(Path("ui-baseline-diagnosis.json").read_text(encoding="utf-8"))
-        result["expected_tests"] = baseline_result["tests"]
-        if result["tests"] != baseline_result["tests"]:
-            result.update(status="failed", evidence_category="adaptive_test_count_mismatch")
-        return result
+        # Each mode has its own clean emulator; the final evidence gate compares all six exact test sets.
+        return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive")
     finally:
         adb("shell", "wm", "size", original_size.group(1) if original_size else "reset")
         adb("shell", "wm", "density", original_density.group(1) if original_density else "reset")

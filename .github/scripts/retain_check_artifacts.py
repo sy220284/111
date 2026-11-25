@@ -75,7 +75,14 @@ def plan(artifacts, runs, open_heads, native_keep, native_safe):
                     and (run.get("head_repository") or {}).get("full_name") == run["repository"]["full_name"],
                     run["created_at"], run["id"], a["created_at"], a["id"])
         newest = max(entries, key=rank)
-        delete.extend(a for a in entries if a["id"] != newest["id"])
+        keep = {newest["id"]}
+        if lane is None and newest["name"].startswith("codex-android-ui-visual-api"):
+            accepted = [a for a in entries if runs[a["workflow_run"]["id"]].get("conclusion") == "success"
+                        and runs[a["workflow_run"]["id"]]["head_branch"] == "main"
+                        and (runs[a["workflow_run"]["id"]].get("head_repository") or {}).get("full_name") == runs[a["workflow_run"]["id"]]["repository"]["full_name"]]
+            if accepted:
+                keep.add(max(accepted, key=rank)["id"])
+        delete.extend(a for a in entries if a["id"] not in keep)
 
     if native_safe:
         for a in artifacts:

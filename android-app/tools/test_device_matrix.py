@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 from pathlib import Path
-from device_matrix import CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd
+from device_matrix import CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd, MODES
 
 class DeviceMatrixTests(unittest.TestCase):
     def test_three_distinct_current_phones_and_one_update_owner(self):
@@ -9,7 +9,11 @@ class DeviceMatrixTests(unittest.TestCase):
         self.assertEqual(3, len(PROFILES))
         self.assertEqual(1, sum(p["self_update"] for p in PROFILES.values()))
         self.assertEqual(set(PROFILES), {p["profile"] for p in matrix()["include"]})
-        self.assertEqual(3, len({job_name(p) for p in PROFILES}))
+        self.assertEqual(6, len(matrix()["include"]))
+        self.assertEqual({(p,m) for p in PROFILES for m in MODES}, {(row["profile"],row["mode"]) for row in matrix()["include"]})
+        self.assertEqual(6, len({job_name(p,m) for p in PROFILES for m in MODES}))
+        self.assertEqual(1, sum(row["self_update"] for row in matrix()["include"]))
+        self.assertEqual(3, sum(row["motion"] for row in matrix()["include"]))
     def test_high_resolution_and_adaptive_narrow_screen(self):
         for profile in PROFILES:
             b = dimensions(profile, "baseline")

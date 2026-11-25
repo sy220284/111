@@ -2,7 +2,7 @@
 import json
 import os
 
-FULL = {"native", "verify-ui", "ui-emulator", "build", "verify-apk", "preflight", "compatibility"}
+FULL = {"native", "static-ui", "verify-ui", "ui-emulator", "ui-evidence", "build", "verify-apk", "preflight", "compatibility"}
 ALL = FULL | {"release-signing-smoke", "runtime-test", "plan"}
 
 def verify(jobs, event, ref):
