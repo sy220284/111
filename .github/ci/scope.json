@@ -1,0 +1,72 @@
+{
+  "maintenance": {
+    "files": [
+      "AGENTS.md",
+      "README.md",
+      ".github/workflows/retain-check-artifacts.yml",
+      ".github/scripts/retain_check_artifacts.py",
+      ".github/scripts/test_retain_check_artifacts.py",
+      ".github/scripts/repository_steward.py",
+      ".github/scripts/test_repository_steward.py",
+      "upstream/codex/README.md"
+    ],
+    "prefixes": [
+      "docs/",
+      "upstream/codex/sdk/"
+    ]
+  },
+  "release": {
+    "files": [
+      "android-app/app/build.gradle.kts",
+      "android-app/app/proguard-rules.pro",
+      "android-app/build.gradle.kts",
+      "android-app/settings.gradle.kts",
+      "android-app/gradle.properties",
+      "android-app/tools/package_native_runtime.sh",
+      "android-app/tools/prepare_prebuilt_developer_runtime.py",
+      ".github/scripts/prepare-android-patcher.sh",
+      ".github/scripts/prepare-release-assets.sh",
+      ".github/scripts/verify_git_corresponding_source.py",
+      ".github/release-version"
+    ],
+    "prefixes": [
+      "android-app/app/src/main/",
+      "android-app/app/src/release/"
+    ]
+  },
+  "acceptance": {
+    "files": [
+      "docs/设计系统.md",
+      "docs/对标应用29项界面交付核对表-20261123.md",
+      "docs/第五版接口与界面组件映射矩阵.md",
+      "docs/接口协议动作清单与落地验收台账-20261122.md",
+      "docs/第五版全接口组件与功能接入说明.md"
+    ],
+    "prefixes": [
+      "docs/ui-assets/"
+    ]
+  },
+  "runtime": {
+    "files": [
+      "android-app/tools/prepare_android_mxc.py",
+      "android-app/tools/prepare_android_code_mode.py",
+      "android-app/tools/prepare_android_v8.sh",
+      "android-app/tools/adapt_android_v8_build.py",
+      "android-app/tools/build_android_git.sh",
+      "android-app/tools/package_native_runtime.sh",
+      "android-app/tools/prepare_prebuilt_developer_runtime.py",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexForegroundService.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/DeveloperRuntime.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RuntimePayloadIntegrity.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/TerminalTaskOperations.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteExecutionBinding.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteEnvironmentProtocol.kt",
+      "android-app/app/src/main/AndroidManifest.xml"
+    ],
+    "prefixes": [
+      "upstream/codex/codex-rs/",
+      "upstream/codex/.cargo/"
+    ]
+  }
+}

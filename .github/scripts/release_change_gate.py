@@ -6,27 +6,11 @@ import sys
 
 from select_native_artifacts import ArtifactSelector, SelectionError
 
-# Only content packaged into the signed phone APK or its release assets.
-ANDROID_BUILD_FILES = {
-    "android-app/app/build.gradle.kts",
-    "android-app/app/proguard-rules.pro",
-    "android-app/build.gradle.kts",
-    "android-app/settings.gradle.kts",
-    "android-app/gradle.properties",
-    "android-app/tools/package_native_runtime.sh",
-    ".github/scripts/prepare-android-patcher.sh",
-    ".github/scripts/prepare-release-assets.sh",
-    ".github/release-version",
-}
-ANDROID_BUILD_PREFIXES = (
-    "android-app/app/src/main/",
-    "android-app/app/src/release/",
-)
+from ci_policy import matches
 
 
 def changes_apk_inputs(paths: list[str]) -> bool:
-    return any(path in ANDROID_BUILD_FILES or
-               path.startswith(ANDROID_BUILD_PREFIXES) for path in paths)
+    return any(matches(path, 'release') for path in paths)
 
 
 def should_release(changed_paths: list[str], base: str, head: str,

@@ -11,6 +11,7 @@ on:
 permissions:
   contents: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: codex-upstream-import-${{ github.ref_name }}
@@ -19,7 +20,7 @@ concurrency:
 jobs:
   import:
     name: 三方增量合并并创建审核 PR
-    if: github.ref_type == 'branch'
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
@@ -72,3 +73,12 @@ jobs:
           - 基于原锁定官方提交、111 当前源码和新官方提交进行 Git 三方合并。
           - 官方目标：$SHA；保留独立修改，真实冲突须人工审计。
           - 合并前验收：协议与界面差异、ARM64 核心、APK 和三档设备、Android 兼容适配。"
+
+      - name: 触发刚创建的上游草稿 PR 同提交验收
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          BRANCH="$(git branch --show-current)"
+          if [ "$BRANCH" = main ]; then exit 0; fi
+          gh workflow run ci.yml --ref "$BRANCH" -f runtime_x86=false

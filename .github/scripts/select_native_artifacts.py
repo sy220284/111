@@ -64,6 +64,8 @@ def native_recipe(workflow, abi=None):
     if not start or not end or start.start() >= end.start():
         raise SelectionError("无法识别原生编译配置边界；需核对后再复用")
     recipe = job[start.start():end.start()].strip()
+    # Checkout transport and CI-index-only paths do not alter native inputs.
+    recipe = re.sub(r"(?m)^          (?:ref: .*github\.event\.pull_request\.head\.sha.*|fetch-depth: 0)\n|^            \.github/(?:scripts|ci)\n", "", recipe)
     dynamic = "        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}"
     if dynamic in recipe:
         keys = ("rust_target", "clang", "clangxx", "abi", "elf_arch")
@@ -89,6 +91,16 @@ def native_recipe(workflow, abi=None):
     if len(found) != 1:
         raise SelectionError(f"原生编译矩阵缺少唯一的 {abi} 架构")
     return prefix + marker + found[0].rstrip("\n") + env_marker + suffix
+
+
+def provider_recipe(workflow):
+    marker = "\n  provider-contract:\n"
+    if marker not in workflow:
+        return ""
+    job = workflow.split(marker, 1)[1]
+    job = re.split(r"(?m)^  [a-z][a-z0-9-]*:\s*$", job, maxsplit=1)[0]
+    steps = job[job.index("    runs-on:"):].split("\n      - name: 生成 Rust 回归凭证", 1)[0]
+    return re.sub(r"(?m)^          (?:ref: .*github\.event\.pull_request\.head\.sha.*|fetch-depth: 0)\n|^            \.github/(?:scripts|ci)\n", "", steps).strip()
 
 
 class ArtifactSelector:
@@ -118,64 +130,118 @@ class ArtifactSelector:
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
         return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, native_recipe(workflow, abi))
 
-    def is_ancestor(self, old, new):
-        # Not an error: candidates from a previous main history can be skipped.
-        return self.run(["git", "merge-base", old, new]) == old
+    def test_signature(self, sha):
+        upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex/codex-rs"])
+        parent_cargo = self.run(["git", "ls-tree", sha, "--", "upstream/codex/.cargo"])
+        workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
+        return (upstream, parent_cargo, provider_recipe(workflow))
 
-    def find(self, repository, target, abis, branch="main"):
-        current_signatures = {abi: self.signature(target, abi) for abi in abis}
-        query = [
-            "gh", "run", "list", "--repo", repository,
-            "--workflow", "build-native-codex.yml",
-            "--limit", "200", "--json", "databaseId,headSha,conclusion",
-        ]
-        # After a merge commit, the verified PR commit becomes an ancestor
-        # of main. Include its build in the search rather than recompiling.
-        # is_ancestor() plus the exact per-ABI source/recipe signature below
-        # remain mandatory before reuse.
-        if branch != "main":
-            query.extend(["--branch", branch])
-        runs = json.loads(self.run(query))
-        expected = {f"codex-android-native-{abi}" for abi in abis}
-        for item in runs:
-            # The successful ARM64 job remains reusable after a separate
-            # x86_64 job fails or the parent workflow is cancelled.
-            if item.get("conclusion") == "skipped":
+    def is_ancestor(self, old, new):
+        try:
+            return self.run(["git", "merge-base", old, new]) == old
+        except SelectionError as exc:
+            print(f"跳过不可确认祖先关系的历史候选 {old}: {exc}", file=sys.stderr)
+            return False
+
+    def index_runs(self, repository, name):
+        matches = set()
+        page = 1
+        while True:
+            response = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/artifacts?name={name}&per_page=100&page={page}"]))
+            artifacts = response.get("artifacts", [])
+            matches.update(a["workflow_run"]["id"] for a in artifacts if not a.get("expired", True) and a.get("workflow_run"))
+            if len(artifacts) < 100:
+                break
+            page += 1
+        return matches
+
+    def indexed_candidates(self, repository, signatures):
+        from native_index import fingerprint
+        groups = [self.index_runs(repository, f"native-index-{abi}-{fingerprint(signature)}")
+                  for abi, signature in signatures.items()]
+        return sorted(set.intersection(*groups), reverse=True) if groups else []
+
+    @staticmethod
+    def historical(repository):
+        from pathlib import Path
+        path = Path(__file__).resolve().parents[1] / "ci" / "native-migration.json"
+        return {item["run_id"]: item for item in json.loads(path.read_text(encoding="utf-8"))
+                if item["repository"] == repository}
+
+    def source(self, repository, run_id, target, branch):
+        run = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/runs/{run_id}"]))
+        if (run.get("head_repository") or {}).get("full_name") != repository:
+            return None
+        if run.get("path", "").split("@", 1)[0] not in {
+                ".github/workflows/ci.yml", ".github/workflows/build-native-codex.yml"}:
+            return None
+        if branch != "main" and run.get("head_branch") != branch:
+            return None
+        old = run.get("head_sha")
+        return old if old and self.is_ancestor(old, target) else None
+
+    def jobs(self, repository, run_id):
+        jobs = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100"]))
+        return {job.get("name", "").rsplit(" / ", 1)[-1]
+                for job in jobs.get("jobs", []) if job.get("conclusion") == "success"}
+
+    def legacy_source(self, record, old):
+        return (old == record["head_sha"] and
+                self.run(["git", "rev-parse", f"{old}^{{tree}}"]) == record["source_tree"])
+
+    def find_provider(self, repository, target, branch="main"):
+        from native_index import fingerprint
+        signature = self.test_signature(target)
+        history = self.historical(repository)
+        ids = list(dict.fromkeys(sorted(self.index_runs(repository, "provider-index-" + fingerprint(signature)), reverse=True) + list(history)))
+        for run_id in ids:
+            old = self.source(repository, run_id, target, branch)
+            if not old:
                 continue
-            old = item.get("headSha")
-            if not old or not self.is_ancestor(old, target):
+            if run_id in history and not self.legacy_source(history[run_id], old):
+                continue
+            try:
+                if self.test_signature(old) != signature:
+                    continue
+            except SelectionError as exc:
+                print(f"跳过无法核对 Rust 测试指纹的历史候选 {old}: {exc}", file=sys.stderr)
+                continue
+            if "国内服务商目录与模型能力 Rust 回归测试" in self.jobs(repository, run_id):
+                return str(run_id)
+        return None
+
+    def find(self, repository, target, abis, branch="main", require_provider=True):
+        current_signatures = {abi: self.signature(target, abi) for abi in abis}
+        history = {rid: item for rid, item in self.historical(repository).items()
+                   if set(abis) == {item["abi"]}}
+        ids = list(dict.fromkeys(self.indexed_candidates(repository, current_signatures) + list(history)))
+        expected = {f"codex-android-native-{abi}" for abi in abis}
+        for run_id in ids:
+            old = self.source(repository, run_id, target, branch)
+            if not old:
                 continue
             try:
                 if any(self.signature(old, abi) != current_signatures[abi] for abi in abis):
                     continue
-            except SelectionError as error:
-                # A historical workflow can predate the native build inputs.
-                # It is ineligible for reuse, but must not block later runs.
-                print(f"跳过缺少完整原生编译输入的历史构建 {old}: {error}", file=sys.stderr)
+            except SelectionError as exc:
+                print(f"跳过无法核对原生编译指纹的历史候选 {old}: {exc}", file=sys.stderr)
                 continue
-            run_id = item["databaseId"]
             response = json.loads(self.run([
-                "gh", "api",
-                f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
+                "gh", "api", f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
             ]))
-            available = {
-                artifact["name"]
-                for artifact in response.get("artifacts", [])
-                if not artifact.get("expired", True)
-                and artifact.get("size_in_bytes", 0) > 0
-            }
-            if not expected <= available:
+            available = {a["name"]: a for a in response.get("artifacts", [])
+                         if not a.get("expired", True) and a.get("size_in_bytes", 0) > 0}
+            if not expected <= available.keys():
                 continue
-            # A valid artifact alone is insufficient: check that the matching
-            # compiler job actually concluded successfully.
-            jobs = json.loads(self.run([
-                "gh", "api", f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100"
-            ]))
-            succeeded = {
-                job.get("name") for job in jobs.get("jobs", [])
-                if job.get("conclusion") == "success"
-            }
-            if {f"编译 {abi} 核心" for abi in abis} <= succeeded:
+            if run_id in history:
+                record = history[run_id]
+                asset = available[f"codex-android-native-{record['abi']}"]
+                if (not self.legacy_source(record, old) or asset.get("id") != record["artifact_id"]
+                        or asset.get("digest") != record["artifact_digest"]):
+                    continue
+            if {f"编译 {abi} 核心" for abi in abis} <= self.jobs(repository, run_id):
+                if require_provider and not self.find_provider(repository, target, branch):
+                    return None
                 return str(run_id)
         return None
 
@@ -183,20 +249,26 @@ class ArtifactSelector:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True)
-    parser.add_argument("--abis", nargs="+", required=True,
+    parser.add_argument("--abis", nargs="+",
                         choices=("arm64-v8a", "x86_64"))
+    parser.add_argument("--provider-only", action="store_true")
+    parser.add_argument("--compiler-only", action="store_true")
     parser.add_argument("--target", default="HEAD")
     parser.add_argument("--branch", default="main")
     args = parser.parse_args()
+    if args.provider_only == bool(args.abis) or (args.provider_only and args.compiler_only):
+        parser.error("指定 --provider-only 或 --abis；两者互斥")
     try:
         selector = ArtifactSelector()
-        run_id = selector.find(args.repo, args.target, args.abis, branch=args.branch)
+        run_id = (selector.find_provider(args.repo, args.target, args.branch) if args.provider_only
+                  else selector.find(args.repo, args.target, args.abis, branch=args.branch,
+                                     require_provider=not args.compiler_only))
         if run_id:
             print(run_id)
-            print(f"复用原生核心构建 {run_id}（同源码、编译配置、有效产物：{', '.join(args.abis)}）",
+            print(f"复用已核验的原生构建或 Rust 回归凭证 {run_id}",
                   file=sys.stderr)
             return 0
-        print("没有与当前源码和编译配置完全一致的可用原生内核产物；需要新的原生编译",
+        print("未找到与当前输入一致的原生构建或 Rust 回归凭证，需要补建或补测",
               file=sys.stderr)
         return 3
     except (SelectionError, KeyError, ValueError, json.JSONDecodeError) as error:
