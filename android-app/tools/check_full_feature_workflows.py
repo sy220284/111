@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 
 from protocol_contract import parse_contracts
+from ui_evidence_manifest import load_evidence_manifest, declared_screens as evidence_screens
 
 ROW = re.compile(r"^\|\s*(\d{2})\s*\|\s*`([a-z]+)`\s*\|\s*(P[012])\s*\|\s*([^|]*)\|\s*([^|]*)\|\s*([^|]*)\|", re.M)
 PAGE = re.compile(r'\bPage\("([a-z]+)"')
@@ -23,12 +24,12 @@ TEST_CLASS = re.compile(r'\bclass\s+([A-Za-z][A-Za-z0-9_]*Test)\b')
 SOURCE_NAME = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\.kt\b')
 
 
-def audit(repository: Path, expected: int = 31) -> dict:
+def audit(repository: Path, expected: int | None = None) -> dict:
     source = repository / "android-app/app/src/main/java/io/github/sy220284/codexandroid"
     document = (repository / "docs/对标应用29项界面交付核对表-20261123.md").read_text(encoding="utf-8")
     navigation = (source / "AppNavigation.kt").read_text(encoding="utf-8")
     feature = (source / "UiFeatureCatalog.kt").read_text(encoding="utf-8")
-    collector = (repository / "android-app/tools/collect_ui_screenshots.py").read_text(encoding="utf-8")
+    evidence_manifest = load_evidence_manifest(repository)
     policy = json.loads((repository / "android-app/tools/ui_surface_policy.json").read_text(encoding="utf-8"))
     contracts = parse_contracts((repository / "upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs").read_text(encoding="utf-8"))
     method_policy = policy["methods"]
@@ -38,10 +39,11 @@ def audit(repository: Path, expected: int = 31) -> dict:
                      for area in ("test", "androidTest")
                      for p in sorted((repository / "android-app/app/src" / area).rglob("*.kt")))
     test_names = set(TEST_METHOD.findall(tests)) | set(TEST_CLASS.findall(tests))
-    declared_screens = set(collector.split('REQUIRED_SCREENS = """', 1)[1].split('"""', 1)[0].split())
-    declared_screens.update(collector.split('OPTIONAL_SCREENS = [', 1)[1].split(']', 1)[0].replace('"', '').replace("'", '').replace(",", " ").split())
+    declared_screens = set(evidence_screens(evidence_manifest))
     routes = set(PAGE.findall(navigation))
     features = set(FEATURE.findall(feature))
+    if expected is None:
+        expected = len(features)
     rows = []
     issues = []
     by_route = {}
@@ -150,7 +152,7 @@ def main() -> int:
     args.report.write_text(markdown(result), encoding="utf-8")
     for issue in result["issues"]:
         print("功能链路审计异常：" + issue)
-    print(f"功能链路：{result['workflow_count']}/31；官方方法：{result['rust_method_count']}；待实机逐条验收。")
+    print(f"功能链路：{result['workflow_count']}/{result['feature_count']}；官方方法：{result['rust_method_count']}；待实机逐条验收。")
     return int(bool(result["issues"]))
 
 

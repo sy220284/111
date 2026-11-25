@@ -252,6 +252,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /android-app/tools/collect_ui_screenshots.py
+            /android-app/tools/ui_evidence_manifest.py
             /android-app/tools/run_ui_device_checks.py
             /android-app/tools/verify_self_update_open.py
             /docs/ui-assets/素材接入清单.json

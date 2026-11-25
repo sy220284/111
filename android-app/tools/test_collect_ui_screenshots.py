@@ -12,7 +12,7 @@ from collect_ui_screenshots import parse_discovered_screens, REQUIRED_SCREENS, v
 class ScreenshotDiscoveryTest(unittest.TestCase):
     def test_every_route_must_register_distinct_device_evidence(self):
         manifest = {"routes": [{"route": "chat", "screens": ["chat"]}],
-                    "requiredStateScreens": ["keyboard"]}
+                    "requiredStateScreens": ["keyboard"], "optionalStateScreens": []}
         self.assertEqual(["chat", "keyboard"], required_screens(manifest))
         manifest["routes"].append({"route": "settings", "screens": []})
         with self.assertRaises(ValueError):

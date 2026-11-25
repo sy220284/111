@@ -148,6 +148,7 @@ def audit(root):
         for test in entry["tests"]:
             test_ref(test)
     declared_screens.extend(manifest.get("requiredStateScreens", []))
+    declared_screens.extend(manifest.get("optionalStateScreens", []))
     if len(declared_screens) != len(set(declared_screens)):
         errors.append("必检设备截图重复登记")
     if any(not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", screen) for screen in declared_screens):

@@ -13,25 +13,11 @@ import zlib
 import json
 import re
 
-MANIFEST_PATH = Path(__file__).resolve().parents[2] / "docs/ui-assets/素材接入清单.json"
+from ui_evidence_manifest import load_evidence_manifest, required_screens, declared_screens
 
-
-def required_screens(manifest):
-    screens = []
-    for entry in manifest["routes"]:
-        if not entry.get("screens"):
-            raise ValueError("路由缺少真实截图登记：" + entry["route"])
-        screens.extend(entry["screens"])
-    screens.extend(manifest["requiredStateScreens"])
-    if len(set(screens)) != len(screens):
-        raise ValueError("必检截图重复登记")
-    if any(not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", screen) for screen in screens):
-        raise ValueError("必检截图名称无效")
-    return screens
-
-
-REQUIRED_SCREENS = required_screens(json.loads(MANIFEST_PATH.read_text(encoding="utf-8")))
-OPTIONAL_SCREENS = ["audit-thread-history-transition"]
+EVIDENCE_MANIFEST = load_evidence_manifest(Path(__file__).resolve().parents[2])
+REQUIRED_SCREENS = required_screens(EVIDENCE_MANIFEST)
+OPTIONAL_SCREENS = [screen for screen in declared_screens(EVIDENCE_MANIFEST) if screen not in REQUIRED_SCREENS]
 DEVICE_ROOT = "/sdcard/Android/data/io.github.sy220284.codexandroid/files"
 DESTINATION = Path("ui-screenshots")
 SCREEN_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*-android35\.png$")

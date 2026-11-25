@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Regression tests for all-route evidence gate, including false-success cases."""
+import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -35,10 +36,11 @@ class FullFeatureWorkflowGateTests(TestCase):
             "| 01 | `home` | P1 | 首页 | `Screens.kt / HomePage` | homeOpensScreen；home-android35.png |\n",
             encoding="utf-8"
         )
-        (tools / "collect_ui_screenshots.py").write_text(
-            'REQUIRED_SCREENS = """home""".split()\nOPTIONAL_SCREENS = []',
-            encoding="utf-8"
-        )
+        (docs / "ui-assets").mkdir()
+        (docs / "ui-assets/素材接入清单.json").write_text(json.dumps({
+            "routes": [{"route": "home", "screens": ["home"]}],
+            "requiredStateScreens": [], "optionalStateScreens": [],
+        }), encoding="utf-8")
         (tools / "ui_surface_policy.json").write_text(
             '{"methods":{"thread/list":{"surface":"直接操作"}}}',
             encoding="utf-8"
@@ -76,11 +78,11 @@ class FullFeatureWorkflowGateTests(TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_repo(root)
-            collector = root / "android-app/tools/collect_ui_screenshots.py"
-            collector.write_text(
-                'REQUIRED_SCREENS = """other-screen""".split()\\nOPTIONAL_SCREENS = []',
-                encoding="utf-8"
-            )
+            manifest = root / "docs/ui-assets/素材接入清单.json"
+            manifest.write_text(json.dumps({
+                "routes": [{"route": "home", "screens": ["other-screen"]}],
+                "requiredStateScreens": [], "optionalStateScreens": [],
+            }), encoding="utf-8")
             errors = self.run_audit(root)["issues"]
             self.assertTrue(any("文档截图未纳入设备验收" in error for error in errors))
 

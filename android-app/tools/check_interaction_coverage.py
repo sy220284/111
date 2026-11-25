@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 from pathlib import Path
+from ui_evidence_manifest import load_evidence_manifest, declared_screens
 
 SOURCE = "android-app/app/src/main/java/io/github/sy220284/codexandroid"
 TOOLS = "android-app/tools"
@@ -24,7 +25,7 @@ def check(root):
     if len(children) != len(set(children)):
         errors.append("子页面标识重复")
     tests = "\n".join(p.read_text() for p in (root / "android-app/app/src").glob("**/*Test.kt"))
-    collector = (root / TOOLS / "collect_ui_screenshots.py").read_text()
+    screenshots = set(declared_screens(load_evidence_manifest(root)))
     for row in routes + subpages:
         label = row.get("route", row.get("id"))
         if "parent" in row and row["parent"] not in expected:
@@ -46,7 +47,7 @@ def check(root):
             errors.append(f"{label}: 页面内未调用 {row['component']}")
         if row.get("test") and not re.search(r"\bfun\s+" + re.escape(row["test"]) + r"\s*\(", tests):
             errors.append(f"{label}: 回归用例不存在")
-        if row.get("screenshot") and not re.search(r"(?<![\w-])" + re.escape(row["screenshot"]) + r"(?![\w-])", collector):
+        if row.get("screenshot") and row["screenshot"] not in screenshots:
             errors.append(f"{label}: 截图未登记")
     return {"routes": len(routes), "subpages": len(subpages), "errors": errors,
             "scope": "静态组件调用与证据声明；不等同设备测试通过"}
