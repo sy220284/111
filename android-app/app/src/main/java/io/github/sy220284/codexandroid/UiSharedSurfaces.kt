@@ -163,7 +163,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
         recoveryLabel = if (!connected) "重新连接" else if (errors[catalogKey] != null || (!loading && choices.isEmpty())) "重新读取" else null,
         onRecovery = { reload() },
         recoveryMessage = if (!connected) "连接恢复后可以选择模型。" else "可重新获取当前服务商目录。",
-        searchable = true, loading = loading,
+        loading = loading,
         extraContent = {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.weight(1f)) {
