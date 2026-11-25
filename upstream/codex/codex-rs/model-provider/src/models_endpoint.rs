@@ -242,7 +242,7 @@ impl OpenAiModelsEndpoint {
         // Only providers with an independently verified public list format are queried.
         // Other profiles remain explicit candidates in the UI until their account catalog is implemented.
         if let Some(profile) = domestic {
-            if profile.catalog != "openai-list" {
+            if !crate::domestic_catalog::is_domestic_live_catalog(self.provider_info.base_url.as_deref()) {
                 return Err(CodexErr::InvalidRequest("domestic account model discovery is not yet supported for this endpoint".into()));
             }
             let transport = self.transport_builder.build(http_client_factory, request_url.clone()).await?;
@@ -341,8 +341,7 @@ impl ModelsEndpointClient for OpenAiModelsEndpoint {
 
     fn supports_api_key_models(&self) -> bool {
         self.provider_info.model_catalog_url.is_some()
-            || crate::domestic_catalog::profile(self.provider_info.base_url.as_deref())
-                .is_some_and(|p| p.catalog == "openai-list")
+            || crate::domestic_catalog::is_domestic_live_catalog(self.provider_info.base_url.as_deref())
             || (self.provider_info.is_openai() && self.provider_info.base_url.is_none())
     }
 

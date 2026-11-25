@@ -40,7 +40,7 @@
     "baseUrl": "https://open.bigmodel.cn/api/v1",
     "envKey": "CODEX_ANDROID_DOMESTIC_GLM_KEY",
     "plan": "Coding Plan（需确认客户端授权）",
-    "catalog": "manual",
+    "catalog": "codex-list",
     "models": [
       {
         "id": "glm-5.4",
@@ -89,11 +89,23 @@
     "baseUrl": "https://api.kimi.com/coding/v1",
     "envKey": "CODEX_ANDROID_DOMESTIC_KIMICODE_KEY",
     "plan": "国内 Kimi Code 订阅",
-    "catalog": "manual",
+    "catalog": "openai-list",
     "models": [
       {
         "id": "k3.1-pro",
         "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high"
+      },
+      {
+        "id": "k3.1-pro-highspeed",
+        "context": 262144,
+        "image": true,
         "efforts": [
           "low",
           "high",
@@ -103,11 +115,41 @@
       },
       {
         "id": "k3",
-        "context": 262144
+        "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high"
       },
       {
         "id": "k3-256k",
-        "context": 262144
+        "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high"
+      },
+      {
+        "id": "kimi-for-coding",
+        "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "max"
+      },
+      {
+        "id": "kimi-for-coding-highspeed",
+        "context": 262144,
+        "image": true
       }
     ],
     "protocol": "responses"

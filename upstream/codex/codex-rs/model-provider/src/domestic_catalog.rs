@@ -59,7 +59,7 @@ struct PublicEffort {
 }
 
 pub fn is_domestic_live_catalog(base_url: Option<&str>) -> bool {
-    profile(base_url).is_some_and(|p| p.catalog == "openai-list")
+    profile(base_url).is_some_and(|p| matches!(p.catalog.as_str(), "openai-list" | "codex-list"))
 }
 
 /// Known Responses-capable entries are selectable. New account IDs remain visible
@@ -68,6 +68,9 @@ pub(crate) fn decode_public_catalog(
     profile: &DomesticProfile,
     body: &[u8],
 ) -> Result<Vec<ModelInfo>, CodexErr> {
+    if profile.catalog == "codex-list" {
+        return decode_codex_catalog(profile, body);
+    }
     let response: PublicCatalog = serde_json::from_slice(body)
         .map_err(|_| CodexErr::InvalidRequest("invalid domestic model list format".into()))?;
     let mut seen = HashSet::new();
@@ -108,6 +111,71 @@ pub(crate) fn decode_public_catalog(
             model
         }
     }).collect())
+}
+
+#[derive(Deserialize)]
+struct NativeCatalog {
+    models: Vec<NativeModel>,
+}
+
+// Read the vendor's declared capability fields, not arbitrary instructions,
+// agent policies, hosted tools, routing or other privileged Codex metadata.
+#[derive(Deserialize)]
+struct NativeModel {
+    slug: String,
+    context_window: Option<i64>,
+    max_context_window: Option<i64>,
+    supported_in_api: Option<bool>,
+    visibility: Option<ModelVisibility>,
+    shell_type: Option<ConfigShellToolType>,
+    input_modalities: Option<Vec<InputModality>>,
+    #[serde(default)]
+    supported_reasoning_levels: Vec<ReasoningEffortPreset>,
+    default_reasoning_level: Option<ReasoningEffort>,
+    apply_patch_tool_type: Option<ApplyPatchToolType>,
+    priority: Option<i32>,
+}
+
+fn decode_codex_catalog(profile: &DomesticProfile, body: &[u8]) -> Result<Vec<ModelInfo>, CodexErr> {
+    let response: NativeCatalog = serde_json::from_slice(body)
+        .map_err(|_| CodexErr::InvalidRequest("invalid native Responses catalog".into()))?;
+    let mut seen = HashSet::new();
+    let mut models = Vec::with_capacity(response.models.len());
+    for entry in response.models {
+        if entry.slug.trim().is_empty() || !seen.insert(entry.slug.clone()) {
+            return Err(CodexErr::InvalidRequest("invalid or duplicate native model ID".into()));
+        }
+        let mut model = profile.models.iter().find(|known| known.id == entry.slug)
+            .map(model_info).unwrap_or_else(|| model_info_from_slug(&entry.slug));
+        let context = entry.context_window.filter(|n| *n > 0);
+        let modalities = entry.input_modalities.unwrap_or_default();
+        let selectable = entry.supported_in_api == Some(true)
+            && entry.visibility == Some(ModelVisibility::List)
+            && entry.shell_type == Some(ConfigShellToolType::UnifiedExec)
+            && context.is_some()
+            && modalities.contains(&InputModality::Text);
+        model.context_window = context;
+        model.max_context_window = entry.max_context_window.filter(|n| *n > 0)
+            .or(context);
+        model.visibility = if selectable { ModelVisibility::List } else { ModelVisibility::Hide };
+        model.shell_type = if selectable { ConfigShellToolType::UnifiedExec } else { ConfigShellToolType::Disabled };
+        model.input_modalities = modalities.into_iter().filter(|m| matches!(m, InputModality::Text | InputModality::Image)).collect();
+        model.supports_reasoning_summary_parameter = false;
+        model.supports_image_detail_original = false;
+        model.supported_reasoning_levels = entry.supported_reasoning_levels.into_iter()
+            .filter(|level| level.effort != ReasoningEffort::Ultra).collect();
+        model.default_reasoning_level = entry.default_reasoning_level
+            .filter(|effort| model.supported_reasoning_levels.iter().any(|level| &level.effort == effort));
+        model.apply_patch_tool_type = if selectable { entry.apply_patch_tool_type } else { None };
+        model.priority = entry.priority.unwrap_or(99);
+        model.description = Some(if selectable {
+            "官方 Responses 目录声明；真实任务能力待验收"
+        } else {
+            "目录已发现；协议能力声明不完整，待核验"
+        }.into());
+        models.push(model);
+    }
+    Ok(models)
 }
 
 /// The documented candidate list is not an account availability assertion.
@@ -161,6 +229,29 @@ mod tests {
         assert!(profile(Some("https://api.moonshot.ai/v1")).is_none());
         assert!(profile(Some("https://api.deepseek.com.evil.example")).is_none());
         assert!(profile(Some("http://api.deepseek.com")).is_none());
+    }
+
+    #[test]
+    fn native_catalog_uses_declared_capabilities_without_importing_privileged_metadata() {
+        let profile = profile(Some("https://open.bigmodel.cn/api/v1")).unwrap();
+        let models = decode_public_catalog(profile, br#"{"models":[{"slug":"glm-new","supported_in_api":true,"visibility":"list","shell_type":"shell_command","context_window":1048576,"input_modalities":["text","image"],"supported_reasoning_levels":[{"effort":"high","description":"High"}],"default_reasoning_level":"high","apply_patch_tool_type":"freeform","base_instructions":"UNTRUSTED","use_responses_lite":true},{"slug":"incomplete"}]}"#).unwrap();
+        assert_eq!(models[0].visibility, ModelVisibility::List);
+        assert_eq!(models[0].context_window, Some(1048576));
+        assert_eq!(models[0].default_reasoning_level, Some(ReasoningEffort::High));
+        assert!(!models[0].use_responses_lite);
+        assert!(!models[0].supports_reasoning_summary_parameter);
+        assert_eq!(models[1].visibility, ModelVisibility::Hide);
+        assert!(decode_public_catalog(profile, br#"{"models":[{"slug":"x"},{"slug":"x"}]}"#).is_err());
+        assert!(decode_public_catalog(profile, br#"{"error":"denied"}"#).is_err());
+    }
+
+    #[test]
+    fn kimi_code_catalog_uses_account_ids_and_keeps_plan_context_conservative() {
+        let profile = profile(Some("https://api.kimi.com/coding/v1")).unwrap();
+        let models = decode_public_catalog(profile, br#"{"data":[{"id":"k3.1-pro-highspeed"},{"id":"k3-256k"},{"id":"unknown"}]}"#).unwrap();
+        assert_eq!(models[0].visibility, ModelVisibility::List);
+        assert_eq!(models[0].context_window, Some(262144));
+        assert_eq!(models[2].visibility, ModelVisibility::Hide);
     }
 
     #[test]

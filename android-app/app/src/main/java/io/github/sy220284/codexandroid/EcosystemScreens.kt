@@ -268,7 +268,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                 }
                 domesticPresets.firstOrNull { it.ownsProvider(item) }?.let { preset ->
                     CodexSecondaryButton(onClick = { inspectCatalog = preset to item.optString("id") }, enabled = !changingCredentials) {
-                        Text(if (preset.catalog == "openai-list") "实时模型目录 / 授权检查" else "查看候选模型")
+                        Text(if (preset.catalog != "manual") "实时模型目录 / 授权检查" else "查看候选模型")
                     }
                 }
                 DetailToggle(item)

@@ -13,7 +13,7 @@ internal fun DomesticCatalogSheet(vm: CodexViewModel, preset: DomesticModelPrese
     val data by vm.data.collectEntries(key)
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
-    val live = preset.catalog == "openai-list"
+    val live = preset.catalog != "manual"
     fun refresh() {
         vm.refresh(key, "model/list", JSONObject().put("modelProvider", id).put("includeHidden", true))
     }
