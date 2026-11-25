@@ -137,7 +137,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("设置")
         rule.onNodeWithTag("settings-search").assertDoesNotExist()
         if (id == "account" || id == "diagnostics") {
-            rule.onNodeWithTag(if (id == "account") "settings-account-overview" else "settings-engine-overview").performClick()
+            val target = if (id == "account") "settings-account-overview" else "settings-engine-overview"
+            rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag(target))
+            rule.onNodeWithTag(target).performClick()
         } else {
             rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-" + id))
             rule.onNodeWithTag("settings-route-" + id).performClick()
@@ -871,8 +873,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
         pressSystemBack()
         openDrawerRoute("settings")
-        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-diagnostics"))
-        rule.onNodeWithTag("settings-route-diagnostics").performClick()
+        rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-engine-overview"))
+        rule.onNodeWithTag("settings-engine-overview").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("诊断与日志")
     }
 

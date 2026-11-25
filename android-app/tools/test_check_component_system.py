@@ -43,6 +43,17 @@ class ComponentSystemTest(unittest.TestCase):
         sources["BusinessPage"] += "\nAtlasFormField()"
         self.assertTrue(any("配置表单已退役" in error for error in audit(sources)["errors"]))
 
+    def test_all_search_fields_and_keyboard_search_are_rejected(self):
+        sources = fixture()
+        sources["BusinessPage"] += "\nAtlasSearchField()\nSearchBar()\nDockedSearchBar()\nCustomSearchBox()\nSearchView()\nval ime = ImeAction.Search"
+        errors = audit(sources)["errors"]
+        self.assertEqual(6, sum("禁止搜索输入框" in e for e in errors))
+
+    def test_search_field_declaration_cannot_be_reintroduced(self):
+        sources = fixture()
+        sources["BusinessPage"] += "\nfun AtlasSearchField() {}"
+        self.assertTrue(any("禁止搜索输入框" in e for e in audit(sources)["errors"]))
+
     def test_comments_and_strings_do_not_count(self):
         sources = fixture()
         sources["BusinessPage"] += '\n// Button()\nval text = "OutlinedTextField()"'

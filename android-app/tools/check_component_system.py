@@ -47,7 +47,7 @@ def audit(sources):
     raw = {name: [] for name in RAW_OWNERS}
     for file, source in sorted(sources.items()):
         code = without_comments_and_literals(source)
-        for hit in re.finditer(r"\b(?:AtlasSearchField|SearchBar|DockedSearchBar|SearchField|SearchInput)\s*\(|\bImeAction\.Search\b", code):
+        for hit in re.finditer(r"\b(?:\w*Search(?:Bar|Field|Input|Box|View))\s*\(|\bImeAction\.Search\b", code):
             line = code.count("\n", 0, hit.start()) + 1
             errors.append(f"{file}:{line}: 禁止搜索输入框；使用分类、选择列表或明确的剪贴板/智能体检索动作")
         # Remove declarations; extension and ordinary declarations are treated equally.
@@ -66,10 +66,10 @@ def audit(sources):
             errors.append(f"{file}: 旧欢迎卡片已退役")
         if re.search(r"\bAtlasFormField\s*\(", source):
             errors.append(f"{file}: 配置表单已退役")
-        allowed_input = {"CodexControlPrimitives", "ActionReply", "AtlasInteractionComponents",
+        allowed_input = {"CodexControlPrimitives", "ActionReply",
             "ConversationComposer", "RealtimeVoiceSheet", "TerminalPage", "WorkspaceFileEditor", "EcosystemScreens"}
         if file not in allowed_input and re.search(r"\bCodexInputField\s*\(", code):
-            errors.append(f"{file}: 非对话、编辑、搜索或密钥直接输入，改用动作组件")
+            errors.append(f"{file}: 非对话、编辑或密钥直接输入，改用动作组件")
     if "EcosystemScreens" in sources:
         provider_inputs = re.findall(r"\bCodexInputField\s*\(\s*(\w+)", sources["EcosystemScreens"])
         if provider_inputs != ["customApiKey"]:
