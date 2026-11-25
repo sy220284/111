@@ -152,9 +152,16 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
         recoveryMessage = if (!connected) "连接恢复后可以选择模型。" else "可重新获取当前服务商目录。",
         searchable = true, loading = loading,
         extraContent = {
-            AtlasSettingsActionRow("服务商", providerName, CodexGlyph.Dns,
-                onClick = { choosingProvider = true }, enabled = selectable && !running && providers.isNotEmpty(),
-                outlined = false)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.weight(1f)) {
+                    AtlasSettingsActionRow("服务商", providerName, CodexGlyph.Dns,
+                        onClick = { choosingProvider = true }, enabled = selectable && !running && providers.isNotEmpty(),
+                        outlined = false)
+                }
+                if (connected && errors[catalogKey] == null && (loading || choices.isNotEmpty())) {
+                    CodexRefreshIcon(loading, { reload() }, "刷新模型目录")
+                }
+            }
             if (destination == null) {
                 Text("思考强度", style = MaterialTheme.typography.titleSmall)
                 if (efforts.isEmpty()) Text(if (selected.isBlank()) "沿用会话或默认强度" else "此模型未提供可选强度",

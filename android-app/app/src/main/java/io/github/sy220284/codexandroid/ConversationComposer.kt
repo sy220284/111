@@ -60,7 +60,8 @@ internal fun ConversationComposer(
     modelMenu: (@Composable () -> Unit)? = null,
     modeMenu: (@Composable () -> Unit)? = null,
     taskMenu: (@Composable () -> Unit)? = null,
-    modelOptionsEnabled: Boolean = optionsEnabled
+    modelOptionsEnabled: Boolean = optionsEnabled,
+    providerLabel: String = ""
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     var expandedEditor by remember { mutableStateOf(false) }
@@ -142,7 +143,7 @@ internal fun ConversationComposer(
                 }
                 Box(Modifier.weight(1f)) {
                     Row(Modifier.fillMaxWidth()) {
-                        ConversationControlBar(modelLabel, effortLabel, modelOptionsEnabled, onModel)
+                        ConversationControlBar(modelLabel, effortLabel, modelOptionsEnabled, onModel, providerLabel)
                     }
                     modelMenu?.invoke()
                 }

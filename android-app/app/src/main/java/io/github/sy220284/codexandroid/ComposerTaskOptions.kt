@@ -38,9 +38,11 @@ internal object ComposerModelPolicy {
     fun choose(options: ComposerTaskOptions, provider: String, id: String,
         catalog: List<JSONObject>): ComposerTaskOptions {
         val key = "$provider/$id"
-        val remembered = options.modelEfforts[key].orEmpty()
+        val history = if (options.model.isNotBlank() && options.effort.isNotBlank())
+            options.modelEfforts + ("${options.modelProvider}/${options.model}" to options.effort) else options.modelEfforts
+        val remembered = history[key].orEmpty()
         val previous = if (options.model == id && options.modelProvider == provider) options.effort else remembered
-        return options.copy(model = id, modelProvider = provider,
+        return options.copy(model = id, modelProvider = provider, modelEfforts = history,
             effort = previous.takeIf { it in efforts(catalog, id) }.orEmpty())
     }
     fun withEffort(options: ComposerTaskOptions, effort: String): ComposerTaskOptions {
@@ -75,7 +77,9 @@ internal fun CodexViewModel.chooseComposerModel(id: String) =
     }
 internal fun CodexViewModel.chooseComposerProvider(id: String) {
     if (activeThread.value != null) return
-    changeComposerOptions { it.copy(modelProvider = id, model = "", effort = "") }
+    changeComposerOptions {
+        ComposerModelPolicy.choose(it, id, "", emptyList())
+    }
 }
 internal fun CodexViewModel.chooseComposerMode(id: String) =
     changeComposerOptions { it.copy(mode = id) }

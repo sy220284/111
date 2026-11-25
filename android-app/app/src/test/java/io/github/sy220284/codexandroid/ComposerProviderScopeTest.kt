@@ -40,6 +40,9 @@ class ComposerProviderScopeTest {
         val row = JSONObject().put("id", "a").put("supportedReasoningEfforts",
             org.json.JSONArray().put(JSONObject().put("reasoningEffort", "high")))
         val catalog = listOf(row, JSONObject().put("id", "b"))
+        val legacy = ComposerTaskOptions("a", effort = "high", modelProvider = "provider")
+        val legacyB = ComposerModelPolicy.choose(legacy, "provider", "b", catalog)
+        assertEquals("high", ComposerModelPolicy.choose(legacyB, "provider", "a", catalog).effort)
         val a = ComposerModelPolicy.choose(ComposerTaskOptions(), "provider", "a", catalog)
         val remembered = ComposerModelPolicy.withEffort(a, "high")
         val b = ComposerModelPolicy.choose(remembered, "provider", "b", catalog)

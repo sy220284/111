@@ -102,7 +102,12 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val threadProvider by vm.activeModelProvider.collectAsState()
     val providerKey = ComposerProviderScope.catalogKey(if (thread != null) threadProvider
         else ComposerProviderScope.provider(snapshot.options.modelProvider))
-    val scopedCatalog by vm.data.collectEntries(providerKey, "composerThread:$thread")
+    val scopedCatalog by vm.data.collectEntries(providerKey, "composerThread:$thread", "providers")
+    val providerId = if (thread != null) ComposerProviderScope.provider(threadProvider)
+        else ComposerProviderScope.provider(snapshot.options.modelProvider)
+            ?: ComposerProviderScope.provider(scopedCatalog["providers"]?.optString("defaultProviderId"))
+    val providerLabel = records(scopedCatalog["providers"]).firstOrNull { it.optString("id") == providerId }
+        ?.optString("name")?.takeIf { it.isNotBlank() }?.let { PresentationPolicy.providerName(it) }.orEmpty()
     val availableModels = remember(scopedCatalog[providerKey]) { records(scopedCatalog[providerKey]) }
     val configured = scopedCatalog["composerThread:$thread"]?.optJSONObject("thread")
     val inheritedModel = ComposerProviderScope.provider(configured?.optString("model"))
@@ -436,6 +441,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 modeLabel = selectedMode,
                 effortLabel = PresentationPolicy.reasoningLabel(shownEffort),
                 modelOptionsEnabled = !firstThreadStarting && !switching && !transferBusy && !restarting,
+                providerLabel = providerLabel,
                 optionsEnabled = optionsEnabled,
                 onModel = { composerMenu = "models" },
                 onMode = { composerMenu = "modes" },
