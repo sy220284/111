@@ -166,9 +166,9 @@ impl Session {
                             Constrained::allow_any(Default::default())
                         };
                     }
-                    config.config_layer_stack = config
+                    config
                         .config_layer_stack
-                        .with_mcp_requirements_from(&next_config.config_layer_stack);
+                        .refresh_mcp_requirements(&next_config.config_layer_stack);
                     if let Err(err) = config.features.refresh_mcp_features(&next_config.features) {
                         warn!(%err, "failed to apply managed MCP feature restrictions");
                         config.mcp_servers = Constrained::allow_any(Default::default());
@@ -269,7 +269,7 @@ impl Session {
                     .refresh(&next_config.features);
             }
             let previous_config = notify_contributors
-                .then(|| self.build_effective_session_config(&state.session_configuration));
+                .then(|| Self::build_effective_session_config(&state.session_configuration));
             if config.mcp_enterprise_managed_auth.is_none() {
                 config.config_layer_stack.mcp_ema_cancellation().cancel();
             }
@@ -293,7 +293,7 @@ impl Session {
                 RuntimeConfigRefresh::UserFiles => McpRefreshReason::UserConfigFilesReloaded,
             });
             let new_config = notify_contributors
-                .then(|| self.build_effective_session_config(&state.session_configuration));
+                .then(|| Self::build_effective_session_config(&state.session_configuration));
             (previous_config, new_config)
         };
         if config

@@ -24,7 +24,10 @@ class AndroidCIScopeTests(unittest.TestCase):
         contents = workflow("build-native-codex.yml")
         self.assertGreaterEqual(contents.count('"upstream/codex/codex-rs/**"'), 2)
         self.assertGreaterEqual(contents.count('"upstream/codex/.cargo/**"'), 2)
-        self.assertIn("--abis arm64-v8a", contents)
+        self.assertIn('--abis "$ABI"', contents)
+        self.assertIn('"abi":"arm64-v8a"', contents)
+        self.assertIn('"abi":"x86_64"', contents)
+        self.assertIn("fromJSON(needs.reuse.outputs.matrix)", contents)
         self.assertIn('- ".github/workflows/build-android.yml"', contents)
         self.assertNotIn('--branch "${{ github.head_ref || github.ref_name }}"', contents)
 
@@ -39,7 +42,11 @@ class AndroidCIScopeTests(unittest.TestCase):
             with self.subTest(path=path):
                 self.assertIn(f'- "{path}"', pr_paths)
         self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", native)
-        self.assertIn("needs.reuse.outputs.reuse == 'true' || needs.native.result == 'success'", native)
+        self.assertIn("needs.reuse.outputs.reuse == 'true' || (needs.native.result == 'success' && needs.provider-contract.result == 'success')", native)
+        self.assertIn("needs: [reuse, native, provider-contract]", native)
+        self.assertIn("cargo test --locked -p codex-model-provider --lib domestic_", native)
+        self.assertIn("cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests", native)
+        self.assertIn("cargo test --locked -p codex-api --lib body_model_reporting", native)
         self.assertIn('-f expected_sha="$PR_HEAD_SHA"', native)
 
     def test_authoritative_protocol_ledger_is_checked_on_every_change(self):
@@ -57,6 +64,26 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn(":app:assembleDebug", build)
         self.assertIn(":app:assembleDebugAndroidTest", build)
         self.assertIn("test_native_reuse.py", ui)
+
+    def test_arm64_does_not_require_x86_unless_explicitly_requested(self):
+        native = workflow("build-native-codex.yml")
+        build = workflow("build-android.yml")
+        self.assertIn("include_x86:", native)
+        self.assertIn("github.event_name == 'workflow_dispatch' && inputs.include_x86", native)
+        self.assertIn("[ \"$ABI\" = 'x86_64' ] && [ \"$INCLUDE_X86\" != 'true' ]", native)
+        self.assertIn("runtime_x86:", build)
+        self.assertIn("needs: [build, runtime-test]", build)
+        self.assertIn("needs.runtime-test.result == 'success'", build)
+        self.assertIn("needs.runtime-test.result == 'skipped' && !(github.event_name == 'workflow_dispatch' && inputs.runtime_x86)", build)
+        self.assertIn("--abis x86_64", build)
+        self.assertIn("run-android-runtime-tests.sh", build)
+
+    def test_android_builds_include_shared_domestic_model_catalog(self):
+        catalog = "upstream/codex/codex-rs/model-provider/catalogs"
+        for name in ("check-android-ui.yml", "build-android.yml", "release.yml"):
+            with self.subTest(name=name):
+                self.assertIn(catalog, workflow(name))
+        self.assertTrue((ROOT / catalog / "domestic-providers.json").is_file())
 
     def test_stale_pr_native_checks_cannot_retrigger_latest_apk(self):
         native = workflow("build-native-codex.yml")
@@ -89,7 +116,13 @@ class AndroidCIScopeTests(unittest.TestCase):
         contents = workflow("import-codex.yml")
         self.assertIn("  workflow_dispatch:", contents)
         self.assertNotIn("  push:", contents)
-        self.assertIn("gh pr create --base main", contents)
+        self.assertIn('gh pr create --draft --base "$GITHUB_REF_NAME"', contents)
+        self.assertIn("merge_codex_upstream.py --target", contents)
+        self.assertIn("fetch_codex_upstream.sh", contents)
+        self.assertIn("refresh_codex_catalog_lock.sh", contents)
+        self.assertNotIn("rsync", contents)
+        self.assertNotIn("--delete", contents)
+        self.assertNotIn("  schedule:", contents)
         self.assertNotIn("git push origin HEAD:main", contents)
 
     def test_release_only_observes_main_and_checks_both_gates(self):

@@ -1,6 +1,5 @@
 package io.github.sy220284.codexandroid
 
-import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,8 +9,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
@@ -40,7 +37,7 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
     }
     var preview by remember(item.id) { mutableStateOf<String?>(null) }
     val resolved by produceState<List<String>?>(null, candidates, workspaceRoot) {
-        value = withContext(Dispatchers.IO) {
+        withContext(Dispatchers.Main.immediate) { value = withContext(Dispatchers.IO) {
             val workspace = workspaceRoot?.let { File(it).canonicalFile }
             val legacy = WorkspaceStorage.legacyRoot(context)
             val roots = listOfNotNull(context.filesDir.canonicalFile, context.cacheDir.canonicalFile, workspace)
@@ -54,7 +51,7 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
                 } catch (_: java.io.IOException) { null }
                 catch (_: IllegalArgumentException) { null }
             }.distinct()
-        }
+        } }
     }
     val paths = resolved
     if (paths == null) {
@@ -65,24 +62,24 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)) {
             paths.take(3).forEach { path ->
-                val bitmap by produceState<ImageBitmap?>(null, path) {
-                    value = withContext(Dispatchers.IO) {
-                        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                        BitmapFactory.decodeFile(path, bounds)
-                        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) null else {
-                            val sample = (maxOf(bounds.outWidth, bounds.outHeight) / 320).coerceAtLeast(1)
-                            BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })?.asImageBitmap()
-                        }
-                    }
+                val bitmap by produceState<AttachmentBitmapInfo?>(null, path) {
+                    withContext(Dispatchers.Main.immediate) { value = decodeAttachmentInfo(path, 320) }
                 }
-                bitmap?.let {
-                    Image(it, "查看原图", Modifier.size(86.dp).clip(RoundedCornerShape(8.dp))
-                        .clickable { preview = path })
+                bitmap?.let { info ->
+                    Column {
+                        Image(info.bitmap, "查看原图", Modifier.size(86.dp).clip(RoundedCornerShape(8.dp))
+                            .clickable { preview = path })
+                        if (item.kind == "imageGeneration")
+                            Text("${info.width} × ${info.height}", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                    }
                 } ?: Text("图片预览不可用", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
             }
         }
         if (paths.size < candidates.size) Text("部分原图已不存在或不在本机工作区",
             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+    }
+    if (item.kind == "imageGeneration") ImageGenerationPresentation.summary(raw)?.let {
+        Text(it, style = MaterialTheme.typography.labelSmall, color = Ink.muted)
     }
     preview?.let { path ->
         AttachmentPreviewDialog(paths, path, onDismiss = { preview = null }, onRemove = null)

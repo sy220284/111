@@ -9,11 +9,12 @@ import org.json.JSONObject
 /** Keep the full write/read transaction owned by the ViewModel, including navigation away. */
 internal const val ENGINE_SETTING_SAVE = "engineSettingSave"
 internal fun configSnapshotBusy(loading: Set<String>, permissionBusy: Boolean) =
-    loading.any { it in setOf("config", ENGINE_SETTING_SAVE, "appMutation", "skillsWrite", "configWrite", "modelProviderWrite") } || permissionBusy
+    loading.any { it in setOf("config", ENGINE_SETTING_SAVE, "appMutation", "skillsWrite", "configWrite", "modelProviderWrite", "providerWrite", "providerDefaultWrite") } || permissionBusy
 internal fun CodexViewModel.configBusy() =
     configSnapshotBusy(loading.value, securitySaveBusy.value || configTransactionBusy.value)
 internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: String, owner: String = "config",
-    saveKey: String = ENGINE_SETTING_SAVE, requireSnapshot: Boolean = true, after: () -> Unit = {}) {
+    saveKey: String = ENGINE_SETTING_SAVE, requireSnapshot: Boolean = true,
+    expectedVersion: String? = null, after: () -> Unit = {}) {
     if (DataTransferMutationGate.refuse(this, saveKey, "config/value/write")) return
     if (configBusy()) {
         errors.value = errors.value + (saveKey to "已有配置操作正在处理，请完成后再保存")
@@ -35,7 +36,9 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
         var needsRefresh = false
         try {
             ConfigWriteTransaction.execute(
-                write = { bridge.request("config/value/write", EngineSettings.writeParams(path, value)) },
+                write = { bridge.request("config/value/write", EngineSettings.writeParams(path, value).apply {
+                    expectedVersion?.let { put("expectedVersion", it) }
+                }) },
                 read = { bridge.request("config/read", JSONObject().put("includeLayers", true)) },
                 isCurrent = { configGeneration == generation },
                 publish = { read ->

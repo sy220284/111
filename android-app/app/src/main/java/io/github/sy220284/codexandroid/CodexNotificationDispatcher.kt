@@ -24,6 +24,11 @@ internal object CodexNotificationDispatcher {
             return
         }
         if (method == "mcpServer/startupStatus/updated") {
+            if (params.optString("name") == ModelPreviewMcpServer.NAME) {
+                modelPreviews.startup(message.optLong(CORE_SESSION_FIELD, -1L), params)
+                return
+            }
+            mcpCatalog.recordStartup(message.optLong(CORE_SESSION_FIELD, -1L), params)
             val targetThread = params.optString("threadId").takeIf { it.isNotBlank() }
             if ((targetThread == null || targetThread == activeThread.value) &&
                 params.optString("status") in setOf("ready", "failed", "cancelled")) {
@@ -51,8 +56,8 @@ internal object CodexNotificationDispatcher {
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
                 refresh("account", "account/read")
                 if (result.success) {
-                    refresh("models", "model/list")
                     catalogWarmup.accountChanged()
+                    modelPreviews.clear()
                     accountMetrics.accountChanged()
                     extensions.invalidate()
                     refresh("mcp", "mcpServerStatus/list",
@@ -61,8 +66,9 @@ internal object CodexNotificationDispatcher {
             }
         } else if (method == "account/updated") {
             refresh("account", "account/read")
-            refresh("models", "model/list")
             catalogWarmup.accountChanged()
+            mcpCatalog.clearStartup()
+            modelPreviews.clear()
             accountMetrics.accountChanged()
             extensions.invalidate()
             refreshMcpServices()
@@ -114,6 +120,7 @@ internal object CodexNotificationDispatcher {
             sessions.refreshChanged(threadId)
         }
         if (method == "thread/deleted") {
+            modelPreviews.removeThread(threadId)
             answerVersions.remove(threadId)
             sessions.removePin(threadId)
             liveTimelines.remove(threadId)

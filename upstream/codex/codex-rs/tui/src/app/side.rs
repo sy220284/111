@@ -227,10 +227,12 @@ impl App {
             .map(|state| (state.parent_thread_id, state.parent_status, state.storage))
         else {
             clear_side_ui(&mut self.chat_widget);
-            if self
+            let destination = self
                 .side_threads
                 .values()
                 .any(|state| state.parent_thread_id == active_thread_id)
+                .then_some("side");
+            if let Some(destination) = destination
                 && let Some(binding) = self.keymap.primary_hint(
                     crate::keymap::KeymapContext::Global,
                     "toggle_side_conversation",
@@ -238,7 +240,7 @@ impl App {
             {
                 self.chat_widget
                     .set_side_conversation_context_label(Some(format!(
-                        "{} for side",
+                        "{} for {destination}",
                         binding.display_label()
                     )));
             }
@@ -266,12 +268,6 @@ impl App {
         if let Some(parent_status) = parent_status {
             label_parts.push(parent_status.label(parent_is_main).to_string());
         }
-        if let Some(binding) = self.keymap.primary_hint(
-            crate::keymap::KeymapContext::Global,
-            "toggle_side_conversation",
-        ) {
-            label_parts.push(format!("{} to switch", binding.display_label()));
-        }
         let action = if storage == SideChatStorage::Attached
             && self.local_settings.workspace_enabled(&self.config)
         {
@@ -279,12 +275,23 @@ impl App {
         } else {
             "close"
         };
-        label_parts.push(format!(
-            "{} to {action}",
-            crate::key_hint::ctrl(KeyCode::Char('c')).display_label()
-        ));
+        label_parts.push(self.conversation_navigation_hints(action));
         self.chat_widget
             .set_side_conversation_context_label(Some(format!("Side {}", label_parts.join(" · "))));
+    }
+
+    pub(super) fn conversation_navigation_hints(&self, action: &str) -> String {
+        let close = crate::key_hint::ctrl(KeyCode::Char('c')).display_label();
+        match self.keymap.primary_hint(
+            crate::keymap::KeymapContext::Global,
+            "toggle_side_conversation",
+        ) {
+            Some(binding) => format!(
+                "{} to switch · {close} to {action}",
+                binding.display_label()
+            ),
+            None => format!("{close} to {action}"),
+        }
     }
 
     pub(super) fn active_side_parent_thread_id(&self) -> Option<ThreadId> {
@@ -427,9 +434,13 @@ impl App {
         if self.overlay.is_none()
             && self.chat_widget.no_modal_or_popup_active()
             && self.chat_widget.composer_is_empty()
-            && let Some(target) = self.current_displayed_thread_id()
-            && let Some(side) = self.side_threads.get(&target)
         {
+            let Some(target) = self.current_displayed_thread_id() else {
+                return false;
+            };
+            let Some(side) = self.side_threads.get(&target) else {
+                return false;
+            };
             if matches!(key.code, KeyCode::Char(c) if c.eq_ignore_ascii_case(&'c'))
                 && self.side_retention_enabled(tui)
                 && self.sidebar_chooser_available()
@@ -471,6 +482,16 @@ impl App {
         (target_thread_id == state.parent_thread_id).then_some(active_thread_id)
     }
 
+    pub(super) fn side_conversation_target(&self, active: ThreadId) -> Option<ThreadId> {
+        if let Some((owner, agent)) = self.docked_agent() {
+            Some(if active == agent { owner } else { agent })
+        } else if let Some(state) = self.side_threads.get(&active) {
+            Some(state.parent_thread_id)
+        } else {
+            self.side_thread_for_parent(active)
+        }
+    }
+
     pub(super) async fn toggle_side_conversation(
         &mut self,
         tui: &mut tui::Tui,
@@ -479,17 +500,7 @@ impl App {
         let Some(active_thread_id) = self.current_displayed_thread_id() else {
             return Ok(());
         };
-        let target_thread_id = if let Some((owner, agent)) = self.docked_agent() {
-            if active_thread_id == agent {
-                owner
-            } else {
-                agent
-            }
-        } else if let Some(state) = self.side_threads.get(&active_thread_id) {
-            state.parent_thread_id
-        } else if let Some(side_thread_id) = self.side_thread_for_parent(active_thread_id) {
-            side_thread_id
-        } else {
+        let Some(target_thread_id) = self.side_conversation_target(active_thread_id) else {
             return Ok(());
         };
 
@@ -1022,7 +1033,7 @@ impl App {
                 if already_selected {
                     // Selection normally skips the live thread. Replay the initialized snapshot
                     // even if the picker exposed this child before the boundary RPC completed.
-                    self.store_active_thread_receiver().await;
+                    self.save_active_thread_state().await;
                     self.active_thread_id = None;
                 }
                 if let Err(err) = self

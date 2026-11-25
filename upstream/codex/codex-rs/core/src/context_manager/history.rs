@@ -22,6 +22,7 @@ use crate::context::ModelSwitchInstructions;
 use crate::context::is_guardian_context_message;
 use crate::context::world_state::PersistentModeState;
 use crate::context::world_state::WorldState;
+use crate::context::world_state::WorldStateSection;
 use crate::context::world_state::WorldStateSnapshot;
 use crate::context::world_state::WorldStateUpdate;
 use crate::context_manager::normalize;
@@ -44,6 +45,7 @@ use codex_guardian_context::SectionHistory;
 use codex_guardian_context::TranscriptHistory;
 use codex_history::CodexHarnessMetadata;
 use codex_history::GuardianHistoryCheckpoint;
+use codex_history::MessageRetention;
 use codex_history::ResponseItemEnvelope;
 use codex_history::RetainedContext;
 use codex_history::RetainedContextEntry;
@@ -65,7 +67,6 @@ use codex_protocol::openai_models::InputModality;
 use codex_protocol::protocol::InterAgentCommunication;
 use codex_protocol::protocol::TokenUsage;
 use codex_protocol::protocol::TokenUsageInfo;
-use codex_protocol::protocol::TurnCompleteEvent;
 use codex_protocol::protocol::TurnContextItem;
 use codex_protocol::protocol::WorldStateItem;
 use codex_thread_context_ids::ThreadContextIds;
@@ -87,6 +88,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use std::sync::LazyLock;
 use std::sync::OnceLock;
+use std::sync::Weak;
 use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering;
 
@@ -100,9 +102,28 @@ fn next_guardian_review_context_revision() -> u64 {
     GUARDIAN_REVIEW_CONTEXT_REVISION.fetch_add(/*val*/ 1, Ordering::Relaxed)
 }
 
+/// Only the committed live history reports changes; speculative clones stay silent.
+#[derive(Default)]
+struct LiveGuardianEvidenceChanges(Weak<crate::context::GuardianReviewEvidence>);
+
+impl Clone for LiveGuardianEvidenceChanges {
+    fn clone(&self) -> Self {
+        Self::default()
+    }
+}
+
+impl LiveGuardianEvidenceChanges {
+    fn notify(&self) {
+        if let Some(evidence) = self.0.upgrade() {
+            evidence.changes.notify();
+        }
+    }
+}
+
 /// Transcript of thread history
 #[derive(Clone)]
 pub(crate) struct ContextManager {
+    guardian_evidence_changes: LiveGuardianEvidenceChanges,
     context_ids: ThreadContextIds,
     sampling: super::sampling::SamplingProgress,
     /// Inclusive sequence cutoff for calls that may still be running in the fork source.
@@ -312,7 +333,10 @@ impl SharedConversationHistory {
 #[cfg(test)]
 impl Default for ContextManager {
     fn default() -> Self {
-        Self::new(codex_thread_context_ids_test_support::thread_context_ids())
+        Self::new(
+            codex_thread_context_ids_test_support::thread_context_ids(),
+            /*retention*/ None,
+        )
     }
 }
 
@@ -321,15 +345,16 @@ impl ContextManager {
         &self.context_ids
     }
 
-    pub(crate) fn new(context_ids: ThreadContextIds) -> Self {
+    pub(crate) fn new(context_ids: ThreadContextIds, retention: Option<MessageRetention>) -> Self {
         Self {
+            guardian_evidence_changes: LiveGuardianEvidenceChanges::default(),
             context_ids,
             sampling: Default::default(),
             restored_through_sequence: 0,
             items: Arc::new(Vec::new()),
             review_history: None,
             review_budgeting: ContextBudgeting::Fixed,
-            retained_context: Arc::default(),
+            retained_context: Arc::new(RetainedContext::new(retention)),
             rejected_audio_file_ids: Arc::default(),
             file_audio_durations: Arc::default(),
             guardian_review_mode: GuardianContextMode::ThreadOwned,
@@ -346,6 +371,20 @@ impl ContextManager {
             reference_context_item: None,
             world_state_baseline: None,
         }
+    }
+
+    pub(crate) fn attach_guardian_evidence_changes(
+        &mut self,
+        evidence: Weak<crate::context::GuardianReviewEvidence>,
+    ) {
+        self.guardian_evidence_changes.0 = evidence;
+    }
+
+    pub(crate) fn guardian_revisions(&self) -> (u64, u64) {
+        (
+            self.user_message_revision,
+            self.guardian_review_context_revision,
+        )
     }
 
     pub(crate) fn conversation_history_snapshot(&self) -> Arc<dyn ConversationHistorySnapshot> {
@@ -371,6 +410,7 @@ impl ContextManager {
         reuse_parent_compaction: bool,
         budgeting: ContextBudgeting,
         context_ids: ThreadContextIds,
+        retention: Option<MessageRetention>,
     ) -> Self {
         let independent = !reuse_parent_compaction;
         Self {
@@ -385,7 +425,7 @@ impl ContextManager {
             review_budgeting: budgeting,
             review_history: independent
                 .then(|| TranscriptHistory::new(/*generation*/ 0, budgeting)),
-            ..Self::new(context_ids)
+            ..Self::new(context_ids, retention)
         }
     }
 
@@ -414,6 +454,7 @@ impl ContextManager {
                 self.guardian_review_context_revision = next_guardian_review_context_revision();
             }
         }
+        self.guardian_evidence_changes.notify();
         true
     }
 
@@ -478,6 +519,9 @@ impl ContextManager {
                                     })
                                     .collect::<Vec<_>>()
                                     .join("\n");
+                                if message.complete && text == message.text {
+                                    return true;
+                                }
                                 guardian_truncate_text(&text, GUARDIAN_MAX_ROOT_MESSAGE_TOKENS).0
                                     == message.text
                             })
@@ -496,6 +540,7 @@ impl ContextManager {
         // Older retained checkpoints cleared oversized instructions. Recover their
         // bounded root excerpts before discarding the legacy source transcript.
         let items = &self.items;
+        let retains_original_messages = self.retained_context.retains_original_user_messages();
         Arc::make_mut(&mut self.retained_context).recover_user_message_excerpts(|id| {
             // Prefer the backup over a compacted copy that retains the original ID.
             let original = checkpoint
@@ -506,7 +551,12 @@ impl ContextManager {
             let Some(TurnItem::UserMessage(original)) = original.and_then(parse_turn_item) else {
                 return None;
             };
-            Some(guardian_truncate_text(&original.message(), GUARDIAN_MAX_ROOT_MESSAGE_TOKENS).0)
+            let text = original.message();
+            Some(if retains_original_messages {
+                text
+            } else {
+                guardian_truncate_text(&text, GUARDIAN_MAX_ROOT_MESSAGE_TOKENS).0
+            })
         });
         let retain_legacy_authorization = self.retain_inherited_user_messages
             && self.retained_context.has_missing_user_messages()
@@ -570,7 +620,28 @@ impl ContextManager {
     }
 
     pub(crate) fn reference_context_item(&self) -> Option<TurnContextItem> {
-        self.reference_context_item.clone()
+        self.reference_context_item_ref().cloned()
+    }
+
+    pub(crate) fn reference_context_item_ref(&self) -> Option<&TurnContextItem> {
+        self.reference_context_item.as_ref()
+    }
+
+    pub(crate) fn render_input_world_state(
+        &self,
+        section: impl WorldStateSection,
+    ) -> (
+        WorldStateSnapshot,
+        Vec<WorldStateUpdate>,
+        Option<WorldStateItem>,
+    ) {
+        let (snapshot, updates) = WorldState::render_section(
+            section,
+            self.world_state_baseline.as_ref(),
+            self.raw_items(),
+        );
+        let rollout_item = self.world_state_item(&snapshot);
+        (snapshot, updates, rollout_item)
     }
 
     pub(crate) fn render_step_world_state(
@@ -581,8 +652,11 @@ impl ContextManager {
         Vec<WorldStateUpdate>,
         Option<WorldStateItem>,
     ) {
-        let (snapshot, fragments) =
+        let (mut snapshot, fragments) =
             world_state.render_history_diff(self.world_state_baseline.as_ref(), self.raw_items());
+        if let Some(previous) = &self.world_state_baseline {
+            snapshot.retain_input_context(previous);
+        }
         let rollout_item = self.world_state_item(&snapshot);
         (snapshot, fragments, rollout_item)
     }
@@ -600,6 +674,10 @@ impl ContextManager {
 
     pub(crate) fn set_world_state_baseline(&mut self, snapshot: WorldStateSnapshot) {
         self.world_state_baseline = Some(snapshot);
+    }
+
+    pub(crate) fn world_state_baseline(&self) -> Option<&WorldStateSnapshot> {
+        self.world_state_baseline.as_ref()
     }
 
     pub(crate) fn world_state_checkpoint(&self) -> Option<WorldStateItem> {
@@ -637,6 +715,18 @@ impl ContextManager {
     ) {
         for envelope in items {
             self.sampling.record(envelope);
+            if self
+                .retained_context
+                .elastic_assistant_record_bytes()
+                .is_some()
+                && let Some((message, _)) =
+                    self.retained_direct_delivery(&envelope.item, envelope.metadata.as_ref())
+                && !message.complete
+            {
+                let metadata = envelope.metadata.get_or_insert_default();
+                metadata.delivered_assistant_message = None;
+                metadata.delivered_assistant_message_incomplete = true;
+            }
             if let Some(source) =
                 self.record_item_with_metadata(&envelope.item, envelope.metadata.as_ref(), policy)
             {
@@ -759,6 +849,7 @@ impl ContextManager {
             self.last_model_output_item_count = Some(self.items.len() + 1);
         }
         Arc::make_mut(&mut self.items).push(processed);
+        self.guardian_evidence_changes.notify();
         source
     }
 
@@ -825,14 +916,6 @@ impl ContextManager {
         &self.items
     }
 
-    /// Apply the durable failed-turn record without rewriting retained user history.
-    pub(crate) fn record_rejected_file_audio(&mut self, event: &TurnCompleteEvent) {
-        let Some(error) = &event.error else {
-            return;
-        };
-        self.extend_rejected_audio_file_ids(error.rejected_audio_file_ids.iter().cloned());
-    }
-
     pub(crate) fn extend_rejected_audio_file_ids(&mut self, ids: impl IntoIterator<Item = String>) {
         let mut ids = ids.into_iter().peekable();
         if ids.peek().is_none() {
@@ -844,6 +927,7 @@ impl ContextManager {
         if rejected.len() != previous_len {
             self.history_version = self.history_version.saturating_add(1);
             self.guardian_review_context_revision = next_guardian_review_context_revision();
+            self.guardian_evidence_changes.notify();
         }
     }
 
@@ -940,7 +1024,7 @@ impl ContextManager {
         self.restored_through_sequence = self
             .restored_through_sequence
             .min(self.sampling.last_sequence);
-        self.retained_context = Arc::default();
+        self.retained_context = Arc::new(self.retained_context.empty_with_same_limits());
         self.user_message_revision = self.user_message_revision.saturating_add(1);
         if let Some(review_history) = &mut self.review_history {
             review_history.reset(
@@ -954,6 +1038,7 @@ impl ContextManager {
         self.history_version = self.history_version.saturating_add(1);
         self.reset_version = self.history_version;
         self.world_state_baseline = None;
+        self.guardian_evidence_changes.notify();
     }
 
     /// Returns whether compaction changed Guardian's evidence policy, invalidating older reviews.
@@ -998,6 +1083,7 @@ impl ContextManager {
             self.reset_version = self.history_version;
         }
         self.world_state_baseline = None;
+        self.guardian_evidence_changes.notify();
         promoted
     }
 

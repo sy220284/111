@@ -18,9 +18,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val bridge = CodexConnection(application.applicationContext)
     internal val connectionRestarter by lazy { ConnectionRestartController(this) }
     internal val realtimeVoiceLease = RealtimeVoiceLease()
+    internal val domesticProviders by lazy { DomesticProviderController(this) }
     internal val approvalAudit = ApprovalAuditController(application.applicationContext)
     private val workspaceRoot = WorkspaceStorage.root(application)
     val workingDirectory = workspaceRoot.absolutePath
+    internal val modelPreviews = ModelPreviewController(this, workspaceRoot)
     private val workspacePreferences = application.getSharedPreferences("codex-workspace", 0)
     private val restoredWorkspace = WorkspaceSelectionContract.restore(
         workspaceRoot, workspacePreferences.getString("activeDirectory", null)?.let { WorkspaceStorage.remap(application, it) })
@@ -30,6 +32,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val projectCatalogRevision = MutableStateFlow(0)
     val planApprovalBusy = MutableStateFlow(false)
     val activeThread = ConversationField(conversationState, { it.threadId }) { s, v -> s.copy(threadId = v) }
+    internal val activeModelProvider = ConversationField(conversationState, { it.modelProvider }) { s, v -> s.copy(modelProvider = v) }
     internal val threadActivities = MutableStateFlow<Map<String, ThreadActivity>>(emptyMap())
     val threadSwitching = MutableStateFlow(false)
     /** True across the entire permissions save + effective-config readback. */
@@ -97,8 +100,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         WorkspaceTaskOperations(this, workspaceRoot, workspacePreferences, viewModelScope)
     }
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
-    internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
-    private val mcpCatalog by lazy { McpCatalogController(this) }
+    internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope, latestRequests) }
+    internal val mcpCatalog by lazy { McpCatalogController(this) }
     internal val accountMetrics by lazy {
         AccountMetricsSync(viewModelScope, data, loading, errors,
             canRead = { bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy },
@@ -113,33 +116,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private var firstTurnImages: List<String> = emptyList()
 
-    fun connect() = viewModelScope.launch {
-        try {
-            val previousThread = activeThread.value
-            val alreadyConnected = bridge.status.value == EngineStatus.Connected
-            bridge.connect()
-            threadOrganization.invalidate()
-            mcpCatalog.reset()
-            // A new native process invalidates ephemeral status from the old session.
-            threadActivities.value = emptyMap()
-            errors.value = errors.value - "engine" - "protocol"
-            refresh("account", "account/read", JSONObject())
-            refresh("models", "model/list", JSONObject())
-            syncRecentThreads()
-            if (!alreadyConnected) extensions.invalidate(preserveAuthorization = true)
-            extensions.refreshAfterAppAuthorization()
-            catalogWarmup.connected()
-            if (alreadyConnected) accountMetrics.refreshIfStale() else accountMetrics.accountChanged()
-            // Rebuild visible history after a connection loss, without resending a task.
-            if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread, forceReload = true)
-        } catch (failure: Exception) {
-            errors.value = errors.value + ("engine" to (failure.message ?: "无法连接运行核心"))
-        }
-    }
-
-    fun reconnectIfNeeded() {
-        if (bridge.status.value is EngineStatus.Unavailable) connect()
-    }
+    internal val recoveryDelayMs = MutableStateFlow<Long?>(null)
+    private val runtimeConnection by lazy { RuntimeConnectionController(this) }
+    fun connect() = runtimeConnection.connect()
+    fun reconnectIfNeeded() = runtimeConnection.reconnectIfNeeded()
 
     /**
      * 同一结果键只接受最后发起的请求，避免较早的慢响应覆盖新结果。
@@ -151,7 +131,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         private set
     internal fun invalidateConfigScope() {
         configGeneration += 1
-        val keys = setOf("config", "composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements")
+        val keys = setOf("config", "composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements", "hookRequirements")
         keys.forEach { latestRequests.cancel(it) }
         data.value = data.value - keys
         loading.value = loading.value - keys
@@ -171,6 +151,12 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         userAction: Boolean = false
     ) {
         if (userAction && DataTransferMutationGate.refuse(this, key, method)) return
+        if (userAction && AccountVoiceSettingsLease.blocks(method, loading.value)) {
+            val reason = "账号声音设置正在写入或读取，请完成后再切换账号"
+            errors.value = errors.value + (key to reason)
+            viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure(method, reason)) }
+            return
+        }
         if (userAction && method in setOf("thread/queue/add", "thread/queue/update", "thread/queue/delete", "thread/queue/reorder")) {
             val owner = params?.optString("threadId")
             if (owner.isNullOrBlank() || owner != activeThread.value || threadSwitching.value ||
@@ -220,7 +206,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         loading.value = loading.value + key
         viewModelScope.launch {
             try {
-                val response = bridge.request(method, params)
+                val response = if (method == "thread/fork" && params != null) modelPreviews.request(method, params)
+                    else bridge.request(method, params)
                 if (ownsReceipt()) {
                     val published = if (key == "apps" && method == "app/list" &&
                         !params?.optString("cursor").isNullOrBlank())
@@ -336,7 +323,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 conversationState.value = ActiveConversationContext(threadDirectory.absolutePath,
                     history.getJSONObject("thread").optString("projectId").takeIf { it.isNotBlank() },
                     id, execution?.turnId, execution != null,
-                    IndexedTimeline.from(liveTimelines.restore(id, newest)), ThreadDiffHistory.latest(turns))
+                    IndexedTimeline.from(liveTimelines.restore(id, newest)), ThreadDiffHistory.latest(turns),
+                    ComposerProviderScope.provider(history.getJSONObject("thread").optString("modelProvider")))
                 answerVersions.select(id); sessions.markRead(id, false, history.optJSONObject("readState"))
                 onOpened?.invoke()
             } catch (failure: Exception) {
@@ -446,7 +434,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenMode = selectedMode.value
         val chosenWorkspace = activeWorkspace.value
         val draftOwner = composerOwner(submittedThread, chosenWorkspace)
-        val chosenEffort = composerDrafts.value[draftOwner]?.options?.effort.orEmpty()
+        val chosenOptions = composerDrafts.value[draftOwner]?.options ?: ComposerTaskOptions()
+        val chosenEffort = chosenOptions.effort
         val chosenProject = activeProjectId.value
         viewModelScope.launch {
             var newlyCreatedThreadId: String? = null
@@ -464,30 +453,27 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     "未知协作方式：" + chosenMode
                 }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
-                val catalog = records(data.value["models"])
                 val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace))
                 val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
-                val effectiveConfig = if (chosenMode == "plan") permissionConfig.getJSONObject("config") else null
-                if (chosenMode == "plan") {
-                    require(chosenModel.isNotBlank() || catalog.any {
-                        it.optString("id").isNotBlank()
-                    }) { "计划模式需要先读取可用模型目录" }
-                }
+                val (provider, requestModel, catalog, effectiveConfig) = ComposerProviderScope.submission(
+                    permissionConfig.getJSONObject("config"), submittedThread, chosenModel, chosenMode,
+                    chosenOptions) { method, params -> bridge.request(method, params) }
                 if (submittedThread == null) workspaceTasks.relocateProject(chosenProject)
                 captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread); LocalImageAttachments.preserveForHistory(getApplication(), images)
                 val outcome = TurnSubmissionCoordinator { method, params ->
-                    bridge.request(method, params)
+                    if (method == "thread/start") modelPreviews.request(method, params, permissionConfig)
+                    else bridge.request(method, params)
                 }.submit(
                     existingThreadId = submittedThread,
                     createThreadParams = {
                         val cwd = WorkspaceSelectionContract.validate(
                             workspaceRoot, File(chosenWorkspace)).absolutePath
                         ComposerPermissionPolicy.apply(ProjectRequestContract.threadStart(
-                            File(cwd), chosenProject, chosenModel).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, cwd)) put("runtimeWorkspaceRoots", JSONArray().put(cwd)) }, chosenPermission)
+                            File(cwd), chosenProject, requestModel, provider).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, cwd)) put("runtimeWorkspaceRoots", JSONArray().put(cwd)) }, chosenPermission)
                     },
                     turnParams = { id ->
                         ComposerPermissionPolicy.apply(TurnRequestContract.build(
-                            threadId = id, text = prompt, modelId = chosenModel,
+                            threadId = id, text = prompt, modelId = requestModel,
                             mode = chosenMode, catalog = catalog, localImages = images,
                             effort = chosenEffort, references = references, effectiveConfig = effectiveConfig
                         ).put("clientUserMessageId", pendingId.removePrefix("pending-")).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, chosenWorkspace)) put("cwd", chosenWorkspace).put("runtimeWorkspaceRoots", JSONArray().put(chosenWorkspace)) }, chosenPermission)
@@ -504,7 +490,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         composerDrafts.update {
                             ThreadComposerDrafts.attachNewThread(it, createdId, draftOwner)
                         }
-                        activeThread.value = createdId
+                        conversationState.update { it.copy(threadId = createdId, modelProvider = provider) }
                         sessions.refreshChanged(createdId)
                     }
                 )
@@ -653,7 +639,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Reserve the login synchronously: concurrent taps cannot replace each other's codes. */
     private fun beginLogin(type: String) {
-        if (loginBusy.value || activeLoginId.value.isNotBlank()) return
+        if (loginBusy.value || activeLoginId.value.isNotBlank() ||
+            AccountVoiceSettingsLease.blocks("account/login/start", loading.value)) return
         loginBusy.value = true
         viewModelScope.launch {
             try {
@@ -709,6 +696,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        modelPreviews.close()
         bridge.close()
         super.onCleared()
     }

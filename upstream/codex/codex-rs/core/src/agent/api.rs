@@ -25,6 +25,7 @@ use codex_protocol::protocol::SessionSource;
 use codex_protocol::protocol::TokenUsage;
 use codex_protocol::turn_input::TurnStartOptions;
 use codex_rollout_trace::ThreadTraceContext;
+use codex_tool_call_id::ToolCallId;
 use codex_user_input::ResolvedUserInput;
 use futures::future::BoxFuture;
 
@@ -210,6 +211,8 @@ pub enum AgentInput {
     Message {
         message: AgentMessage,
         mode: MessageDeliveryMode,
+        /// Native tool invocation to link when the recipient commits this message to history.
+        source_tool_call_id: Option<ToolCallId>,
     },
 }
 

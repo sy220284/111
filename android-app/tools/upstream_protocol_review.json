@@ -1,0 +1,19 @@
+{
+  "reviewedBaseline": "87de5e932dd03bb9efece4a6dd3eab4c5de45701",
+  "reviewedCandidate": "239fb67cf9dc095f412595945135990c1e089fde",
+  "reviewRecord": "docs/接口协议动作清单与落地验收台账-20261122.md",
+  "roots": {
+    "upstream/codex/codex-rs/app-server-protocol": "dc922920a65a8467e126d81ab5ab2e44a75caaad",
+    "upstream/codex/codex-rs/config/src/config_toml.rs": "fbc9f11aeb84ee2f33fecd91466e5ff4e43521f4",
+    "upstream/codex/codex-rs/protocol/src/hooks.rs": "4a5e33487ace22e800ee8463aae74e029daf3740",
+    "upstream/codex/codex-rs/protocol/src/protocol.rs": "79584c8c3e6ba00b2b80bd925183104cc73d1eac",
+    "upstream/codex/codex-rs/protocol/src/openai_models.rs": "5a4a98f4c99b9d0b33205d1aa6b343b2016a2416"
+  },
+  "decisions": [
+    "账号声音使用账号级读写与回读，删除实时启动 voice 参数",
+    "模型目录 forceRefresh、国内模型验证、服务商范围已对接",
+    "MCP 启动耗时、Hook 真实结果及失败策略已适配，待设备验收",
+    "企业 configServer 专用启动授权按部署场景单独实施；Daybreak 保留官方默认",
+    "Guardian 与动态工具结果遵循后台权限规则；客户端搜索服务选择字段删除，现有 web_search 控件继续有效"
+  ]
+}

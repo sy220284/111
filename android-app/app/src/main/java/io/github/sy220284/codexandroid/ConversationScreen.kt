@@ -27,6 +27,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import java.io.File
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -34,6 +35,8 @@ import org.json.JSONObject
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val status by vm.bridge.status.collectAsState()
+    val retirement by vm.bridge.retirementBusy.collectAsState()
+    val recoveryDelay by vm.recoveryDelayMs.collectAsState()
     val conversation by vm.conversationState.collectProjection { it.header }
     val thread = conversation.threadId
     val realtimeVoice = remember(vm, thread) { thread?.let { RealtimeVoiceController(vm, it) } }
@@ -51,6 +54,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectEntries("protocol", "planApproval", "timeline", "conversation", "steer", "interrupt", "drafts", "draftRecovery", "composerDocuments", "attachments", "queueWrite")
     val prompts by vm.bridge.prompts.collectProjection { it.forThread(thread) }
     val selectedWorkspace = conversation.workspace
+    val previewRequests by vm.modelPreviews.requests.collectAsState()
+    val previewFailures by vm.modelPreviews.failures.collectProjection { it[thread] }
+    val previewEpoch by vm.bridge.connectedSession.collectAsState()
+    val previewAccountRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val threadPreviews = remember(previewRequests, thread, previewEpoch, previewAccountRevision, selectedWorkspace) {
+        previewRequests.filter { it.threadId == thread && it.epoch == previewEpoch &&
+            it.accountRevision == previewAccountRevision && it.workspace == selectedWorkspace }
+    }
+    var selectedPreview by remember(thread, previewEpoch, previewAccountRevision) { mutableStateOf<ModelPreviewRequest?>(null) }
     val draftOwner = vm.composerOwner(thread, selectedWorkspace)
     val composerDrafts by vm.composerDrafts.collectEntries(draftOwner)
     val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()
@@ -232,9 +244,21 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
                 actionLabel = "查看诊断", onAction = { navigate("diagnostics") })
         }
+        if (previewFailures != null && !switching && status == EngineStatus.Connected)
+            CodexNotice(requireNotNull(previewFailures), NoticeTone.Warning, Modifier.padding(horizontal = 14.dp))
+        if (threadPreviews.isNotEmpty() && !switching && !transferBusy && status == EngineStatus.Connected)
+            ModelPreviewTray(threadPreviews,
+                onOpen = { selectedPreview = it }, onDismiss = { vm.modelPreviews.dismiss(it) })
         key(thread) {
             ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
                 compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
+        }
+        val preview = selectedPreview?.takeIf {
+            !switching && !transferBusy && status == EngineStatus.Connected && it in threadPreviews
+        }
+        if (preview != null) ModelDocumentDialog(preview, File(vm.workingDirectory)) {
+            vm.modelPreviews.dismiss(preview)
+            selectedPreview = null
         }
         if (offerPlanApproval) {
             CodexNotice(
@@ -403,8 +427,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
                 statusContent = {
                     if (status is EngineStatus.Unavailable) {
-                        CodexNotice("连接异常，草稿已保留", NoticeTone.Warning,
-                            actionLabel = "重连", onAction = { vm.connectionRestarter.reconnect() })
+                        CodexNotice(RuntimeStatusPresentation.label(status, retirement, restarting, recoveryDelay) + "，草稿已保留", NoticeTone.Warning,
+                            actionLabel = if (!retirement && !restarting) "重连" else null,
+                            onAction = { vm.connectionRestarter.reconnect() })
                     } else if (status == EngineStatus.Starting) {
                         Text("正在连接运行核心…", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }

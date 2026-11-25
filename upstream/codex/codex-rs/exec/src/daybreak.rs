@@ -51,6 +51,7 @@ pub(crate) async fn program_for_turn(
                     limit: None,
                     include_hidden: Some(true),
                     model_provider: None,
+                    force_refresh: None,
                 },
             })
             .await;

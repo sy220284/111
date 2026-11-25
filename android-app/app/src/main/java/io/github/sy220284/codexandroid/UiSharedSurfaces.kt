@@ -28,22 +28,21 @@ fun EngineStatusSheet(
 ) {
     val status by vm.bridge.status.collectAsState()
     val terminalRunning by vm.terminalSession.collectProjection { it.running }
+    val retirement by vm.bridge.retirementBusy.collectAsState()
+    val retry by vm.recoveryDelayMs.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsState()
     CodexDetailSheet(title = "运行状态", onDismiss = onDismiss) {
-        val label = when (status) {
-            EngineStatus.Connected -> "本机内核已连接"
-            EngineStatus.Starting -> "内核正在启动"
-            is EngineStatus.Unavailable -> "内核连接异常"
-        }
+        val label = RuntimeStatusPresentation.label(status, retirement, restarting, retry)
         StatusPill(label, tone = if (status == EngineStatus.Connected) StatusTone.Success else StatusTone.Warning)
-        if (status is EngineStatus.Unavailable) {
+        if (retirement || restarting || status == EngineStatus.Starting || (status is EngineStatus.Unavailable && retry != null)) {
+            AtlasOperationProgress(RuntimeStatusPresentation.detail(status, retirement, restarting, retry))
+        } else if (status is EngineStatus.Unavailable) {
             AtlasFieldFeedback(PresentationPolicy.readableError((status as EngineStatus.Unavailable).reason), isError = true)
-        } else if (status == EngineStatus.Starting) {
-            AtlasOperationProgress("正在连接本机运行核心")
         }
         if (status != EngineStatus.Connected) {
             AtlasSettingsActionRow("重新连接本机内核", "保持当前会话和草稿", CodexGlyph.Retry,
                 onClick = { onDismiss(); vm.connectionRestarter.reconnect() },
-                enabled = status != EngineStatus.Starting, outlined = false)
+                enabled = status != EngineStatus.Starting && !retirement && !restarting, outlined = false)
         }
         if (terminalRunning) {
             AtlasSettingsActionRow("查看正在运行的终端", "返回命令执行现场", CodexGlyph.Terminal,
@@ -56,22 +55,32 @@ fun EngineStatusSheet(
 
 @Composable
 fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
-    val models by vm.data.collectEntries("models")
     val selected by vm.modelId.collectAsState()
     val active by vm.activeThread.collectAsState()
-    val drafts by vm.composerDrafts.collectEntries(ThreadComposerDrafts.key(active))
+    val workspace by vm.activeWorkspace.collectAsState()
+    val threadProvider by vm.activeModelProvider.collectAsState()
+    val drafts by vm.composerDrafts.collectEntries(vm.composerOwner(active, workspace))
+    val providerData by vm.data.collectEntries("providers")
+    val draftProvider = ComposerProviderScope.provider(drafts[vm.composerOwner(active, workspace)]?.options?.modelProvider)
+    val scopedProvider = if (active != null) ComposerProviderScope.provider(threadProvider) else draftProvider
+    val catalogKey = ComposerProviderScope.catalogKey(scopedProvider)
+    val models by vm.data.collectEntries(catalogKey)
     val running by vm.running.collectAsState()
     val creating by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
-    val effort = drafts[ThreadComposerDrafts.key(active)]?.options?.effort.orEmpty()
+    val effort = drafts[vm.composerOwner(active, workspace)]?.options?.effort.orEmpty()
     var selectingEffort by remember { mutableStateOf(false) }
-    val loading by vm.loading.collectProjection { it.intersect(setOf("models")) }
-    val errors by vm.errors.collectEntries("models")
+    var selectingProvider by remember { mutableStateOf(false) }
+    val loading by vm.loading.collectProjection { it.intersect(setOf(catalogKey)) }
+    val errors by vm.errors.collectEntries(catalogKey)
     val engineStatus by vm.bridge.status.collectAsState()
-    LaunchedEffect(engineStatus) {
-        if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
+    LaunchedEffect(engineStatus, active, scopedProvider, providerData["providers"]?.optString("defaultProviderId")) {
+        if (engineStatus == EngineStatus.Connected) {
+            vm.ensureCatalog("providers", "modelProvider/list")
+            vm.refreshComposerCatalog()
+        }
     }
-    val modelData = models["models"]
+    val modelData = models[catalogKey]
     val available = remember(modelData) { records(modelData) }
     val choices = remember(available) {
         available.filter { !it.optBoolean("hidden") }.map { item ->
@@ -79,7 +88,22 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
             CodexChoice(id, item.optString("displayName").ifBlank { id })
         }.filter { it.id.isNotBlank() }.distinctBy { it.id }
     }
-    val selectable = engineStatus == EngineStatus.Connected && "models" !in loading && !running && !creating && !switching
+    val selectable = engineStatus == EngineStatus.Connected && catalogKey !in loading && !running && !creating && !switching &&
+        (active == null || scopedProvider != null)
+    val providerChoices = records(providerData["providers"]).map {
+        CodexChoice(it.optString("id"), PresentationPolicy.providerName(it.optString("name")))
+    }.filter { it.id.isNotBlank() }
+    val displayedProvider = scopedProvider ?: providerData["providers"]?.optString("defaultProviderId")
+    val providerName = providerChoices.firstOrNull { it.id == displayedProvider }?.title ?: "当前服务商"
+    if (selectingProvider && active == null) {
+        CodexChoiceSheet(title = "选择新会话服务商", anchored = anchored,
+            description = "各服务商独立授权与模型目录；历史会话保持原服务商。",
+            choices = listOf(CodexChoice("", "遵循默认服务商")) + providerChoices,
+            selectedId = draftProvider.orEmpty(), enabled = selectable,
+            onSelect = { vm.chooseComposerProvider(it); selectingProvider = false },
+            onDismiss = { selectingProvider = false })
+        return
+    }
     val efforts = remember(available, selected) { ComposerModelPolicy.efforts(available, selected) }
     if (selectingEffort) {
         val options = listOf("") + efforts
@@ -104,28 +128,35 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
         description = when {
             engineStatus != EngineStatus.Connected ->
                 "本机内核尚未连接。可查看已保存的模型选择；连接内核后会自动刷新可用目录。"
-            "models" in loading -> "正在读取内核可用模型…"
-            errors["models"] != null -> "读取模型目录失败：${errors["models"]}。可手动重新加载。"
-            else -> "更改只影响后续任务；已运行任务沿用当前模型。"
+            catalogKey in loading -> "正在读取内核可用模型…"
+            errors[catalogKey] != null -> "读取模型目录失败：${errors[catalogKey]}。可手动重新加载。"
+            else -> "当前可用 ${choices.size} 个模型；更改只影响后续任务。"
         },
         choices = listOf(CodexChoice("", "遵循默认模型", "使用当前服务的默认选择")) + choices,
         selectedId = selected,
         enabled = selectable,
         recoveryLabel = if (engineStatus != EngineStatus.Connected) "重新连接"
-            else if (errors["models"] != null || choices.isEmpty()) "重新读取" else null,
+            else if (errors[catalogKey] != null || choices.isEmpty()) "重新读取" else null,
         onRecovery = {
-            if (engineStatus == EngineStatus.Connected) vm.refresh("models", "model/list")
+            if (engineStatus == EngineStatus.Connected) vm.refreshComposerCatalog(forceRefresh = true)
             else vm.connect()
         },
         recoveryMessage = when {
             engineStatus != EngineStatus.Connected -> "运行核心未连接，恢复后才可更改模型。"
-            errors["models"] != null -> "模型目录读取失败，可重试。"
+            errors[catalogKey] != null -> "模型目录读取失败，可重试。"
             choices.isEmpty() -> "当前没有可用模型，检查服务状态后刷新。"
             else -> "可重新读取模型目录，已选择的模型不会因此改变。"
         },
         searchable = true,
-        loading = "models" in loading,
+        loading = catalogKey in loading,
         extraContent = {
+            AtlasSettingsActionRow("刷新模型目录", "直接向当前服务商重新查询，不使用缓存", CodexGlyph.Retry,
+                onClick = { vm.refreshComposerCatalog(forceRefresh = true) },
+                enabled = engineStatus == EngineStatus.Connected && catalogKey !in loading,
+                outlined = false, modifier = Modifier.testTag("composer-model-refresh"))
+            AtlasSettingsActionRow("模型服务商", providerName, CodexGlyph.Dns,
+                onClick = { selectingProvider = true }, enabled = selectable && active == null && providerChoices.isNotEmpty(),
+                outlined = false)
             AtlasSettingsActionRow("思考强度",
                 if (selected.isBlank()) "先选择具体模型" else if (efforts.isEmpty()) "该模型未提供可选强度"
                 else if (effort.isBlank()) "遵循默认强度" else PresentationPolicy.reasoningLabel(effort),

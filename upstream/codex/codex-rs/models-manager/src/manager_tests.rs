@@ -1939,3 +1939,25 @@ fn bundled_models_json_roundtrips() {
         "bundled models.json should contain at least one model"
     );
 }
+
+#[tokio::test]
+async fn android_catalog_version_tests_checked_refresh_bypasses_cache_and_reports_failure() {
+    let old = remote_model("old-model", "Old Model", 0);
+    let new = remote_model("new-model", "New Model", 0);
+    let endpoint = TestModelsEndpoint::with_command_auth(vec![
+        Ok(vec![old.clone()]), Ok(vec![new.clone()]), Err(CodexErr::RequestTimeout),
+    ]);
+    let cache = Arc::new(TestModelsCache::default());
+    let manager = OpenAiModelsManager::new_with_cache(cache, endpoint.clone(), None)
+        .with_provider_catalog();
+    manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    assert_eq!(manager.get_remote_models().await, vec![old.clone()]);
+    manager.refresh_available_models(RefreshStrategy::OnlineIfUncached, &DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    assert_eq!(endpoint.fetch_count(), 1);
+    manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    assert_eq!(endpoint.fetch_count(), 2);
+    assert_eq!(manager.get_remote_models().await, vec![new.clone()]);
+    assert!(manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.is_err());
+    assert_eq!(endpoint.fetch_count(), 3);
+    assert_eq!(manager.get_remote_models().await, vec![new]);
+}

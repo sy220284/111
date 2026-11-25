@@ -25,6 +25,34 @@ def command(args):
     return completed.stdout.strip()
 
 
+def configured_abis(workflow):
+    """The canonical matrix is shared with the missing-ABI build planner."""
+    match = re.search(r"(?m)^\s*ABI_MATRIX_JSON: '([^'\n]+)'$", workflow)
+    if match:
+        return [entry["abi"] for entry in configured_matrix(workflow)]
+    # Historical static matrix is only used to validate existing artifacts.
+    return re.findall(r"(?m)^\s*abi: (arm64-v8a|x86_64)$", workflow)
+
+
+def configured_matrix(workflow):
+    match = re.search(r"(?m)^\s*ABI_MATRIX_JSON: '([^'\n]+)'$", workflow)
+    if not match:
+        raise SelectionError("缺少原生 ABI 唯一编译矩阵")
+    try:
+        matrix = json.loads(match.group(1))
+        keys = {"rust_target", "clang", "clangxx", "abi", "elf_arch"}
+        if not isinstance(matrix, list) or not matrix:
+            raise ValueError("矩阵为空")
+        for entry in matrix:
+            if set(entry) != keys or any(not isinstance(x, str) or not re.fullmatch(r"[A-Za-z0-9_+\-]+", x) for x in entry.values()):
+                raise ValueError("ABI 编译条目无效")
+        if {e["abi"] for e in matrix} != {"arm64-v8a", "x86_64"} or len(matrix) != 2:
+            raise ValueError("ABI 必须精确覆盖手机及测试核心")
+        return matrix
+    except (TypeError, ValueError, KeyError) as exc:
+        raise SelectionError(f"原生 ABI 矩阵无效：{exc}") from exc
+
+
 def native_recipe(workflow, abi=None):
     """Hash the compilation steps, excluding trigger/gating/upload policy."""
     marker = "\n  native:\n"
@@ -36,6 +64,14 @@ def native_recipe(workflow, abi=None):
     if not start or not end or start.start() >= end.start():
         raise SelectionError("无法识别原生编译配置边界；需核对后再复用")
     recipe = job[start.start():end.start()].strip()
+    dynamic = "        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}"
+    if dynamic in recipe:
+        keys = ("rust_target", "clang", "clangxx", "abi", "elf_arch")
+        entries = []
+        for entry in configured_matrix(workflow):
+            entries.append("          - rust_target: " + entry[keys[0]])
+            entries.extend("            " + key + ": " + entry[key] for key in keys[1:])
+        recipe = recipe.replace(dynamic, "        include:\n" + "\n".join(entries))
     # Hash only the requested ABI's matrix entry; dropping an unrelated ABI
     # does not alter the already validated ARM64 compiler invocation.
     if abi is None or "        include:\n" not in recipe:

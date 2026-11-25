@@ -68,6 +68,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /android-app/
+            /upstream/codex/codex-rs/model-provider/catalogs/
             /.github/workflows/
             /.github/scripts/
             /docs/设计系统.md
@@ -102,6 +103,10 @@ jobs:
           python3 -m unittest discover -s .github/scripts -p 'test_native_reuse.py'
       - name: 校验官方Rust协议方法、方向、DTO和通知清单
         run: python3 -m unittest discover -s android-app/tools -p 'test_protocol_contract.py'
+      - name: 阻断未经审查的官方协议及字段变更
+        run: |
+          python3 -B -m unittest discover -s android-app/tools -p 'test_review_upstream_protocol.py'
+          python3 -B android-app/tools/review_upstream_protocol.py
       - name: 对照Rust类型与稳定JSON Schema校验请求响应字段
         run: |
           python3 android-app/tools/check_protocol_schema_alignment.py \

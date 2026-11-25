@@ -50,23 +50,33 @@ const MODELS_REFRESH_TIMEOUT: Duration = Duration::from_secs(5);
 const MODELS_ENDPOINT: &str = "/models";
 const FEDRAMP_CODEX_BASE_URL: &str = "https://gov.chatgpt.com/backend-api/codex";
 
-// Catalog requests use the model provider's credentials. Before enabling a fetch
-// with gateway OAuth alone, check that the catalog URL has the same origin as the gateway.
+// Only probe routes owned by the configured gateway. An explicit URL on another
+// origin keeps its existing auth rules; automatic discovery must not widen token delivery.
 fn supports_gateway_catalog(info: &ModelProviderInfo) -> bool {
-    if info.is_openai() || info.gateway_oauth.is_none() {
+    if info.is_openai()
+        || (info.model_catalog_url.is_none()
+            && crate::domestic_catalog::profile(info.base_url.as_deref()).is_some())
+    {
         return false;
     }
-    let (Some(base), Some(catalog)) = (info.base_url.as_deref(), info.model_catalog_url.as_deref())
+    let Some(base) = info
+        .base_url
+        .as_deref()
+        .and_then(|url| codex_http_client::validate_endpoint_url(url, "base_url").ok())
     else {
         return false;
     };
-    match (
-        codex_http_client::validate_endpoint_url(base, "base_url"),
-        codex_http_client::validate_endpoint_url(catalog, "model_catalog_url"),
-    ) {
-        (Ok(base), Ok(catalog)) => base.origin() == catalog.origin(),
-        _ => false,
+    match info.model_catalog_url.as_deref() {
+        Some(url) => codex_http_client::validate_endpoint_url(url, "model_catalog_url")
+            .is_ok_and(|url| url.origin() == base.origin()),
+        None => base.scheme() == "https" && base.query().is_none(),
     }
+}
+
+fn is_provider_catalog(info: &ModelProviderInfo) -> bool {
+    info.model_catalog_url.is_some()
+        || crate::domestic_catalog::is_domestic_live_catalog(info.base_url.as_deref())
+        || supports_gateway_catalog(info)
 }
 
 /// Provider-owned OpenAI-compatible `/models` endpoint.
@@ -91,7 +101,8 @@ impl OpenAiModelsEndpoint {
         {
             *manager = manager.without_interactive_login();
         }
-        let redirect_policy = if provider_info.model_catalog_url.is_some()
+        let redirect_policy = if is_provider_catalog(&provider_info)
+            || crate::domestic_catalog::profile(provider_info.base_url.as_deref()).is_some()
             || provider_info
                 .gateway_oauth
                 .as_ref()
@@ -211,6 +222,8 @@ impl OpenAiModelsEndpoint {
         )
         .await?;
         let api_auth = resolved.auth;
+        let domestic = crate::domestic_catalog::profile(self.provider_info.base_url.as_deref())
+            .filter(|_| self.provider_info.model_catalog_url.is_none());
         let request_url = match self.provider_info.model_catalog_url.as_deref() {
             Some(catalog_url) => ModelsClient::<ReqwestTransport>::catalog_request_url(
                 &api_provider,
@@ -218,6 +231,8 @@ impl OpenAiModelsEndpoint {
                 client_version,
             )
             .map_err(map_api_error)?,
+            None if domestic.is_some() => crate::domestic_catalog::dashscope_page_url(&api_provider.base_url, 1)
+                .unwrap_or_else(|| api_provider.url_for_path("models")),
             None => ModelsClient::<ReqwestTransport>::request_url(&api_provider, client_version),
         };
         let auth_telemetry = auth_header_telemetry(api_auth.as_ref())
@@ -227,14 +242,52 @@ impl OpenAiModelsEndpoint {
         } else {
             None
         };
+        let provider_catalog = is_provider_catalog(&self.provider_info);
         let request_telemetry: Arc<dyn RequestTelemetry> = Arc::new(ModelsRequestTelemetry {
-            include_response_debug: self.provider_info.model_catalog_url.is_none(),
+            include_response_debug: !provider_catalog && domestic.is_none(),
             auth_mode: auth_mode.map(|mode| TelemetryAuthMode::from(mode).to_string()),
             auth_header_attached: auth_telemetry.attached,
             auth_header_name: auth_telemetry.name,
             agent_identity_telemetry,
             auth_env: self.auth_env(),
         });
+        // Only providers with an independently verified public list format are queried.
+        // Other profiles remain explicit candidates in the UI until their account catalog is implemented.
+        if let Some(profile) = domestic {
+            if !crate::domestic_catalog::is_domestic_live_catalog(self.provider_info.base_url.as_deref()) {
+                return Err(CodexErr::InvalidRequest("domestic account model discovery is not yet supported for this endpoint".into()));
+            }
+            let transport = self.transport_builder.build(http_client_factory, request_url.clone()).await?;
+            let client = ModelsClient::new(transport, api_provider, api_auth)
+                .with_telemetry(Some(request_telemetry));
+            let redact = |mut error| {
+                if let codex_api::ApiError::Transport(TransportError::Http { url, headers, body, .. }) = &mut error {
+                    *url = None;
+                    *headers = None;
+                    *body = None;
+                }
+                map_api_error(error)
+            };
+            if let Some(base) = self.provider_info.base_url.as_deref()
+                && crate::domestic_catalog::dashscope_page_url(base, 1).is_some()
+            {
+                let mut catalog = crate::domestic_catalog::DashscopeCatalog::default();
+                for page in 1..=crate::domestic_catalog::DASHSCOPE_MAX_PAGES {
+                    let url = crate::domestic_catalog::dashscope_page_url(base, page)
+                        .ok_or_else(|| CodexErr::InvalidRequest("invalid DashScope workspace endpoint".into()))?;
+                    let (body, _) = client.list_models_raw(url, HeaderMap::new(), Some(4 * 1024 * 1024))
+                        .await.map_err(redact)?;
+                    if catalog.push_page(profile, page, &body)? {
+                        return Ok(ModelsEndpointResponse { models: catalog.finish(), etag: None, identity });
+                    }
+                }
+                return Err(CodexErr::InvalidRequest("DashScope workspace catalog exceeds page limit".into()));
+            }
+            let (body, etag) = client.list_models_raw(request_url, HeaderMap::new(), Some(1024 * 1024))
+                .await.map_err(redact)?;
+            let models = crate::domestic_catalog::decode_public_catalog(profile, &body)?;
+            return Ok(ModelsEndpointResponse { models, etag, identity });
+        }
         let (models, etag) = {
             let transport = self
                 .transport_builder
@@ -246,11 +299,12 @@ impl OpenAiModelsEndpoint {
                 .list_models(
                     request_url,
                     HeaderMap::new(),
-                    /*response_body_limit_bytes*/ None,
+                    (provider_catalog && self.provider_info.model_catalog_url.is_none())
+                        .then_some(1024 * 1024),
                 )
                 .await
                 .map_err(|mut error| {
-                    if self.provider_info.model_catalog_url.is_some()
+                    if provider_catalog
                         && let codex_api::ApiError::Transport(TransportError::Http {
                             url,
                             headers,
@@ -266,7 +320,7 @@ impl OpenAiModelsEndpoint {
                     map_api_error(error)
                 })
         }?;
-        if self.provider_info.model_catalog_url.is_some() {
+        if provider_catalog {
             let mut slugs = HashSet::new();
             if models
                 .iter()
@@ -294,6 +348,14 @@ impl OpenAiModelsEndpoint {
 }
 
 impl ModelsEndpointClient for OpenAiModelsEndpoint {
+    fn refine_catalog<'a>(&self, models: &'a [codex_protocol::openai_models::ModelInfo]) -> std::borrow::Cow<'a, [codex_protocol::openai_models::ModelInfo]> {
+        if crate::is_domestic_live_catalog(self.provider_info.base_url.as_deref()) {
+            return crate::domestic_probe::refine_catalog(
+                crate::domestic_probe::probe_identity(&self.provider_info).ok().as_deref(), models);
+        }
+        std::borrow::Cow::Borrowed(models)
+    }
+
     fn for_originator(
         &self,
         originator: ModelCatalogOriginator,
@@ -315,7 +377,7 @@ impl ModelsEndpointClient for OpenAiModelsEndpoint {
     }
 
     fn supports_api_key_models(&self) -> bool {
-        self.provider_info.model_catalog_url.is_some()
+        is_provider_catalog(&self.provider_info)
             || (self.provider_info.is_openai() && self.provider_info.base_url.is_none())
     }
 

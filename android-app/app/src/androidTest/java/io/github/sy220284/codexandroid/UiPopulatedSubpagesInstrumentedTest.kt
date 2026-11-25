@@ -48,6 +48,44 @@ class UiPopulatedSubpagesInstrumentedTest {
         captureVerifiedDisplayScreenshot(name)
     }
 
+    @Test fun sessionSortControlsAndModelFilePreviewAreInteractive() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val root = File(app.cacheDir, "model-preview-" + UUID.randomUUID()).apply { mkdirs() }
+        val file = File(root, "demo.txt").apply { writeText("first line\nsecond line\nthird line") }
+        val preview = ModelPreviewRequest("fixture", "thread", 1, 1, root.absolutePath, file.name, 2)
+        val sidebar = SidebarUiState()
+        try {
+            rule.setContent {
+                CodexTheme {
+                    Column(Modifier.fillMaxSize()) {
+                        SessionTaskControls(sidebar, 2)
+                        var opened by remember { mutableStateOf(false) }
+                        ModelPreviewTray(listOf(preview), onOpen = { opened = true }, onDismiss = {})
+                        if (opened) ModelDocumentDialog(preview, root) { opened = false }
+                    }
+                }
+            }
+            rule.onNodeWithTag("sidebar-sort-filter").performClick()
+            rule.onNodeWithText("会话排序与筛选").assertExists()
+            rule.onNodeWithText("更新时间").assertExists()
+            rule.onNodeWithText("创建时间").assertExists()
+            capture("audit-session-sort-filter-android35.png")
+            rule.onNodeWithTag("codex-detail-close").performClick()
+            rule.onNodeWithTag("sidebar-active-tasks").performClick()
+            rule.runOnIdle { assertEquals(SessionTaskFilter.Active, sidebar.taskFilter) }
+            rule.onNodeWithTag("model-document-pane").assertDoesNotExist()
+            rule.onNodeWithTag("model-preview-tray").performClick()
+            rule.onNodeWithText("打开预览").performClick()
+            rule.waitUntil(10000) {
+                rule.onAllNodesWithText("second line", substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithText("定位第 2 行 · 只读预览").assertExists()
+            capture("audit-model-document-preview-android35.png")
+            rule.onNodeWithContentDescription("关闭文件预览").performClick()
+            rule.onNodeWithTag("model-document-pane").assertDoesNotExist()
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun mcpAvailableCardShowsOnlyServiceAndAvailability() {
         val server = JSONObject()
             .put("name", "演示扩展服务")
@@ -55,7 +93,8 @@ class UiPopulatedSubpagesInstrumentedTest {
             .put("authStatus", "oAuth")
             .put("tools", JSONObject().put("internal_database_tool", JSONObject()))
             .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://secret-resource")))
-        rule.setContent { CodexTheme { McpServiceStatusCard(server) } }
+        val receipt = McpStartupReceipt.parse(1, JSONObject("""{"name":"演示扩展服务","status":"ready","durationMs":240}"""))
+        rule.setContent { CodexTheme { McpServiceStatusCard(server, receipt) } }
         rule.onNodeWithText("演示扩展服务").assertExists()
         rule.onNodeWithText("可用").assertExists()
         rule.onNodeWithText("授权登录").assertDoesNotExist()
@@ -67,6 +106,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("演示扩展服务").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithText("工具 1 项 · 资源 1 项").assertExists()
+        rule.onNodeWithText("已连接 · 启动耗时 240 毫秒").assertExists()
         rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
         rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
         capture("audit-mcp-detail-sheet-android35.png")

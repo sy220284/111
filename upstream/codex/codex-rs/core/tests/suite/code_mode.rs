@@ -516,7 +516,7 @@ async fn disabled_process_host_with_fallback_disabled_attempts_the_host() -> Res
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn code_mode_can_call_standalone_web_search() -> Result<()> {
     assert_code_mode_standalone_web_search(
-        WebSearchMode::Live,
+        StandaloneWebSearchConfiguration::Explicit(WebSearchMode::Live),
         serde_json::json!(true),
         SearchPolicy::Unmanaged,
     )
@@ -526,19 +526,39 @@ async fn code_mode_can_call_standalone_web_search() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn code_mode_can_call_indexed_standalone_web_search() -> Result<()> {
     assert_code_mode_standalone_web_search(
-        WebSearchMode::Indexed,
+        StandaloneWebSearchConfiguration::Explicit(WebSearchMode::Indexed),
         serde_json::json!("indexed"),
         SearchPolicy::Unmanaged,
     )
     .await
 }
 
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn code_mode_defaults_to_live_standalone_web_search_with_full_access() -> Result<()> {
+    assert_code_mode_standalone_web_search(
+        StandaloneWebSearchConfiguration::FullAccessDefault,
+        serde_json::json!(true),
+        SearchPolicy::Unmanaged,
+    )
+    .await
+}
+
+#[derive(Clone, Copy)]
+enum StandaloneWebSearchConfiguration {
+    Explicit(WebSearchMode),
+    FullAccessDefault,
+}
+
 #[test_case(SearchPolicy::DenySearch; "initial_request")]
 #[test_case(SearchPolicy::DenyRedirect; "redirect")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn code_mode_web_search_preserves_managed_policy(policy: SearchPolicy) -> Result<()> {
-    assert_code_mode_standalone_web_search(WebSearchMode::Live, serde_json::json!(true), policy)
-        .await
+    assert_code_mode_standalone_web_search(
+        StandaloneWebSearchConfiguration::Explicit(WebSearchMode::Live),
+        serde_json::json!(true),
+        policy,
+    )
+    .await
 }
 
 enum SearchPolicy {
@@ -548,7 +568,7 @@ enum SearchPolicy {
 }
 
 async fn assert_code_mode_standalone_web_search(
-    web_search_mode: WebSearchMode,
+    web_search_configuration: StandaloneWebSearchConfiguration,
     expected_external_web_access: Value,
     policy: SearchPolicy,
 ) -> Result<()> {
@@ -615,6 +635,18 @@ text(result);
         .with_auth(auth)
         .with_extensions(Arc::new(extension_builder.build()))
         .with_model("test-gpt-5.1-codex")
+        .with_pre_build_hook(move |codex_home| {
+            let config = match web_search_configuration {
+                StandaloneWebSearchConfiguration::Explicit(mode) => {
+                    format!("web_search = \"{mode}\"\n")
+                }
+                StandaloneWebSearchConfiguration::FullAccessDefault => {
+                    "sandbox_mode = \"danger-full-access\"\n[features]\nweb_search_indexed_default = true\n".to_string()
+                }
+            };
+            std::fs::write(codex_home.join("config.toml"), config)
+                .expect("write web search configuration");
+        })
         .with_config(move |config| {
             if managed {
                 config.application_network_policy = policy;
@@ -628,14 +660,18 @@ text(result);
                 .features
                 .enable(Feature::StandaloneWebSearch)
                 .expect("standalone web search should be enabled");
-            config
-                .web_search_mode
-                .set(web_search_mode)
-                .expect("web search mode should be accepted");
         });
     let test = builder.build_with_auto_env(&server).await?;
 
-    test.submit_turn("Search the web from code mode").await?;
+    match web_search_configuration {
+        StandaloneWebSearchConfiguration::Explicit(_) => {
+            test.submit_turn("Search the web from code mode").await?;
+        }
+        StandaloneWebSearchConfiguration::FullAccessDefault => {
+            test.submit_text_turn("Search the web from code mode")
+                .await?;
+        }
+    }
 
     if managed {
         let output =
@@ -4831,7 +4867,7 @@ async fn code_mode_exec_nested_limit_truncates_result_variable_when_exceeded() -
         "use exec_command from code mode",
         r#"// @exec: {"max_output_tokens": 25000}
 const result = await tools.exec_command({
-  cmd: "python3 -c \"import sys; sys.stdout.write('A' * 90000)\"",
+  cmd: "printf '%90000s' '' | tr ' ' A",
   max_output_tokens: 20000
 });
 const resultVariableWasTruncated = result.output.includes("…2500 tokens truncated…");
@@ -4962,7 +4998,7 @@ async fn code_mode_exec_without_nested_limit_preserves_result_variable_before_co
         "use exec_command from code mode",
         r#"// @exec: {"max_output_tokens": 20000}
 const result = await tools.exec_command({
-  cmd: "python3 -c \"import sys; sys.stdout.write('x' * 50000)\""
+  cmd: "printf '%50000s' '' | tr ' ' x"
 });
 const resultVariableWasTruncated = result.output.length !== 50000;
 text(`Variable truncated: ${resultVariableWasTruncated ? "True" : "False"}. Variable: ${result.output}`);
@@ -7387,6 +7423,54 @@ async fn code_mode_can_apply_patch_via_nested_tool() -> Result<()> {
     Ok(())
 }
 
+#[test_case(false; "default")]
+#[test_case(true; "enabled")]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn code_mode_deduplicates_printed_mcp_results_only_when_enabled(enabled: bool) -> Result<()> {
+    skip_if_no_network!(Ok(()));
+
+    let server = responses::start_mock_server().await;
+    let apps = AppsTestServer::mount_searchable(&server).await?;
+    let result = serde_json::json!({
+        "isError": false,
+        "content": [{"type": "text", "text": r#"{"timezone":"UTC"}"#}],
+        "structuredContent": {"timezone": "UTC"},
+    });
+    let mut expected = result.clone();
+    if enabled {
+        expected.as_object_mut().unwrap().remove("content");
+    }
+    Mock::given(method("POST"))
+        .and(body_partial_json(serde_json::json!({
+            "method": "tools/call", "params": {"name": "calendar_timezone_option_99"}
+        })))
+        .respond_with(move |request: &Request| {
+            let body: Value = serde_json::from_slice(&request.body).unwrap();
+            ResponseTemplate::new(200).set_body_json(serde_json::json!({
+                "jsonrpc": "2.0", "id": body["id"], "result": result
+            }))
+        })
+        .with_priority(/*p*/ 1)
+        .mount(&server)
+        .await;
+    let builder = search_capable_apps_builder(apps.chatgpt_base_url).with_config(move |config| {
+        config.features.enable(Feature::CodeModeOnly).unwrap();
+        if enabled {
+            config
+                .features
+                .enable(Feature::CodeModeMcpResultDedup)
+                .unwrap();
+        }
+    });
+    let code =
+        r#"text(await tools.mcp__codex_apps__calendar_timezone_option_99({ timezone: "UTC" }));"#;
+    let (_test, follow_up) =
+        run_code_mode_turn_with_builder(&server, "Check the timezone", code, builder).await?;
+    let (output, _) = custom_tool_output_body_and_success(&follow_up.single_request(), "call-1");
+    assert_eq!(serde_json::from_str::<Value>(&output)?, expected);
+    Ok(())
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn code_mode_can_print_structured_mcp_tool_result_fields() -> Result<()> {
     skip_if_no_network!(Ok(()));
@@ -8876,8 +8960,8 @@ async fn code_mode_search_normalizes_and_calls_deferred_dynamic_tools(
             );
             tools.functions_namespace_functions_description_prefixes =
                 Some(std::collections::BTreeMap::from([(
-                    "hidden-dynamic-tool".to_string(),
-                    "Function guidance.".to_string(),
+                    "hidden-dynamic-tool".into(),
+                    "Function guidance.".into(),
                 )]));
         })
         .with_config(|config| {

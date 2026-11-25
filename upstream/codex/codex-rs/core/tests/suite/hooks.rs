@@ -176,11 +176,20 @@ fn non_openai_model_provider(server: &wiremock::MockServer) -> ModelProviderInfo
     provider
 }
 
-fn write_stop_hook(home: &Path, block_prompts: &[&str]) -> Result<()> {
+pub(super) fn write_stop_hook(
+    home: &Path,
+    block_prompts: &[&str],
+    on_failure: Option<&str>,
+) -> Result<()> {
     let script_path = home.join("stop_hook.py");
     let log_path = home.join("stop_hook_log.jsonl");
     let prompts_json =
         serde_json::to_string(block_prompts).context("serialize stop hook prompts for test")?;
+    let fail = if on_failure == Some("block") {
+        "True"
+    } else {
+        "False"
+    };
     let script = format!(
         r#"import json
 from pathlib import Path
@@ -199,6 +208,8 @@ with log_path.open("a", encoding="utf-8") as handle:
 
 invocation_index = len(existing)
 if invocation_index < len(block_prompts):
+    if {fail}:
+        sys.exit(1)
     print(json.dumps({{"decision": "block", "reason": block_prompts[invocation_index]}}))
 else:
     print(json.dumps({{"systemMessage": f"stop hook pass {{invocation_index + 1}} complete"}}))
@@ -213,6 +224,7 @@ else:
                     "type": "command",
                     "command": format!("python3 {}", script_path.display()),
                     "statusMessage": "running stop hook",
+                    "onFailure": on_failure,
                 }]
             }]
         }
@@ -1322,6 +1334,7 @@ async fn stop_hook_can_block_multiple_times_in_same_turn() -> Result<()> {
             write_stop_hook(
                 home,
                 &[FIRST_CONTINUATION_PROMPT, SECOND_CONTINUATION_PROMPT],
+                /*on_failure*/ None,
             )
             .expect("failed to write stop hook test fixture");
         })
@@ -1503,6 +1516,21 @@ print(json.dumps({{"continue": False}}))
         // SessionStart must run the Python hook installed in the host test home.
         .build(&server)
         .await?;
+    // Force teardown while the hook is running. The next turn must retry it.
+    test.codex
+        .start_turn_if_idle(TurnInputRequest::user_input(vec![UserInput::Text {
+            text: "interrupted prompt".to_owned(),
+            text_elements: Vec::new(),
+        }]))
+        .await?;
+    let (interrupted_hook, _) = timeout(Duration::from_secs(10), hook_gate.accept()).await??;
+    test.codex.submit(Op::Interrupt).await?;
+    wait_for_event(&test.codex, |event| {
+        matches!(event, EventMsg::TurnAborted(_))
+    })
+    .await;
+    drop(interrupted_hook);
+
     let context = BTreeMap::from([(
         "continuation".to_owned(),
         AdditionalContextEntry::new(
@@ -1547,6 +1575,7 @@ print(json.dumps({{"continue": False}}))
     let texts = requests[0].message_input_texts("user");
     assert!(texts.iter().any(|text| text == "queued steer"));
     assert!(!texts.iter().any(|text| text == "stopped prompt"));
+    assert!(!texts.iter().any(|text| text == "interrupted prompt"));
     assert!(!requests[0].has_content_kinds(&["additional_content.continuation"]));
     assert!(requests[1].has_content_kinds(&["additional_content.continuation"]));
     Ok(())
@@ -2660,7 +2689,7 @@ async fn stop_hook_spills_large_continuation_prompt() -> Result<()> {
         .with_pre_build_hook({
             let continuation_prompt = continuation_prompt.clone();
             move |home| {
-                write_stop_hook(home, &[&continuation_prompt])
+                write_stop_hook(home, &[&continuation_prompt], /*on_failure*/ None)
                     .expect("failed to write stop hook test fixture");
             }
         })
@@ -2705,7 +2734,7 @@ async fn resumed_thread_keeps_stop_continuation_prompt_in_history() -> Result<()
 
     let mut initial_builder = test_codex()
         .with_pre_build_hook(|home| {
-            write_stop_hook(home, &[FIRST_CONTINUATION_PROMPT])
+            write_stop_hook(home, &[FIRST_CONTINUATION_PROMPT], /*on_failure*/ None)
                 .expect("failed to write stop hook test fixture");
         })
         .with_config(trust_discovered_hooks);

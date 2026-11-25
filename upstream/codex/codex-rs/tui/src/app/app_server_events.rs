@@ -70,6 +70,9 @@ impl App {
         event: AppServerEvent,
     ) {
         match event {
+            AppServerEvent::CloudInventoryChanged(lifecycle) => {
+                self.invalidate_cloud_inventory(app_server_client, lifecycle.as_deref())
+            }
             AppServerEvent::Lagged { skipped } => {
                 tracing::warn!(
                     skipped,
@@ -464,6 +467,8 @@ impl App {
                     .auth_mode
                     .is_some_and(AuthMode::has_chatgpt_account);
                 self.account_email_request_id = None;
+                self.chat_widget.clear_account_models();
+                self.model_catalog = self.chat_widget.model_catalog();
                 self.chat_widget.update_account_state(
                     account_display,
                     notification.plan_type,

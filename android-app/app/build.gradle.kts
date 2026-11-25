@@ -70,6 +70,7 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
+    sourceSets.getByName("main").assets.srcDir(rootProject.file("../upstream/codex/codex-rs/model-provider/catalogs"))
     packaging {
         jniLibs {
             useLegacyPackaging = true
@@ -106,6 +107,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("org.commonmark:commonmark:0.24.0")
+    implementation("org.nanohttpd:nanohttpd:2.3.1")
     implementation("org.commonmark:commonmark-ext-gfm-tables:0.24.0")
     implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.24.0")
     implementation("org.commonmark:commonmark-ext-task-list-items:0.24.0")
@@ -123,5 +125,8 @@ dependencies {
 tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     val fixtureOutput = layout.buildDirectory.file("protocol-fixtures/requests.json")
     systemProperty("codex.protocolFixturesOutput", fixtureOutput.get().asFile.absolutePath)
+    val domesticCatalog = rootProject.file("../upstream/codex/codex-rs/model-provider/catalogs/domestic-providers.json")
+    inputs.file(domesticCatalog)
+    systemProperty("codex.domesticCatalog", domesticCatalog.absolutePath)
     outputs.file(fixtureOutput)
 }

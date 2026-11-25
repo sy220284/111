@@ -335,6 +335,13 @@ impl ChatWidget {
     /// remain consistent. Owned transcripts reserve their shared hint row above the composer.
     pub(crate) fn bottom_pane_renderable<'a>(
         &'a self,
+        options: crate::bottom_pane::ComposerRenderOptions<'a>,
+    ) -> RenderableItem<'a> {
+        self.composer_pane_renderable(options)
+    }
+
+    fn composer_pane_renderable<'a>(
+        &'a self,
         mut options: crate::bottom_pane::ComposerRenderOptions<'a>,
     ) -> RenderableItem<'a> {
         if self.fork_in_progress {
@@ -437,6 +444,20 @@ impl ChatWidget {
             lines.extend(cell_lines);
         }
         (!lines.is_empty()).then_some(lines)
+    }
+
+    /// Discard offscreen renders. Only a successful terminal draw changes key routing.
+    pub(crate) fn begin_steer_hint_draw(&self) {
+        self.bottom_pane.take_painted_steer_hint();
+    }
+
+    pub(crate) fn finish_steer_hint_draw(&mut self) {
+        self.turn_lifecycle.steer_hint =
+            if self.bottom_pane.take_painted_steer_hint() && self.no_modal_or_popup_active() {
+                SteerHint::Pending
+            } else {
+                SteerHint::Hidden
+            };
     }
 
     pub(crate) fn note_rendered_width(&self, width: u16) {

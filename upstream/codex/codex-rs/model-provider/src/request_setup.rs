@@ -188,7 +188,8 @@ pub async fn resolve_request(
                     .map(|state| state.generation)
                     .or(state.map(|state| state.generation)),
                 api_provider,
-                redirect_policy: if provider
+                redirect_policy: if crate::domestic_catalog::profile(provider.info().base_url.as_deref()).is_some()
+                    || provider
                     .info()
                     .gateway_oauth
                     .as_ref()

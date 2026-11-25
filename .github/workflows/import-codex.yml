@@ -1,10 +1,10 @@
-name: 手动同步官方 Codex 源码并创建审核 PR
+name: 手动增量合并官方 Codex 并创建审核 PR
 
 on:
   workflow_dispatch:
     inputs:
       upstream_sha:
-        description: 指定完整上游提交 SHA；留空则使用官方 main 最新提交
+        description: 指定完整官方 main 祖先提交 SHA；留空使用官方 main 最新提交
         required: false
         type: string
 
@@ -13,41 +13,37 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: codex-upstream-import
+  group: codex-upstream-import-${{ github.ref_name }}
   cancel-in-progress: false
 
 jobs:
   import:
-    name: 锁定上游源码并创建审核 PR
+    name: 三方增量合并并创建审核 PR
+    if: github.ref_type == 'branch'
     runs-on: ubuntu-latest
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: 获取官方源码快照
+      - name: 验证增量合并回归
+        run: python3 -B -m unittest discover -s .github/scripts -p 'test_merge_codex_upstream.py'
+      - name: 获取官方提交并三方合并
         shell: bash
         env:
           UPSTREAM_SHA: ${{ inputs.upstream_sha }}
         run: |
           set -euo pipefail
-          git clone --depth=1 --single-branch --branch main https://github.com/openai/codex.git "$RUNNER_TEMP/codex"
-          if [ -n "$UPSTREAM_SHA" ]; then
-            [[ "$UPSTREAM_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::须提供 40 位小写 SHA"; exit 1; }
-            git -C "$RUNNER_TEMP/codex" fetch --depth=1 origin "$UPSTREAM_SHA"
-            git -C "$RUNNER_TEMP/codex" checkout --detach "$UPSTREAM_SHA"
-          fi
-          git -C "$RUNNER_TEMP/codex" rev-parse HEAD > CODEX_UPSTREAM_COMMIT
-          git -C "$RUNNER_TEMP/codex" show -s --format=%cI HEAD >> CODEX_UPSTREAM_COMMIT
-          echo 'https://github.com/openai/codex' >> CODEX_UPSTREAM_COMMIT
-          mkdir -p upstream/codex
-          rsync -a --delete --exclude=.git "$RUNNER_TEMP/codex/" upstream/codex/
+          TARGET="$(bash .github/scripts/fetch_codex_upstream.sh "$UPSTREAM_SHA")"
+          python3 -B .github/scripts/merge_codex_upstream.py --target "$TARGET"
+          bash .github/scripts/refresh_codex_catalog_lock.sh
           cat CODEX_UPSTREAM_COMMIT
+          python3 -B android-app/tools/review_upstream_protocol.py --candidate "$(git write-tree)" --report-only
           if find upstream/codex -type f -size +95M -print -quit | grep -q .; then
             echo "::error::存在超过 95 MB 的文件，需要 LFS 或分包"
             exit 1
           fi
-      - name: 提交升级分支并创建中文 PR
+      - name: 提交增量升级分支并创建中文草稿 PR
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -55,29 +51,24 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add upstream/codex CODEX_UPSTREAM_COMMIT
           if git diff --cached --quiet; then
             echo "上游源码无变化，无需创建 PR"
             exit 0
           fi
           SHA="$(head -n 1 CODEX_UPSTREAM_COMMIT)"
-          BRANCH="chore/codex-upstream-${SHA:0:12}"
+          BASE_SHA="$(git rev-parse HEAD)"
+          BRANCH="chore/codex-upstream-${SHA:0:12}-${BASE_SHA:0:12}"
           if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
-            echo "::error::已有上游升级分支 $BRANCH，请先处理已有 PR"
+            echo "::error::已有升级分支 $BRANCH，请先处理已有 PR"
             exit 1
           fi
           git switch -c "$BRANCH"
-          git commit -m "同步官方 Codex 源码快照：${SHA:0:12}"
+          git commit -m "增量合并官方 Codex：${SHA:0:12}"
           git push -u origin "$BRANCH"
-          gh pr create --base main --head "$BRANCH" \
-            --title "同步官方 Codex 源码快照：${SHA:0:12}" \
+          gh pr create --draft --base "$GITHUB_REF_NAME" --head "$BRANCH" \
+            --title "增量合并官方 Codex：${SHA:0:12}" \
             --body "## 本次变更
 
-          - 上游版本：$SHA
-          - 同步官方源码快照与版本记录
-
-          ## 合并前验收
-
-          - Rust 协议与 Android UI 接口差异
-          - ARM64 原生核心、APK 和设备验收
-          - Android 平台适配兼容性"
+          - 基于原锁定官方提交、111 当前源码和新官方提交进行 Git 三方合并。
+          - 官方目标：$SHA；保留独立修改，真实冲突须人工审计。
+          - 合并前验收：协议与界面差异、ARM64 核心、APK 和三档设备、Android 兼容适配。"

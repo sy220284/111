@@ -69,10 +69,11 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
 
     private fun thread() = JSONObject().put("threadId", threadId)
 
-    fun start(voice: String) {
+    fun start() {
         if (state != State.Idle) return
         if (vm.bridge.status.value != EngineStatus.Connected || !vm.globalWorkSnapshot().canStartNewTask ||
-            vm.connectionRestarter.busy.value || vm.activeThread.value != threadId || vm.threadSwitching.value) {
+            vm.connectionRestarter.busy.value || AccountVoiceSettingsLease.key in vm.loading.value ||
+            vm.activeThread.value != threadId || vm.threadSwitching.value) {
             error = "当前运行状态无法启动实时语音，请完成其他操作后重试"
             return
         }
@@ -117,9 +118,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 nativeLock.withLock {
                     if (state != State.Starting) return@withLock
                     check(vm.activeThread.value == threadId && !vm.threadSwitching.value) { "当前会话已切换" }
-                    val params = thread().put("outputModality", "audio")
-                        .put("transport", JSONObject().put("type", "websocket"))
-                    if (voice.isNotBlank()) params.put("voice", voice)
+                    val params = RealtimeStartContract.params(threadId)
                     sentStart = true
                     vm.capabilityRequest("thread/realtime/start", params, 15_000, expectedSession = voiceEpoch)
                     withTimeout(15_000) { ready.await() }

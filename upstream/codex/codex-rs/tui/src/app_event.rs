@@ -298,7 +298,8 @@ pub(crate) struct AgentsOverviewThreadRefresh {
 #[derive(Debug, Default)]
 pub(crate) struct AgentPickerThreadRefresh {
     pub(crate) threads: Vec<Thread>,
-    pub(crate) archived_thread_ids: std::collections::HashSet<ThreadId>,
+    pub(crate) archived_threads:
+        std::collections::HashMap<ThreadId, crate::multi_agents::AgentMetadata>,
 }
 
 /// Source-backed replacement for the outgoing widget's width-bound streaming rows.
@@ -416,6 +417,11 @@ pub(crate) enum AppEvent {
     },
     SelectAgentsOverviewThread {
         thread_id: ThreadId,
+    },
+    /// Refresh the resumed task's agent list after its transcript replay reaches the screen.
+    BackfillResumedSubagents {
+        thread_id: ThreadId,
+        backend_id: crate::backend_id::BackendId,
     },
     /// Create an empty session in a worktree from the selected project's default branch.
     NewAgentsOverviewWorktree {
@@ -549,6 +555,11 @@ pub(crate) enum AppEvent {
         backend_id: crate::backend_id::BackendId,
         source: ThreadId,
         link: crate::markdown_render::FileLink,
+    },
+    OpenModelSidebarDocument {
+        backend: crate::backend_id::BackendId,
+        thread_id: ThreadId,
+        document: crate::open_in_codex::DocumentRequest,
     },
     SidebarDocumentResolved {
         backend_id: crate::backend_id::BackendId,
@@ -1087,7 +1098,11 @@ pub(crate) enum AppEvent {
     },
 
     /// Result of computing a `/diff` command.
-    DiffResult(PathUri, String),
+    DiffResult {
+        thread_id: Option<ThreadId>,
+        cwd: PathUri,
+        text: String,
+    },
 
     /// Open the app link view in the bottom pane.
     OpenAppLink {
@@ -1429,8 +1444,7 @@ pub(crate) enum AppEvent {
     /// Finish buffering initial resume replay after all replay events have been queued.
     EndInitialHistoryReplayBuffer,
 
-    /// Replace the contiguous run of streaming `AgentMessageCell`s at the end of
-    /// the transcript with a single `AgentMarkdownCell` that stores the raw
+    /// Replace this answer's streaming `AgentMessageCell`s with a single `AgentMarkdownCell` that stores the raw
     /// markdown source and re-renders from it on resize.
     ///
     /// Emitted by `ChatWidget::flush_answer_stream_with_separator` after stream
@@ -1442,6 +1456,8 @@ pub(crate) enum AppEvent {
     /// `deferred_history_cell` lets callers add the final stream tail to the
     /// transcript without first writing its provisional render to scrollback.
     ConsolidateAgentMessage {
+        /// Bounds the search across notices, including when the stream emitted no cells.
+        emitted_cells: usize,
         phase: Option<codex_protocol::models::MessagePhase>,
         interrupted_item: Option<(String, String)>,
         source: String,
@@ -1566,7 +1582,6 @@ pub(crate) enum AppEvent {
     /// Show the cyber auto-review notice after the model selection confirmation.
     CyberModelAutoReviewNotice,
 
-    /// Read the owning server preference before showing the voice picker.
     OpenRealtimeSettings,
     OpenRealtimeSoundDevices,
     OpenRealtimeVoices,
@@ -1589,9 +1604,16 @@ pub(crate) enum AppEvent {
         channel: Option<codex_config::config_toml::MicrophoneChannels>,
     },
 
-    /// Save the voice for subsequent conversations through the app server.
+    RealtimeVoicesLoaded {
+        origin: Option<ThreadId>,
+        result: anyhow::Result<codex_app_server_protocol::AccountVoiceSettingsReadResponse>,
+    },
     PersistRealtimeVoiceSelection {
-        voice: codex_protocol::protocol::RealtimeVoice,
+        voice: codex_app_server_protocol::AccountVoiceOption,
+    },
+    RealtimeVoiceSaved {
+        origin: Option<ThreadId>,
+        result: anyhow::Result<String>,
     },
 
     /// Toggle the service tier staged for the next Cloud submission.
@@ -1616,6 +1638,8 @@ pub(crate) enum AppEvent {
         model: String,
     },
 
+    /// Adopt the widget's active catalog without requesting another model list.
+    SyncModelCatalog,
     /// Fetch the current catalog even when cached models produce no picker.
     FetchModels {
         request_id: uuid::Uuid,
@@ -1970,6 +1994,15 @@ pub(crate) enum AppEvent {
 
     /// Requests saving a local `/config` preference and refreshing its effective value.
     SaveConfigPreference(crate::config_panel::ConfigPreference),
+
+    /// Save the connected server's reasoning-summary default for new chats.
+    SaveReasoningSummary {
+        backend: BackendId,
+        summary: codex_protocol::config_types::ReasoningSummary,
+    },
+
+    /// Refresh the connected server's reasoning-summary default without writing config.
+    RefreshConfigReasoningSummary,
 
     /// Save the transcript renderer preference for the next launch only.
     FullscreenTranscriptSelected {

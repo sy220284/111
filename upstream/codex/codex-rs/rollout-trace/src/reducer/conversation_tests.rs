@@ -224,6 +224,7 @@ fn response_outputs_require_harness_acceptance() -> anyhow::Result<()> {
     writer.append_with_context(
         trace_context("turn-1"),
         RawTraceEventPayload::HistoryItemAccepted {
+            source_tool_call_id: None,
             item_id: "msg-accepted".into(),
             agent_message_payload: None,
             tool_output_payload: None,
@@ -1494,7 +1495,7 @@ fn late_tool_start_with_image_limit(body_limit: usize) -> anyhow::Result<()> {
     writer.append_with_context(
         trace_context("turn-1"),
         RawTraceEventPayload::ToolCallStarted {
-            tool_call_id: "tool-1".to_string(),
+            tool_call_id: "tool-1".into(),
             model_visible_call_id: Some("call-1".to_string()),
             code_mode_runtime_tool_id: None,
             requester: crate::raw_event::RawToolCallRequester::Model,
@@ -1515,7 +1516,7 @@ fn late_tool_start_with_image_limit(body_limit: usize) -> anyhow::Result<()> {
         trace_context("turn-1"),
         RawTraceEventPayload::ToolCallRuntimeStarted {
             kind: ToolCallKind::ExecCommand,
-            tool_call_id: "tool-1".to_string(),
+            tool_call_id: "tool-1".into(),
             runtime_payload: runtime,
         },
     )?;
@@ -1523,7 +1524,7 @@ fn late_tool_start_with_image_limit(body_limit: usize) -> anyhow::Result<()> {
     writer.append_with_context(
         trace_context("turn-1"),
         RawTraceEventPayload::ToolCallEnded {
-            tool_call_id: "tool-1".to_string(),
+            tool_call_id: "tool-1".into(),
             status: ExecutionStatus::Completed,
             result_payload: None,
         },
@@ -1557,7 +1558,7 @@ fn late_tool_start_with_image_limit(body_limit: usize) -> anyhow::Result<()> {
 
     assert_eq!(
         first_inference.tool_call_ids_started_by_response,
-        vec!["tool-1".to_string()],
+        vec![crate::ToolCallId::from("tool-1")],
     );
     assert_eq!(
         tool_call.model_visible_call_item_ids,
@@ -1572,7 +1573,7 @@ fn late_tool_start_with_image_limit(body_limit: usize) -> anyhow::Result<()> {
         assert_eq!(
             rollout.conversation_items[output_item_id].produced_by,
             vec![ProducerRef::Tool {
-                tool_call_id: "tool-1".to_string(),
+                tool_call_id: "tool-1".into(),
             }],
         );
     }

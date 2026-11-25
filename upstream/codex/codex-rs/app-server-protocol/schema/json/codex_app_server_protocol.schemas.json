@@ -2023,6 +2023,30 @@
             },
             "method": {
               "enum": [
+                "modelProvider/model/verify"
+              ],
+              "title": "ModelProvider/model/verifyRequestMethod",
+              "type": "string"
+            },
+            "params": {
+              "$ref": "#/definitions/v2/ModelProviderModelVerifyParams"
+            }
+          },
+          "required": [
+            "id",
+            "method",
+            "params"
+          ],
+          "title": "ModelProvider/model/verifyRequest",
+          "type": "object"
+        },
+        {
+          "properties": {
+            "id": {
+              "$ref": "#/definitions/v2/RequestId"
+            },
+            "method": {
+              "enum": [
                 "experimentalFeature/list"
               ],
               "title": "ExperimentalFeature/listRequestMethod",
@@ -3096,6 +3120,24 @@
       "title": "CommandExecutionRequestApprovalResponse",
       "type": "object"
     },
+    "DynamicToolCallContentItems": {
+      "properties": {
+        "contentItems": {
+          "items": {
+            "$ref": "#/definitions/v2/DynamicToolCallOutputContentItem"
+          },
+          "type": "array"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "contentItems",
+        "success"
+      ],
+      "type": "object"
+    },
     "DynamicToolCallParams": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "properties": {
@@ -3108,6 +3150,17 @@
             "string",
             "null"
           ]
+        },
+        "supportedResultFormat": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DynamicToolResultFormat"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Optional response format supported by the runtime serving this call."
         },
         "threadId": {
           "type": "string"
@@ -3131,23 +3184,68 @@
     },
     "DynamicToolCallResponse": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "properties": {
-        "contentItems": {
-          "items": {
-            "$ref": "#/definitions/v2/DynamicToolCallOutputContentItem"
-          },
-          "type": "array"
+      "anyOf": [
+        {
+          "$ref": "#/definitions/DynamicToolCallContentItems"
         },
-        "success": {
-          "type": "boolean"
+        {
+          "properties": {
+            "structuredContent": true,
+            "success": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "structuredContent",
+            "success"
+          ],
+          "type": "object"
+        },
+        {
+          "properties": {
+            "errorMessage": {
+              "type": "string"
+            },
+            "success": {
+              "const": false,
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "errorMessage",
+            "success"
+          ],
+          "type": "object"
         }
-      },
-      "required": [
-        "contentItems",
-        "success"
       ],
-      "title": "DynamicToolCallResponse",
-      "type": "object"
+      "description": "A dynamic tool reply carrying content items, structured JSON, or an error message.",
+      "oneOf": [
+        {
+          "required": [
+            "contentItems"
+          ],
+          "title": "ContentItemsDynamicToolCallResponse"
+        },
+        {
+          "required": [
+            "structuredContent"
+          ],
+          "title": "StructuredContentDynamicToolCallResponse"
+        },
+        {
+          "required": [
+            "errorMessage"
+          ],
+          "title": "ErrorMessageDynamicToolCallResponse"
+        }
+      ],
+      "title": "DynamicToolCallResult"
+    },
+    "DynamicToolResultFormat": {
+      "enum": [
+        "structuredContent"
+      ],
+      "type": "string"
     },
     "ExecCommandApprovalParams": {
       "$schema": "http://json-schema.org/draft-07/schema#",
@@ -3425,7 +3523,7 @@
         "indices": {
           "items": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "type": [
@@ -3444,7 +3542,7 @@
         },
         "score": {
           "format": "uint32",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": "integer"
         }
       },
@@ -4019,7 +4117,7 @@
         },
         "maxLength": {
           "format": "uint32",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4027,7 +4125,7 @@
         },
         "minLength": {
           "format": "uint32",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4092,7 +4190,7 @@
         },
         "maxItems": {
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4100,7 +4198,7 @@
         },
         "minItems": {
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4201,7 +4299,7 @@
         },
         "maxItems": {
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -4209,7 +4307,7 @@
         },
         "minItems": {
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -6830,7 +6928,7 @@
           "default": null,
           "description": "@deprecated Use `isBlocking` to decide whether the request should block.",
           "format": "uint64",
-          "minimum": 0.0,
+          "minimum": 0,
           "type": [
             "integer",
             "null"
@@ -7330,6 +7428,21 @@
         "title": "AccountUpdatedNotification",
         "type": "object"
       },
+      "AccountVoiceOption": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "voice": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "voice"
+        ],
+        "type": "object"
+      },
       "ActivePermissionProfile": {
         "properties": {
           "extends": {
@@ -7406,7 +7519,7 @@
           },
           "globScanMaxDepth": {
             "format": "uint",
-            "minimum": 1.0,
+            "minimum": 1,
             "type": [
               "integer",
               "null"
@@ -7506,7 +7619,7 @@
                   1
                 ],
                 "format": "uint8",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               }
             },
@@ -7533,7 +7646,7 @@
                   1
                 ],
                 "format": "uint8",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               }
             },
@@ -7560,7 +7673,7 @@
                   1
                 ],
                 "format": "uint8",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               }
             },
@@ -8463,7 +8576,7 @@
           "limit": {
             "description": "Optional page size; defaults to a reasonable server-side value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -9042,12 +9155,12 @@
         "properties": {
           "end": {
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "start": {
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -9172,7 +9285,7 @@
                 "properties": {
                   "httpStatusCode": {
                     "format": "uint16",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "type": [
                       "integer",
                       "null"
@@ -9196,7 +9309,7 @@
                 "properties": {
                   "httpStatusCode": {
                     "format": "uint16",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "type": [
                       "integer",
                       "null"
@@ -9220,7 +9333,7 @@
                 "properties": {
                   "httpStatusCode": {
                     "format": "uint16",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "type": [
                       "integer",
                       "null"
@@ -9244,7 +9357,7 @@
                 "properties": {
                   "httpStatusCode": {
                     "format": "uint16",
-                    "minimum": 0.0,
+                    "minimum": 0,
                     "type": [
                       "integer",
                       "null"
@@ -9617,7 +9730,7 @@
           "outputBytesCap": {
             "description": "Optional per-stream stdout/stderr capture cap in bytes.\n\nWhen omitted, the server default applies. Cannot be combined with `disableOutputCap`.",
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -9741,13 +9854,13 @@
           "cols": {
             "description": "Terminal width in character cells.",
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "rows": {
             "description": "Terminal height in character cells.",
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -10113,17 +10226,6 @@
                 "type": "null"
               }
             ]
-          },
-          "client_search_provider": {
-            "anyOf": [
-              {
-                "$ref": "#/definitions/v2/WebSearchProvider"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "description": "Effective tools.client_search_provider hint. Model-selected providers take precedence."
           },
           "compact_prompt": {
             "type": [
@@ -11042,6 +11144,13 @@
         ],
         "type": "object"
       },
+      "ConfiguredHookFailurePolicy": {
+        "enum": [
+          "continue",
+          "block"
+        ],
+        "type": "string"
+      },
       "ConfiguredHookHandler": {
         "oneOf": [
           {
@@ -11049,7 +11158,7 @@
               "additionalContextLimit": {
                 "description": "Approximate token threshold for spilling this hook's `additionalContext` to disk. `null` uses 2,500 tokens; `0` disables spilling for this hook. The threshold is evaluated against the original context; a spilled preview also includes recovery metadata.",
                 "format": "uint",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": [
                   "integer",
                   "null"
@@ -11067,6 +11176,16 @@
                   "null"
                 ]
               },
+              "onFailure": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/v2/ConfiguredHookFailurePolicy"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "statusMessage": {
                 "type": [
                   "string",
@@ -11075,7 +11194,7 @@
               },
               "timeoutSec": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": [
                   "integer",
                   "null"
@@ -11103,6 +11222,16 @@
                 "additionalProperties": true,
                 "type": "object"
               },
+              "onFailure": {
+                "anyOf": [
+                  {
+                    "$ref": "#/definitions/v2/ConfiguredHookFailurePolicy"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
               "server": {
                 "type": "string"
               },
@@ -11114,7 +11243,7 @@
               },
               "timeoutSec": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": [
                   "integer",
                   "null"
@@ -11893,7 +12022,7 @@
           "limit": {
             "description": "Optional page size; defaults to a reasonable server-side value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -11992,7 +12121,7 @@
           "maxSessionAgeDays": {
             "description": "Maximum age in days for detected sessions. Missing values use the default limit.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -12001,7 +12130,7 @@
           "maxSessions": {
             "description": "Maximum number of sessions to detect. Missing values use the default limit.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -12453,7 +12582,7 @@
           },
           "sessionCount": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "source": {
@@ -12481,7 +12610,7 @@
           },
           "sessionCount": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "source": {
@@ -13097,7 +13226,7 @@
           "sizeBytes": {
             "description": "Size in bytes if the path resolves to a regular file, otherwise null. Older servers omit this field.",
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -13598,7 +13727,7 @@
         "type": "object"
       },
       "GatewayOAuthLoginParams": {
-        "description": "Authorize a configured provider without changing the default or any thread's provider.",
+        "description": "Authorize a configured service without changing the selected model provider.",
         "properties": {
           "deviceAuth": {
             "description": "Select device authorization when the server advertises support for it.",
@@ -13610,6 +13739,17 @@
               "string",
               "null"
             ]
+          },
+          "target": {
+            "anyOf": [
+              {
+                "$ref": "#/definitions/v2/GatewayOAuthTarget"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Available only on `--startup-oauth`. Mutually exclusive with `modelProvider`."
           }
         },
         "type": "object"
@@ -13716,6 +13856,26 @@
           "failed"
         ],
         "type": "string"
+      },
+      "GatewayOAuthTarget": {
+        "description": "An explicit service to authorize instead of the selected model provider.",
+        "oneOf": [
+          {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "configServer"
+                ],
+                "type": "string"
+              }
+            },
+            "required": [
+              "kind"
+            ],
+            "title": "ConfigServerGatewayOAuthTarget",
+            "type": "object"
+          }
+        ]
       },
       "GcpProviderId": {
         "enum": [
@@ -14113,7 +14273,7 @@
               },
               "port": {
                 "format": "uint16",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "protocol": {
@@ -14428,7 +14588,7 @@
           "additionalContextLimit": {
             "description": "Configured `additionalContext` spill threshold. `null` uses 2,500 tokens; `0` disables spilling.",
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -14486,7 +14646,7 @@
           },
           "timeoutSec": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "trustStatus": {
@@ -14919,7 +15079,7 @@
             "default": null,
             "description": "Native content tokens for the completed assistant message, including a sampled footer. Null when unavailable. Completion telemetry is not part of the stored thread item.",
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -15103,7 +15263,7 @@
           "limit": {
             "description": "Optional page size; defaults to a server-defined value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -15170,7 +15330,7 @@
               },
               "timeout_ms": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": [
                   "integer",
                   "null"
@@ -16280,6 +16440,15 @@
       "McpServerStatusUpdatedNotification": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
+          "durationMs": {
+            "description": "Elapsed startup time for a measured attempt. Older servers omit this field.",
+            "format": "uint64",
+            "minimum": 0.0,
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
           "environmentId": {
             "description": "Registration scope, not necessarily the server's execution environment.",
             "type": [
@@ -16493,12 +16662,12 @@
         "properties": {
           "lineEnd": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "lineStart": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "note": {
@@ -16847,6 +17016,13 @@
               "null"
             ]
           },
+          "forceRefresh": {
+            "description": "When true, request a fresh account catalog and report remote errors.",
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
           "includeHidden": {
             "description": "When true, include models that are hidden from the default picker list.",
             "type": [
@@ -16857,7 +17033,7 @@
           "limit": {
             "description": "Optional page size; defaults to a reasonable server-side value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -17062,6 +17238,44 @@
           "defaultProviderId"
         ],
         "title": "ModelProviderListResponse",
+        "type": "object"
+      },
+      "ModelProviderModelVerifyParams": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "confirmPaidRequest": {
+            "type": "boolean"
+          },
+          "model": {
+            "type": "string"
+          },
+          "modelProvider": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "confirmPaidRequest",
+          "model",
+          "modelProvider"
+        ],
+        "title": "ModelProviderModelVerifyParams",
+        "type": "object"
+      },
+      "ModelProviderModelVerifyResponse": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "properties": {
+          "modelIdentityConfirmed": {
+            "type": "boolean"
+          },
+          "usageReported": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "modelIdentityConfirmed",
+          "usageReported"
+        ],
+        "title": "ModelProviderModelVerifyResponse",
         "type": "object"
       },
       "ModelProviderSummary": {
@@ -17407,7 +17621,7 @@
           },
           "httpPort": {
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -17432,7 +17646,7 @@
           },
           "socksPort": {
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -17666,7 +17880,7 @@
           },
           "headers_helper_refresh_interval_ms": {
             "format": "uint64",
-            "minimum": 1.0,
+            "minimum": 1,
             "type": [
               "integer",
               "null"
@@ -17777,7 +17991,7 @@
         "properties": {
           "max_bytes": {
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -17893,7 +18107,7 @@
           "limit": {
             "description": "Optional page size; defaults to the full result set.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -19479,13 +19693,13 @@
           "cols": {
             "description": "Terminal width in character cells.",
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "rows": {
             "description": "Terminal height in character cells.",
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -21879,7 +22093,7 @@
               },
               "intervalHours": {
                 "format": "uint32",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "type": {
@@ -22056,7 +22270,7 @@
           },
           "value": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -22070,12 +22284,12 @@
         "properties": {
           "id": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "physicalFootprintBytes": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -22083,7 +22297,7 @@
           },
           "residentMemoryBytes": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -22620,6 +22834,28 @@
         ],
         "type": "object"
       },
+      "StartupGatewayOAuthChangedNotification": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "description": "Browser handoff on the dedicated `--startup-oauth` connection.",
+        "properties": {
+          "authUrl": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/definitions/v2/GatewayOAuthStatus"
+          },
+          "target": {
+            "$ref": "#/definitions/v2/GatewayOAuthTarget"
+          }
+        },
+        "required": [
+          "authUrl",
+          "status",
+          "target"
+        ],
+        "title": "StartupGatewayOAuthChangedNotification",
+        "type": "object"
+      },
       "StrictReviewRequiredNotification": {
         "$schema": "http://json-schema.org/draft-07/schema#",
         "properties": {
@@ -22796,13 +23032,13 @@
           "column": {
             "description": "1-based column number (in Unicode scalar values).",
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "line": {
             "description": "1-based line number.",
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -23195,7 +23431,7 @@
           },
           "limit": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -23284,7 +23520,7 @@
           },
           "limit": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -24663,7 +24899,7 @@
             "properties": {
               "durationMs": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "id": {
@@ -24735,6 +24971,11 @@
               },
               "id": {
                 "type": "string"
+              },
+              "imageMetadata": {
+                "additionalProperties": true,
+                "description": "Per-image metadata selected by the backend for the receiving surface.",
+                "type": "object"
               },
               "inputImages": {
                 "description": "Observed local inputs for a completed generation, absent on older items.",
@@ -24976,7 +25217,7 @@
           "limit": {
             "description": "Optional item page size.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -25108,7 +25349,7 @@
           "limit": {
             "description": "Optional page size; defaults to a reasonable server-side value.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -25231,7 +25472,7 @@
           "limit": {
             "description": "Optional page size; defaults to no limit.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -25569,17 +25810,17 @@
           },
           "numChannels": {
             "format": "uint16",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "sampleRate": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "samplesPerChannel": {
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -25632,7 +25873,7 @@
             "properties": {
               "index": {
                 "format": "uint32",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "type": {
@@ -25687,7 +25928,7 @@
           },
           "position": {
             "format": "uint64",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           }
         },
@@ -26275,7 +26516,7 @@
           "limit": {
             "description": "Optional turn page size.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -26758,7 +26999,7 @@
           "limit": {
             "description": "Maximum number of sections to return.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -27385,7 +27626,7 @@
               },
               "position": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "turnId": {
@@ -27415,7 +27656,7 @@
               },
               "position": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "type": {
@@ -27438,7 +27679,7 @@
             "properties": {
               "position": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "started_at": {
@@ -27495,7 +27736,7 @@
               },
               "position": {
                 "format": "uint64",
-                "minimum": 0.0,
+                "minimum": 0,
                 "type": "integer"
               },
               "started_at": {
@@ -27597,7 +27838,7 @@
           "limit": {
             "description": "Optional turn page size.",
             "format": "uint32",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": [
               "integer",
               "null"
@@ -28993,14 +29234,6 @@
         ],
         "type": "string"
       },
-      "WebSearchProvider": {
-        "description": "Provider preference selected by the resolved model catalog entry.",
-        "enum": [
-          "standalone",
-          "search_mcp"
-        ],
-        "type": "string"
-      },
       "WebSearchToolConfig": {
         "additionalProperties": false,
         "properties": {
@@ -29136,7 +29369,7 @@
         "properties": {
           "extraCount": {
             "format": "uint",
-            "minimum": 0.0,
+            "minimum": 0,
             "type": "integer"
           },
           "failedScan": {

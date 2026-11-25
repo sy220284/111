@@ -734,6 +734,23 @@ impl ModelProvider for ConfiguredModelProvider {
                 codex_models_manager::ModelOrigin::ExplicitConfig,
             ));
         }
+        if let Some(profile) = crate::domestic_catalog::profile(self.info.base_url.as_deref())
+            .filter(|profile| profile.catalog == "manual" && self.info.model_catalog_url.is_none()
+                && !crate::domestic_catalog::is_domestic_live_catalog(self.info.base_url.as_deref()))
+        {
+            // A locally saved credential permits explicit model selection, not a claim
+            // that the account has passed vendor authorization.
+            let models = if matches!(self.info.api_key(), Ok(Some(_))) {
+                crate::domestic_catalog::documented_candidates(profile)
+            } else {
+                Vec::new()
+            };
+            return Arc::new(StaticModelsManager::new(
+                self.auth_manager.clone(),
+                ModelsResponse { models },
+                codex_models_manager::ModelOrigin::Bundled,
+            ));
+        }
         let endpoint = Arc::new(
             OpenAiModelsEndpoint::new(
                 self.info.clone(),
@@ -744,9 +761,12 @@ impl ModelProvider for ConfiguredModelProvider {
         );
         let auth_manager = self.auth_manager.clone();
         let manager = OpenAiModelsManager::with_settings(settings, endpoint, auth_manager);
-        match &self.info.model_catalog_url {
-            Some(_) => Arc::new(manager.with_provider_catalog()),
-            None => Arc::new(manager),
+        if self.info.model_catalog_url.is_some()
+            || crate::domestic_catalog::profile(self.info.base_url.as_deref()).is_some()
+        {
+            Arc::new(manager.with_provider_catalog())
+        } else {
+            Arc::new(manager)
         }
     }
 

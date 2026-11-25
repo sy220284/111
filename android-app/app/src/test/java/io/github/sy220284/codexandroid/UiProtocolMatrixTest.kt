@@ -5,19 +5,32 @@ import org.junit.Test
 
 class UiProtocolMatrixTest {
     @Test fun everyProtocolMethodHasExactlyOneUiExposure() {
-        assertEquals(195, UiProtocolMatrix.all.size)
-        assertEquals(195, UiProtocolMatrix.byMethod.size)
+        assertEquals(198, UiProtocolMatrix.all.size)
+        assertEquals(198, UiProtocolMatrix.byMethod.size)
         assertEquals(37, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
-        assertEquals(46, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
-        assertEquals(51, UiProtocolMatrix.advanced.size)
-        assertEquals(61, UiProtocolMatrix.systemOnly.size)
+        assertEquals(47, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
+        assertEquals(52, UiProtocolMatrix.advanced.size)
+        assertEquals(62, UiProtocolMatrix.systemOnly.size)
     }
 
     @Test fun newlyExposedConversationOperationsAreContextual() {
-        listOf("thread/section/move", "threadSection/list", "threadSection/create",
+        listOf("modelProvider/model/verify", "thread/section/move", "threadSection/list", "threadSection/create",
             "threadSection/update", "threadSection/delete",
             "thread/realtime/appendText", "thread/realtime/appendSpeech").forEach { method ->
             assertEquals(method, ApiExposure.Contextual, UiProtocolMatrix.byMethod[method]?.exposure)
+        }
+    }
+
+    @Test fun builtinVoiceDirectoryIsNotAnEditableSessionPreference() {
+        assertEquals(ApiExposure.Internal, UiProtocolMatrix.byMethod.getValue("thread/realtime/listVoices").exposure)
+    }
+
+    @Test fun accountVoiceSettingsAreAccountScopedAdvancedActions() {
+        listOf("account/voiceSettings/read", "account/voiceSettings/write").forEach { method ->
+            val entry = UiProtocolMatrix.byMethod.getValue(method)
+            assertEquals(ApiExposure.Advanced, entry.exposure)
+            assertEquals("账号/额度", entry.owner)
+            assertTrue(entry.experimental)
         }
     }
 

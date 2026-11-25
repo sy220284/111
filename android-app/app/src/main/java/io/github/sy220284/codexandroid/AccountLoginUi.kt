@@ -36,6 +36,8 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val deviceCode by vm.deviceLoginCode.collectAsState()
     val deviceUrl by vm.deviceLoginUrl.collectAsState()
     val loginId by vm.activeLoginId.collectAsState()
+    val voiceEpoch by vm.bridge.connectedSession.collectAsState()
+    val voiceAccountRevision by vm.catalogWarmup.accountRevision.collectAsState()
     val payload = data["account"]
     val identity = payload?.optJSONObject("account")
     val connected = identity != null
@@ -171,6 +173,14 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     Text("登录方式 · " + PresentationPolicy.accountAuthMethod(authMode), color = Ink.muted,
                         style = MaterialTheme.typography.labelMedium)
                 }
+                val epoch = voiceEpoch
+                if (identity != null && authMode == "chatgpt" && epoch != null && !loginBusy &&
+                    !pending && "account" !in loading && "accountSessionSwitch" !in loading) {
+                    DividerLine()
+                    key(identity.toString(), epoch, voiceAccountRevision) {
+                        AccountVoiceSettings(vm, identity.toString(), epoch, voiceAccountRevision)
+                    }
+                }
                 DividerLine()
                 Row(
                     Modifier.fillMaxWidth(),
@@ -179,7 +189,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 ) {
                     CodexSecondaryButton(
                         onClick = { vm.refresh("account", "account/read") },
-                        enabled = !loading.contains("account"),
+                        enabled = !loading.contains("account") && AccountVoiceSettingsLease.key !in loading,
                         modifier = Modifier.weight(1f).heightIn(min = 48.dp)
                     ) {
                         CodexIcon(CodexGlyph.Retry, null, modifier = Modifier.size(18.dp))
@@ -189,6 +199,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     if (connected) {
                         CodexTextAction(
                             onClick = { logoutConfirm = true },
+                            enabled = AccountVoiceSettingsLease.key !in loading,
                             modifier = Modifier.heightIn(min = 48.dp)
                         ) { Text("退出账号") }
                     }
@@ -202,6 +213,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("登录状态、使用记录和额度窗口来自同一账号，可从此处集中查看。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             CodexSecondaryButton(onClick = { showSessions = true },
+                enabled = AccountVoiceSettingsLease.key !in loading,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 CodexIcon(CodexGlyph.PeopleOutline, null, modifier = Modifier.size(19.dp))
                 Spacer(Modifier.width(8.dp))

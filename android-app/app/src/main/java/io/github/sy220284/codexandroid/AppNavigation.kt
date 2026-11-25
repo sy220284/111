@@ -346,6 +346,7 @@ fun CodexShell(vm: CodexViewModel) {
                 }
             ) { inset ->
                 Column(Modifier.padding(inset).fillMaxSize()) {
+                    RuntimeProtectionNotice(vm)
                     RealtimeVoiceRecoveryNotice(vm)
                     Box(Modifier.weight(1f).fillMaxWidth()) {
                         // Only the current page participates in semantics and input.

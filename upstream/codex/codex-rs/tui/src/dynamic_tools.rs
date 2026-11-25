@@ -1314,6 +1314,7 @@ async fn background_turn_program(
                 limit: None,
                 include_hidden: Some(true),
                 model_provider: None,
+                force_refresh: None,
             },
         }),
     );

@@ -21,6 +21,7 @@ pub(super) struct ReconnectState {
     pub(super) failed: bool,
     pub(super) presentation: ReconnectPresentation,
     pub(super) seen_version_notice: Option<String>,
+    pub(super) cloud_resume: Option<super::resume_preparation::CloudResume>,
 }
 
 pub(super) struct Reconnected {
@@ -223,10 +224,48 @@ impl App {
         ) {
             self.begin_reconnect();
             self.reconnect.failed = true;
-            self.chat_widget.reconnect_failed();
+            self.chat_widget.reconnect_failed(/*can_retry*/ false);
             return true;
         }
         self.begin_reconnect_inner(/*preserve_startup_input*/ true)
+    }
+
+    pub(super) fn offline_overview_notice(&self) -> &'static str {
+        if self.can_retry_reconnect() {
+            "Reconnect failed — return to the conversation and press Ctrl+R to retry"
+        } else if self.reconnect.failed {
+            "Reconnect failed — agent list is stale; relaunch to retry"
+        } else {
+            "Reconnecting — agent list is stale"
+        }
+    }
+
+    pub(super) fn can_retry_reconnect(&self) -> bool {
+        self.reconnect.offline
+            && self.reconnect.failed
+            && !matches!(
+                self.app_server_target,
+                AppServerTarget::Embedded | AppServerTarget::Cloud
+            )
+            && !matches!(
+                self.reconnect.presentation,
+                ReconnectPresentation::Startup(_)
+            )
+            && self.reconnect_thread_id().is_some()
+    }
+
+    // Let the event loop start a fresh bounded attempt without pausing input again.
+    pub(super) fn retry_reconnect(&mut self) {
+        self.reconnect.presentation = ReconnectPresentation::Conversation;
+        self.reconnect.failed = false;
+        self.chat_widget.show_reconnecting();
+        if let Ok(mut state) = self.agents_overview.view_state.lock() {
+            state.connection_notice = Some(self.offline_overview_notice());
+        }
+    }
+
+    pub(super) fn reconnect_thread_id(&self) -> Option<ThreadId> {
+        self.current_displayed_thread_id()
     }
 
     fn begin_reconnect_inner(&mut self, preserve_startup_input: bool) -> bool {
@@ -250,6 +289,8 @@ impl App {
                 pane.opening = None;
             }
             self.reconnect.offline = true;
+            self.chat_widget.config_panel_reasoning_summary = None;
+            self.chat_widget.refresh_config_panel(/*notice*/ None);
             self.account_email_request_id = None;
             // Cached blank sessions are usable only while this connection owns a subscription.
             self.agents_overview.blank_sessions.retain(|id, _| {
@@ -294,6 +335,7 @@ impl App {
                 }
                 self.agents_overview.active_refresh = None;
                 self.agents_overview.refresh_show_more = false;
+                self.agents_overview.active_refresh_recent = false;
                 self.agents_overview.active_refresh_thread_ids.clear();
                 self.agents_overview.pending_refresh_backends.clear();
                 self.agents_overview.refresh_notifications.clear();
@@ -312,14 +354,8 @@ impl App {
                 .selected_index_for_active_view(agents_overview::AGENTS_OVERVIEW_VIEW_ID)
                 .is_some()
                 || (self.current_displayed_thread_id().is_none()
-                    && self
-                        .chat_widget
-                        .selected_index_for_present_view(agents_overview::AGENTS_OVERVIEW_VIEW_ID)
-                        .is_some())
+                    && self.overview_selected_index().is_some())
             {
-                if let Ok(mut state) = self.agents_overview.view_state.lock() {
-                    state.connection_notice = Some("Reconnecting — agent list is stale");
-                }
                 ReconnectPresentation::Overview
             } else {
                 if !self
@@ -333,6 +369,12 @@ impl App {
                 }
                 ReconnectPresentation::Conversation
             };
+            if (self.agents_overview.workspace.is_open()
+                || self.reconnect.presentation == ReconnectPresentation::Overview)
+                && let Ok(mut state) = self.agents_overview.view_state.lock()
+            {
+                state.connection_notice = Some(self.offline_overview_notice());
+            }
             if preserve_startup_input {
                 // Draining admission never reopens. Wait for this connection to close before
                 // reconnecting, then give the ordinary startup path one more attempt.
@@ -402,22 +444,21 @@ impl App {
             archived_thread,
         } = connected;
         session.model_provider_override = self.harness_overrides.model_provider.clone();
-        let selected = self
-            .chat_widget
-            .selected_index_for_present_view(agents_overview::AGENTS_OVERVIEW_VIEW_ID)
-            .and_then(|index| self.agents_overview.visible_thread_ids.get(index).copied());
-        let displayed = self.current_displayed_thread_id();
+        let selected = self.overview_selected_thread_id();
+        let displayed = self.reconnect_thread_id();
         let mut input = self.chat_widget.capture_thread_input_state();
         if let Some(input) = input.as_mut() {
             input.reconnect_pending = true;
         }
-        self.store_active_thread_receiver().await;
+        self.save_active_thread_state().await;
         // Old request handles stay attached to the dead connection. Rotating the event channel
         // prevents their late completions from submitting follow-up operations on the new one.
         let (tx, rx) = mpsc::unbounded_channel();
         self.app_event_tx = AppEventSender::new(tx);
         self.app_server_backend_id = Some(session.backend_id());
         *app_event_rx = rx;
+        self.pending_thread_switch_resets = 0;
+        self.backtrack.revert_queued = false;
         for (parent, pane) in &mut self.sidebars {
             pane.focus_document_request = None;
             pane.agents.pending_link = None;
@@ -477,7 +518,7 @@ impl App {
             connection.is_managed_daemon = connection.is_local_daemon && managed_daemon;
         }
         self.model_catalog = Arc::new(
-            ModelCatalog::new(bootstrap.available_models)
+            ModelCatalog::new(bootstrap.available_models, bootstrap.catalog_provider)
                 .for_backend(app_server.backend_id(), &mut self.provider_writes)
                 .with_collaboration_modes(bootstrap.collaboration_modes),
         );
@@ -592,10 +633,9 @@ impl App {
             self.thread_event_channels.insert(id, channel);
         }
         if let Some(id) = displayed
-            && let Some((receiver, snapshot)) = self.activate_thread_for_replay(id).await
+            && let Some(snapshot) = self.activate_thread_for_replay(id).await
         {
             self.active_thread_id = Some(id);
-            self.active_thread_rx = Some(receiver);
             self.recap.seed_from_turns(&snapshot.turns, Instant::now());
             if let Err(err) = self
                 .render_thread_snapshot(
@@ -620,7 +660,6 @@ impl App {
             }
         } else {
             self.active_thread_id = None;
-            self.active_thread_rx = None;
             self.primary_thread_id = None;
             self.primary_session_configured = None;
             let init = self.chatwidget_init_for_forked_or_resumed_thread(
@@ -636,7 +675,9 @@ impl App {
         // A hidden overview performs this discovery when it is next opened.
         self.reset_agents_overview_discovery(app_server.backend_id());
         self.backend_registry.connect(app_server);
-        if self.reconnect.presentation == ReconnectPresentation::Overview {
+        if self.agents_overview.workspace.is_open() {
+            self.repaint_agents_overview();
+        } else if self.reconnect.presentation == ReconnectPresentation::Overview {
             let threads = self
                 .agents_overview
                 .threads
@@ -663,7 +704,13 @@ impl App {
             server.reconnect(app_server.request_handle(), self.app_event_tx.clone());
         }
         self.reconnect.offline = false;
-        if self.reconnect.presentation == ReconnectPresentation::Overview {
+        if self.chat_widget.refresh_config_panel(/*notice*/ None) {
+            self.app_event_tx
+                .send(AppEvent::RefreshConfigReasoningSummary);
+        }
+        if self.agents_overview.workspace.is_open()
+            || self.reconnect.presentation == ReconnectPresentation::Overview
+        {
             self.refresh_agents_overview_threads(app_server);
         }
         self.chat_widget.forget_inherited_quota_provider();

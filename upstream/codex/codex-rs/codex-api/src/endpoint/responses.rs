@@ -9,7 +9,7 @@ use crate::requests::Compression;
 use crate::requests::headers::build_session_headers;
 use crate::requests::headers::insert_header;
 use crate::requests::headers::subagent_header;
-use crate::sse::spawn_response_stream;
+use crate::sse::spawn_response_stream_with_model_reporting;
 use crate::telemetry::SseTelemetry;
 use codex_client::EncodedJsonBody;
 use codex_client::HttpTransport;
@@ -30,6 +30,7 @@ use tracing::instrument;
 pub struct ResponsesClient<T: HttpTransport> {
     session: EndpointSession<T>,
     sse_telemetry: Option<Arc<dyn SseTelemetry>>,
+    report_body_model: bool,
 }
 
 #[derive(Default)]
@@ -48,6 +49,7 @@ impl<T: HttpTransport> ResponsesClient<T> {
         Self {
             session: EndpointSession::new(transport, provider, auth),
             sse_telemetry: None,
+            report_body_model: false,
         }
     }
 
@@ -59,7 +61,14 @@ impl<T: HttpTransport> ResponsesClient<T> {
         Self {
             session: self.session.with_request_telemetry(request),
             sse_telemetry: sse,
+            report_body_model: self.report_body_model,
         }
+    }
+
+    /// Opt in only for a non-routing, explicit third-party model verification.
+    pub fn with_body_model_reporting(mut self) -> Self {
+        self.report_body_model = true;
+        self
     }
 
     pub async fn stream_request(
@@ -191,11 +200,12 @@ impl<T: HttpTransport> ResponsesClient<T> {
             )
             .await?;
 
-        Ok(spawn_response_stream(
+        Ok(spawn_response_stream_with_model_reporting(
             stream_response,
             self.session.provider().stream_idle_timeout,
             self.sse_telemetry.clone(),
             turn_state,
+            self.report_body_model,
         ))
     }
 }

@@ -60,6 +60,7 @@ use crate::tools::registry::ToolExposure;
 use crate::tools::registry::ToolRegistry;
 use crate::tools::router::ToolRouter;
 use crate::tools::tool_namespaces_info::collect_tool_namespaces_info;
+use codex_config::types::ImageGenerationSettings;
 use codex_connectors::apps_config_from_layer_stack;
 use codex_extension_api::ExtensionData;
 use codex_features::Feature;
@@ -101,7 +102,6 @@ use std::collections::btree_map::Entry;
 use std::sync::Arc;
 use tracing::instrument;
 
-const IMAGE_GEN_NAMESPACE: &str = "image_gen";
 const IMAGEGEN_TOOL_NAME: &str = "imagegen";
 
 #[derive(Clone, Copy)]
@@ -159,7 +159,6 @@ pub(crate) fn build_tool_router(
         session.services.mcp_manager.shared_definitions(),
         &mut registry,
     );
-    let search = step_store.get::<crate::model_search::ModelSearch>();
     apply_mcp_tool_exposure_policy(
         turn_context,
         model_info,
@@ -173,40 +172,12 @@ pub(crate) fn build_tool_router(
         extension_tool_executors(session, step_store),
         &mut registry,
     );
-    let native_mode = match search.as_deref() {
-        None => Some(turn_context.config.web_search_mode.value()),
-        Some(crate::model_search::ModelSearch::Native { mode, .. }) => Some(*mode),
-        _ => None,
-    };
-    if matches!(
-        search.as_deref(),
-        Some(
-            crate::model_search::ModelSearch::Native { .. }
-                | crate::model_search::ModelSearch::Disabled
-        )
-    ) {
-        for tool in mcp
-            .tools()
-            .iter()
-            .filter(|tool| codex_mcp::is_model_search_tool(tool))
-        {
-            registry.remove(&tool.canonical_tool_name());
-        }
-    }
-    if native_mode.is_none() {
-        registry.remove(&ToolName::namespaced("web", "run"));
-    }
     append_dynamic_tool_runtimes(dynamic_tools, &mut registry);
-    let hosted_specs = if let Some(mode) = native_mode {
-        hosted_model_tool_specs(
-            turn_context,
-            model_info,
-            mode,
-            standalone_web_search_tool.as_slice(),
-        )
-    } else {
-        Vec::new()
-    };
+    let hosted_specs = hosted_model_tool_specs(
+        turn_context,
+        model_info,
+        standalone_web_search_tool.as_slice(),
+    );
 
     finalize_tool_router(
         turn_context,
@@ -373,7 +344,6 @@ pub(crate) fn append_source_tools(
     hosted_model_tool_specs(
         turn_context,
         model_info,
-        turn_context.config.web_search_mode.value(),
         standalone_web_search_tool.as_slice(),
     )
 }
@@ -723,7 +693,6 @@ fn spec_for_model_request(
 fn hosted_model_tool_specs(
     turn_context: &TurnContext,
     model_info: &ModelInfo,
-    mode: WebSearchMode,
     registered_extension_tool_names: &[ToolName],
 ) -> Vec<ToolSpec> {
     // Responses Lite accepts schemas for client-executed tools, not hosted Responses tools.
@@ -738,7 +707,7 @@ fn hosted_model_tool_specs(
     // and the provider supports hosted search. `None` prevents emitting a hosted search tool.
     let web_search_mode = (!standalone_web_search_available
         && turn_context.provider.capabilities().web_search)
-        .then_some(mode);
+        .then_some(turn_context.config.web_search_mode.value());
     let web_search_config = web_search_mode
         .as_ref()
         .and(turn_context.config.web_search_config.as_ref());
@@ -883,13 +852,11 @@ fn agent_type_description(
     }
 }
 
-fn is_hidden_by_code_mode_only(
-    turn_context: &TurnContext,
-    model_info: &ModelInfo,
+pub(super) fn is_hidden_by_code_mode_only(
+    tool_mode: ToolMode,
     tool_name: &ToolName,
     exposure: ToolExposure,
 ) -> bool {
-    let tool_mode = effective_tool_mode(turn_context, model_info);
     tool_mode == ToolMode::CodeModeOnly
         && exposure.is_available_in_code_mode()
         && codex_code_mode::is_code_mode_nested_tool(&codex_tools::code_mode_name_for_tool_name(
@@ -904,8 +871,7 @@ fn is_directly_visible(
 ) -> bool {
     tool.exposure.is_direct()
         && !is_hidden_by_code_mode_only(
-            turn_context,
-            model_info,
+            effective_tool_mode(turn_context, model_info),
             &tool.runtime.tool_name(),
             tool.exposure,
         )
@@ -991,7 +957,7 @@ fn register_code_mode_executors(
     indirect_prefixes: &IndirectNamespacePrefixes<'_>,
 ) -> (
     BTreeMap<String, ToolName>,
-    Option<Arc<Vec<codex_code_mode::ExecDefinition>>>,
+    Option<Arc<codex_code_mode::ExecDefinitions>>,
 ) {
     let tool_mode = effective_tool_mode(turn_context, model_info);
     if !matches!(tool_mode, ToolMode::CodeMode | ToolMode::CodeModeOnly) {
@@ -1343,15 +1309,22 @@ fn add_core_utility_tools(context: &CoreToolPlanContext<'_>, registry: &mut Tool
         );
     }
 
-    if !turn_context.root_capabilities_restricted
+    let root_messages = !turn_context.root_capabilities_restricted
         && (features.enabled(Feature::SendMessageToUserAsync)
             || context
                 .model_info
                 .experimental_supported_tools
                 .iter()
-                .any(|tool| tool == "send_message_to_user_async"))
-    {
-        registry.add_with_exposure(SendMessageToUserAsyncHandler, ToolExposure::DirectModelOnly);
+                .any(|tool| tool == "send_message_to_user_async"));
+    let subagent_messages = features.subagent_async_messages_enabled
+        && turn_context.session_source.parent_thread_id().is_some();
+    if root_messages || subagent_messages {
+        let exposure = if features.async_messages_in_code_mode {
+            ToolExposure::Direct
+        } else {
+            ToolExposure::DirectModelOnly
+        };
+        registry.add_with_exposure(SendMessageToUserAsyncHandler, exposure);
     }
 
     if features.enabled(Feature::RequestPermissionsTool) {
@@ -1449,6 +1422,10 @@ fn add_core_utility_tools(context: &CoreToolPlanContext<'_>, registry: &mut Tool
 fn add_collaboration_tools(context: &CoreToolPlanContext<'_>, registry: &mut ToolRegistry) {
     let turn_context = context.turn_context;
     if collab_tools_enabled(turn_context, context.model_info) {
+        let expose_service_tier = turn_context
+            .config
+            .multi_agent_v2
+            .expose_spawn_agent_service_tier;
         if multi_agent_v2_enabled(turn_context) {
             let model_messages = ResolvedModelMessages::from_model(context.model_info);
             let spawn_agent_description =
@@ -1480,6 +1457,7 @@ fn add_collaboration_tools(context: &CoreToolPlanContext<'_>, registry: &mut Too
                     SpawnAgentHandlerV2::new(
                         SpawnAgentToolOptions {
                             available_models: turn_context.available_models.clone(),
+                            expose_service_tier,
                             multi_agent_version: turn_context.multi_agent_version,
                             model_catalog_in_context: turn_context
                                 .config
@@ -1581,6 +1559,7 @@ fn add_collaboration_tools(context: &CoreToolPlanContext<'_>, registry: &mut Too
                     expose_agent_type: !turn_context.config.agent_roles.is_empty(),
                     hide_agent_type_model_reasoning: false,
                     expose_spawn_agent_model_overrides: true,
+                    expose_service_tier,
                     usage_hint_text: turn_context.config.multi_agent_v2.usage_hint_text.clone(),
                 }),
                 exposure,
@@ -1663,7 +1642,7 @@ fn append_extension_tool_executors(
         if is_standalone_web_search && (!standalone_web_search_enabled || !web_search_mode_on) {
             continue;
         }
-        if tool_name == ToolName::namespaced(IMAGE_GEN_NAMESPACE, IMAGEGEN_TOOL_NAME)
+        if tool_name == ToolName::namespaced(ImageGenerationSettings::NAMESPACE, IMAGEGEN_TOOL_NAME)
             && !image_generation_available(turn_context, model_info)
         {
             continue;

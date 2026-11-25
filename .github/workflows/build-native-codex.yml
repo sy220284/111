@@ -37,6 +37,12 @@ on:
       - "android-app/tools/package_native_runtime.sh"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
+    inputs:
+      include_x86:
+        description: 同时编译 x86_64 模拟器原生核心（仅手动专项验收）
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -56,6 +62,7 @@ jobs:
     timeout-minutes: 12
     outputs:
       reuse: ${{ steps.detect.outputs.reuse }}
+      matrix: ${{ steps.detect.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,26 +70,37 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             .github/scripts
-      - name: 查找已验证的 ARM64 原生核心
+      - name: 查找已验证的 ARM64 手机核心及手动选定的测试核心
         id: detect
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          INCLUDE_X86: ${{ github.event_name == 'workflow_dispatch' && inputs.include_x86 }}
+          ABI_MATRIX_JSON: '[{"rust_target":"aarch64-linux-android","clang":"aarch64-linux-android29-clang","clangxx":"aarch64-linux-android29-clang++","abi":"arm64-v8a","elf_arch":"AArch64"},{"rust_target":"x86_64-linux-android","clang":"x86_64-linux-android29-clang","clangxx":"x86_64-linux-android29-clang++","abi":"x86_64","elf_arch":"X86-64"}]'
         run: |
           set -euo pipefail
-          RESULT=0
-          python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" \
-            --abis arm64-v8a \
-            > "$RUNNER_TEMP/reused-native-run" || RESULT=$?
-          if [ "$RESULT" -eq 0 ]; then
+          MISSING='[]'
+          for ABI in $(jq -r '.[].abi' <<< "$ABI_MATRIX_JSON"); do
+            if [ "$ABI" = 'x86_64' ] && [ "$INCLUDE_X86" != 'true' ]; then
+              echo 'x86_64 原生编译仅在手动专项验收时启用'
+              continue
+            fi
+            RESULT=0
+            python3 .github/scripts/select_native_artifacts.py \
+              --repo "$GITHUB_REPOSITORY" --abis "$ABI" \
+              > "$RUNNER_TEMP/reused-native-$ABI" || RESULT=$?
+            case "$RESULT" in
+              0) echo "$ABI 复用已验证原生内核" ;;
+              3) MISSING="$(jq -c --arg abi "$ABI" --argjson missing "$MISSING" '$missing + map(select(.abi == $abi))' <<< "$ABI_MATRIX_JSON")" ;;
+              *) exit "$RESULT" ;;
+            esac
+          done
+          echo "matrix=$MISSING" >> "$GITHUB_OUTPUT"
+          if [ "$MISSING" = '[]' ]; then
             echo "reuse=true" >> "$GITHUB_OUTPUT"
-            echo "复用原生构建 $(cat "$RUNNER_TEMP/reused-native-run")，跳过 Rust/NDK 重编译"
-          elif [ "$RESULT" -eq 3 ]; then
-            echo "reuse=false" >> "$GITHUB_OUTPUT"
-            echo "源码、编译参数变更或可用产物缺失，启动原生编译"
           else
-            exit "$RESULT"
+            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            echo "只编译缺失或已改变的 ABI：$MISSING"
           fi
 
   native:
@@ -94,12 +112,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - rust_target: aarch64-linux-android
-            clang: aarch64-linux-android29-clang
-            clangxx: aarch64-linux-android29-clang++
-            abi: arm64-v8a
-            elf_arch: AArch64
+        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_BUILD_JOBS: "2"
@@ -114,6 +127,8 @@ jobs:
             upstream/codex
             CODEX_UPSTREAM_COMMIT
             android-app/tools/prepare_android_mxc.py
+            android-app/tools/resolve_codex_catalog_version.py
+            android-app/tools/test_resolve_codex_catalog_version.py
             android-app/tools/prepare_android_code_mode.py
             android-app/tools/prepare_android_v8.sh
             android-app/tools/adapt_android_v8_build.py
@@ -123,6 +138,10 @@ jobs:
           set -euo pipefail
           test -f upstream/codex/codex-rs/app-server/Cargo.toml
           cat CODEX_UPSTREAM_COMMIT
+          python3 android-app/tools/resolve_codex_catalog_version.py --marker CODEX_UPSTREAM_COMMIT \
+            --lock upstream/codex/codex-rs/models-manager/android-client-release.txt
+          grep -Fq 'android_catalog_client_version()' upstream/codex/codex-rs/models-manager/src/lib.rs
+          python3 -m unittest discover -s android-app/tools -p 'test_resolve_codex_catalog_version.py'
       - name: 配置 Android SDK/NDK
         shell: bash
         run: |
@@ -267,14 +286,46 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  provider-contract:
+    name: 国内服务商目录与模型能力 Rust 回归测试
+    needs: reuse
+    if: needs.reuse.outputs.reuse != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            upstream/codex
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: upstream/codex/codex-rs
+          key: codex-provider-contract-host
+      - name: 执行国内目录、端点绑定及合成工具回传测试
+        working-directory: upstream/codex/codex-rs
+        run: |
+          set -euo pipefail
+          cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
+          cargo test --locked -p codex-model-provider --lib domestic_
+          cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
+          cargo test --locked -p codex-api --lib body_model_reporting
+
   verify-pr-apk:
     name: ARM64 就绪后触发同提交手机 APK 验收
-    needs: [reuse, native]
+    needs: [reuse, native, provider-contract]
     if: >-
       always() && github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       needs.reuse.result == 'success' &&
-      (needs.reuse.outputs.reuse == 'true' || needs.native.result == 'success')
+      (needs.reuse.outputs.reuse == 'true' || (needs.native.result == 'success' && needs.provider-contract.result == 'success'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

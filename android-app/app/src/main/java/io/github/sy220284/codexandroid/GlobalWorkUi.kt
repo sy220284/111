@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,40 +28,9 @@ import androidx.compose.ui.window.DialogProperties
 /** One reactive projection for all core/data disruption controls. */
 @Composable
 internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
-    val visible by vm.running.collectAsState()
-    val executions by vm.threadExecutions.collectProjection { it.size }
-    val creating by vm.firstThreadStarting.collectAsState()
-    val terminalRunning by vm.terminalSession.collectProjection { it.running }
-    val approvals by vm.bridge.prompts.collectProjection { it.size }
-    val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
-    val requests by vm.loading.collectProjection { it.size }
-    val wireRequests by vm.bridge.activeRpcRequests.collectProjection { it.size }
-    val login by vm.loginBusy.collectAsState()
-    val planApproval by vm.planApprovalBusy.collectAsState()
-    val threadSwitching by vm.threadSwitching.collectAsState()
-    val terminalStarting by vm.terminalStarting.collectAsState()
-    val securitySave by vm.securitySaveBusy.collectAsState()
-    val coreStatus by vm.bridge.status.collectAsState()
-    val retiring by vm.bridge.retirementBusy.collectAsState()
-    val restarting by vm.connectionRestarter.busy.collectAsState()
-    val voiceActive by vm.realtimeVoiceLease.active.collectAsState()
-    return GlobalWorkSnapshot(
-        visibleTurnRunning = visible,
-        executingThreads = executions,
-        creatingThread = creating,
-        terminalRunning = terminalRunning,
-        pendingApprovals = approvals,
-        dataTransferBusy = transferBusy,
-        inFlightRequests = requests + wireRequests,
-        loginBusy = login,
-        planApprovalBusy = planApproval,
-        switchingThread = threadSwitching,
-        terminalStarting = terminalStarting,
-        securitySaveBusy = securitySave,
-        coreStarting = coreStatus == EngineStatus.Starting || retiring,
-        restarting = restarting,
-        realtimeVoiceActive = voiceActive
-    )
+    val changes = remember(vm) { vm.globalWorkChanges() }
+    val snapshot by changes.collectAsState(initial = vm.globalWorkSnapshot())
+    return snapshot
 }
 
 /**
@@ -136,4 +107,20 @@ internal fun RealtimeVoiceRecoveryNotice(vm: CodexViewModel) {
             confirm = false
             vm.connectionRestarter.restartAfterVoiceFailure()
         }, onDismiss = { confirm = false })
+}
+
+/** A failed Android foreground promotion remains visible across all pages. */
+@Composable
+internal fun RuntimeProtectionNotice(vm: CodexViewModel) {
+    val errors by vm.errors.collectAsState()
+    val failure = errors["foregroundProtection"] ?: return
+    val work = observeGlobalWorkSnapshot(vm)
+    if (!work.requiresForegroundProtection) return
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 4.dp)) {
+        CodexNotice(failure, NoticeTone.Error, actionLabel = "重试后台保护", onAction = {
+            scope.launch { ensureForegroundProtection(context, vm) }
+        })
+    }
 }

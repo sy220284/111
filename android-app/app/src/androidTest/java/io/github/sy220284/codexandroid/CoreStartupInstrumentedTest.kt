@@ -17,6 +17,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
@@ -32,6 +33,47 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
+    @Test fun nativeCoreDiscoversAndCallsAndroidPreviewMcp() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        val host = ModelPreviewMcpServer { args, meta ->
+            val (path, line) = ModelPreviewPolicy.target(args)
+            check(path == "demo.txt" && line == 2)
+            JSONObject().put("status", "queued").put("threadId", ModelPreviewPolicy.thread(meta))
+        }
+        try {
+            host.launch()
+            withTimeout(90000) {
+                bridge.connect()
+                val workspace = WorkspaceStorage.root(app)
+                val params = JSONObject().put("cwd", workspace.absolutePath)
+                    .put("config", JSONObject().put("mcp_servers." + ModelPreviewMcpServer.NAME, host.config()))
+                val id = bridge.request("thread/start", params).getJSONObject("thread").getString("id")
+                val statusParams = CatalogRequestContract.mcpStatus(id).put("serverName", ModelPreviewMcpServer.NAME)
+                var ready = false
+                repeat(12) {
+                    if (!ready) {
+                        val status = bridge.request("mcpServerStatus/list", statusParams)
+                        ready = records(status).any { row -> row.optString("name") == ModelPreviewMcpServer.NAME &&
+                            row.optJSONObject("tools")?.has(ModelPreviewMcpServer.TOOL) == true }
+                        if (!ready) kotlinx.coroutines.delay(500)
+                    }
+                }
+                org.junit.Assert.assertTrue("native MCP tool discovery did not find Android preview", ready)
+                val result = bridge.request("mcpServer/tool/call", JSONObject().put("threadId", id)
+                    .put("server", ModelPreviewMcpServer.NAME).put("tool", ModelPreviewMcpServer.TOOL)
+                    .put("arguments", JSONObject("""{"target":{"type":"file","path":"demo.txt","line":2}}"""))
+                    .put("_meta", JSONObject().put("threadId", id)))
+                org.junit.Assert.assertFalse(result.optBoolean("isError"))
+                assertEquals("queued", result.getJSONObject("structuredContent").getString("status"))
+                assertEquals(id, result.getJSONObject("structuredContent").getString("threadId"))
+            }
+        } finally {
+            bridge.close()
+            host.stop()
+        }
+    }
+
     @Test fun nativeDeltaPatcherLoadsAndRejectsCorruptPatch() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val library = File(app.applicationInfo.nativeLibraryDir, "libhpatchz.so")
@@ -312,6 +354,93 @@ class CoreStartupInstrumentedTest {
             throw AssertionError("Offline thread lifecycle failed; status=" +
                 bridge.status.value + "; stderr=" + bridge.recentStderr.value.joinToString(" / "), failure)
         } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        var child: Process? = null
+        val bridge = CodexConnection(app) { builder -> builder.start().also { child = it } }
+        try {
+            withTimeout(120_000L) {
+                bridge.connect()
+                val old = checkNotNull(bridge.connectedSession.value)
+                val first = checkNotNull(child)
+                assertNotNull(bridge.request("account/read"))
+                first.destroyForcibly()
+                bridge.connectedSession.first { it == null }
+                org.junit.Assert.assertFalse(first.isAlive)
+                bridge.connect()
+                val current = checkNotNull(bridge.connectedSession.value)
+                org.junit.Assert.assertTrue(current > old)
+                org.junit.Assert.assertNotSame(first, child)
+                try {
+                    bridge.request("account/read", expectedSession = old)
+                    org.junit.Assert.fail("Retired request was redirected to the replacement core")
+                } catch (failure: IllegalStateException) {
+                    org.junit.Assert.assertTrue(failure.message.orEmpty().contains("切换"))
+                }
+                assertNotNull(bridge.request("account/read", expectedSession = current))
+            }
+        } finally {
+            bridge.close()
+        }
+    }
+
+    @Test fun reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val allowExitReceipt = java.util.concurrent.CountDownLatch(1)
+        val boundedWait = CompletableDeferred<Unit>()
+        var realChild: Process? = null
+        // Keep a real native child and its real pipes. Delay only the observed exit
+        // receipt to exercise the slow-retirement path deterministically.
+        val bridge = CodexConnection(app) { builder ->
+            val actual = builder.start().also { realChild = it }
+            object : Process() {
+                override fun getOutputStream() = actual.outputStream
+                override fun getInputStream() = actual.inputStream
+                override fun getErrorStream() = actual.errorStream
+                override fun exitValue() = actual.exitValue()
+                override fun isAlive() = actual.isAlive
+                override fun destroy() = actual.destroy()
+                override fun destroyForcibly(): Process {
+                    actual.destroyForcibly()
+                    return this
+                }
+                override fun waitFor(): Int {
+                    val exit = actual.waitFor()
+                    allowExitReceipt.await()
+                    return exit
+                }
+                override fun waitFor(timeout: Long, unit: TimeUnit): Boolean {
+                    boundedWait.complete(Unit)
+                    return false
+                }
+            }
+        }
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                org.junit.Assert.assertTrue(bridge.reserveRestart())
+                try {
+                    val close = async(Dispatchers.IO) { bridge.closeForRestart { true } }
+                    boundedWait.await()
+                    org.junit.Assert.assertNull("凭据变更不能先于旧内核退出确认",
+                        kotlinx.coroutines.withTimeoutOrNull(500L) { close.await(); true })
+                    org.junit.Assert.assertTrue(bridge.retirementBusy.value)
+                    allowExitReceipt.countDown()
+                    close.await()
+                    org.junit.Assert.assertFalse(checkNotNull(realChild).isAlive)
+                    org.junit.Assert.assertNull(bridge.connectedSession.value)
+                    org.junit.Assert.assertFalse(bridge.retirementBusy.value)
+                } finally {
+                    allowExitReceipt.countDown()
+                    bridge.releaseRestart()
+                }
+            }
+        } finally {
+            allowExitReceipt.countDown()
             bridge.close()
         }
     }

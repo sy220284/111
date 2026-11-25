@@ -266,6 +266,8 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
         saveMessage?.let { CodexNotice(it, NoticeTone.Success) }
     }
     if (owner == "models") {
+        CodexTextAction(onClick = { vm.refresh("models", "model/list", ComposerProviderScope.request(forceRefresh = true)) },
+            enabled = connected && "models" !in loading) { Text("刷新模型目录") }
         EngineModelSliders(if (connected) config else null, enabled, models, focusTarget) { setting, value ->
             clearFeedback()
             vm.saveEngineSetting(setting.key, value, setting.title, owner)

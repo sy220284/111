@@ -24,8 +24,10 @@ class SchemaAlignmentTest(unittest.TestCase):
         errors, stats = verify(self.protocol, self.schemas, self.thread,
                                self.project, self.connection, self.turn, self.turn_contract)
         self.assertEqual([], errors)
-        self.assertEqual(195, stats["methods"])
-        self.assertEqual(204, stats["stableClientDtoSchemas"])
+        self.assertEqual(198, stats["methods"])
+        self.assertEqual(206, stats["stableClientDtoSchemas"])
+        for dto in ("ModelProviderModelVerifyParams", "ModelProviderModelVerifyResponse"):
+            self.assertTrue((self.schemas / (dto + ".json")).is_file(), dto)
         self.assertEqual(8, stats["hostRequestMethods"])
 
     def test_missing_android_project_binding_is_detected(self):

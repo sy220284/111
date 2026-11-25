@@ -251,6 +251,11 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val engineStatus by vm.bridge.status.collectAsState()
     val errors by vm.errors.collectAsState()
     val usable = remember(data) { McpAvailableServices.visible(records(data["mcp"])) }
+    val startup by vm.mcpCatalog.startup.collectAsState()
+    val epoch by vm.bridge.connectedSession.collectAsState()
+    val receipts = remember(startup, epoch, activeThread) {
+        startup.filter { it.epoch == epoch && it.name != ModelPreviewMcpServer.NAME && (it.thread == null || it.thread == activeThread) }
+    }
 
     LaunchedEffect(activeThread, engineStatus) {
         if (engineStatus == EngineStatus.Connected) vm.refreshMcpServices()
@@ -292,13 +297,37 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     "重新读取", { vm.refreshMcpServices() }, { navigate("diagnostics") }, artworkRes = R.drawable.ic_empty_content)
             }
         }
-        usable.forEach { McpServiceStatusCard(it) }
+        usable.forEach { server ->
+            val matching = receipts.filter { it.name == server.optString("name") &&
+                it.environment == McpStartupReceipt.optional(server, "environmentId") }
+            val receipt = matching.lastOrNull { it.thread == activeThread } ?: matching.lastOrNull { it.thread == null }
+            McpServiceStatusCard(server, receipt?.takeIf { it.status == "ready" })
+        }
+        val failures = receipts.filter { it.status != "ready" }
+        if (failures.isNotEmpty() && engineStatus == EngineStatus.Connected) {
+            var showDiagnostics by remember { mutableStateOf(false) }
+            CodexDetailTrigger("服务连接诊断（${failures.size} 项）", { showDiagnostics = true }, Modifier.fillMaxWidth())
+            if (showDiagnostics) CodexDetailSheet("MCP 连接诊断", { showDiagnostics = false }, startExpanded = true) {
+                Text("最近一次连接回执；未就绪服务不会加入可用目录。", color = Ink.muted)
+                failures.forEach { receipt ->
+                    MaterialPanel(Modifier.fillMaxWidth()) {
+                        Text(receipt.name, style = MaterialTheme.typography.titleSmall)
+                        Text((if (receipt.thread == null) "全局服务" else "当前会话") +
+                            (receipt.environment?.let { " · 环境 " + it.take(12) } ?: ""),
+                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                        Text(receipt.summary(), color = Ink.muted)
+                        receipt.reason?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+                    }
+                }
+                CodexSecondaryButton(onClick = { navigate("diagnostics") }) { Text("查看内核诊断") }
+            }
+        }
     }
 }
 
 /** MCP is a read-only directory. Intelligent-agent setup and authorization remain task-owned. */
 @Composable
-internal fun McpServiceStatusCard(server: JSONObject) {
+internal fun McpServiceStatusCard(server: JSONObject, startup: McpStartupReceipt? = null) {
     if (!McpAvailableServices.isUsable(server)) return
     var details by remember(server.optString("name")) { mutableStateOf(false) }
     val toolCount = server.optJSONObject("tools")?.length() ?: 0
@@ -337,6 +366,7 @@ internal fun McpServiceStatusCard(server: JSONObject) {
         onDismiss = { details = false }
     ) {
         StatusPill("可用", true)
+        startup?.let { Text(it.summary(), color = Ink.muted, style = MaterialTheme.typography.bodySmall) }
         Text(server.optString("description").ifBlank {
             "服务已连接，可用能力由智能体在任务中选择调用。"
         }, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
