@@ -18,6 +18,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -124,17 +126,17 @@ fun LocalImageAttachmentStrip(
                         color = Ink.panel,
                         border = BorderStroke(1.dp, Ink.border)) {
                         Row(Modifier.padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
-                            if (thumbnail != null) {
-                                Image(thumbnail!!, contentDescription = "预览附件图片 ${idx + 1}",
-                                    modifier = Modifier.size(48.dp).clip(RoundedCornerShape(9.dp))
-                                        .clickable { previewPath = path },
-                                    contentScale = ContentScale.Crop)
-                            } else {
-                                CodexIconAction(onClick = { previewPath = path },
-                                    modifier = Modifier.size(48.dp)) {
-                                    CodexIcon(CodexGlyph.Photo, contentDescription = "预览图片 ${idx + 1}",
-                                        tint = Ink.copper)
-                                }
+                            Box(
+                                Modifier.size(48.dp).clip(RoundedCornerShape(9.dp))
+                                    .clickable { previewPath = path }
+                                    .semantics { contentDescription = "预览附件图片 ${idx + 1}" },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                thumbnail?.let { image ->
+                                    Image(image, contentDescription = null,
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop)
+                                } ?: CodexIcon(CodexGlyph.Photo, contentDescription = null, tint = Ink.copper)
                             }
                             Spacer(Modifier.width(7.dp))
                             Column {
