@@ -9,7 +9,6 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
 import java.nio.file.Files
-import java.nio.file.StandardCopyOption
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
@@ -32,6 +31,7 @@ internal object LocalDataArchive {
     private const val READY = ".codex-restore-ready"
     private const val STAGED = ".codex-restore-staged"
     private const val INCOMING = ".codex-restore-incoming"
+    private const val ROLLBACK = ".codex-restore-rollback"
     private const val RESULT_PREFS = "codex-data-transfer-status"
     private const val RESULT_KEY = "result"
     private val regeneratedRoots = setOf("native-tools", "developer-runtime", "developer-packages", "developer-system-ca.pem")
@@ -197,8 +197,15 @@ internal object LocalDataArchive {
     /** Called before creating a process-wide ViewModel or a native subprocess. */
     fun restoreIfPending(context: Context) {
         val marker = File(context.filesDir, READY)
-        if (!marker.isFile) return
+        val transaction = LocalRestoreTransaction(File(context.filesDir, ROLLBACK))
+        if (!marker.isFile) {
+            // A marker-free journal can only be left by post-commit cleanup.
+            if (transaction.hasJournal()) transaction.finish()
+            return
+        }
         val staged = File(context.filesDir, STAGED)
+        var targets: List<Pair<File, File>>? = null
+        var committed = false
         try {
             require(staged.isDirectory) { "已标记恢复但暂存数据缺失" }
             val files = Files.walk(staged.toPath()).use { paths ->
@@ -209,7 +216,7 @@ internal object LocalDataArchive {
             }
             require(files.isNotEmpty() && files.size <= MAX_FILES) { "恢复数据不完整" }
             val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs")
-            val targets = files.map { file ->
+            val checkedTargets = files.sortedBy { it.relativeTo(staged).invariantSeparatorsPath }.map { file ->
                 val name = file.relativeTo(staged).invariantSeparatorsPath
                 require(validatePath(name)) { "恢复文件路径无效：" + name }
                 val target = if (name.startsWith("$PROJECTS_PREFIX/")) {
@@ -238,32 +245,41 @@ internal object LocalDataArchive {
                 require(!target.exists() || target.isFile) { "恢复目标与目录冲突：" + target.name }
                 file to target
             }
-            var recovered = 0
-            for ((file, target) in targets) {
-                if (target.parentFile?.isDirectory != true && target.parentFile?.mkdirs() != true)
-                    throw IOException("恢复目标目录无法创建")
-                // Keep each staged source until all replacements are complete. If the
-                // process exits midway, next launch replays the same verified backup.
-                val temporary = File.createTempFile(".codex-import-", ".tmp", target.parentFile)
-                try {
-                    Files.copy(file.toPath(), temporary.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING)
-                    Files.move(temporary.toPath(), target.toPath(),
-                        StandardCopyOption.REPLACE_EXISTING,
-                        StandardCopyOption.ATOMIC_MOVE)
-                } finally {
-                    if (temporary.exists() && !temporary.delete())
-                        throw IOException("无法清理恢复临时文件：" + temporary.name)
-                }
-                recovered++
+            targets = checkedTargets
+            if (transaction.hasJournal()) {
+                transaction.rollback(checkedTargets)
+                check(marker.delete()) { "恢复回滚完成但标记未清理" }
+                committed = true
+                saveResult(context, "上次恢复被中断，已完整回滚原数据。可重新选择备份恢复。")
+            } else {
+                transaction.prepare(checkedTargets)
+                transaction.apply(checkedTargets)
+                check(marker.delete()) { "恢复提交标记无法清理" }
+                committed = true
+                saveResult(context, "本地数据恢复完成（${checkedTargets.size} 项）。账号登录凭据已排除，请重新登录。")
             }
-            if (!marker.delete()) throw IOException("恢复完成但标记未清理")
-            if (!staged.deleteRecursively()) throw IOException("无法清理恢复暂存目录")
-            saveResult(context, "本地数据恢复完成（$recovered 项）。账号登录凭据已排除，请重新登录。")
+            transaction.finish()
+            check(staged.deleteRecursively()) { "恢复暂存目录清理失败" }
         } catch (failure: Exception) {
-            saveResult(context, "恢复未完成：" + (failure.message ?: "请检查本机存储空间") +
-                "。暂存数据已保留，下次完整启动将继续恢复。")
-            throw IOException("恢复未完成，请检查存储或冲突路径；暂存数据已保留", failure)
+            if (committed) {
+                // Live data is already committed or rolled back; cleanup failure must
+                // not cause the transaction to be replayed on another startup.
+                saveResult(context, "恢复事务已结束，暂存清理或结果记录失败：" + failure.message.orEmpty())
+                return
+            }
+            try {
+                if (transaction.hasJournal()) {
+                    transaction.rollback(requireNotNull(targets) { "恢复目标无法重新验证" })
+                }
+                check(marker.delete()) { "恢复标记无法清理" }
+            } catch (rollback: Exception) {
+                failure.addSuppressed(rollback)
+                saveResult(context, "恢复回滚未完成，原数据快照仍保留，请检查存储：" + rollback.message.orEmpty())
+                throw IOException("恢复回滚尚未完成，已阻止打开不一致的数据", failure)
+            }
+            saveResult(context, "恢复未完成，原数据已保留：" + failure.message.orEmpty())
+            transaction.finish()
+            // Keep the verified archive for diagnosis until the next explicit import.
         }
     }
 }
