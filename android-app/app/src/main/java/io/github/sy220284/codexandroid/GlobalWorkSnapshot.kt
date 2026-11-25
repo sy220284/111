@@ -20,13 +20,14 @@ internal data class GlobalWorkSnapshot(
     val terminalStarting: Boolean = false,
     val securitySaveBusy: Boolean = false,
     val coreStarting: Boolean = false,
-    val restarting: Boolean = false
+    val restarting: Boolean = false,
+    val realtimeVoiceActive: Boolean = false
 ) {
     val hasActiveWork: Boolean
         get() = visibleTurnRunning || executingThreads > 0 ||
             creatingThread || terminalRunning || pendingApprovals > 0 ||
             inFlightRequests > 0 || loginBusy || planApprovalBusy ||
-            switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting
+            switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting || realtimeVoiceActive
 
     val canDisruptCoreOrData: Boolean
         get() = !hasActiveWork && !dataTransferBusy
@@ -40,6 +41,7 @@ internal data class GlobalWorkSnapshot(
             inFlightRequests > 0 || loginBusy || planApprovalBusy ||
                 switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting ->
                 "请求或授权操作正在处理，请完成后再备份、恢复或重启"
+            realtimeVoiceActive -> "实时语音尚未结束，请先结束或恢复语音连接"
             hasActiveWork -> "仍有会话任务、终端命令或审批待处理，请完成后再操作"
             else -> ""
         }
@@ -59,6 +61,7 @@ internal fun CodexViewModel.globalWorkSnapshot(): GlobalWorkSnapshot = GlobalWor
     switchingThread = threadSwitching.value,
     terminalStarting = terminalStarting.value,
     securitySaveBusy = securitySaveBusy.value,
-    coreStarting = bridge.status.value == EngineStatus.Starting,
-    restarting = connectionRestarter.busy.value
+    coreStarting = bridge.status.value == EngineStatus.Starting || bridge.retirementBusy.value,
+    restarting = connectionRestarter.busy.value,
+    realtimeVoiceActive = realtimeVoiceLease.active.value
 )

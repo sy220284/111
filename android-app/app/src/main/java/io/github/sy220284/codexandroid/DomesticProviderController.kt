@@ -30,8 +30,21 @@ internal class DomesticProviderController(private val vm: CodexViewModel) {
         lease.value = false
     }
 
+    private suspend fun closeIdleCore() {
+        check(vm.bridge.reserveRestart()) { "内核仍有请求或审批待处理，请稍后重试" }
+        try {
+            withContext(Dispatchers.IO) {
+                vm.bridge.closeForRestart {
+                    ConnectionRestartPolicy.canContinueOwnedRestart(vm.globalWorkSnapshot())
+                }
+            }
+        } finally {
+            vm.bridge.releaseRestart()
+        }
+    }
+
     private suspend fun restart() {
-        withContext(Dispatchers.IO) { vm.bridge.close() }
+        closeIdleCore()
         vm.connect().join()
         check(vm.bridge.status.value == EngineStatus.Connected) {
             "配置已保存，内核重新连接失败；请重新连接后验证授权"
@@ -96,7 +109,7 @@ internal class DomesticProviderController(private val vm: CodexViewModel) {
                         withContext(Dispatchers.IO) { DomesticProviderCredentials.restore(context, preset, encryptedBefore) }
                     } catch (_: Exception) {
                         message = "配置回读失败，旧密钥恢复失败；请重新授权并核对服务商配置"
-                        withContext(Dispatchers.IO) { vm.bridge.close() }
+                        closeIdleCore()
                     }
                 }
                 vm.errors.value = vm.errors.value + ("providerWrite" to message)
@@ -113,8 +126,8 @@ internal class DomesticProviderController(private val vm: CodexViewModel) {
         vm.viewModelScope.launch {
             try {
                 // Terminate the process holding the old key before deleting it.
+                closeIdleCore()
                 withContext(Dispatchers.IO) {
-                    vm.bridge.close()
                     DomesticProviderCredentials.remove(context, preset)
                 }
                 vm.connect().join()

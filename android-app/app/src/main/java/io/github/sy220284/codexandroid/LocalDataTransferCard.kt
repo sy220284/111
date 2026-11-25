@@ -24,13 +24,12 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         if (uri != null) {
-            val current = vm.globalWorkSnapshot()
-            if (current.canDisruptCoreOrData) {
+            val started = vm.bridge.runIfIdle({ vm.globalWorkSnapshot().canDisruptCoreOrData }) {
                 vm.errors.value = vm.errors.value - "dataTransfer"
                 AppDataTransfer.export(context, uri)
-            } else {
-                vm.errors.value = vm.errors.value + ("dataTransfer" to current.blockReason)
             }
+            if (!started) vm.errors.value = vm.errors.value + ("dataTransfer" to
+                vm.globalWorkSnapshot().blockReason.ifBlank { "运行状态已变化，请重试" })
         }
     }
     var pendingImport by remember { mutableStateOf<android.net.Uri?>(null) }
@@ -85,14 +84,13 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
             confirmLabel = "核对并导入",
             destructive = true,
             onConfirm = {
-                val current = vm.globalWorkSnapshot()
-                if (current.canDisruptCoreOrData) {
+                val started = vm.bridge.runIfIdle({ vm.globalWorkSnapshot().canDisruptCoreOrData }) {
                     vm.errors.value = vm.errors.value - "dataTransfer"
                     AppDataTransfer.import(context, uri)
-                    pendingImport = null
-                } else {
-                    vm.errors.value = vm.errors.value + ("dataTransfer" to current.blockReason)
                 }
+                if (started) pendingImport = null
+                else vm.errors.value = vm.errors.value + ("dataTransfer" to
+                    vm.globalWorkSnapshot().blockReason.ifBlank { "运行状态已变化，请重试" })
             },
             onDismiss = { pendingImport = null }
         )

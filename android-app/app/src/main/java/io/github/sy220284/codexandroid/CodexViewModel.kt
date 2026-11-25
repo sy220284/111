@@ -17,6 +17,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
     val bridge = CodexConnection(application.applicationContext)
     internal val connectionRestarter by lazy { ConnectionRestartController(this) }
+    internal val realtimeVoiceLease = RealtimeVoiceLease()
     internal val domesticProviders by lazy { DomesticProviderController(this) }
     internal val approvalAudit = ApprovalAuditController(application.applicationContext)
     private val workspaceRoot = WorkspaceStorage.root(application)
@@ -704,7 +705,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun receive(message: JSONObject) {
-        CodexNotificationDispatcher.dispatch(this, message)
+        if (bridge.isCurrentEvent(message)) CodexNotificationDispatcher.dispatch(this, message)
     }
 
     override fun onCleared() {

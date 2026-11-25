@@ -10,6 +10,7 @@ on:
       - "docs/设计系统.md"
       - "docs/对标应用29项界面交付核对表-20261123.md"
       - "docs/第五版接口与界面组件映射矩阵.md"
+      - "docs/接口协议动作清单与落地验收台账-20261122.md"
       - "docs/第五版全接口组件与功能接入说明.md"
       - "docs/ui-assets/**"
       - ".github/workflows/check-android-ui.yml"
@@ -26,6 +27,7 @@ on:
       - "docs/设计系统.md"
       - "docs/对标应用29项界面交付核对表-20261123.md"
       - "docs/第五版接口与界面组件映射矩阵.md"
+      - "docs/接口协议动作清单与落地验收台账-20261122.md"
       - "docs/第五版全接口组件与功能接入说明.md"
       - "docs/ui-assets/**"
       - ".github/workflows/check-android-ui.yml"
@@ -64,6 +66,7 @@ jobs:
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
             /docs/第五版接口与界面组件映射矩阵.md
+            /docs/接口协议动作清单与落地验收台账-20261122.md
             /docs/ui-assets/
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
@@ -123,7 +126,7 @@ jobs:
             --policy android-app/tools/ui_surface_policy.json \
             --report ui-coverage.md \
             --json-report ui-coverage.json
-      - name: 全量核查 全量入口、路由、回归证据与 Rust 协议方法
+      - name: 全量核查功能入口、路由、回归证据与官方协议方法
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_check_full_feature_workflows.py'
           python3 android-app/tools/check_full_feature_workflows.py \

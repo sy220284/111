@@ -23,6 +23,7 @@ on:
     paths:
       - '.github/workflows/retain-check-artifacts.yml'
       - '.github/scripts/retain_check_artifacts.py'
+      - '.github/scripts/test_retain_check_artifacts.py'
       - '.github/scripts/repository_steward.py'
       - '.github/scripts/test_repository_steward.py'
   workflow_dispatch:
@@ -78,7 +79,8 @@ jobs:
           if [ "$DRY_RUN" != true ]; then args+=(--apply); fi
           python3 .github/scripts/retain_check_artifacts.py "${args[@]}"
   stewardship:
-    if: github.event_name != 'pull_request'
+    needs: retain
+    if: github.event_name != 'pull_request' && needs.retain.result == 'success'
     permissions:
       contents: write
       actions: write

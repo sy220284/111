@@ -27,8 +27,10 @@ internal class RpcProcessChannel(child: Process) {
         }
     }
 
-    fun send(message: JSONObject) {
-        output.write(message.toString())
+    fun send(message: JSONObject, permit: () -> Boolean = { true }) {
+        val frame = message.toString()
+        if (!permit()) throw RpcWriteRevoked()
+        output.write(frame)
         output.newLine()
         output.flush()
     }
