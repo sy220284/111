@@ -1513,7 +1513,9 @@ class UiNavigationInstrumentedTest {
 
     @Test fun experienceDraftSurvivesRepeatedWorkspaceRoundTrips() {
         val draft = "需要保留的实际任务草稿"
+        rule.onNodeWithTag("composer-input").performClick()
         rule.onNodeWithTag("composer-input").performTextReplacement(draft)
+        assertRealSoftKeyboardOpen()
         pressSystemBack()
         repeat(2) {
             openDrawerRoute("files")

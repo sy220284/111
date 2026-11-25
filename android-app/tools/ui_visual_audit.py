@@ -130,12 +130,16 @@ def main():
     args=p.parse_args()
     output=Path("ui-visual-evidence");output.mkdir(exist_ok=True)
     record=audit(args.profile,Path.cwd())
-    (output/"fingerprints.json").write_text(json.dumps(record,ensure_ascii=False))
     report={"structural_errors":record["errors"]}
     if not record["errors"]:
-        report.update(compare(baseline(args.repo,args.profile),record))
+        try:
+            report.update(compare(baseline(args.repo,args.profile),record))
+        except (OSError, ValueError, KeyError, TypeError, subprocess.CalledProcessError) as exc:
+            record["errors"].append("Historical visual evidence lookup failed: " + str(exc))
+            report["status"] = "failed"
     else:
         report["status"]="failed"
+    (output/"fingerprints.json").write_text(json.dumps(record,ensure_ascii=False))
     (output/"report.json").write_text(json.dumps(report,ensure_ascii=False,indent=2))
     summary=Path(os.environ["GITHUB_STEP_SUMMARY"])
     with summary.open("a",encoding="utf-8") as file:
