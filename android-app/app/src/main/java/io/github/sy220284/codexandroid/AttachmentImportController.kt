@@ -138,7 +138,7 @@ internal class AttachmentImportController(
                 // executing Codex turn. The turn completion path releases it.
                 if (AttachmentRetentionPolicy.canRelease(
                         path, drafts.value.values, activeImages()
-                    )) AppDataTransfer.mutateLocal { LocalImageAttachments.release(context, path) }
+                    )) AppDataTransfer.withLocalMutation { LocalImageAttachments.release(context, path) }
                 errors.value = errors.value - "attachments"
             } catch (failure: Exception) {
                 errors.value = errors.value + ("attachments" to

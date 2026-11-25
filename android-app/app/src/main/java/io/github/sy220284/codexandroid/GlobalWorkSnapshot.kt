@@ -50,7 +50,8 @@ internal data class GlobalWorkSnapshot(
     val blockReason: String
         get() = when {
             dataTransferBusy -> "本机数据正在备份或恢复，请完成后再操作"
-            inFlightRequests > 0 || localMutations > 0 || loginBusy || planApprovalBusy ||
+            localMutations > 0 -> "本机文件或草稿正在保存，请完成后再备份、恢复或重启"
+            inFlightRequests > 0 || loginBusy || planApprovalBusy ||
                 switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting ->
                 "请求或授权操作正在处理，请完成后再备份、恢复或重启"
             realtimeVoiceActive -> "实时语音尚未结束，请先结束或恢复语音连接"

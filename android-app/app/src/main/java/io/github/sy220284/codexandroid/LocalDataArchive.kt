@@ -296,13 +296,14 @@ internal object AppDataTransfer {
         finally { endMutation() }
     }
 
-    @Synchronized private fun beginTransfer(message: String) {
-        check(!state.value.busy && mutationCount.value == 0) { "本机文件操作尚未完成" }
+    @Synchronized private fun beginTransfer(message: String): Boolean {
+        if (state.value.busy || mutationCount.value != 0) return false
         state.value = DataTransferState(busy = true, result = message)
+        return true
     }
 
-    fun export(context: Context, destination: Uri, drafts: Map<String, ComposerDraft>) {
-        beginTransfer("正在导出本机工作数据…")
+    fun export(context: Context, destination: Uri, drafts: Map<String, ComposerDraft>): Boolean {
+        if (!beginTransfer("正在导出本机工作数据…")) return false
         scope.launch {
             state.value = try {
                 DraftPersistence.save(context.applicationContext, drafts)
@@ -314,10 +315,11 @@ internal object AppDataTransfer {
                 DataTransferState(result = "导出失败：" + (failure.message ?: "无法写入备份"))
             }
         }
+        return true
     }
 
-    fun import(context: Context, source: Uri) {
-        beginTransfer("正在校验本机备份…")
+    fun import(context: Context, source: Uri): Boolean {
+        if (!beginTransfer("正在校验本机备份…")) return false
         scope.launch {
             state.value = try {
                 val input = context.contentResolver.openInputStream(source)
@@ -328,5 +330,6 @@ internal object AppDataTransfer {
                 DataTransferState(result = "导入失败：" + (failure.message ?: "备份文件无效"))
             }
         }
+        return true
     }
 }

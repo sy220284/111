@@ -36,7 +36,7 @@ internal class DraftStorageController(
         // recovery: without its references no image can safely be called orphaned.
         if (initial.warning == null) scope.launch {
             try {
-                AppDataTransfer.mutateLocal {
+                AppDataTransfer.withLocalMutation {
                     LocalImageAttachments.cleanExpired(context, drafts.value.values.flatMap { it.images }.toSet())
                 }
             } catch (failure: Exception) {

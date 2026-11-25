@@ -24,11 +24,12 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->
         if (uri != null) {
+            var reserved = false
             val started = vm.bridge.runIfIdle({ vm.globalWorkSnapshot().canDisruptCoreOrData }) {
                 vm.errors.value = vm.errors.value - "dataTransfer"
-                AppDataTransfer.export(context, uri, vm.composerDrafts.value)
+                reserved = AppDataTransfer.export(context, uri, vm.composerDrafts.value)
             }
-            if (!started) vm.errors.value = vm.errors.value + ("dataTransfer" to
+            if (!started || !reserved) vm.errors.value = vm.errors.value + ("dataTransfer" to
                 vm.globalWorkSnapshot().blockReason.ifBlank { "运行状态已变化，请重试" })
         }
     }
@@ -84,11 +85,12 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
             confirmLabel = "核对并导入",
             destructive = true,
             onConfirm = {
+                var reserved = false
                 val started = vm.bridge.runIfIdle({ vm.globalWorkSnapshot().canDisruptCoreOrData }) {
                     vm.errors.value = vm.errors.value - "dataTransfer"
-                    AppDataTransfer.import(context, uri)
+                    reserved = AppDataTransfer.import(context, uri)
                 }
-                if (started) pendingImport = null
+                if (started && reserved) pendingImport = null
                 else vm.errors.value = vm.errors.value + ("dataTransfer" to
                     vm.globalWorkSnapshot().blockReason.ifBlank { "运行状态已变化，请重试" })
             },
