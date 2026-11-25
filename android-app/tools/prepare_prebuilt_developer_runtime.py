@@ -23,7 +23,9 @@ GIT = ("https://github.com/rmyndharis/VSCodroid/releases/download/v1.11.0/app-re
 GIT_MANIFEST = ("https://github.com/rmyndharis/VSCodroid/releases/download/v1.11.0/build-manifest.txt",
                 "b5209f3349833aba6bb4824a37cddc8f29b5c9e5709b68e7a26536dbfa75dd3e")
 PIP = "26.3"
-PIP_SHA = "6c36ae7da8695be67e3cd9f7d87919667ced53f57ce2ede75d89b5912ed2bc4c"
+# PyPI publishes a different digest for the source tarball. Pin the exact wheel.
+PIP_WHEEL = ("https://files.pythonhosted.org/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/pip-26.3-py3-none-any.whl",
+             "f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13")
 SYSTEM = {"libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so", "libandroid.so",
           "libatomic.so", "libaaudio.so", "libOpenSLES.so", "libmediandk.so",
           "libjnigraphics.so", "libEGL.so", "libGLESv2.so", "libvulkan.so"}
@@ -146,13 +148,9 @@ def prepare(abi, native, assets, work):
             copy_tar_tree(tar, f"{abi}/lib/python3.13", data / "lib/python3.13")
         with apk.open("assets/dsh-runtime.pkg") as raw, tarfile.open(fileobj=raw, mode="r:gz") as tar:
             copy_tar_tree(tar, "node_modules/npm", data / "npm")
-    requirements = work / "pip-requirements.txt"
-    requirements.write_text(f"pip=={PIP} --hash=sha256:{PIP_SHA}\n")
-    subprocess.run(["python3", "-m", "pip", "download", "--require-hashes", "--no-deps",
-                    "--only-binary=:all:", "-r", str(requirements), "-d", str(work)], check=True)
-    wheel = work / f"pip-{PIP}-py3-none-any.whl"
-    if digest(wheel) != PIP_SHA:
-        raise ValueError("pip wheel checksum mismatch")
+    wheel = fetch(*PIP_WHEEL, work)
+    if wheel.name != f"pip-{PIP}-py3-none-any.whl":
+        raise ValueError("pip wheel filename/version mismatch")
     with zipfile.ZipFile(wheel) as archive:
         for info in archive.infolist():
             if not info.is_dir():
@@ -164,7 +162,7 @@ def prepare(abi, native, assets, work):
         copy_zip(apk, f"lib/{abi}/libcurl.so", native / "libcodex_curl.so")
     provenance = {"abi": abi, "dsh": {"url": dsh_url, "sha256": sha},
                   "curl": {"url": CURL[0], "sha256": CURL[1]},
-                  "pip": {"version": PIP, "sha256": PIP_SHA},
+                  "pip": {"version": PIP, "url": PIP_WHEEL[0], "sha256": PIP_WHEEL[1]},
                   "gitHttps": abi == "arm64-v8a"}
     if abi == "arm64-v8a":
         with zipfile.ZipFile(fetch(*GIT, work)) as apk:
@@ -190,7 +188,7 @@ def prepare(abi, native, assets, work):
             if path.is_file():
                 archive.write(path, path.relative_to(data).as_posix())
     (assets / "development-runtime.sha256").write_text(digest(out) + "\n")
-    (assets / "development-runtime.version").write_text("AndroidDSH 0.2.0 / curl 8.18.0 / pip 26.3\n")
+    (assets / "development-runtime.version").write_text(f"AndroidDSH 0.2.0 / curl 8.18.0 / pip {PIP}\n")
     (assets / "development-runtime.provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
     print(json.dumps(provenance, indent=2))
     print(f"Runtime data archive: {out.stat().st_size} bytes")
