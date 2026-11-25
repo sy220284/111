@@ -817,6 +817,29 @@
       "tests": [
         "UiNavigationInstrumentedTest.modelChoiceUsesOneSharedBottomSheet"
       ]
+    },
+    {
+      "asset": "integration-deep-optimization.svg",
+      "business": "整合优化设计示意：运行中对话自适应、功能类别与状态筛选、插件用途查询；设备实测另以 CI 为准",
+      "components": [
+        [
+          "ConversationComposer",
+          "ConversationComposer"
+        ],
+        [
+          "FeatureSwitchPage",
+          "FeatureSwitchPage"
+        ],
+        [
+          "EcosystemScreens",
+          "PluginsPage"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible",
+        "UiNavigationInstrumentedTest.featureCatalogKeepsUserFacingRoutesOnly",
+        "UiNavigationInstrumentedTest.pluginDiscoveryUsesClipboardWithoutSearchField"
+      ]
     }
   ],
   "requiredStateScreens": [
