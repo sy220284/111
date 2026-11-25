@@ -99,6 +99,7 @@ fn assert_models_contain(actual: &[ModelInfo], expected: &[ModelInfo]) {
 
 #[derive(Debug, Default)]
 struct TestModelsEndpoint {
+    image_scope: Option<String>,
     has_command_auth: bool,
     uses_codex_backend: bool,
     responses: Mutex<VecDeque<CoreResult<Vec<ModelInfo>>>>,
@@ -283,6 +284,10 @@ impl ExternalAuth for TestUnresolvedExternalApiKeyAuth {
 }
 
 impl ModelsEndpointClient for TestModelsEndpoint {
+    fn image_input_scope(&self) -> Option<String> {
+        self.image_scope.clone()
+    }
+
     fn supports_api_key_models(&self) -> bool {
         true
     }
@@ -1960,4 +1965,45 @@ async fn android_catalog_version_tests_checked_refresh_bypasses_cache_and_report
     assert!(manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.is_err());
     assert_eq!(endpoint.fetch_count(), 3);
     assert_eq!(manager.get_remote_models().await, vec![new]);
+}
+
+#[tokio::test]
+async fn image_input_policy_reaches_catalog_cache_static_and_runtime_model() {
+    use codex_protocol::openai_models::InputModality;
+    let home = tempdir().unwrap();
+    let mut model = remote_model("new-third-party-model", "New Model", 0);
+    model.input_modalities = vec![InputModality::Text];
+    let slug = model.slug.clone();
+    let config = ModelsManagerConfig::default();
+    let endpoint = Arc::new(TestModelsEndpoint {
+        image_scope: Some("credential-a".into()),
+        uses_codex_backend: true,
+        responses: Mutex::new(vec![Ok(vec![model.clone()])].into()),
+        ..Default::default()
+    });
+    let manager = openai_manager_for_tests(home.path().to_path_buf(), endpoint);
+    manager.refresh_available_models(RefreshStrategy::OnlineIfUncached, &DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    assert!(manager.get_remote_models().await.iter().any(|m| m.slug == slug && m.input_modalities.contains(&InputModality::Image)));
+    assert!(manager.get_model_info(&slug, &config).await.input_modalities.contains(&InputModality::Image));
+    manager.record_image_input_rejection("credential-a", &slug).unwrap();
+
+    let reopened = Arc::new(TestModelsEndpoint {
+        image_scope: Some("credential-a".into()),
+        uses_codex_backend: true,
+        ..Default::default()
+    });
+    let cached = openai_manager_for_tests(home.path().to_path_buf(), reopened.clone());
+    cached.refresh_available_models(RefreshStrategy::OnlineIfUncached, &DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    assert_eq!(reopened.fetch_count(), 0);
+    assert_eq!(cached.get_model_info(&slug, &config).await.input_modalities, vec![InputModality::Text]);
+
+    let static_catalog = static_manager_for_tests(ModelsResponse { models: vec![model.clone()] })
+        .with_image_input_policy(ModelCatalogSettings::image_evidence_only(home.path().to_path_buf()), reopened);
+    assert_eq!(static_catalog.get_model_info(&slug, &config).await.input_modalities, vec![InputModality::Text]);
+
+    let other = Arc::new(TestModelsEndpoint { image_scope: Some("credential-b".into()), ..Default::default() });
+    let other_catalog = static_manager_for_tests(ModelsResponse { models: vec![model] })
+        .with_image_input_policy(ModelCatalogSettings::image_evidence_only(home.path().to_path_buf()), other);
+    assert!(other_catalog.get_model_info(&slug, &config).await.input_modalities.contains(&InputModality::Image));
+    assert!(other_catalog.record_image_input_rejection("credential-a", &slug).is_err());
 }
