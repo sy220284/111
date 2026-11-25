@@ -116,6 +116,8 @@ jobs:
             upstream/codex
             CODEX_UPSTREAM_COMMIT
             android-app/tools/prepare_android_mxc.py
+            android-app/tools/resolve_codex_catalog_version.py
+            android-app/tools/test_resolve_codex_catalog_version.py
             android-app/tools/prepare_android_code_mode.py
             android-app/tools/prepare_android_v8.sh
             android-app/tools/adapt_android_v8_build.py
@@ -125,6 +127,10 @@ jobs:
           set -euo pipefail
           test -f upstream/codex/codex-rs/app-server/Cargo.toml
           cat CODEX_UPSTREAM_COMMIT
+          python3 android-app/tools/resolve_codex_catalog_version.py --marker CODEX_UPSTREAM_COMMIT \
+            --lock upstream/codex/codex-rs/models-manager/android-client-release.txt
+          grep -Fq 'android_catalog_client_version()' upstream/codex/codex-rs/models-manager/src/lib.rs
+          python3 -m unittest discover -s android-app/tools -p 'test_resolve_codex_catalog_version.py'
       - name: 配置 Android SDK/NDK
         shell: bash
         run: |
@@ -269,14 +275,46 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+  provider-contract:
+    name: 国内服务商目录与模型能力 Rust 回归测试
+    needs: reuse
+    if: needs.reuse.outputs.reuse != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            upstream/codex
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.99.1"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: upstream/codex/codex-rs
+          key: codex-provider-contract-host
+      - name: 执行国内目录、端点绑定及合成工具回传测试
+        working-directory: upstream/codex/codex-rs
+        run: |
+          set -euo pipefail
+          cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
+          cargo test --locked -p codex-model-provider --lib domestic_
+          cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
+          cargo test --locked -p codex-api --lib body_model_reporting
+
   verify-pr-apk:
     name: ARM64 就绪后触发同提交手机 APK 验收
-    needs: [reuse, native]
+    needs: [reuse, native, provider-contract]
     if: >-
       always() && github.event_name == 'pull_request' &&
       github.event.pull_request.head.repo.full_name == github.repository &&
       needs.reuse.result == 'success' &&
-      (needs.reuse.outputs.reuse == 'true' || needs.native.result == 'success')
+      (needs.reuse.outputs.reuse == 'true' || (needs.native.result == 'success' && needs.provider-contract.result == 'success'))
     runs-on: ubuntu-latest
     permissions:
       contents: read

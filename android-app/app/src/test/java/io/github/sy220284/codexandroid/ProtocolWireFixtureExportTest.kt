@@ -81,6 +81,9 @@ class ProtocolWireFixtureExportTest {
         add("project/move", "append",
             ProjectRequestContract.move("project-123", null))
 
+        add("model/list", "fresh-account-catalog", ComposerProviderScope.request("openai", forceRefresh = true))
+        add("modelProvider/model/verify", "confirmed-domestic-model", DomesticProbeContract.params("provider-fixture", "model-fixture", true))
+
         val output = File(destination)
         assertTrue("无法建立协议样例输出目录", output.parentFile.isDirectory ||
             output.parentFile.mkdirs())
@@ -90,6 +93,6 @@ class ProtocolWireFixtureExportTest {
             .put("fixtures", records)
             .toString(2) + "\n", Charsets.UTF_8)
         assertTrue("协议构造样例应成功写盘", output.isFile && output.length() > 100L)
-        assertEquals(20, records.length())
+        assertEquals(22, records.length())
     }
 }

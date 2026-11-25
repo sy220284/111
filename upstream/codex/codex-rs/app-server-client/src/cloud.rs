@@ -388,6 +388,13 @@ impl CloudRequestHandle {
         catalog: &codex_cloud_client::Client,
         params: &ModelListParams,
     ) -> RequestResult {
+        if params.force_refresh == Some(true) {
+            return Err(JSONRPCErrorError {
+                code: -32602,
+                message: "Explicit local catalog refresh is not supported by Cloud.".into(),
+                data: None,
+            });
+        }
         if params.model_provider.is_some() {
             return Err(JSONRPCErrorError {
                 code: -32602,

@@ -632,6 +632,11 @@
       "owner": "模型服务商",
       "flag": "常规/内部"
     },
+    "modelProvider/model/verify": {
+      "surface": "上下文操作",
+      "owner": "模型服务商",
+      "flag": "常规/内部"
+    },
     "experimentalFeature/list": {
       "surface": "高级按需",
       "owner": "引擎配置高级",

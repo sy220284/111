@@ -1,0 +1,180 @@
+[
+  {
+    "id": "deepseek-cn",
+    "name": "DeepSeek",
+    "baseUrl": "https://api.deepseek.com",
+    "envKey": "CODEX_ANDROID_DOMESTIC_DEEPSEEK_KEY",
+    "plan": "开放平台 API",
+    "catalog": "openai-list",
+    "models": [
+      {
+        "id": "deepseek-flash",
+        "context": 1048576,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high",
+        "applyPatch": true,
+        "image": true
+      },
+      {
+        "id": "deepseek-v4-pro",
+        "context": 1048576,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high",
+        "applyPatch": true,
+        "image": false
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "glm-cn",
+    "name": "GLM 智谱",
+    "baseUrl": "https://open.bigmodel.cn/api/v1",
+    "envKey": "CODEX_ANDROID_DOMESTIC_GLM_KEY",
+    "plan": "Coding Plan（需确认客户端授权）",
+    "catalog": "codex-list",
+    "models": [
+      {
+        "id": "glm-5.4",
+        "context": 32768
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "minimax-cn",
+    "name": "MiniMax",
+    "baseUrl": "https://api.minimax.cn/v1",
+    "envKey": "CODEX_ANDROID_DOMESTIC_MINIMAX_KEY",
+    "plan": "国内开放平台 / 已授权 M Plan",
+    "catalog": "openai-list",
+    "models": [
+      {
+        "id": "MiniMax-M3.1-Flash",
+        "context": 524288
+      },
+      {
+        "id": "MiniMax-M3",
+        "context": 32768
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "kimi-cn",
+    "name": "Kimi",
+    "baseUrl": "https://api.moonshot.cn/v1",
+    "envKey": "CODEX_ANDROID_DOMESTIC_KIMI_KEY",
+    "plan": "国内开放平台 API",
+    "catalog": "openai-list",
+    "models": [
+      {
+        "id": "kimi-k3.1-pro",
+        "context": 1048576
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "kimicode-cn",
+    "name": "Kimi Code",
+    "baseUrl": "https://api.kimi.com/coding/v1",
+    "envKey": "CODEX_ANDROID_DOMESTIC_KIMICODE_KEY",
+    "plan": "国内 Kimi Code 订阅",
+    "catalog": "openai-list",
+    "models": [
+      {
+        "id": "k3.1-pro",
+        "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high"
+      },
+      {
+        "id": "k3.1-pro-highspeed",
+        "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high"
+      },
+      {
+        "id": "k3",
+        "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high"
+      },
+      {
+        "id": "k3-256k",
+        "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "high"
+      },
+      {
+        "id": "kimi-for-coding",
+        "context": 262144,
+        "image": true,
+        "efforts": [
+          "low",
+          "high",
+          "max"
+        ],
+        "defaultEffort": "max"
+      },
+      {
+        "id": "kimi-for-coding-highspeed",
+        "context": 262144,
+        "image": true
+      }
+    ],
+    "protocol": "responses"
+  },
+  {
+    "id": "qwen-cn",
+    "name": "通义千问",
+    "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    "envKey": "CODEX_ANDROID_DOMESTIC_QWEN_KEY",
+    "plan": "北京地域 · 按量付费",
+    "catalog": "manual",
+    "models": [
+      {
+        "id": "qwen4-max",
+        "context": 32768
+      },
+      {
+        "id": "qwen3.8-max",
+        "context": 32768
+      },
+      {
+        "id": "qwen3.8-flash",
+        "context": 32768
+      }
+    ],
+    "protocol": "responses"
+  }
+]

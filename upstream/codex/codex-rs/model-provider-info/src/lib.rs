@@ -35,6 +35,10 @@ use std::sync::PoisonError;
 use std::sync::RwLock;
 use std::time::Duration;
 
+#[cfg(target_os = "android")]
+mod android_provider_credentials;
+#[cfg(target_os = "android")]
+pub use android_provider_credentials::install_android_provider_credentials;
 mod capabilities;
 mod gateway_oauth;
 mod oauth_session;
@@ -47,6 +51,40 @@ pub use oauth_session::OAuthCredentialsStore;
 pub use oauth_session::OAuthSessionConfig;
 
 pub const RESIDENCY_HEADER_NAME: &str = "x-openai-internal-codex-residency";
+
+/// One exact Beijing workspace host, never an arbitrary domain or redirect.
+pub fn domestic_qwen_workspace(base_url: &str) -> Option<&str> {
+    let workspace = base_url.trim_end_matches('/')
+        .strip_prefix("https://")?
+        .strip_suffix(".cn-beijing.maas.aliyuncs.com/compatible-mode/v1")?;
+    let bytes = workspace.as_bytes();
+    if bytes.is_empty() || bytes.len() > 63
+        || !bytes[0].is_ascii_alphanumeric()
+        || !bytes[bytes.len() - 1].is_ascii_alphanumeric()
+        || !bytes.iter().all(|b| b.is_ascii_lowercase() || b.is_ascii_digit() || *b == b'-')
+    {
+        return None;
+    }
+    Some(workspace)
+}
+
+#[cfg(test)]
+mod domestic_workspace_tests {
+    #[test]
+    fn binds_exact_beijing_workspace() {
+        assert_eq!(super::domestic_qwen_workspace("https://llm-ab12.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/"), Some("llm-ab12"));
+        for bad in [
+            "https://foo.bar.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            "https://foo.cn-beijing.maas.aliyuncs.com.evil.example/compatible-mode/v1",
+            "https://foo@bar.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            "https://foo.cn-hongkong.maas.aliyuncs.com/compatible-mode/v1",
+            "http://foo.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
+            "https://foo.cn-beijing.maas.aliyuncs.com/compatible-mode/v1?x=1",
+        ] {
+            assert_eq!(super::domestic_qwen_workspace(bad), None);
+        }
+    }
+}
 
 #[derive(Deserialize, Debug, Clone, Copy, PartialEq, Eq)]
 #[serde(rename_all = "lowercase")]
@@ -526,6 +564,10 @@ other non-default provider fields are not supported"
     /// (and non-empty) in the environment. If `env_key` is required but
     /// cannot be found, returns an error.
     pub fn api_key(&self) -> CodexResult<Option<String>> {
+        #[cfg(target_os = "android")]
+        if let Some(name) = self.env_key.as_deref().filter(|name| name.starts_with("CODEX_ANDROID_DOMESTIC_")) {
+            return android_provider_credentials::lookup(self, name).map(Some);
+        }
         match &self.env_key {
             Some(env_key) => {
                 let api_key = std::env::var(env_key)

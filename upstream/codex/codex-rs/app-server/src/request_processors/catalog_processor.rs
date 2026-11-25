@@ -238,6 +238,41 @@ impl CatalogRequestProcessor {
             .map(|response| Some(response.into()))
     }
 
+    pub(crate) async fn model_provider_model_verify(
+        &self,
+        params: codex_app_server_protocol::ModelProviderModelVerifyParams,
+    ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
+        if !params.confirm_paid_request || params.model.trim().is_empty() {
+            return Err(invalid_request("需要确认真实模型验证请求可能产生费用"));
+        }
+        let (active_config, _) = self.model_catalog.current().await.map_err(|err| config_load_error(&err))?;
+        let config = config_for_provider(&active_config, &params.model_provider)?;
+        self.config_manager.check_thread_model_provider(&config).await.map_err(|err| config_load_error(&err))?;
+        if !codex_model_provider::is_domestic_live_catalog(config.model_provider.base_url.as_deref()) {
+            return Err(invalid_request("该服务商没有可验证的国内实时目录"));
+        }
+        let manager = self.thread_manager.temporary_models_manager_for_config(
+            &config, &codex_models_manager::manager::ModelCatalogSettings::default());
+        let catalog = tokio::time::timeout(std::time::Duration::from_secs(60),
+            self.list_models(ModelListParams {
+                model_provider: Some(params.model_provider.clone()),
+                include_hidden: Some(true), ..Default::default()
+            }, config.clone(), manager))
+            .await.map_err(|_| invalid_request("实时目录检查超时，未发送付费验证请求"))??;
+        if !catalog.data.iter().any(|model| model.id == params.model) {
+            return Err(invalid_request("所选模型不在当前账号的实时目录中"));
+        }
+        let challenge = uuid::Uuid::now_v7().to_string();
+        let result_challenge = uuid::Uuid::now_v7().to_string();
+        let result = codex_model_provider::verify_domestic_model(
+            config.model_provider.clone(), &params.model, &challenge, &result_challenge, config.http_client_factory(),
+        ).await.map_err(|err| invalid_request(err.to_string()))?;
+        Ok(Some(codex_app_server_protocol::ModelProviderModelVerifyResponse {
+            model_identity_confirmed: result.model_identity_confirmed,
+            usage_reported: result.usage_reported,
+        }.into()))
+    }
+
     pub(crate) async fn experimental_feature_list(
         &self,
         params: ExperimentalFeatureListParams,
@@ -309,17 +344,54 @@ impl CatalogRequestProcessor {
             limit,
             cursor,
             include_hidden,
-            model_provider: _,
+            model_provider,
+            force_refresh,
         } = params;
-        let presets = self
+        let domestic = model_provider.is_some() && include_hidden == Some(true)
+            && config.model_provider.model_catalog_url.is_none()
+            && codex_model_provider::is_domestic_live_catalog(config.model_provider.base_url.as_deref());
+        let strict = force_refresh == Some(true) || domestic;
+        let refresh_strategy = if strict {
+            self.config_manager.check_thread_model_provider(&config).await
+                .map_err(|err| config_load_error(&err))?;
+            models_manager.refresh_catalog_checked(config.http_client_factory()).await
+                .map_err(|err| invalid_request(match err.http_status_code_value() {
+                    Some(401 | 403) => "服务商拒绝授权，请检查账号、套餐或 API Key",
+                    _ => "实时模型目录读取失败，请检查网络、授权及模型发现配置",
+                }))?;
+            codex_models_manager::manager::RefreshStrategy::InMemory
+        } else {
+            codex_models_manager::manager::RefreshStrategy::OnlineIfUncached
+        };
+        let fresh = if strict {
+            Some(models_manager.refreshed_model_catalog().ok_or_else(|| {
+                invalid_request("账号模型目录已变化，请重新刷新")
+            })?)
+        } else {
+            None
+        };
+        let mut presets = self
             .model_catalog
             .list_models_from_snapshot(
                 config,
-                models_manager,
-                codex_models_manager::manager::RefreshStrategy::OnlineIfUncached,
+                Arc::clone(&models_manager),
+                refresh_strategy,
             )
             .await
             .map_err(|err| config_load_error(&err))?;
+        if let Some(fresh) = fresh {
+            let current = models_manager.refreshed_model_catalog().ok_or_else(|| {
+                invalid_request("账号模型目录已变化，请重新刷新")
+            })?;
+            if !Arc::ptr_eq(&fresh, &current) {
+                return Err(invalid_request("账号模型目录已变化，请重新刷新"));
+            }
+            // The upstream fallback may merge bundled entries when the remote
+            // response is empty or hidden-only. Explicit refresh must report
+            // only the actual account catalog, while retaining refined metadata.
+            presets.retain(|preset| fresh.iter().any(|model| model.slug == preset.model));
+            codex_protocol::openai_models::ModelPreset::mark_default_by_picker_visibility(&mut presets);
+        }
         let models = supported_models(presets, include_hidden.unwrap_or(false));
         let total = models.len();
 

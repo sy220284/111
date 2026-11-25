@@ -124,6 +124,7 @@ async fn list(
                 limit: None,
                 include_hidden: Some(true),
                 model_provider,
+                force_refresh: None,
             },
         })
         .await

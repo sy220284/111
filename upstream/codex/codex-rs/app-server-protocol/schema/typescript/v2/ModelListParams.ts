@@ -18,4 +18,8 @@ limit?: number | null,
 /**
  * When true, include models that are hidden from the default picker list.
  */
-includeHidden?: boolean | null, };
+includeHidden?: boolean | null,
+/**
+ * When true, request a fresh account catalog and report remote errors.
+ */
+forceRefresh?: boolean | null, };

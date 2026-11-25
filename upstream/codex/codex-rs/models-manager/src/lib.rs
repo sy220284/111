@@ -21,6 +21,21 @@ pub fn bundled_models_response()
 }
 
 /// Convert the client version string to a whole version string (e.g. "1.2.3-alpha.4" -> "1.2.3").
+#[cfg(target_os = "android")]
+pub fn client_version_to_whole() -> String {
+    android_catalog_client_version()
+}
+
+#[cfg(any(target_os = "android", test))]
+fn android_catalog_client_version() -> String {
+    let release = include_str!("../android-client-release.txt").lines().next()
+        .expect("missing verified upstream release");
+    let version = release.split('-').next().expect("missing upstream version");
+    assert_ne!(version, "0.0.0", "invalid upstream catalog version");
+    version.to_owned()
+}
+
+#[cfg(not(target_os = "android"))]
 pub fn client_version_to_whole() -> String {
     format!(
         "{}.{}.{}",
@@ -28,4 +43,16 @@ pub fn client_version_to_whole() -> String {
         env!("CARGO_PKG_VERSION_MINOR"),
         env!("CARGO_PKG_VERSION_PATCH")
     )
+}
+
+#[cfg(test)]
+mod android_catalog_version_tests {
+    #[test]
+    fn android_catalog_version_is_verified_nonzero_semver() {
+        let version = super::android_catalog_client_version();
+        let parts: Vec<_> = version.split('.').collect();
+        assert_eq!(parts.len(), 3);
+        assert!(parts.iter().all(|part| part.parse::<u32>().is_ok()));
+        assert_ne!(version, "0.0.0");
+    }
 }

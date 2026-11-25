@@ -81,6 +81,7 @@ class CodexConnection internal constructor(private val appContext: Context,
     internal fun releaseRestart() = ownership.releaseRestart()
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
     val recentStderr = MutableStateFlow<List<String>>(emptyList())
+    internal val domesticCredentials = MutableStateFlow(DomesticCredentialStatus())
 
     suspend fun connect() = lifecycleMutex.withLock {
         withContext(Dispatchers.IO) {
@@ -118,32 +119,61 @@ class CodexConnection internal constructor(private val appContext: Context,
                 "APK 缺少当前设备 ABI 的 Code Mode Host，请安装包含完整运行组件的版本。")
             val toolsDir = NativeToolInstaller.prepare(appContext)
             builder.environment()["PATH"] = "${toolsDir.absolutePath}:/system/bin:/system/xbin"
-            val child = startChild(builder)
-            val channel = try { RpcProcessChannel(child) } catch (failure: Exception) {
-                // Keep the child attached for the same retirement path even if pipe setup fails.
-                synchronized(ownership) { if (ownership.owns(epoch)) process = child }
-                if (!ownership.owns(epoch)) {
-                    child.destroyForcibly()
-                    child.waitFor()
+            val credentialBootstrap = DomesticProviderCredentials.bootstrap(appContext)
+            val providerBootstrap = credentialBootstrap.bytes
+            val (child, channel) = try {
+                synchronized(ownership) {
+                    check(ownership.owns(epoch)) { "内核启动已取消" }
+                    domesticCredentials.value = credentialBootstrap.status.copy(loaded = emptySet())
                 }
-                throw failure
-            }
-            val attached = synchronized(ownership) {
-                if (!ownership.owns(epoch)) false else {
-                    process = child
-                    wire = channel
-                    true
+                if (providerBootstrap != null) builder.command().add("--android-provider-bootstrap")
+                val child = startChild(builder)
+                val channel = try { RpcProcessChannel(child) } catch (failure: Exception) {
+                    // Keep the child attached for the same retirement path even if pipe setup fails.
+                    synchronized(ownership) { if (ownership.owns(epoch)) process = child }
+                    if (!ownership.owns(epoch)) {
+                        child.destroyForcibly()
+                        child.waitFor()
+                    }
+                    throw failure
                 }
-            }
-            if (!attached) {
-                // Lifecycle mutex prevents a replacement while an unpublished
-                // child is being retired, including the slow-exit case.
-                if (!terminate(child, channel)) {
-                    child.waitFor()
-                    closeWriter(channel)
+                val attached = synchronized(ownership) {
+                    if (!ownership.owns(epoch)) false else {
+                        process = child
+                        wire = channel
+                        true
+                    }
                 }
-                error("内核启动已取消")
-            }
+                if (!attached) {
+                    // Lifecycle mutex prevents a replacement while an unpublished
+                    // child is being retired, including the slow-exit case.
+                    if (!terminate(child, channel)) {
+                        child.waitFor()
+                        closeWriter(channel)
+                    }
+                    error("内核启动已取消")
+                }
+                if (providerBootstrap != null) {
+                    // The bootstrap frame precedes JSON-RPC and belongs to this same child.
+                    // Retire a blocked pipe using the same watchdog as ordinary writes.
+                    val finished = AtomicBoolean(false)
+                    val watchdog = scope.launch {
+                        delay(RpcScheduling.WRITE_TIMEOUT_MS)
+                        if (!finished.get()) retireSession(epoch, "模型凭据启动通道写入超时")
+                    }
+                    try {
+                        java.io.DataOutputStream(child.outputStream).apply {
+                            writeInt(providerBootstrap.size)
+                            write(providerBootstrap)
+                            flush()
+                        }
+                    } finally {
+                        finished.set(true)
+                        watchdog.cancel()
+                    }
+                }
+                child to channel
+            } finally { providerBootstrap?.fill(0) }
             scope.launch { listen(epoch, child, channel) }
             scope.launch {
                 val exitCode = child.waitFor()
@@ -180,6 +210,7 @@ class CodexConnection internal constructor(private val appContext: Context,
             write(epoch, JSONObject().put("method", "initialized").put("params", JSONObject()), priority = RpcPriority.Control)
             synchronized(ownership) {
                 check(child.isAlive && ownership.markReady(epoch)) { "Codex 核心在初始化后已退出" }
+                domesticCredentials.value = credentialBootstrap.status
                 connectedSessionState.value = epoch
                 status.value = EngineStatus.Connected
             }
@@ -267,7 +298,7 @@ class CodexConnection internal constructor(private val appContext: Context,
         method: String,
         params: JSONObject? = JSONObject(),
         timeoutMillis: Long? = when (method) {
-            "thread/read", "thread/resume", "app/list", "app/installed", "plugin/list", "plugin/installed" -> 120_000L
+            "thread/read", "thread/resume", "app/list", "app/installed", "plugin/list", "plugin/installed", "modelProvider/model/verify" -> 120_000L
             else -> 45_000L
         },
         sendPermit: (() -> Boolean)? = null,
@@ -446,6 +477,7 @@ class CodexConnection internal constructor(private val appContext: Context,
         }
         fun complete() = synchronized(ownership) {
             if (ownership.completeRetirement(retired.first)) {
+                domesticCredentials.value = domesticCredentials.value.copy(loaded = emptySet())
                 connectedSessionState.value = null
                 retirementState.value = false
                 val completion = retirementCompletion

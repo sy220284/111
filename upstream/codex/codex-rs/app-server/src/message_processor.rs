@@ -1431,6 +1431,7 @@ impl MessageProcessor {
                 .model_provider_default_set(params)
                 .await
                 .map(Some),
+            ClientRequest::ModelProviderModelVerify { params, .. } => self.catalog_processor.model_provider_model_verify(params).await,
             ClientRequest::ModelProviderCapabilitiesRead { .. } => self
                 .config_processor
                 .model_provider_capabilities_read()

@@ -75,6 +75,7 @@ jobs:
         with:
           sparse-checkout: |
             android-app
+            upstream/codex/codex-rs/model-provider/catalogs
             .github/scripts
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:

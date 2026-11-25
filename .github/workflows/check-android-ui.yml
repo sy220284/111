@@ -68,6 +68,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /android-app/
+            /upstream/codex/codex-rs/model-provider/catalogs/
             /.github/workflows/
             /.github/scripts/
             /docs/设计系统.md

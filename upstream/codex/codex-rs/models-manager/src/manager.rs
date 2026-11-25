@@ -15,6 +15,7 @@ use codex_http_client::HttpClientFactory;
 use codex_login::AuthManager;
 use codex_protocol::auth::AuthMode;
 use codex_protocol::config_types::CollaborationModeMask;
+use codex_protocol::error::CodexErr;
 use codex_protocol::error::CodexErrorDetails;
 use codex_protocol::error::Result as CoreResult;
 use codex_protocol::openai_models::ModelInfo;
@@ -67,6 +68,11 @@ pub trait ModelsEndpointClient: fmt::Debug + Send + Sync {
     /// manager and cache's caller-established scope.
     /// Return `None` when identity is unavailable; cached catalog reuse is then disabled.
     fn identity(&self) -> Option<String>;
+
+    /// Apply process-local, account-scoped evidence without modifying the stored catalog.
+    fn refine_catalog<'a>(&self, models: &'a [ModelInfo]) -> Cow<'a, [ModelInfo]> {
+        Cow::Borrowed(models)
+    }
 
     /// Whether auth must be resolved before checking catalog identity.
     fn auth_requires_resolution(&self) -> bool {
@@ -256,6 +262,16 @@ pub trait ModelsManager: fmt::Debug + Send + Sync {
         refresh_strategy: RefreshStrategy,
         http_client_factory: HttpClientFactory,
     ) -> ModelsManagerFuture<'_, Vec<CatalogModel>>;
+
+    /// Explicit account inspection must report remote failures to its caller.
+    fn refresh_catalog_checked(
+        &self,
+        _http_client_factory: HttpClientFactory,
+    ) -> ModelsManagerFuture<'_, CoreResult<()>> {
+        Box::pin(std::future::ready(Err(CodexErr::InvalidRequest(
+            "this provider has no live account catalog".into(),
+        ))))
+    }
 
     /// Best-effort refresh when the in-memory catalog belongs to different credentials.
     /// Static catalogs need no refresh. Failures follow the catalog's fallback policy.
@@ -537,6 +553,26 @@ impl StaticModelsManager {
 }
 
 impl ModelsManager for OpenAiModelsManager {
+    fn refresh_catalog_checked(
+        &self,
+        http_client_factory: HttpClientFactory,
+    ) -> ModelsManagerFuture<'_, CoreResult<()>> {
+        Box::pin(async move {
+            if self.api_key_discovery_disabled() || !self.should_refresh_models().await {
+                return Err(CodexErr::InvalidRequest("account model discovery is disabled or unavailable".into()));
+            }
+            let before = self.refreshed_model_catalog();
+            self.refresh_available_models(RefreshStrategy::Online, &http_client_factory).await?;
+            let after = self.refreshed_model_catalog().ok_or_else(|| {
+                CodexErr::InvalidRequest("account model catalog changed during refresh".into())
+            })?;
+            if before.as_ref().is_some_and(|previous| Arc::ptr_eq(previous, &after)) {
+                return Err(CodexErr::InvalidRequest("no new account model catalog receipt".into()));
+            }
+            Ok(())
+        })
+    }
+
     fn needs_initialization(&self) -> bool {
         if self.endpoint_client.auth_requires_resolution() {
             return true;
@@ -763,7 +799,7 @@ impl OpenAiModelsManager {
             && entry.identity.is_some()
             && entry.identity == self.endpoint_client.identity()
         {
-            SelectedCatalog::CurrentSnapshot(Cow::Borrowed(&entry.models))
+            SelectedCatalog::CurrentSnapshot(self.endpoint_client.refine_catalog(&entry.models))
         } else {
             SelectedCatalog::Fallback(Cow::Borrowed(
                 self.catalog_source.fallback_models().unwrap_or_default(),
@@ -956,6 +992,7 @@ impl OpenAiModelsManager {
         {
             return Ok(());
         }
+        info!(client_version, model_count = models.len(), "remote model catalog refreshed");
         let refreshed = Arc::new(RefreshedModelCatalog {
             identity: identity.clone(),
             models: models.clone().into(),

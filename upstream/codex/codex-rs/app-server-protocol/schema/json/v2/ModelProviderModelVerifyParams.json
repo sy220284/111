@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "properties": {
+    "confirmPaidRequest": {
+      "type": "boolean"
+    },
+    "model": {
+      "type": "string"
+    },
+    "modelProvider": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "confirmPaidRequest",
+    "model",
+    "modelProvider"
+  ],
+  "title": "ModelProviderModelVerifyParams",
+  "type": "object"
+}

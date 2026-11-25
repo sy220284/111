@@ -1260,6 +1260,11 @@ client_request_definitions! {
         serialization: None,
         response: v2::ModelProviderCapabilitiesReadResponse,
     },
+    ModelProviderModelVerify => "modelProvider/model/verify" {
+        params: v2::ModelProviderModelVerifyParams,
+        serialization: global("model-verification"),
+        response: v2::ModelProviderModelVerifyResponse,
+    },
     ExperimentalFeatureList => "experimentalFeature/list" {
         params: v2::ExperimentalFeatureListParams,
         serialization: global("config"),
