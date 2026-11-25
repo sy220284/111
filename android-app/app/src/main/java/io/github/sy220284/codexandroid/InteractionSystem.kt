@@ -31,8 +31,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -149,8 +147,8 @@ fun CodexNotice(
         shape = RoundedCornerShape(12.dp)
     ) {
         BoxWithConstraints(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-            val fontScale = LocalDensity.current.fontScale
-            val narrow = maxWidth < 300.dp || fontScale > 1.3f
+            val fontScale = codexEffectiveFontScale()
+            val narrow = !CodexViewportPolicy.fitsActions(maxWidth.value, fontScale, 2, 146f)
             if (actionLabel != null && narrow) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -222,7 +220,7 @@ fun CodexEmptyState(
     onAction: () -> Unit = {},
     artworkRes: Int? = if (icon == CodexGlyph.Inbox) R.drawable.ic_empty_content else null
 ) {
-    val compact = LocalConfiguration.current.screenHeightDp < 640 || LocalDensity.current.fontScale > 1.3f
+    val compact = rememberCodexViewport().height < 640.dp || codexEffectiveFontScale() > 1.3f
     Column(
         modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = if (compact) 10.dp else 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -353,30 +351,31 @@ fun CodexChoiceSheet(
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭选择面板")
                 }
             }
-            Spacer(Modifier.height(5.dp))
-            Text(description, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            if (recoveryLabel != null && onRecovery != null) {
-                Spacer(Modifier.height(12.dp))
-                CodexNotice(
-                    recoveryMessage, NoticeTone.Warning,
-                    actionLabel = recoveryLabel, onAction = onRecovery
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            extraContent?.invoke(this)
-            if (loading) AtlasOperationProgress("正在读取可用选项")
-            if (choices.isEmpty()) {
-                if (!loading) CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false).selectableGroup(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(visible, key = { it.id }) { choice ->
-                        AtlasChoiceRow(choice.title, choice.description, choice.id == selectedId,
-                            onClick = { onSelect(choice.id) }, enabled = enabled,
-                            modifier = Modifier.testTag("choice-option-" + choice.id))
+            // The description, recovery action, optional controls and choices share
+            // one scrolling body. Only the close control is pinned.
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+                    .selectableGroup().testTag("choice-scroll-body"),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item(key = "choice-context", contentType = "context") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (description.isNotBlank()) Text(description, color = Ink.muted,
+                            style = MaterialTheme.typography.bodyMedium)
+                        if (recoveryLabel != null && onRecovery != null) {
+                            CodexNotice(recoveryMessage, NoticeTone.Warning,
+                                actionLabel = recoveryLabel, onAction = onRecovery)
+                        }
+                        extraContent?.invoke(this)
+                        if (loading) AtlasOperationProgress("正在读取可用选项")
+                        if (choices.isEmpty() && !loading)
+                            CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
                     }
+                }
+                items(visible, key = { "choice-item-" + it.id }, contentType = { "choice" }) { choice ->
+                    AtlasChoiceRow(choice.title, choice.description, choice.id == selectedId,
+                        onClick = { onSelect(choice.id) }, enabled = enabled,
+                        modifier = Modifier.testTag("choice-option-" + choice.id))
                 }
             }
             Spacer(Modifier.height(20.dp))
@@ -404,19 +403,20 @@ fun CodexEvidenceSheet(
         contentColor = Ink.parchment,
     ) {
         Column(
-            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp),
+            Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(title, style = MaterialTheme.typography.titleLarge)
             Text("查看本次操作的状态和实际输出",
                 style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
             Surface(
+                modifier = Modifier.weight(1f).fillMaxWidth(),
                 color = Ink.panel,
                 border = BorderStroke(1.dp, Ink.border.copy(alpha = .7f)),
                 shape = RoundedCornerShape(14.dp)
             ) {
                 Column(
-                    Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight() * .62f)
+                    Modifier.fillMaxSize()
                         .verticalScroll(rememberScrollState()).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -441,19 +441,19 @@ fun CodexEvidenceSheet(
                     }
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                CodexSecondaryButton(onClick = onDismiss, modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
-                    Text("关闭")
+            CodexAdaptiveActions(
+                first = { actionModifier ->
+                    CodexSecondaryButton(onClick = onDismiss, modifier = actionModifier) { Text("关闭") }
+                },
+                second = { actionModifier ->
+                    CodexSecondaryButton(onClick = { copy(copyText, CopyContentFormat.Literal) },
+                        modifier = actionModifier) {
+                        CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(7.dp))
+                        Text("复制执行详情")
+                    }
                 }
-                CodexSecondaryButton(
-                    onClick = { copy(copyText, CopyContentFormat.Literal) },
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp)
-                ) {
-                    CodexIcon(CodexGlyph.ContentCopy, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(7.dp))
-                    Text("复制执行详情")
-                }
-            }
+            )
             Spacer(Modifier.height(10.dp))
         }
     }

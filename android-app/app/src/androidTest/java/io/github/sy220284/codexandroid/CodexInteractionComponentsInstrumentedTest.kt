@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.*
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.graphics.toArgb
@@ -20,6 +21,75 @@ import org.junit.Test
 /** 实际模拟器验证：详情不挤动列表、可关闭，上下文菜单能完成所选动作。 */
 class CodexInteractionComponentsInstrumentedTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test fun adaptiveActionsKeepLabelsAndCallbacksAtDoubleFontScale() {
+        val chosen = mutableListOf<String>()
+        rule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                CodexTheme {
+                    Box(Modifier.width(280.dp)) {
+                        CodexAdaptiveActions(
+                            first = { modifier ->
+                                CodexSecondaryButton(onClick = { chosen.add("first") },
+                                    modifier = modifier.testTag("adaptive-action-first")) { Text("保存并继续") }
+                            },
+                            second = { modifier ->
+                                CodexSecondaryButton(onClick = { chosen.add("second") },
+                                    modifier = modifier.testTag("adaptive-action-second")) { Text("复制执行详情") }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        val first = rule.onNodeWithTag("adaptive-action-first").assertIsDisplayed()
+        val second = rule.onNodeWithTag("adaptive-action-second").assertIsDisplayed()
+        val firstBounds = first.fetchSemanticsNode().boundsInRoot
+        val secondBounds = second.fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue(secondBounds.top >= firstBounds.bottom)
+        first.performClick()
+        second.performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals(listOf("first", "second"), chosen) }
+    }
+
+    @Test fun asynchronousUiStateCancelsOldOwnerAndPublishesOnMain() {
+        val request = mutableStateOf("old")
+        val started = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val oldRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val newRelease = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val cancelled = kotlinx.coroutines.CompletableDeferred<Unit>()
+        rule.setContent {
+            val owner = request.value
+            val result by produceCodexUiState("loading-" + owner, owner) {
+                try {
+                    val output = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                        if (owner == "old") {
+                            started.complete(Unit)
+                            oldRelease.await()
+                        } else newRelease.await()
+                        "result-" + owner
+                    }
+                    check(android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
+                    value = output
+                } finally {
+                    if (owner == "old") cancelled.complete(Unit)
+                }
+            }
+            Text(result, Modifier.testTag("shared-async-result"))
+        }
+        rule.waitUntil(5000L) { started.isCompleted }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("loading-old")
+        rule.runOnIdle { request.value = "new" }
+        rule.waitUntil(5000L) { cancelled.isCompleted }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("loading-new")
+        oldRelease.complete(Unit)
+        newRelease.complete(Unit)
+        rule.waitUntil(5000L) {
+            rule.onAllNodesWithText("result-new").fetchSemanticsNodes().isNotEmpty()
+        }
+        rule.onNodeWithTag("shared-async-result").assertTextEquals("result-new")
+    }
 
     @Test fun inlineModelSliderCommitsOneActualChoiceAndSupportsReset() {
         val setting = EngineSettings.byKey("model_verbosity")!!

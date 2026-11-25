@@ -3,7 +3,6 @@ package io.github.sy220284.codexandroid
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
@@ -51,7 +50,7 @@ internal fun <T> StateFlow<T>.collectFrameState(identity: Any? = Unit): State<T>
     val source = this
     val subscription = remember(source, identity) { source.uiSubscription { it } }
     return key(subscription) {
-        produceState(subscription.initial, subscription) {
+        produceCodexUiState(subscription.initial, subscription) {
             subscription.updates.collect { latest ->
                 if (latest != value) {
                     withFrameNanos { }

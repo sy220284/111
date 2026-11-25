@@ -193,7 +193,7 @@ internal fun ActionDirectoryPicker(roots: List<java.io.File>, onSelected: (java.
     onDismiss: () -> Unit) {
     val canonicalRoots = remember(roots) { roots.map { it.canonicalFile }.distinct() }
     var directory by remember { mutableStateOf<java.io.File?>(null) }
-    val result by produceState<Result<List<java.io.File>>?>(null, directory) {
+    val result by produceCodexUiState<Result<List<java.io.File>>?>(null, directory) {
         value = null
         value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             runCatching {

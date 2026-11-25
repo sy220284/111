@@ -182,7 +182,9 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
           python3 android-app/tools/check_component_system.py --repository . --report component-system-audit.json
       - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
-        run: python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
+        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
       - name: 验证自更新证据判定与安装完成条件
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
       - name: 验证 Compose、协议测试与静态检查
@@ -242,7 +244,7 @@ jobs:
       matrix:
         width_dp: [360, 393, 411]
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 65
     steps:
       - name: 检出截图采集器
         uses: actions/checkout@v4
@@ -250,7 +252,10 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /android-app/tools/collect_ui_screenshots.py
+            /android-app/tools/ui_evidence_manifest.py
+            /android-app/tools/run_ui_device_checks.py
             /android-app/tools/verify_self_update_open.py
+            /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
       - name: 取回 UI APK
         uses: actions/download-artifact@v4
@@ -292,12 +297,11 @@ jobs:
             mkdir -p ui-screenshots
             # Clipboard-copy validation creates an Android system preview overlay. Run it last
             # so the overlay cannot cover screenshots of later business pages.
-            adb shell am instrument -w -r -e class io.github.sy220284.codexandroid.UiNavigationInstrumentedTest,io.github.sy220284.codexandroid.UiPopulatedSubpagesInstrumentedTest,io.github.sy220284.codexandroid.CodexInteractionComponentsInstrumentedTest,io.github.sy220284.codexandroid.CodexOverlayInstrumentedTest,io.github.sy220284.codexandroid.EngineSettingInstrumentedTest,io.github.sy220284.codexandroid.SelfUpdateInstallerIntentInstrumentedTest io.github.sy220284.codexandroid.test/androidx.test.runner.AndroidJUnitRunner | tee ui-instrument-result.log
-            # The emulator runner executes each script line separately.
-            # A single Python process collects all screenshots even after test failure.
-            python3 android-app/tools/collect_ui_screenshots.py
-            grep -Fq 'OK (' ui-instrument-result.log
-            test ! -s ui-screenshots/missing.txt
+            # One runner preserves raw JUnit logs, screenshot evidence and classified
+            # failure details; it must fail the job even when adb returns success.
+            python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode baseline
+            # All pages and component tests repeat at short/tall windows and large text.
+            python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode adaptive
             file ui-screenshots/*.png
             # Only the 393dp emulator replaces the running app, then presses the
             # system installer's actual Install and Open buttons. Execute after
@@ -310,6 +314,10 @@ jobs:
           name: codex-android-ui-device-evidence-${{ matrix.width_dp }}dp
           path: |
             ui-instrument-result.log
+            ui-baseline-diagnosis.json
+            ui-adaptive-result.log
+            ui-adaptive-diagnosis.json
+            ui-screenshots-adaptive/
             self-update-open.log
             self-update-open.json
             self-update-after-open.png

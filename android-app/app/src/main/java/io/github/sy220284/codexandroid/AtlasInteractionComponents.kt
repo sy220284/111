@@ -23,7 +23,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -79,11 +78,13 @@ fun AtlasStatusSelector(
             StatusTone.Neutral -> Ink.muted
         }
     }
-    Column(
-        modifier.fillMaxWidth().selectableGroup(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        options.chunked(2).forEach { optionsInRow ->
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val columns = if (CodexViewportPolicy.fitsActions(maxWidth.value, codexEffectiveFontScale(), 2, 132f)) 2 else 1
+        Column(
+            Modifier.fillMaxWidth().selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+        options.chunked(columns).forEach { optionsInRow ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 optionsInRow.forEach { option ->
                     val chosen = selected == option.key
@@ -118,14 +119,13 @@ fun AtlasStatusSelector(
                                 option.title,
                                 modifier = Modifier.weight(1f),
                                 style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 3,
-                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
                 }
-                if (optionsInRow.size == 1) Spacer(Modifier.weight(1f))
+                if (columns == 2 && optionsInRow.size == 1) Spacer(Modifier.weight(1f))
             }
+        }
         }
     }
 }
@@ -345,7 +345,7 @@ fun AtlasCompactChoice(
 
 /** 独立列表滚动面板统一按当前窗口高度约束。 */
 @Composable
-fun atlasSheetHeight() = LocalConfiguration.current.screenHeightDp.dp * .88f
+fun atlasSheetHeight() = codexSheetContentLimit(.88f)
 
 @Composable
 fun AtlasSheetHeader(title: String, onDismiss: () -> Unit) {
@@ -364,9 +364,10 @@ internal fun AtlasApprovalActions(
     secondary: (@Composable (Modifier) -> Unit)? = null,
     tertiary: (@Composable (Modifier) -> Unit)? = null
 ) {
-    val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+    val fontScale = codexEffectiveFontScale()
     BoxWithConstraints(Modifier.fillMaxWidth().testTag("approval-decision-actions")) {
-        val sideBySide = secondary != null && tertiary != null && maxWidth >= (264 * fontScale).dp
+        val sideBySide = secondary != null && tertiary != null &&
+            CodexViewportPolicy.fitsActions(maxWidth.value, fontScale, 2, 128f)
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (sideBySide) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

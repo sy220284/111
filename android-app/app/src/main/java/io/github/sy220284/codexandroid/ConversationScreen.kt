@@ -94,7 +94,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         imported.message else ""
 
     // 手机竖屏输入法打开时收起次要控件，优先保留输入和发送区。
-    val compactWorkArea = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val compactWorkArea = CodexViewportPolicy.compactWorkArea(rememberCodexViewport().height.value,
+        WindowInsets.ime.getBottom(LocalDensity.current) > 0, codexEffectiveFontScale())
     val selectedMode by vm.selectedMode.collectAsState()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
     val queueData = thread?.let { models["queue:$it"] }

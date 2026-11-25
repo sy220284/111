@@ -50,6 +50,16 @@ def audit(sources):
         for hit in re.finditer(r"\b(?:\w*Search(?:Bar|Field|Input|Box|View))\s*\(|\bImeAction\.Search\b", code):
             line = code.count("\n", 0, hit.start()) + 1
             errors.append(f"{file}:{line}: 禁止搜索输入框；使用分类、选择列表或明确的剪贴板/智能体检索动作")
+        # Window size and effective typography have one source of truth. Do not allow
+        # individual pages to restore nominal-display or system-font-only assumptions.
+        if file != "CodexViewport":
+            for hit in re.finditer(r"\b(?:screenWidthDp|screenHeightDp)\b|\bLocalDensity\s*\.\s*current\s*\.\s*fontScale\b", code):
+                line = code.count("\n", 0, hit.start()) + 1
+                errors.append(f"{file}:{line}: {hit.group()} 必须通过共享窗口与组合字号策略")
+        if file != "CodexUiAsyncState":
+            for hit in re.finditer(r"\bproduceState\s*(?:<[^\n]*?>)?\s*\(", code):
+                line = code.count("\n", 0, hit.start()) + 1
+                errors.append(f"{file}:{line}: 异步界面状态必须使用 produceCodexUiState")
         # Remove declarations; extension and ordinary declarations are treated equally.
         code = re.sub(r"\bfun\s+(?:[\w.]+\.)?(\w+)\s*\(", lambda m: " " * len(m.group()), code)
         for name in list(RAW_OWNERS) + list(SHARED):

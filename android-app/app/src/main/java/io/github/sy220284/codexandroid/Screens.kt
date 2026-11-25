@@ -78,13 +78,14 @@ fun ScreenColumn(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val compact by UiPreferences.compact.collectAsState()
-    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+    BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        val spacing = CodexViewportPolicy.pageSpacing(maxWidth.value.coerceAtLeast(1f),
+            maxHeight.value.coerceAtLeast(1f), compact)
         Column(
             modifier = Modifier.fillMaxHeight().widthIn(max = 840.dp).fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = if (compact) 12.dp else 18.dp,
-                    vertical = if (compact) 12.dp else 20.dp),
-            verticalArrangement = Arrangement.spacedBy(if (compact) 11.dp else 16.dp),
+                .padding(horizontal = spacing.horizontal.dp, vertical = spacing.vertical.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing.gap.dp),
             content = content
         )
     }

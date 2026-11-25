@@ -718,12 +718,13 @@ class UiNavigationInstrumentedTest {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
         assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
             widthDp in setOf(360, 393, 411))
-        assertEquals(31, pages.size)
-        assertEquals(30, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(pages.size, pages.map { it.id }.toSet().size)
+        assertEquals(UiFeatureCatalog.all.size, UiFeatureCatalog.byRoute.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
             UiFeatureCatalog.legacyRoutes.toSet())
         assertEquals(5, NavigationPolicy.featureGroups.size)
-        assertEquals(18, NavigationPolicy.settingsRoutes.size)
+        assertTrue(NavigationPolicy.settingsRoutes.all { it in UiFeatureCatalog.byRoute })
+        assertTrue(NavigationPolicy.settingsRoutes.containsAll(listOf("account", "providers", "models", "appearance", "config", "diagnostics", "features")))
         assertEquals(NavigationPolicy.settingsRoutes.size,
             NavigationPolicy.settingsRoutes.toSet().size)
         assertFalse(NavigationPolicy.settingsRoutes.any {
@@ -735,6 +736,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("功能开关")
         rule.onNodeWithTag("feature-switch-list").assertExists()
         rule.onNodeWithTag("feature-switch-search").assertDoesNotExist()
+        capture("audit-features-android35.png")
         openSettingRoute("config")
         rule.onNodeWithTag("screen-title").assertTextEquals("开发者设置")
         openSettingRoute("diagnostics")

@@ -79,7 +79,7 @@ internal fun ComposerFileReferenceSheet(vm: CodexViewModel, workspace: String, i
                                         onSelect: (ComposerReference) -> Unit, onDismiss: () -> Unit) {
     var query by remember(workspace, initialQuery) { mutableStateOf(initialQuery) }
     val result by key(workspace, query) {
-        produceState<ComposerFileSearchResult?>(null, workspace, query) {
+        produceCodexUiState<ComposerFileSearchResult?>(null, workspace, query) {
             delay(150)
             value = ComposerFileSearch.search(File(vm.workingDirectory), File(workspace), query)
         }
@@ -157,7 +157,7 @@ internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onReg
     val root = remember { File(vm.workingDirectory).canonicalFile }
     var directory by remember { mutableStateOf(File(workspace)) }
     var error by remember { mutableStateOf<String?>(null) }
-    val result by produceState<Result<List<File>>?>(null, directory) {
+    val result by produceCodexUiState<Result<List<File>>?>(null, directory) {
         value = null
         value = withContext(Dispatchers.IO) {
             runCatching {

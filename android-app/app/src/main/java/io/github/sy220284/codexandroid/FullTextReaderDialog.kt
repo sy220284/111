@@ -36,7 +36,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
         val searchHits: List<Int>? = if (text.length <= 32768 || query.isBlank()) {
             remember(text, query) { FullTextSearchPolicy.find(text, query) }
         } else {
-            val result by produceState<Triple<String, String, List<Int>>?>(null, text, query) {
+            val result by produceCodexUiState<Triple<String, String, List<Int>>?>(null, text, query) {
                 val matches = withContext(Dispatchers.Default) { FullTextSearchPolicy.find(text, query) }
                 value = Triple(text, query, matches)
             }
