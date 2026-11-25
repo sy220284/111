@@ -31,8 +31,9 @@ internal class SidebarUiState(initialIndex: Int = 0, initialOffset: Int = 0) {
     var search by mutableStateOf("")
     var fullText by mutableStateOf(false)
     var archived by mutableStateOf(false)
+    var projectOnly by mutableStateOf(false)
     val scroll = LazyListState(initialIndex, initialOffset)
-    fun resetFilter() { search = ""; fullText = false; archived = false }
+    fun resetFilter() { search = ""; fullText = false; archived = false; projectOnly = false }
     companion object {
         val Saver = listSaver<SidebarUiState, Int>(
             save = { listOf(it.scroll.firstVisibleItemIndex, it.scroll.firstVisibleItemScrollOffset) },
@@ -133,8 +134,16 @@ internal fun SidebarSessions(
             rawRows.filter { answerVersions.root(SessionListPolicy.id(it)) in matchingRoots }
         }
     }
-    val rows = remember(rawRows, matching, answerVersions) {
-        answerVersions.rows(rawRows, matching)
+    val remote by vm.conversationState.collectProjection { it.remote }
+    val rows = remember(rawRows, matching, answerVersions, state.projectOnly, workspace, remote) {
+        answerVersions.rows(rawRows, matching).filter { row ->
+            if (!state.projectOnly) true
+            else {
+                val bound = vm.remoteBindings.forThread(SessionListPolicy.id(row))
+                if (remote != null) bound != null && bound.id == remote.id && bound.cwd == remote.cwd
+                else bound == null && row.optString("cwd") == workspace
+            }
+        }
     }
     val visiblePins = remember(pins, rows, answerVersions) { rows.map(SessionListPolicy::id).filter { answerVersions.root(it) in pins }.toSet() }
     var selection by remember { mutableStateOf(false) }
@@ -145,7 +154,7 @@ internal fun SidebarSessions(
     var confirm by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
     LaunchedEffect(state.archived, connected) { vm.sessions.showArchive(state.archived && connected) }
     DisposableEffect(vm) { onDispose { vm.sessions.showArchive(false) } }
-    LaunchedEffect(state.searching, state.fullText, state.archived, state.search, connected, section?.id) {
+    LaunchedEffect(state.searching, state.fullText, state.archived, state.search, connected, section?.id, state.projectOnly) {
         if (state.searching && state.fullText) {
             delay(250)
             vm.sessions.search(state.search, state.archived)
@@ -196,6 +205,9 @@ internal fun SidebarSessions(
             AtlasCompactChoice(if (state.archived) "archived" else "active",
                 listOf("active" to "会话", "archived" to "已归档"),
                 onSelect = { state.archived = it == "archived" })
+            AtlasCompactChoice(if (state.projectOnly) "project" else "all",
+                listOf("all" to "全部项目", "project" to "当前项目"),
+                onSelect = { state.projectOnly = it == "project" })
             val recent = if (state.fullText) recentFull else recentTitle
             if (recent.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

@@ -50,13 +50,11 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
             CodexNotice("由当前智能体在已绑定的执行环境中处理。手机文件和本机终端保持独立。", NoticeTone.Info)
             CodexPrimaryButton(onClick = {
                 if (id == "files") {
-                    val owner = vm.composerOwner(vm.activeThread.value)
-                    val draft = vm.composerDrafts.value[owner]?.text.orEmpty()
-                    vm.editComposerText(owner, listOf(draft, "请查看当前远端工作目录的文件，并列出目录内容。").filter { it.isNotBlank() }.joinToString("\n"))
+                    if (!appendTaskInstruction(vm, vm.activeThread.value, "请查看当前远端工作目录的文件，并列出目录内容。")) return@CodexPrimaryButton
                 }
                 navigate("chat")
             }, modifier = Modifier.fillMaxWidth()) { Text(if (id == "files") "让智能体查看目录" else "在当前任务中输入远端命令") }
-            CodexSecondaryButton(onClick = { vm.newThread(); navigate("chat") }, modifier = Modifier.fillMaxWidth()) {
+            CodexSecondaryButton(onClick = { if (vm.resetConversation(vm.workingDirectory, null)) navigate("chat") }, modifier = Modifier.fillMaxWidth()) {
                 Text("新建手机本机任务")
             }
         }
@@ -67,7 +65,7 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "chat" -> ConversationPage(vm, navigate)
         "files" -> WorkspacePage(vm)
         "diff" -> DiffPage(vm, navigate)
-        "terminal" -> TerminalPage(vm)
+        "terminal" -> TerminalPage(vm, navigate = navigate)
         "review" -> ReviewPage(vm, navigate)
         "approvals" -> ApprovalsPage(vm)
         "models" -> ModelsPage(vm)

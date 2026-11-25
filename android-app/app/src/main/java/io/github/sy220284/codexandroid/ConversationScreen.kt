@@ -379,6 +379,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     add(ComposerShortcut("compact", "整理上下文", "", CodexGlyph.Compress,
                         enabled = optionsEnabled, onOpen = { keyboard?.hide(); sessionAction = "compact" }))
                 }
+                add(ComposerShortcut("capabilities", "工具与扩展", "查看技能、插件和外部工具", CodexGlyph.Hub,
+                    enabled = !switching, onOpen = { keyboard?.hide(); composerMenu = "capabilities" }))
                 add(ComposerShortcut("status", "运行状态", "连接与诊断", CodexGlyph.Info,
                     onOpen = { keyboard?.hide(); composerMenu = "engine-status" }))
             }
@@ -440,7 +442,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }) else null,
                 voiceEnabled = !switching && !transferBusy && !attachmentBusy && !documentBusy,
                 imageImporting = attachmentBusy || documentBusy,
-                onAddContent = { if (remote == null) composerMenu = "add" else composerMenu = "tools" },
+                onAddContent = { composerMenu = "add" },
                 compactControls = compactWorkArea,
                 modelLabel = (if (busy) "下轮 · " else "") +
                     (ComposerModelPolicy.model(availableModels, shownModel)
@@ -483,7 +485,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 },
                 addMenu = {
-                    if (composerMenu == "add") CodexFloatingActionMenu(title = "添加内容",
+                    if (composerMenu == "add" && remote != null) CodexFloatingActionMenu(title = "远端任务",
+                        onDismiss = { closeComposerMenu("add") }, actions = listOf(
+                            CodexSheetAction("查看远端文件", CodexGlyph.Project, { navigate("files") },
+                                description = "由远端智能体读取；手机附件不会自动上传"),
+                            CodexSheetAction("远端命令", CodexGlyph.Terminal, { navigate("terminal") }),
+                            CodexSheetAction("工具与扩展", CodexGlyph.Hub, { composerMenu = "capabilities" })
+                        ))
+                    if (composerMenu == "add" && remote == null) CodexFloatingActionMenu(title = "添加内容",
                         showDescriptions = false, onDismiss = { closeComposerMenu("add") },
                         actions = buildList {
                             add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
@@ -539,6 +548,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             CodexSheetAction(it.title, it.icon, it.onOpen, description = it.detail,
                                 enabled = it.enabled, testTag = "composer-tool-" + it.command)
                         })
+                    if (composerMenu == "capabilities") TaskCapabilitiesSheet(vm, { closeComposerMenu("capabilities") }, navigate)
                     if (composerMenu == "projects") ComposerWorkspaceSheet(vm, selectedWorkspace, onRegistry = { composerMenu = "project-registry" }, onDismiss = { composerMenu = "" })
                     if (composerMenu == "usage") ComposerContextUsageSheet(thread?.let { models["tokenUsage:$it"] },
         onCompact = if (!busy && !switching && thread != null) ({ composerMenu = ""; sessionAction = "compact" }) else null,

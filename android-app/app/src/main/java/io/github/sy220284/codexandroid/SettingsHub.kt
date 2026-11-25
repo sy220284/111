@@ -51,7 +51,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         .testTag("settings-account-overview"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    CodexIcon(CodexGlyph.AccountCircle, null, tint = Ink.copper,
+                    CodexIcon(CodexGlyph.PersonOutline, null, tint = Ink.copper,
                         modifier = Modifier.size(24.dp))
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
@@ -100,13 +100,16 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         shadowElevation = 0.dp, tonalElevation = 0.dp) {
                         Column {
                             entries.forEach { entry ->
-                                SettingRouteRow(page = entry, showDetail = false, detail = when(entry.id) {
+                                SettingRouteRow(page = entry, showDetail = entry.id in setOf("environments", "features", "plugins", "mcp", "config"), detail = when(entry.id) {
                                     "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
                                     "environments" -> "本机或其他设备"
                                     "models" -> "默认模型与推理偏好"
                                     "appearance" -> if (darkMode) "深色" else "浅色"
                                     "plugins" -> "安装与管理"
+                                    "features" -> "常用能力与全部内核功能"
+                                    "mcp" -> "外部工具连接"
+                                    "config" -> "高级运行设置"
                                     else -> ""
                                 }) {
                                     SettingsDeepLink.select(entry.id, null)

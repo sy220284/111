@@ -36,6 +36,10 @@ class UiNavigationInstrumentedTest {
             vm.composerDrafts.value = emptyMap()
             vm.errors.value = emptyMap()
         }
+        rule.runOnUiThread {
+            (rule.activity.application as CodexApplication).pendingDeepLink.value = null
+            vm.agentActionNavigation.value = 1L
+        }
         rule.waitUntil(15_000L) {
             rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1
         }

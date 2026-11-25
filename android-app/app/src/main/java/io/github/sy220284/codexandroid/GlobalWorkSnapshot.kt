@@ -43,10 +43,10 @@ internal data class GlobalWorkSnapshot(
             planApprovalBusy || securitySaveBusy || switchingThread || inFlightUserRequests > 0 || localMutations > 0 || dataTransferBusy
 
     val canDisruptCoreOrData: Boolean
-        get() = !hasActiveWork && !dataTransferBusy
+        get() = !hasActiveWork && !dataTransferBusy && !pendingRestore
 
     val canStartNewTask: Boolean
-        get() = !dataTransferBusy
+        get() = !dataTransferBusy && !pendingRestore
 
     val blockReason: String
         get() = when {

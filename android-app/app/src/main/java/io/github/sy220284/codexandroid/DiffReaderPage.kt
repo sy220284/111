@@ -27,6 +27,8 @@ import androidx.compose.ui.unit.dp
 fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val diff by vm.latestDiff.collectAsState()
     val active by vm.activeThread.collectAsState()
+    val running by vm.running.collectAsState()
+    val reviewTurn by vm.timeline.collectProjection { items -> items.lastOrNull { it.kind == "exitedReviewMode" && it.status !in setOf("failed", "interrupted", "cancelled") }?.turnId }
     val prepared by rememberPreparedDiff(diff, active)
     val context = LocalContext.current
     var expandedPaths by remember(active) { mutableStateOf<Set<String>?>(null) }
@@ -140,6 +142,11 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         }
                     }
                 )
+                if (active != null && !reviewTurn.isNullOrBlank()) CodexTextAction(onClick = {
+                    if (appendTaskInstruction(vm, active, "请依据本次审查结果修复已确认的问题，运行相关测试并重新审查，说明验证结果。")) navigate("chat")
+                }, enabled = !running, modifier = Modifier.fillMaxWidth().testTag("diff-review-repair")) {
+                    Text("修复审查问题并复查")
+                }
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     CodexCheckBox(checked = wrapLines, onCheckedChange = { wrapLines = it },
                         modifier = Modifier.testTag("diff-line-wrap"))

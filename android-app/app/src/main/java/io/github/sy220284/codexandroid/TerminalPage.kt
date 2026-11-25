@@ -42,7 +42,7 @@ import org.json.JSONObject
 import java.io.File
 
 @Composable
-fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
+fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((String) -> Unit)? = null) {
     var command by rememberSaveable { mutableStateOf("") }
     var interactive by rememberSaveable { mutableStateOf(false) }
     var allowNetwork by remember { mutableStateOf(false) }
@@ -458,6 +458,13 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                     }
                     WhiteSwitch(checked = allowNetwork, onCheckedChange = { allowNetwork = it },
                         enabled = !session.running && !terminalStarting)
+                }
+                if (navigate != null) CodexTextAction(onClick = {
+                    val instruction = if (command.isBlank()) "请协助我检查当前工作区，提出需要执行的命令及原因。"
+                        else "请先检查以下命令的目的、风险与执行位置；根据当前任务提出执行建议：\n" + command
+                    if (appendTaskInstruction(vm, vm.activeThread.value, instruction)) navigate("chat")
+                }, enabled = !session.running && !terminalStarting, modifier = Modifier.fillMaxWidth().testTag("terminal-agent-assist")) {
+                    Text("交给 Codex 检查")
                 }
                 CodexPrimaryButton(onClick = { confirm = true },
                     enabled = command.isNotBlank() && !session.running && !terminalStarting,
