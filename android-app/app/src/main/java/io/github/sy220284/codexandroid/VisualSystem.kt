@@ -186,7 +186,8 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(if (compact) 16.dp else 22.dp),
-        border = BorderStroke(1.dp, Ink.border.copy(alpha = if (softMaterial) .38f else .48f)),
+        border = BorderStroke(if (softMaterial) .8.dp else 1.dp,
+            Ink.border.copy(alpha = if (softMaterial) .5f else .72f)),
         color = Ink.panel,
         shadowElevation = if (softMaterial) 1.dp else 0.dp,
         tonalElevation = 0.dp
@@ -246,13 +247,9 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
         StatusTone.Warning -> Ink.warning
         StatusTone.Danger -> Ink.red
     }
-    Surface(color = color.copy(alpha = .10f), shape = RoundedCornerShape(8.dp)) {
-        Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(6.dp).background(color, RoundedCornerShape(99.dp)))
-            Text(text, color = color, style = MaterialTheme.typography.labelMedium)
-        }
+    Surface(color = Ink.canvas, border = BorderStroke(1.dp, color.copy(alpha = .46f)),
+        shape = RoundedCornerShape(99.dp)) {
+        Text(text, color = color, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium)
     }
 }
 

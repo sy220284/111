@@ -228,9 +228,9 @@ internal fun ConversationComposer(
             }
                 }
             }
-        HorizontalDivider(color = Ink.border.copy(alpha = .55f),
-            modifier = Modifier.padding(horizontal = 8.dp))
-        // Task controls share the input surface; the IME still owns available height.
+        }
+    }
+        // Secondary context stays outside the native-style input card.
         Row(Modifier.fillMaxWidth().testTag("composer-context-footer"),
             verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) { permissionContent?.invoke() }
@@ -245,8 +245,6 @@ internal fun ConversationComposer(
                 taskMenu?.invoke()
             }
         }
-        }
-    }
     }
     if (expandedEditor) CodexDetailSheet(title = "编辑任务指令", onDismiss = { expandedEditor = false }, startExpanded = true,
         footer = { CodexPrimaryButton(onClick = { expandedEditor = false }, modifier = Modifier.fillMaxWidth()) { Text("完成") } }) {
