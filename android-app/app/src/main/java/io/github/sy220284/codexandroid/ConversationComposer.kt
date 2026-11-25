@@ -129,7 +129,7 @@ internal fun ConversationComposer(
                 }
             }
             }
-            BoxWithConstraints(Modifier.fillMaxWidth()) {
+            BoxWithConstraints(Modifier.fillMaxWidth().testTag("composer-primary-actions")) {
                 val showStop = stopping || running
                 val guideVisible = running && hasInput && !stopping
                 val separateModel = CodexViewportPolicy.composerModelOwnRow(maxWidth.value,
@@ -145,7 +145,7 @@ internal fun ConversationComposer(
                         }
                     }
             Row(
-                modifier = Modifier.fillMaxWidth().testTag("composer-primary-actions"),
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(0.dp)
             ) {

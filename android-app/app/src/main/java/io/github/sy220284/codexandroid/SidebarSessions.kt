@@ -200,9 +200,9 @@ internal fun SidebarSessions(
         moving = ids.associateWith { answerVersions.members(it).toSet() }
     }
     Column(modifier.fillMaxSize()) {
-        if (!state.searching && !state.fullText && !selection) Row(Modifier.fillMaxWidth(),
+        if (!state.fullText && !selection) Row(Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically) {
-            Text(section?.name ?: "全部会话", modifier = Modifier.weight(1f).padding(start = 12.dp),
+            Text(if (state.searching) "检索会话" else section?.name ?: "全部会话", modifier = Modifier.weight(1f).padding(start = 12.dp),
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted, maxLines = 1, overflow = TextOverflow.Ellipsis)
             CodexIconAction(onClick = { managementOpen = true },
                 modifier = Modifier.size(48.dp).testTag("sidebar-management")) {
