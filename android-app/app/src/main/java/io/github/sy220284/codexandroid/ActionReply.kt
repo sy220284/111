@@ -12,6 +12,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.update
 
 /**
  * A contextual reply is a single conversation turn, rather than a persistent editable field.
@@ -185,3 +186,17 @@ internal fun ActionDirectoryPicker(roots: List<java.io.File>, onSelected: (java.
         }, onFailure = { ErrorText(it.message ?: "目录读取失败") })
     }
 }
+
+internal fun CodexViewModel.prepareAgentAction(request: String) {
+    if (request.isBlank() || AppDataTransfer.state.value.busy ||
+        threadSwitching.value || firstThreadStarting.value) return
+    if (running.value && !resetConversation(activeWorkspace.value, activeProjectId.value)) return
+    val thread = activeThread.value
+    val owner = composerOwner(thread)
+    composerDrafts.update { drafts ->
+        ThreadComposerDrafts.text(drafts, owner,
+            AgentActionDraftPolicy.append(drafts[owner]?.text.orEmpty(), request))
+    }
+    agentActionNavigation.value += 1
+}
+
