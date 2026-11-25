@@ -18,7 +18,7 @@ internal fun DeveloperToolStatus(vm: CodexViewModel) {
     val engine by vm.bridge.status.collectAsState()
     val key = "developerToolStatus"
     val script = """
-        for name in git rg curl python3 pip node npm; do
+        for name in git rg curl python3 node npm; do
           if command -v "${'$'}name" >/dev/null 2>&1; then
             output=${'$'}("${'$'}name" --version 2>&1); code=$?
             printf '%s\t%s\t%s\n' "${'$'}name" "${'$'}code" "${'$'}output"
@@ -26,6 +26,13 @@ internal fun DeveloperToolStatus(vm: CodexViewModel) {
             printf '%s\t127\t命令未找到\n' "${'$'}name"
           fi
         done
+        output=${'$'}(python3 -m pip --version 2>&1); code=$?
+        printf '%s\t%s\t%s\n' 'pip (python3 -m pip)' "${'$'}code" "${'$'}output"
+        if command -v git-remote-https >/dev/null 2>&1; then
+            printf '%s\t0\t%s\n' 'Git HTTPS' '传输组件已注册，连接待验证'
+        else
+            printf '%s\t127\t%s\n' 'Git HTTPS' '传输组件未安装'
+        fi
     """.trimIndent()
     MaterialPanel(Modifier.fillMaxWidth()) {
         Text("本机开发工具", style = MaterialTheme.typography.titleMedium)

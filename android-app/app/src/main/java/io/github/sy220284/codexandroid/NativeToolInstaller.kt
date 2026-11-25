@@ -7,20 +7,19 @@ import java.nio.file.LinkOption
 
 /** Use extracted APK-native executables while keeping app-owned data non-executable. */
 object NativeToolInstaller {
-    val commands = linkedMapOf(
-        "rg" to "libcodex_rg.so", "git" to "libcodex_git.so",
-        "git-remote-http" to "libcodex_git_remote_http.so",
-        "git-remote-https" to "libcodex_git_remote_http.so",
-        "curl" to "libcodex_curl.so",
-        "python" to "libcodex_python.so", "python3" to "libcodex_python.so",
-        "pip" to "libcodex_python.so", "pip3" to "libcodex_python.so",
-        "node" to "libcodex_node.so", "npm" to "libcodex_npm.so"
-    )
-
     fun prepare(context: Context): File {
         val nativeDir = File(context.applicationInfo.nativeLibraryDir).canonicalFile
         val tools = File(context.filesDir, "native-tools").apply { mkdirs() }
-        commands.forEach { (name, library) ->
+        val required = linkedMapOf(
+            "rg" to "libcodex_rg.so", "git" to "libcodex_git.so",
+            "curl" to "libcodex_curl.so", "python" to "libpython3.so",
+            "python3" to "libpython3.so", "node" to "libnode.so", "npm" to "libnpm.so"
+        )
+        if (android.os.Build.SUPPORTED_ABIS.firstOrNull() == "arm64-v8a") {
+            required["git-remote-http"] = "libcodex_git_remote_http.so"
+            required["git-remote-https"] = "libcodex_git_remote_http.so"
+        }
+        required.forEach { (name, library) ->
             val executable = File(nativeDir, library)
             require(executable.isFile) {
                 "APK 缺少当前设备架构的本地开发工具 $name，请安装完整运行包"

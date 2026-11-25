@@ -115,13 +115,8 @@ class ArtifactSelector:
         git_builder = self.run([
             "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
         ])
-        developer = tuple(self.run(["git", "ls-tree", sha, "--", path]) for path in (
-            "android-app/tools/build_android_developer_runtime.sh",
-            "android-app/tools/developer_python.c",
-            "android-app/tools/developer_npm.c",
-        ))
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, developer, native_recipe(workflow, abi))
+        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, native_recipe(workflow, abi))
 
     def is_ancestor(self, old, new):
         # Not an error: candidates from a previous main history can be skipped.

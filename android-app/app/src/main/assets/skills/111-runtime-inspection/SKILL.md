@@ -34,4 +34,4 @@ printf 'Inspection finished; assess each probe above.\n'
 
 缺少 curl/wget 只说明命令行网络客户端未找到；不得据此判定应用网络或安装网络受限。Git 本地提交、Git HTTPS 传输与 SSH 分别验证，`git --version` 不能证明可克隆/拉取/推送。Code Mode 内置 V8 与 Node.js 命令是独立能力；应通过真实 feature/list 和实际 Code Mode 执行回执确认当前启用及运行情况。自检未实际执行联网或安装时，明确标注网络和安装能力未验证。
 
-运行任务先按实际需求选择工具：简单文本处理用 sh/rg，JavaScript 计算优先使用已启用的 Code Mode；Node.js 专用于 Node API、npm 与 JS 项目，Python 用于 Python 脚本与 pip。联网请求用 curl，Git HTTPS 用原生传输组件。先检查命令和实际退出码，避免反复调用缺失工具；对需要编译器或 POSIX 符号链接的依赖，说明 Android 共享存储和本机工具链边界，按用户授权使用已有远程环境。MCP 服务可用时复用真实服务能力，不另行安装重复工具。
+优先使用签名 APK 内的 Android 预编译工具。Python 包管理使用 `python3 -m pip`，默认只安装 wheel；Node.js 用于 Node API 和 npm，简单 JavaScript 计算优先 Code Mode。curl 与 Git HTTPS 分别验证。只在真实退出码确认后登记可用；本机缺少编译工具链时按授权选择远程执行。

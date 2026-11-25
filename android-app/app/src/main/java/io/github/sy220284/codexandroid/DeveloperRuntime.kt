@@ -20,11 +20,15 @@ internal object DeveloperRuntime {
         env["PATH"] = "${tools.absolutePath}:/system/bin:/system/xbin"
         env["SHELL"] = "/system/bin/sh"
         env["GIT_EXEC_PATH"] = tools.absolutePath
+        env["LD_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir + ":" + File(root, "git/lib").absolutePath
+        if (File(root, "git/lib").isDirectory) {
+            env["GIT_TEMPLATE_DIR"] = File(root, "git/templates").absolutePath
+            env["GIT_CONFIG_SYSTEM"] = File(root, "git/gitconfig").absolutePath
+        }
         env["PYTHONHOME"] = root.absolutePath
         env["PYTHONUSERBASE"] = File(user, "python").absolutePath
-        env["CODEX_PYTHON_EXECUTABLE"] = File(tools, "python3").absolutePath
-        env["CODEX_NODE_EXECUTABLE"] = File(tools, "node").absolutePath
-        env["CODEX_NPM_CLI"] = File(root, "npm/bin/npm-cli.js").absolutePath
+        env["ANDROIDDSH_NPM_ENTRY"] = File(root, "npm/bin/npm-cli.js").absolutePath
+        env["PIP_ONLY_BINARY"] = ":all:"
         env["npm_config_prefix"] = File(user, "node").absolutePath
         env["npm_config_script_shell"] = "/system/bin/sh"
         env["NODE_PATH"] = File(user, "node/lib/node_modules").absolutePath
@@ -40,8 +44,8 @@ internal object DeveloperRuntime {
         val parent = File(context.filesDir, "developer-runtime")
         check(parent.isDirectory || parent.mkdirs())
         val target = File(parent, digest)
-        fun valid(dir: File) = File(dir, "lib/python3.14/encodings/__init__.py").isFile &&
-            File(dir, "lib/python3.14/site-packages/pip/__init__.py").isFile &&
+        fun valid(dir: File) = File(dir, "lib/python3.13/encodings/__init__.py").isFile &&
+            File(dir, "lib/python3.13/site-packages/pip/__init__.py").isFile &&
             File(dir, "npm/bin/npm-cli.js").isFile
         if (target.isDirectory) {
             check(valid(target)) { "开发环境数据已损坏，请重新安装应用" }

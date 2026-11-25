@@ -358,4 +358,4 @@
 - 仅在 Android 原生编译适配中将 Code Mode 默认开启，保留用户、项目及管理策略覆盖；保留现有 V8 沙箱、审批和任务边界，不启用 code_mode_only 或额外代理。真实 feature/list 回执、V8 启动及实际模型代码执行分别验收。
 - 本轮限定 Git HTTPS/curl、Python/pip、Node.js/npm、工具管理及远程执行；不纳入 SSH、JDK、C/C++、Go、Rust 编译工具链。工具必须使用 Android ABI、16 KiB 对齐和可执行的 APK 原生路径；未通过实际命令、依赖、网络、权限及包体积验收不得登记为完成。远端路径与本机共享工作区明确隔离。
 
-- 基础工具统一由 APK 签名发布；额外原生可执行文件与 Python/Node 数据采用 Android 原生构建和固定 SHA-256 依赖，复用系统根证书验证 HTTPS。私有运行数据按摘要版本安装，Python 用户依赖和 npm 全局依赖独立存放，避免更新覆盖。仅允许现有签名更新链路分发原生程序；禁止从可写目录直接执行下载的 ELF 或绕开 Android W^X。实际项目依赖需验证 Android ABI 与共享存储限制；缺少编译器的 native addon 交远端授权执行。
+- 新增工具仅使用公开发布的 Android 预编译版本。禁止新增 CPython、Node.js、curl、Git HTTPS 源码编译任务；APK 装配仅核验固定发行包及 SHA-256、精确提取 ABI、检查 ELF 与 16 KiB 对齐、依赖闭环和签名打包。ARM64 使用 VSCodroid 同版 Git/HTTPS helper；DSH 提供 Python/Node/npm，curl 使用 vvb2060 工具包，pip 使用固定 wheel。x86_64 暂沿用原本机 Git；不得代替 ARM64 HTTPS 真机验收。Git 对应源码及第三方许可未核验前不得正式发布。

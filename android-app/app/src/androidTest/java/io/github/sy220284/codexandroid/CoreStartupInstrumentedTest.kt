@@ -450,11 +450,9 @@ class CoreStartupInstrumentedTest {
         val tools = NativeToolInstaller.prepare(app)
         val command = """set -e
             git --version
-            git --exec-path
-            test -x "$(command -v git-remote-https)"
             curl --version
             python3 -c 'import ssl, sqlite3, json; assert json.loads("42") == 42'
-            pip --version
+            python3 -m pip --version
             node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
             npm --version
             printf developer-runtime-ok
@@ -463,7 +461,7 @@ class CoreStartupInstrumentedTest {
             .directory(WorkspaceStorage.root(app)).redirectErrorStream(true)
             .apply { DeveloperRuntime.configure(app, tools, environment()) }.start()
         try {
-            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, TimeUnit.SECONDS))
+            org.junit.Assert.assertTrue("Developer tools timed out", process.waitFor(90, java.util.concurrent.TimeUnit.SECONDS))
             val output = process.inputStream.bufferedReader().readText()
             assertEquals(output, 0, process.exitValue())
             org.junit.Assert.assertTrue(output, output.contains("developer-runtime-ok"))

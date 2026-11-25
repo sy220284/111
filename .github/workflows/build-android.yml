@@ -9,6 +9,7 @@ on:
       - "android-app/settings.gradle.kts"
       - "android-app/gradle.properties"
       - "android-app/tools/package_native_runtime.sh"
+      - "android-app/tools/prepare_prebuilt_developer_runtime.py"
       - ".github/scripts/prepare-android-patcher.sh"
       - ".github/scripts/create-android-update-fixture.sh"
       - ".github/scripts/audit_apk_contents.py"

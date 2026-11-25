@@ -19,6 +19,10 @@ printf '[]\n' > "$APKS_JSON"
 for ABI in arm64-v8a; do
   INPUT="$APK_DIR/app-$ABI-release.apk"
   test -s "$INPUT"
+  if unzip -p "$INPUT" assets/development-runtime/development-runtime.provenance.json | jq -e '.gitHttps == true and .gitCorrespondingSourceVerified != true' >/dev/null; then
+    echo "::error::预编译 Git 对应源码尚未核验，禁止正式发布" >&2
+    exit 1
+  fi
   ASSET="codex-android-$ABI-$RELEASE_VERSION.apk"
   cp "$INPUT" "$OUT/$ASSET"
   SIZE="$(stat -c '%s' "$OUT/$ASSET")"
