@@ -360,38 +360,38 @@ fun CodexChoiceSheet(
                     CodexIcon(CodexGlyph.Close, contentDescription = "关闭选择面板")
                 }
             }
-            Spacer(Modifier.height(5.dp))
-            Text(description, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            if (recoveryLabel != null && onRecovery != null) {
-                Spacer(Modifier.height(12.dp))
-                CodexNotice(
-                    recoveryMessage, NoticeTone.Warning,
-                    actionLabel = recoveryLabel, onAction = onRecovery
-                )
-            }
-            Spacer(Modifier.height(12.dp))
-            extraContent?.invoke(this)
-            if (searchable && choices.size > 1) {
-                AtlasSearchField(query, { query = it }, searchPlaceholder,
-                    modifier = Modifier.testTag("choice-search"), onClear = { query = "" })
-                Spacer(Modifier.height(8.dp))
-            }
-            if (loading) AtlasOperationProgress("正在读取可用选项")
-            if (choices.isEmpty()) {
-                if (!loading) CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
-            } else if (visible.isEmpty()) {
-                CodexEmptyState("没有匹配的选项", "修改搜索词或查看全部。",
-                    actionLabel = "清除搜索", onAction = { query = "" })
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().weight(1f, fill = false).selectableGroup(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(visible, key = { it.id }) { choice ->
-                        AtlasChoiceRow(choice.title, choice.description, choice.id == selectedId,
-                            onClick = { onSelect(choice.id) }, enabled = enabled,
-                            modifier = Modifier.testTag("choice-option-" + choice.id))
+            // The description, recovery action, optional controls and choices share
+            // one scrolling body. Only the close control is pinned.
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
+                    .selectableGroup().testTag("choice-scroll-body"),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item(key = "choice-context", contentType = "context") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (description.isNotBlank()) Text(description, color = Ink.muted,
+                            style = MaterialTheme.typography.bodyMedium)
+                        if (recoveryLabel != null && onRecovery != null) {
+                            CodexNotice(recoveryMessage, NoticeTone.Warning,
+                                actionLabel = recoveryLabel, onAction = onRecovery)
+                        }
+                        extraContent?.invoke(this)
+                        if (searchable && choices.size > 1) {
+                            AtlasSearchField(query, { query = it }, searchPlaceholder,
+                                modifier = Modifier.testTag("choice-search"), onClear = { query = "" })
+                        }
+                        if (loading) AtlasOperationProgress("正在读取可用选项")
+                        if (choices.isEmpty() && !loading)
+                            CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
+                        else if (choices.isNotEmpty() && visible.isEmpty())
+                            CodexEmptyState("没有匹配的选项", "修改搜索词或查看全部。",
+                                actionLabel = "清除搜索", onAction = { query = "" })
                     }
+                }
+                items(visible, key = { "choice-item-" + it.id }, contentType = { "choice" }) { choice ->
+                    AtlasChoiceRow(choice.title, choice.description, choice.id == selectedId,
+                        onClick = { onSelect(choice.id) }, enabled = enabled,
+                        modifier = Modifier.testTag("choice-option-" + choice.id))
                 }
             }
             Spacer(Modifier.height(20.dp))

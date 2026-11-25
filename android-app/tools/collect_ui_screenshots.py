@@ -13,7 +13,24 @@ import zlib
 import json
 import re
 
-REQUIRED_SCREENS = """sidebar chat settings-hub terminal-sheet attachment-sheet engine-status model-sheet account appearance mode-sheet terminal-confirm evidence-sheet thread-library thread-full-search account-usage account-limits workspace-files chat-toolbar chat-keyboard-open diff-reader plugins account-sessions plugin-search audit-providers audit-skills audit-apps audit-mcp audit-environments audit-security-selection audit-config audit-diagnostics audit-queue audit-approvals audit-conversation-approval audit-provider-editor audit-config-editor audit-environment-editor audit-security-profiles audit-about audit-permission-request audit-thread-context audit-thread-history audit-advanced-timeline audit-thread-attachments audit-review-sheet audit-goals-sheet audit-mcp-elicitation audit-mcp-usable-directory audit-mcp-chatgpt-available audit-mcp-service-boundary audit-plugin-detail audit-sidebar-thread audit-sidebar-filtered audit-composer-running audit-composer-edit audit-rtl-200font-bulk audit-backup-background-block audit-backup-in-progress audit-attachment-preview audit-message-menu audit-file-editor audit-update-progress audit-full-text-match audit-models audit-personalization audit-context audit-tools engine-settings-editor""".split()
+MANIFEST_PATH = Path(__file__).resolve().parents[2] / "docs/ui-assets/素材接入清单.json"
+
+
+def required_screens(manifest):
+    screens = []
+    for entry in manifest["routes"]:
+        if not entry.get("screens"):
+            raise ValueError("路由缺少真实截图登记：" + entry["route"])
+        screens.extend(entry["screens"])
+    screens.extend(manifest["requiredStateScreens"])
+    if len(set(screens)) != len(screens):
+        raise ValueError("必检截图重复登记")
+    if any(not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", screen) for screen in screens):
+        raise ValueError("必检截图名称无效")
+    return screens
+
+
+REQUIRED_SCREENS = required_screens(json.loads(MANIFEST_PATH.read_text(encoding="utf-8")))
 OPTIONAL_SCREENS = ["audit-thread-history-transition"]
 DEVICE_ROOT = "/sdcard/Android/data/io.github.sy220284.codexandroid/files"
 DESTINATION = Path("ui-screenshots")

@@ -134,7 +134,12 @@ def audit(root):
     if set(listed) != route_ids or len(set(listed)) != len(listed):
         duplicates = sorted({route for route in listed if listed.count(route) > 1})
         errors.append("路由接入清单必须覆盖真实 AppNavigation 路由且无重复；新增未登记："+str(sorted(route_ids-set(listed)))+"；已删除仍登记："+str(sorted(set(listed)-route_ids))+"；重复："+str(duplicates))
+    declared_screens = []
     for entry in routes:
+        screens = entry.get("screens", [])
+        if not screens:
+            errors.append("路由缺少真实设备截图登记："+entry["route"])
+        declared_screens.extend(screens)
         for file in entry["sources"]:
             if file not in sources:
                 errors.append("缺少路由源文件："+entry["route"]+":"+file)
@@ -142,6 +147,11 @@ def audit(root):
             errors.append("缺少业务或验收声明："+entry["route"])
         for test in entry["tests"]:
             test_ref(test)
+    declared_screens.extend(manifest.get("requiredStateScreens", []))
+    if len(declared_screens) != len(set(declared_screens)):
+        errors.append("必检设备截图重复登记")
+    if any(not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", screen) for screen in declared_screens):
+        errors.append("必检设备截图名称不合法")
     def business_for(files):
         result = [x["title"]+"："+x["business"] for x in routes if set(x["sources"]) & set(files)]
         if "AppNavigation" in files:

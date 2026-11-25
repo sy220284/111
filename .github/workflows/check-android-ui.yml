@@ -254,6 +254,7 @@ jobs:
             /android-app/tools/collect_ui_screenshots.py
             /android-app/tools/run_ui_device_checks.py
             /android-app/tools/verify_self_update_open.py
+            /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
       - name: 取回 UI APK
         uses: actions/download-artifact@v4

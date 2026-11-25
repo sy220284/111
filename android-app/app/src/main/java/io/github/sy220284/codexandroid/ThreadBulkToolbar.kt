@@ -71,28 +71,33 @@ internal fun ThreadBulkToolbar(
                         CodexIcon(CodexGlyph.Check, contentDescription = "完成选择")
                     }
                 }
-                CodexSecondaryButton(
-                    onClick = { onAction(if (archived) "unarchive" else "archive") },
-                    enabled = allowAction,
-                    modifier = Modifier.fillMaxWidth().testTag("thread-bulk-archive")
-                        .explainDisabled(!allowAction,
-                            if (!enabled) "批量操作暂不可用" else "请先选择会话")
-                ) {
-                    CodexIcon(if (archived) CodexGlyph.Unarchive else CodexGlyph.Archive, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text(archiveLabel)
-                }
-                CodexTextAction(
-                    onClick = { onAction("delete") }, enabled = allowAction,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                        .testTag("thread-bulk-delete")
-                        .explainDisabled(!allowAction, if (!enabled)
-                            "批量操作暂不可用" else "请先选择需要删除的会话")
-                ) {
-                    CodexIcon(CodexGlyph.DeleteOutline, null, tint = Ink.red)
-                    Spacer(Modifier.width(8.dp))
-                    Text("永久删除", color = Ink.red)
-                }
+                CodexAdaptiveActions(
+                    first = { actionModifier ->
+                        CodexSecondaryButton(
+                            onClick = { onAction(if (archived) "unarchive" else "archive") },
+                            enabled = allowAction,
+                            modifier = actionModifier.testTag("thread-bulk-archive")
+                                .explainDisabled(!allowAction,
+                                    if (!enabled) "批量操作暂不可用" else "请先选择会话")
+                        ) {
+                            CodexIcon(if (archived) CodexGlyph.Unarchive else CodexGlyph.Archive, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(archiveLabel)
+                        }
+                    },
+                    second = { actionModifier ->
+                        CodexTextAction(
+                            onClick = { onAction("delete") }, enabled = allowAction,
+                            modifier = actionModifier.testTag("thread-bulk-delete")
+                                .explainDisabled(!allowAction, if (!enabled)
+                                    "批量操作暂不可用" else "请先选择需要删除的会话")
+                        ) {
+                            CodexIcon(CodexGlyph.DeleteOutline, null, tint = Ink.red)
+                            Spacer(Modifier.width(8.dp))
+                            Text("永久删除", color = Ink.red)
+                        }
+                    }
+                )
             }
         } else {
             Row(

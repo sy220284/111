@@ -21,6 +21,37 @@ import org.junit.Test
 class CodexInteractionComponentsInstrumentedTest {
     @get:Rule val rule = createComposeRule()
 
+    @Test fun adaptiveActionsKeepLabelsAndCallbacksAtDoubleFontScale() {
+        val chosen = mutableListOf<String>()
+        rule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 2f)) {
+                CodexTheme {
+                    Box(Modifier.width(280.dp)) {
+                        CodexAdaptiveActions(
+                            first = { modifier ->
+                                CodexSecondaryButton(onClick = { chosen.add("first") },
+                                    modifier = modifier.testTag("adaptive-action-first")) { Text("保存并继续") }
+                            },
+                            second = { modifier ->
+                                CodexSecondaryButton(onClick = { chosen.add("second") },
+                                    modifier = modifier.testTag("adaptive-action-second")) { Text("复制执行详情") }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        val first = rule.onNodeWithTag("adaptive-action-first").assertIsDisplayed()
+        val second = rule.onNodeWithTag("adaptive-action-second").assertIsDisplayed()
+        val firstBounds = first.fetchSemanticsNode().boundsInRoot
+        val secondBounds = second.fetchSemanticsNode().boundsInRoot
+        org.junit.Assert.assertTrue(secondBounds.top >= firstBounds.bottom)
+        first.performClick()
+        second.performClick()
+        rule.runOnIdle { org.junit.Assert.assertEquals(listOf("first", "second"), chosen) }
+    }
+
     @Test fun asynchronousUiStateCancelsOldOwnerAndPublishesOnMain() {
         val request = mutableStateOf("old")
         val started = kotlinx.coroutines.CompletableDeferred<Unit>()
