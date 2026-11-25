@@ -39,6 +39,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val recoveryDelay by vm.recoveryDelayMs.collectAsState()
     val conversation by vm.conversationState.collectProjection { it.header }
     val thread = conversation.threadId
+    val remote = conversation.remote
     val realtimeVoice = remember(vm, thread) { thread?.let { RealtimeVoiceController(vm, it) } }
     var voiceOpen by remember(thread) { mutableStateOf(false) }
     val busy = conversation.running
@@ -66,7 +67,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val agentWorkspace by vm.agentDraftWorkspace.collectAsState()
     val agentOwner = ThreadComposerDrafts.agentKey(selectedWorkspace)
     val agentDraft = thread == null && agentWorkspace == selectedWorkspace
-    val draftOwner = if (agentDraft) agentOwner else ThreadComposerDrafts.key(thread, selectedWorkspace)
+    val draftOwner = if (remote != null) vm.composerOwner(thread, selectedWorkspace) else if (agentDraft) agentOwner else ThreadComposerDrafts.key(thread, selectedWorkspace)
     val composerDrafts by vm.composerDrafts.collectEntries(draftOwner, agentOwner)
     val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()
     val draft = snapshot.text
@@ -351,9 +352,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             val tools = buildList {
                 add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
-                add(ComposerShortcut("project", "当前项目 · " + PresentationPolicy.workspaceName(selectedWorkspace),
-                    "切换手机工作区中的项目与目录", CodexGlyph.Folder, enabled = optionsEnabled,
-                    onOpen = { keyboard?.hide(); composerMenu = "projects" }))
+                add(ComposerShortcut("project", if (remote == null) "当前项目 · " + PresentationPolicy.workspaceName(selectedWorkspace) else "执行设备 · " + remote.id,
+                    if (remote == null) "切换手机工作区中的项目与目录" else "查看远端运行环境", CodexGlyph.Folder, enabled = optionsEnabled,
+                    onOpen = { keyboard?.hide(); if (remote == null) composerMenu = "projects" else navigate("environments") }))
                 add(ComposerShortcut("terminal", "项目终端", "打开实际命令输入", CodexGlyph.Terminal,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("terminal") }))
                 add(ComposerShortcut("model", "选择模型", "运行模型和思考强度", CodexGlyph.Memory,
@@ -437,7 +438,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }) else null,
                 voiceEnabled = !switching && !transferBusy && !attachmentBusy && !documentBusy,
                 imageImporting = attachmentBusy || documentBusy,
-                onAddContent = { composerMenu = "add" },
+                onAddContent = { if (remote == null) composerMenu = "add" else vm.actionFeedback.tryEmit(ActionFeedbackReceipt("远端任务请直接描述远端文件路径，手机附件不会自动传输")) },
                 compactControls = compactWorkArea,
                 modelLabel = (if (busy) "下轮 · " else "") +
                     (ComposerModelPolicy.model(availableModels, shownModel)
@@ -451,9 +452,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 onModel = { composerMenu = "models" },
                 onMode = { composerMenu = "modes" },
                 onTaskOptions = { composerMenu = "tools" },
-                onReference = { query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" },
+                onReference = if (remote == null) ({ query -> referenceQuery = query; keyboard?.hide(); composerMenu = "reference" }) else null,
                 statusContent = {
-                    if (thread == null && (agentDraft || composerDrafts[agentOwner]?.hasInput == true)) {
+                    if (remote != null) Text("远端 · " + remote.id + " · " + remote.cwd, color = Ink.muted, style = MaterialTheme.typography.labelSmall, maxLines = 1, modifier = Modifier.testTag("remote-task-context"))
+                    if (thread == null && remote == null && (agentDraft || composerDrafts[agentOwner]?.hasInput == true)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                             Text(if (agentDraft) "配置任务草稿" else "另有配置任务草稿",
                                 modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelMedium, color = Ink.muted)

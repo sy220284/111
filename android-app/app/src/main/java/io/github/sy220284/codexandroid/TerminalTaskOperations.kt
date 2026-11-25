@@ -22,6 +22,10 @@ internal class TerminalTaskOperations(
 
     /** Terminal commands are always launched from an explicitly confirmed UI action. */
     fun startTerminalCommand(command: String, tty: Boolean = false) {
+        if (vm.conversationState.value.remote != null) {
+            errors.value = errors.value + ("terminal" to "当前为远端任务，请在对话中交给远端智能体执行命令")
+            return
+        }
         if (!vm.globalWorkSnapshot().canStartNewTask) {
             errors.value = errors.value + ("terminal" to
                 "本机数据正在备份或恢复，完成后再执行终端命令")

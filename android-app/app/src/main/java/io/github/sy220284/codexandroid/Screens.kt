@@ -40,6 +40,28 @@ import org.json.JSONObject
 
 @Composable
 fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
+    val remote by vm.conversationState.collectProjection { it.remote }
+    val localTerminalRunning by vm.terminalSession.collectProjection { it.running }
+    if (remote != null && (id == "files" || (id == "terminal" && !localTerminalRunning))) {
+        val binding = requireNotNull(remote)
+        ScreenColumn {
+            SectionIntro(if (id == "files") "远端工作区" else "远端命令", "当前任务执行于 " + binding.id)
+            Text(binding.cwd, color = Ink.muted)
+            CodexNotice("由当前智能体在已绑定的执行环境中处理。手机文件和本机终端保持独立。", NoticeTone.Info)
+            CodexPrimaryButton(onClick = {
+                if (id == "files") {
+                    val owner = vm.composerOwner(vm.activeThread.value)
+                    val draft = vm.composerDrafts.value[owner]?.text.orEmpty()
+                    vm.editComposerText(owner, listOf(draft, "请查看当前远端工作目录的文件，并列出目录内容。").filter { it.isNotBlank() }.joinToString("\n"))
+                }
+                navigate("chat")
+            }, modifier = Modifier.fillMaxWidth()) { Text(if (id == "files") "让智能体查看目录" else "在当前任务中输入远端命令") }
+            CodexSecondaryButton(onClick = { vm.newThread(); navigate("chat") }, modifier = Modifier.fillMaxWidth()) {
+                Text("新建手机本机任务")
+            }
+        }
+        return
+    }
     when (id) {
         "settings" -> SettingsHubPage(vm, navigate)
         "chat" -> ConversationPage(vm, navigate)
@@ -55,7 +77,7 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
         "modes" -> CollaborationModesPage(vm)
         "apps" -> ConnectedAppsPage(vm, navigate)
         "mcp" -> McpServicesPage(vm, navigate)
-        "environments" -> EnvironmentsPage(vm)
+        "environments" -> EnvironmentsPage(vm) { navigate("chat") }
         "diagnostics" -> EngineDiagnosticsPage(vm)
         "usage", "limits" -> AccountMetricsPage(id, vm, navigate)
         "account" -> AccountPage(vm, navigate)

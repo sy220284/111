@@ -42,7 +42,7 @@ internal fun DeveloperToolStatus(vm: CodexViewModel) {
         CodexSecondaryButton(onClick = {
             vm.refresh(key, "command/exec", JSONObject()
                 .put("command", JSONArray().put("/system/bin/sh").put("-c").put(script))
-                .put("cwd", vm.activeWorkspace.value)
+                .put("cwd", vm.workingDirectory)
                 .put("timeoutMs", 30000)
                 .put("sandboxPolicy", JSONObject().put("type", "externalSandbox").put("networkAccess", "restricted")))
         }, enabled = engine == EngineStatus.Connected && key !in loading,

@@ -58,6 +58,10 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
 
     fun retry(id: String, turnId: String, allowCurrentFiles: Boolean = false) = with(vm) {
         if (!available(id) || turnId.isBlank()) return@with
+        if (remoteBindings.forThread(id) != null) {
+            errors.value = errors.value + ("conversation" to "远端任务暂不支持基于手机文件快照重新回答；请发送新的修订指令")
+            return@with
+        }
         if (answerVersions.state.value.members(id).any { it != id && (it in threadExecutions.value || "retry:$it" in loading.value) }) {
             errors.value = errors.value + ("conversation" to "其他回答版本仍在执行，请完成后再重新回答")
             return@with
@@ -159,6 +163,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
             var dispatched = false
             try {
                 CodexForegroundService.startAndAwaitReady(getApplication<Application>())
+                remoteBindings.forThread(id)?.let { ensureRemoteThread(id, it) }
                 dispatched = true
                 val response = execute()
                 if (method == "review/start" || method == "turn/start") {

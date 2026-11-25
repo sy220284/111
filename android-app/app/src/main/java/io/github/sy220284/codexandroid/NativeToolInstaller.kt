@@ -9,7 +9,7 @@ import java.nio.file.LinkOption
 object NativeToolInstaller {
     fun prepare(context: Context): File {
         val nativeDir = File(context.applicationInfo.nativeLibraryDir).canonicalFile
-        val tools = File(context.filesDir, "native-tools").apply { mkdirs() }
+        val tools = File(context.filesDir, "native-tools")
         val required = linkedMapOf(
             "rg" to "libcodex_rg.so", "git" to "libcodex_git.so",
             "curl" to "libcodex_curl.so", "python" to "libpython3.so",
@@ -19,6 +19,9 @@ object NativeToolInstaller {
             required["git-remote-http"] = "libcodex_git_remote_http.so"
             required["git-remote-https"] = "libcodex_git_remote_http.so"
         }
+        if (Files.isSymbolicLink(tools.toPath()) || (tools.exists() && (!tools.isDirectory ||
+                tools.list()?.any { it !in required } != false))) RuntimePayloadIntegrity.removeTree(tools)
+        check(tools.isDirectory || tools.mkdirs()) { "无法建立本机工具目录" }
         required.forEach { (name, library) ->
             val executable = File(nativeDir, library)
             require(executable.isFile) {

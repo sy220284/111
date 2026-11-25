@@ -25,7 +25,17 @@ internal class WorkspaceTaskOperations(
     private fun sendPrompt(prompt: String) = vm.sendPrompt(prompt)
 
     /** Resume by the official cwd override; require the server to confirm the real path. */
-    suspend fun resumeDirectory(id: String, oldCwd: String, projectId: String): File {
+    suspend fun resumeDirectory(id: String, oldCwd: String, projectId: String, remote: RemoteExecutionBinding? = null): File {
+        if (remote != null) {
+            val selected = WorkspaceSelectionContract.validate(workspaceRoot, workspaceRoot)
+            val epoch = requireNotNull(bridge.connectedSession.value)
+            vm.remoteBindings.ready(remote) { method, params -> bridge.request(method, params, expectedSession = epoch) }
+            // Do not override cwd on a loaded remote thread: doing so resets sticky environments.
+            bridge.request("thread/resume", org.json.JSONObject().put("threadId", id).put("excludeTurns", true),
+                expectedSession = epoch)
+            vm.ensureRemoteThread(id, remote, id in vm.threadExecutions.value)
+            return selected
+        }
         val selected = WorkspaceSelectionContract.validate(workspaceRoot,
             File(WorkspaceStorage.remap(vm.getApplication(), oldCwd)))
         relocateProject(projectId)

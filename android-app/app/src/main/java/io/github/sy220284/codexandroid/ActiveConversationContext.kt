@@ -16,12 +16,13 @@ data class ActiveConversationContext(
     val running: Boolean = false,
     val timeline: List<TimelineItem> = emptyList(),
     val diff: String = "",
-    val modelProvider: String? = null
+    val modelProvider: String? = null,
+    val remote: RemoteExecutionBinding? = null
 ) {
-    val header get() = ConversationHeader(workspace, threadId, turnId, running, diff)
+    val header get() = ConversationHeader(workspace, threadId, turnId, running, diff, remote)
 }
 data class ConversationHeader(val workspace: String, val threadId: String?, val turnId: String?,
-    val running: Boolean, val diff: String)
+    val running: Boolean, val diff: String, val remote: RemoteExecutionBinding? = null)
 
 /** Narrow observation of the same source, with synchronous reads and atomic updates. */
 class ConversationField<T> internal constructor(

@@ -54,6 +54,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
     viewModelScope.launch {
         var dispatched = false
         try {
+            remoteBindings.forThread(thread)?.requireTextOnly(draft.images, draft.references)
             ComposerInputPolicy.validate(draft.images, draft.references, LocalImageAttachments.directory(getApplication()), File(workspace))
             if (queue) {
                 check(threadExecutions.value[thread]?.turnId == turn && thread in threadExecutions.value) {
@@ -137,6 +138,7 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
                 bridge.status.value == EngineStatus.Connected && !connectionRestarter.busy.value) {
                 "运行核心状态已变化，请重新启动队列"
             }
+            remoteBindings.forThread(threadId)?.let { ensureRemoteThread(threadId, it) }
             dispatched = true
             val response = bridge.request("thread/queue/start", params)
             val turnId = response.optJSONObject("turn")?.optString("id").orEmpty()

@@ -53,7 +53,7 @@ internal object ExecutionEnvironmentConnectionPolicy {
  * Remote environments use the existing official environment/add, info and status RPCs.
  */
 @Composable
-fun EnvironmentsPage(vm: CodexViewModel) {
+fun EnvironmentsPage(vm: CodexViewModel, onRemoteTask: () -> Unit = {}) {
     val results by vm.data.collectAsState()
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
@@ -75,7 +75,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     var queriedEnvironment by remember(session, targetId, endpoint) { mutableStateOf<String?>(null) }
     var lastSubmittedRemote by remember(session, targetId, endpoint) { mutableStateOf<String?>(null) }
     val canConnect = ExecutionEnvironmentConnectionPolicy.supportsRemoteName(remoteName) &&
-        ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint)
+        ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint) && vm.remoteBindings.permitsRegistration(remoteName.trim(), endpoint.trim())
     val statusKey = "envStatus:$session:$targetId"
     val infoKey = "envInfo:$session:$targetId"
     val addKey = "environmentAdd:$session:$targetId"
@@ -101,7 +101,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
         CodexSecondaryButton(onClick = { remoteControl = true },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("remote-control-entry")) { Text("远程控制与配对") }
         Text("执行环境", style = MaterialTheme.typography.titleLarge)
-        Text("本机任务使用手机工作区；外部设备可先验证连接。", color = Ink.muted)
+        Text("本机任务使用手机工作区；外部设备连接后可以建立独立远端任务。", color = Ink.muted)
         CodexSecondaryButton(
             onClick = {
                 editingField = null
@@ -116,7 +116,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text("在这台手机上执行", style = MaterialTheme.typography.titleMedium)
-                Text("使用应用私有工作区", style = MaterialTheme.typography.labelMedium,
+                Text("使用 Download/Codex 手机共享工作区", style = MaterialTheme.typography.labelMedium,
                     color = Ink.muted)
             }
             if (!useRemote) CodexIcon(CodexGlyph.TaskComplete, "已选择")
@@ -198,7 +198,22 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                         errors[infoKey] == null && errors[statusKey] == null)
                         CodexNotice("服务已登记，连接状态待核实。", NoticeTone.Info)
                 }
-                Text("当前仅验证外部服务；对话、文件和终端仍使用本机工作区。", color = Ink.muted,
+                if (!vm.remoteBindings.permitsRegistration(remoteName.trim(), endpoint.trim()))
+                    ErrorText("该连接名称已绑定历史任务，请使用原地址或选择新的名称。")
+                val binding = remember(targetId, endpoint, lastSubmittedRemote, results[infoKey], results[statusKey]) {
+                    if (lastSubmittedRemote == targetId && results[statusKey]?.optString("status") == "ready")
+                        runCatching { RemoteExecutionBinding(targetId, endpoint.trim(),
+                            RemoteExecutionBinding.nativePath(requireNotNull(results[infoKey]).getString("cwd"))) }.getOrNull()
+                    else null
+                }
+                if (binding != null) CodexPrimaryButton(onClick = {
+                    if (vm.openRemoteTask(binding)) onRemoteTask()
+                    else vm.errors.value = vm.errors.value + (addKey to "当前无法建立远端任务，请检查运行状态")
+                }, enabled = !writeBusy && editingField == null,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("remote-task-start")) {
+                    Text("在此设备新建任务")
+                }
+                Text("远端任务固定执行设备及工作目录。手机附件不会自动传输；远端文件及命令交由智能体处理。", color = Ink.muted,
                     style = MaterialTheme.typography.bodySmall)
             }
         }
