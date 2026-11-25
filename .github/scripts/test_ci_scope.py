@@ -24,7 +24,10 @@ class AndroidCIScopeTests(unittest.TestCase):
         contents = workflow("build-native-codex.yml")
         self.assertGreaterEqual(contents.count('"upstream/codex/codex-rs/**"'), 2)
         self.assertGreaterEqual(contents.count('"upstream/codex/.cargo/**"'), 2)
-        self.assertIn("--abis arm64-v8a", contents)
+        self.assertIn(\'--abis "$ABI"\', contents)
+        self.assertIn(\'"abi":"arm64-v8a"\', contents)
+        self.assertIn(\'"abi":"x86_64"\', contents)
+        self.assertIn("fromJSON(needs.reuse.outputs.matrix)", contents)
         self.assertIn('- ".github/workflows/build-android.yml"', contents)
         self.assertNotIn('--branch "${{ github.head_ref || github.ref_name }}"', contents)
 
@@ -57,6 +60,13 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertIn(":app:assembleDebug", build)
         self.assertIn(":app:assembleDebugAndroidTest", build)
         self.assertIn("test_native_reuse.py", ui)
+
+    def test_runtime_is_a_required_predecessor_of_phone_verification(self):
+        build = workflow("build-android.yml")
+        self.assertIn("needs: [build, runtime-test]", build)
+        self.assertIn("needs.runtime-test.result == 'success'", build)
+        self.assertIn("--abis x86_64", build)
+        self.assertIn("run-android-runtime-tests.sh", build)
 
     def test_stale_pr_native_checks_cannot_retrigger_latest_apk(self):
         native = workflow("build-native-codex.yml")

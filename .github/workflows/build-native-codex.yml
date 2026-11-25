@@ -56,6 +56,7 @@ jobs:
     timeout-minutes: 12
     outputs:
       reuse: ${{ steps.detect.outputs.reuse }}
+      matrix: ${{ steps.detect.outputs.matrix }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,25 +69,27 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          ABI_MATRIX_JSON: '[{"rust_target":"aarch64-linux-android","clang":"aarch64-linux-android29-clang","clangxx":"aarch64-linux-android29-clang++","abi":"arm64-v8a","elf_arch":"AArch64"},{"rust_target":"x86_64-linux-android","clang":"x86_64-linux-android29-clang","clangxx":"x86_64-linux-android29-clang++","abi":"x86_64","elf_arch":"X86-64"}]'
         run: |
           set -euo pipefail
-          RESULT=0
-          for ABI in arm64-v8a x86_64; do
-            ABI_RESULT=0
+          MISSING='[]'
+          for ABI in $(jq -r '.[].abi' <<< "$ABI_MATRIX_JSON"); do
+            RESULT=0
             python3 .github/scripts/select_native_artifacts.py \
               --repo "$GITHUB_REPOSITORY" --abis "$ABI" \
-              > "$RUNNER_TEMP/reused-native-$ABI" || ABI_RESULT=$?
-            if [ "$ABI_RESULT" -ne 0 ] && [ "$ABI_RESULT" -ne 3 ]; then exit "$ABI_RESULT"; fi
-            if [ "$ABI_RESULT" -eq 3 ]; then RESULT=3; fi
+              > "$RUNNER_TEMP/reused-native-$ABI" || RESULT=$?
+            case "$RESULT" in
+              0) echo "$ABI 复用已验证原生内核" ;;
+              3) MISSING="$(jq -c --arg abi "$ABI" --argjson missing "$MISSING" '$missing + map(select(.abi == $abi))' <<< "$ABI_MATRIX_JSON")" ;;
+              *) exit "$RESULT" ;;
+            esac
           done
-          if [ "$RESULT" -eq 0 ]; then
+          echo "matrix=$MISSING" >> "$GITHUB_OUTPUT"
+          if [ "$MISSING" = '[]' ]; then
             echo "reuse=true" >> "$GITHUB_OUTPUT"
-            echo "两种验收核心均有精确匹配产物，跳过 Rust/NDK 重编译"
-          elif [ "$RESULT" -eq 3 ]; then
-            echo "reuse=false" >> "$GITHUB_OUTPUT"
-            echo "源码、编译参数变更或可用产物缺失，启动原生编译"
           else
-            exit "$RESULT"
+            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            echo "只编译缺失或已改变的 ABI：$MISSING"
           fi
 
   native:
@@ -98,17 +101,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - rust_target: aarch64-linux-android
-            clang: aarch64-linux-android29-clang
-            clangxx: aarch64-linux-android29-clang++
-            abi: arm64-v8a
-            elf_arch: AArch64
-          - rust_target: x86_64-linux-android
-            clang: x86_64-linux-android29-clang
-            clangxx: x86_64-linux-android29-clang++
-            abi: x86_64
-            elf_arch: X86-64
+        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_BUILD_JOBS: "2"

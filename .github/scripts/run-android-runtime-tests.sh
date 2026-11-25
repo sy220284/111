@@ -25,7 +25,11 @@ run_suite() {
   local CLASS="$1" LOG="$2"
   adb shell am instrument -w -r -e class "$PKG.$CLASS" "$PKG.test/androidx.test.runner.AndroidJUnitRunner" | tee "$LOG"
   grep -Eq 'OK \([1-9][0-9]* tests?\)' "$LOG"
-  ! grep -Eq 'FAILURES!!!|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED' "$LOG"
+  if grep -Eq 'FAILURES!!!|INSTRUMENTATION_FAILED|INSTRUMENTATION_ABORTED' "$LOG"; then
+    echo "真实运行测试失败：$CLASS" >&2
+    exit 1
+  fi
+  grep -Fq 'INSTRUMENTATION_CODE: -1' "$LOG"
 }
 # No Activity-owned core may share the test core's isolated CODEX_HOME.
 run_suite CoreStartupInstrumentedTest "$OUT/core.log"

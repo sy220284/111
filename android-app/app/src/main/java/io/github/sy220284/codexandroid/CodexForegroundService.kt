@@ -16,6 +16,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
@@ -82,13 +83,21 @@ class CodexForegroundService : Service() {
                     protectedWork = ForegroundTaskPolicy.shouldKeepAlive(work)
                 )
             }.distinctUntilChanged().collectLatest { state ->
-                if (!state.protectedWork) stopSelf()
-                else showNotification(state, foreground = false)
+                if (!state.protectedWork) {
+                    // Keep promotion through short gaps between related requests.
+                    delay(1_000L)
+                    if (!session.globalWorkSnapshot().requiresForegroundProtection) {
+                        readiness.stopped()
+                        stopSelf()
+                    }
+                } else showNotification(state, foreground = false)
             }
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A new start can arrive during the previous idle stop handoff.
+        if (readiness.state.value == ForegroundStartState.Starting) readiness.ready()
         if (intent?.action == ACTION_STOP) {
             // A notification action is an explicit user request; use the same
             // thread/turn validation and RPC as the in-app stop control.

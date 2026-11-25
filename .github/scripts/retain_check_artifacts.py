@@ -7,7 +7,7 @@ import subprocess
 from collections import defaultdict
 from urllib.parse import quote
 
-from select_native_artifacts import ArtifactSelector
+from select_native_artifacts import ArtifactSelector, configured_abis
 
 CHECK_WORKFLOWS = {
     ".github/workflows/build-android.yml",
@@ -154,9 +154,9 @@ def main():
                                   capture_output=True).returncode:
                     break
                 recipe = selector.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-                required_abis = ["arm64-v8a"]
-                if re.search(r"(?m)^            abi: x86_64$", recipe):
-                    required_abis.append("x86_64")
+                required_abis = configured_abis(recipe)
+                if "arm64-v8a" not in required_abis:
+                    break
                 selected = [selector.find(repo, sha, [abi]) for abi in required_abis]
                 if not all(selected):
                     break
