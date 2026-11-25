@@ -20,6 +20,9 @@ internal object ExecutionEnvironmentConnectionPolicy {
         return uri.host + (if (uri.port > 0) "-${uri.port}" else "")
     }
 
+    fun resolvedName(endpoint: String, customName: String): String =
+        customName.trim().ifBlank { defaultName(endpoint) }
+
     fun supportsEndpoint(raw: String): Boolean {
         val uri = try {
             URI(raw.trim())
@@ -49,8 +52,12 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     LaunchedEffect(target) {
         if (target == "remote") useRemote = true
     }
-    var remoteName by rememberSaveable { mutableStateOf("") }
+    var customRemoteName by rememberSaveable { mutableStateOf("") }
     var endpoint by rememberSaveable { mutableStateOf("") }
+    val remoteName = ExecutionEnvironmentConnectionPolicy.resolvedName(endpoint, customRemoteName)
+    var editingField by rememberSaveable { mutableStateOf<String?>(null) }
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
     var queriedEnvironment by remember { mutableStateOf<String?>(null) }
     var lastSubmittedRemote by remember { mutableStateOf<String?>(null) }
@@ -81,7 +88,12 @@ fun EnvironmentsPage(vm: CodexViewModel) {
         Text("在哪里执行任务", style = MaterialTheme.typography.titleLarge)
         Text("先选择运行位置，外部设备采用逐步连接。", color = Ink.muted)
         CodexSecondaryButton(
-            onClick = { useRemote = false },
+            onClick = {
+                editingField = null
+                focus.clearFocus()
+                keyboard?.hide()
+                useRemote = false
+            },
             modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
                 .testTag("environment-local-option")
         ) {
@@ -114,12 +126,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 Text("连接外部执行服务", style = MaterialTheme.typography.titleMedium)
                 Text("需要预先在另一台设备部署兼容的执行服务，并获得连接地址。",
                     style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-                ActionQuestionRow(endpoint, { address ->
-                    val oldName = ExecutionEnvironmentConnectionPolicy.defaultName(endpoint)
-                    endpoint = address
-                    if (remoteName.isBlank() || remoteName == oldName)
-                        remoteName = ExecutionEnvironmentConnectionPolicy.defaultName(address)
-                }, "安全连接地址（WebSocket）",
+                ActionQuestionRow(endpoint, { endpoint = it.trim() }, "安全连接地址（WebSocket）",
                     placeholder = "wss://example.com/exec",
                     confirmedValid = endpoint.isNotBlank() && ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint),
                     helper = "使用 wss:// 加密连接；本机回环地址可使用 ws://127.0.0.1",
@@ -128,10 +135,13 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
                     validate = { address -> if (address.isNotBlank() && !ExecutionEnvironmentConnectionPolicy.supportsEndpoint(address))
                         "连接地址格式不正确，或不符合安全连接要求。" else null },
-                    modifier = Modifier.testTag("environment-endpoint"))
-                if (remoteName.isNotBlank()) ActionQuestionRow(remoteName, { remoteName = it.trim().ifBlank { ExecutionEnvironmentConnectionPolicy.defaultName(endpoint) } },
-                    "连接名称", helper = "根据地址自动生成，可按需修改",
-                    placeholder = "例如：工作电脑", modifier = Modifier.testTag("environment-remote-name"))
+                    modifier = Modifier.testTag("environment-endpoint"), replyTag = "environment-address-reply",
+                    expanded = editingField == "address", onExpandedChange = { editingField = if (it) "address" else null })
+                if (remoteName.isNotBlank()) ActionQuestionRow(remoteName, { customRemoteName = it.trim() },
+                    "连接名称", helper = "根据地址自动生成，可按需修改；留空恢复自动名称",
+                    placeholder = "例如：工作电脑", modifier = Modifier.testTag("environment-remote-name"),
+                    replyTag = "environment-name-reply", expanded = editingField == "name",
+                    onExpandedChange = { editingField = if (it) "name" else null })
                 CodexSecondaryButton(
                     onClick = {
                         val id = remoteName.trim()
@@ -143,7 +153,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                             JSONObject().put("environmentId", id).put("execServerUrl", url),
                             after = { checkEnvironment(id) })
                     },
-                    enabled = canConnect && !writeBusy,
+                    enabled = canConnect && !writeBusy && editingField == null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("environment-connect")
                 ) {

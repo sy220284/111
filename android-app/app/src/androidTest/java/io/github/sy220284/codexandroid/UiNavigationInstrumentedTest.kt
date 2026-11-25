@@ -647,10 +647,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-backup").assertExists()
     }
 
-    @Test fun settingsSearchOpensUnifiedAccountMetrics() {
+    @Test fun settingsOpensUnifiedAccountMetricsAndSwitchesQuotaTab() {
         openSettingRoute("usage")
         rule.onNodeWithTag("screen-title").assertTextEquals("用量与额度")
+        rule.onNodeWithTag("account-metrics-tab-usage").assertIsSelected()
+        rule.onNodeWithText("账号使用概况").assertExists()
+        rule.onNodeWithTag("account-metrics-tab-limits").performClick().assertIsSelected()
         rule.onNodeWithText("额度窗口").assertExists()
+        rule.onNodeWithTag("account-metrics-tab-usage").performClick().assertIsSelected()
+        rule.onNodeWithText("账号使用概况").assertExists()
     }
 
     @Test fun settingsGroupsAndInlineAppearanceAndUpdate() {
@@ -896,11 +901,13 @@ class UiNavigationInstrumentedTest {
         captureOverlay("account-sessions-android35.png")
     }
 
-    @Test fun pluginDiscoveryCanOpenSearchWithoutInventedResults() {
+    @Test fun pluginDiscoveryUsesClipboardWithoutSearchField() {
         openSettingRoute("plugins")
-        rule.onNodeWithTag("plugins-tab-catalog").performClick()
-        rule.onNodeWithTag("plugins-clipboard-query").assertExists()
-        rule.onNodeWithText("插件名称或关键字").assertExists()
+        rule.onNodeWithTag("plugins-tab-catalog").performClick().assertIsSelected()
+        rule.onNodeWithTag("plugins-clipboard-query").performScrollTo().assertIsDisplayed()
+            .assertTextContains("使用剪贴板发现插件")
+        rule.onNodeWithText("插件名称或关键字").assertDoesNotExist()
+        rule.onAllNodes(hasSetTextAction()).assertCountEquals(0)
         capture("plugin-search-android35.png")
     }
 
@@ -1204,17 +1211,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").assertExists()
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
         rule.onNodeWithTag("environment-endpoint").performScrollTo().assertIsDisplayed().performClick()
-        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("action-reply-input").fetchSemanticsNodes().isNotEmpty() }
-        rule.onNodeWithTag("action-reply-input").performScrollTo().performTextInput("wss://example.com/exec")
-        rule.onNodeWithTag("action-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://example.com/exec")
+        rule.onNodeWithTag("environment-address-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
         rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-remote-name").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com", substring = true)
         rule.onNodeWithTag("environment-remote-name").performScrollTo().assertIsDisplayed().performClick()
-        rule.waitUntil(5_000L) {
-            rule.onAllNodesWithTag("action-reply-input").fetchSemanticsNodes().isNotEmpty()
-        }
-        rule.onNodeWithTag("action-reply-input").performTextReplacement("工作电脑")
-        rule.onNodeWithTag("action-reply-send").performClick()
+        rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
+        rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("工作电脑")
+        rule.onNodeWithTag("environment-name-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
 
         rule.onNodeWithTag("environment-local-option").performScrollTo().performClick()
@@ -1223,6 +1228,21 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
         rule.onNodeWithTag("environment-endpoint").assertTextContains("wss://example.com/exec")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
+        // Editing the address must not overwrite a user-chosen name.
+        rule.onNodeWithTag("environment-endpoint").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://other.example/exec")
+        rule.onNodeWithTag("environment-address-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
+        // Cancel keeps the existing name; explicitly clearing it restores the derived name.
+        rule.onNodeWithTag("environment-remote-name").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("临时名称")
+        rule.onNodeWithTag("environment-name-reply-cancel").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
+        rule.onNodeWithTag("environment-remote-name").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextClearance()
+        rule.onNodeWithTag("environment-name-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("other.example", substring = true)
+        rule.onNodeWithTag("environment-connect").assertIsEnabled()
     }
 
     @Test fun directlySelectableSecurityAndAboutViewsAreCaptured() {
