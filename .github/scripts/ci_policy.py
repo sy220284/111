@@ -36,7 +36,7 @@ def main():
     result = plan(changed(os.environ.get("CI_BASE", ""), os.environ["CI_HEAD"]),
                   os.environ.get("CI_FORCE") == "true", os.environ.get("CI_RUNTIME") == "true")
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
-        for key, value in {"device_matrix": json.dumps(matrix(), separators=(",", ":")), "device_api": CONFIG["api"], "device_release": CONFIG["android_release"], "device_target": CONFIG["target"], "device_ram": CONFIG["ram"]}.items():
+        for key, value in {"device_matrix": json.dumps(matrix(), separators=(",", ":")), "device_api": CONFIG["api"], "device_image_api": CONFIG["system_image_api"], "device_sdk_platform": CONFIG["sdk_platform"], "device_runtime_profile": CONFIG["runtime_profile"], "device_release": CONFIG["android_release"], "device_target": CONFIG["target"], "device_ram": CONFIG["ram"]}.items():
             print(f"{key}={value}", file=stream)
         for key in ("full", "runtime", "maintenance"):
             print(f"{key}={str(result[key]).lower()}", file=stream)

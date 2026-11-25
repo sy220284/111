@@ -30,6 +30,9 @@ jobs:
       runtime: ${{ steps.plan.outputs.runtime }}
       device_matrix: ${{ steps.plan.outputs.device_matrix }}
       device_api: ${{ steps.plan.outputs.device_api }}
+      device_image_api: ${{ steps.plan.outputs.device_image_api }}
+      device_sdk_platform: ${{ steps.plan.outputs.device_sdk_platform }}
+      device_runtime_profile: ${{ steps.plan.outputs.device_runtime_profile }}
       device_release: ${{ steps.plan.outputs.device_release }}
       device_target: ${{ steps.plan.outputs.device_target }}
       device_ram: ${{ steps.plan.outputs.device_ram }}
@@ -278,11 +281,12 @@ jobs:
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
       - name: 在真实 Android 环境验证侧栏导航并生成首页截图
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         env:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         with:
-          api-level: ${{ needs.plan.outputs.device_api }}
+          api-level: ${{ needs.plan.outputs.device_sdk_platform }}
+          system-image-api-level: ${{ needs.plan.outputs.device_image_api }}
           arch: x86_64
           target: ${{ needs.plan.outputs.device_target }}
           ram-size: ${{ needs.plan.outputs.device_ram }}
@@ -297,8 +301,8 @@ jobs:
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
             # Physical pixel resolution and logical density come from one device matrix.
             test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
-            adb shell wm size ${{ matrix.width_px }}x${{ matrix.height_px }}
-            adb shell wm density ${{ matrix.density_dpi }}
+            adb shell wm size reset
+            adb shell wm density reset
             adb shell settings put system font_scale 1.0
             # The emulator has a hardware keyboard. Explicitly allow the software IME,
             # otherwise performTextInput succeeds while keyboard screenshots are false positives.
@@ -487,15 +491,16 @@ jobs:
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
       - name: 执行真实内核启动、终端、回收与恢复
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
-          api-level: ${{ needs.plan.outputs.device_api }}
+          api-level: ${{ needs.plan.outputs.device_sdk_platform }}
+          system-image-api-level: ${{ needs.plan.outputs.device_image_api }}
           arch: x86_64
           target: ${{ needs.plan.outputs.device_target }}
           ram-size: ${{ needs.plan.outputs.device_ram }}
           disk-size: 8192M
           avd-name: test
-          pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd mainstream
+          pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd ${{ needs.plan.outputs.device_runtime_profile }}
           disable-animations: true
           emulator-boot-timeout: 1200
           script: bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence

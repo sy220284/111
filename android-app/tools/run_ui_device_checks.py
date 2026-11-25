@@ -73,11 +73,16 @@ def clear_device_screens():
         raise RuntimeError("Previous device screenshots were not cleared")
 
 
-def assert_device(spec):
+def assert_device(spec, physical_spec):
     size = adb("shell", "wm", "size")
     density = adb("shell", "wm", "density")
     actual_size = re.findall(r"(?:Override|Physical) size: (\d+x\d+)", size)
     actual_density = re.findall(r"(?:Override|Physical) density: (\d+)", density)
+    physical_size = re.search(r"Physical size: (\d+x\d+)", size)
+    physical_density = re.search(r"Physical density: (\d+)", density)
+    expected_physical = f"{physical_spec['width_px']}x{physical_spec['height_px']}"
+    if not physical_size or physical_size[1] != expected_physical or not physical_density or int(physical_density[1]) != physical_spec["density_dpi"]:
+        raise RuntimeError("Physical AVD LCD resolution/density does not match baseline profile")
     api = int(adb("shell", "getprop", "ro.build.version.sdk"))
     release = adb("shell", "getprop", "ro.build.version.release")
     page_size = int(adb("shell", "getconf", "PAGESIZE"))
@@ -91,17 +96,20 @@ def assert_device(spec):
     if measured_font != float(spec["font_scale"]):
         raise RuntimeError("Device font scale does not match evidence label")
     return dict(spec, android_api=api, android_release=release, page_size=page_size,
+                physical_size=physical_size[1], physical_density_dpi=int(physical_density[1]),
                 width_dp=round(width * 160 / dpi, 2), height_dp=round(height * 160 / dpi, 2))
 
 
 def run_fresh_suite(profile, mode, log, destination):
-    measured = assert_device(dimensions(profile, mode))
+    measured = assert_device(dimensions(profile, mode), dimensions(profile, 'baseline'))
     measured.update(profile=profile, mode=mode)
     adb("shell", "am", "force-stop", PACKAGE)
     clear_device_screens()
     run_id = uuid.uuid4().hex
     started = time.time()
     result = execute_instrumentation(SUITE, log)
+    if result['tests'] < CONFIG['minimum_ui_tests']:
+        result.update(status='failed', evidence_category='ui_test_count_below_floor', minimum_ui_tests=CONFIG['minimum_ui_tests'])
     missing, code = collect_screens(destination)
     manifest = Path(destination) / "manifest.json"
     if manifest.is_file():

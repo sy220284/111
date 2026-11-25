@@ -11,6 +11,8 @@ RELEASE = CONFIG["android_release"]
 
 def dimensions(profile, mode):
     p = PROFILES[profile]
+    if mode not in ("baseline", "adaptive"):
+        raise ValueError(f"未知设备验收模式：{mode}")
     spec = p if mode == "baseline" else p["adaptive"]
     return {k: spec[k] for k in ("width_px", "height_px", "density_dpi")} | {
         "font_scale": 1.0 if mode == "baseline" else spec["font_scale"]}

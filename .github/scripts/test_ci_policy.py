@@ -20,6 +20,11 @@ class PolicyTests(unittest.TestCase):
             self.assertTrue(plan([path])["runtime"])
         self.assertFalse(plan(["android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt"])["runtime"])
 
+    def test_device_matrix_changes_require_real_core(self):
+        for path in ["android-app/tools/device-matrix.json", "android-app/tools/device_matrix.py", ".github/scripts/run-android-runtime-tests.sh"]:
+            self.assertTrue(plan([path])["runtime"])
+            self.assertTrue(plan([path])["full"])
+
     def test_runtime_forces_full(self):
         self.assertTrue(plan([], runtime=True)["full"])
         self.assertTrue(plan([], runtime=True)["runtime"])

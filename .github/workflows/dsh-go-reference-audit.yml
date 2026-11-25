@@ -82,18 +82,19 @@ jobs:
       - name: 读取统一测试设备规格
         id: device
         run: |
-          jq -r '"api=\(.api)\ntarget=\(.target)\nram=\(.ram)"' android-app/tools/device-matrix.json >> "$GITHUB_OUTPUT"
+          jq -r '"api=\(.api)\nimage_api=\(.system_image_api)\nsdk_platform=\(.sdk_platform)\nprofile=\(.runtime_profile)\ntarget=\(.target)\nram=\(.ram)"' android-app/tools/device-matrix.json >> "$GITHUB_OUTPUT"
           jq -r '.profiles[] | select(.self_update) | "size=\(.width_px)x\(.height_px)\ndensity=\(.density_dpi)"' android-app/tools/device-matrix.json >> "$GITHUB_OUTPUT"
       - name: 在统一 Android 测试系统中隔离安装并截图
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
-          api-level: ${{ steps.device.outputs.api }}
+          api-level: ${{ steps.device.outputs.sdk_platform }}
+          system-image-api-level: ${{ steps.device.outputs.image_api }}
           arch: x86_64
           target: ${{ steps.device.outputs.target }}
           ram-size: ${{ steps.device.outputs.ram }}
           disk-size: 8192M
           avd-name: test
-          pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd mainstream
+          pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd ${{ steps.device.outputs.profile }}
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |
