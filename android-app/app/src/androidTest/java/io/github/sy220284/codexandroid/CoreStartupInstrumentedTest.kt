@@ -347,6 +347,63 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val allowExitReceipt = java.util.concurrent.CountDownLatch(1)
+        val boundedWait = CompletableDeferred<Unit>()
+        var realChild: Process? = null
+        // Keep a real native child and its real pipes. Delay only the observed exit
+        // receipt to exercise the slow-retirement path deterministically.
+        val bridge = CodexConnection(app) { builder ->
+            val actual = builder.start().also { realChild = it }
+            object : Process() {
+                override fun getOutputStream() = actual.outputStream
+                override fun getInputStream() = actual.inputStream
+                override fun getErrorStream() = actual.errorStream
+                override fun exitValue() = actual.exitValue()
+                override fun isAlive() = actual.isAlive
+                override fun destroy() = actual.destroy()
+                override fun destroyForcibly(): Process {
+                    actual.destroyForcibly()
+                    return this
+                }
+                override fun waitFor(): Int {
+                    val exit = actual.waitFor()
+                    allowExitReceipt.await()
+                    return exit
+                }
+                override fun waitFor(timeout: Long, unit: TimeUnit): Boolean {
+                    boundedWait.complete(Unit)
+                    return false
+                }
+            }
+        }
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                org.junit.Assert.assertTrue(bridge.reserveRestart())
+                try {
+                    val close = async(Dispatchers.IO) { bridge.closeForRestart { true } }
+                    boundedWait.await()
+                    org.junit.Assert.assertNull("凭据变更不能先于旧内核退出确认",
+                        kotlinx.coroutines.withTimeoutOrNull(500L) { close.await(); true })
+                    org.junit.Assert.assertTrue(bridge.retirementBusy.value)
+                    allowExitReceipt.countDown()
+                    close.await()
+                    org.junit.Assert.assertFalse(checkNotNull(realChild).isAlive)
+                    org.junit.Assert.assertNull(bridge.connectedSession.value)
+                    org.junit.Assert.assertFalse(bridge.retirementBusy.value)
+                } finally {
+                    allowExitReceipt.countDown()
+                    bridge.releaseRestart()
+                }
+            }
+        } finally {
+            allowExitReceipt.countDown()
+            bridge.close()
+        }
+    }
+
     @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
