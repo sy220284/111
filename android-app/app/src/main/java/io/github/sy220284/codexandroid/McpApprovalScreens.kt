@@ -44,6 +44,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         McpElicitationContract.respond(params, "accept", answers.toMap())
     }.isSuccess
     val canSubmit = formValid || urlReady
+    var questionIndex by remember(prompt.id.toString()) { mutableIntStateOf(0) }
     var confirmation by remember(prompt.id.toString()) { mutableStateOf(false) }
 
     MaterialPanel(Modifier.fillMaxWidth()) {
@@ -61,8 +62,12 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         Text(params.optString("message").ifBlank { params.optString("title") },
             style = MaterialTheme.typography.bodyMedium)
         if (isForm && fields != null) {
-            for (name in fields.keys().asSequence().toList()) {
-                val field = fields.optJSONObject(name) ?: continue
+            val names = fields.keys().asSequence().toList()
+            val index = questionIndex.coerceIn(0, (names.size - 1).coerceAtLeast(0))
+            val name = names.getOrNull(index)
+            val field = name?.let(fields::optJSONObject)
+            if (name != null && field != null) {
+                Text("问题 ${index + 1} / ${names.size}", color = Ink.muted)
                 val type = field.optString("type")
                 val mandatory = (0 until required.length()).any { required.optString(it) == name }
                 val title = field.optString("title").ifBlank { name }
@@ -94,7 +99,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                 }
                             }
                         } else {
-                            CodexInputField(
+                            ActionReplyRow(
                                 value = answers[name] ?: "",
                                 onValueChange = { answers[name] = it },
                                 label = { Text(label) },
@@ -105,7 +110,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             )
                         }
                     }
-                    "integer", "number" -> CodexInputField(
+                    "integer", "number" -> ActionReplyRow(
                         value = answers[name] ?: "",
                         onValueChange = { answers[name] = it },
                         label = { Text(label) },
@@ -138,7 +143,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                 }
                             }
                         } else if (field.optJSONObject("items")?.optString("type") == "string") {
-                            CodexInputField(
+                            ActionReplyRow(
                                 value = multilineDrafts[name] ?: "",
                                 onValueChange = { input ->
                                     multilineDrafts[name] = input
@@ -150,7 +155,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                                 minLines = 2, maxLines = 6, modifier = Modifier.fillMaxWidth()
                             )
                         } else {
-                            CodexInputField(
+                            ActionReplyRow(
                                 value = answers[name] ?: "[]",
                                 onValueChange = { answers[name] = it },
                                 label = { Text("高级列表数据（JSON）") },
@@ -159,8 +164,12 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
                             )
                         }
                     }
-                    else -> Text("当前服务使用了尚未支持的表单字段，请联系服务提供方。", color = Ink.red)
+                    else -> Text("当前服务使用了尚未支持的问题回答，请联系服务提供方。", color = Ink.red)
                 }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                CodexTextAction(onClick = { questionIndex-- }, enabled = index > 0) { Text("上一个问题") }
+                CodexTextAction(onClick = { questionIndex++ }, enabled = index + 1 < names.size) { Text("下一个问题") }
             }
         } else if (kind == "url") {
             val link = params.optString("url")
@@ -180,7 +189,7 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             primary = if (isForm || urlReady) { modifier ->
                 CodexPrimaryButton(onClick = { confirmation = true }, enabled = canSubmit,
                     modifier = modifier.testTag("elicitation-submit")
-                        .explainDisabled(!canSubmit, "请填写必填项目并检查格式")) {
+                        .explainDisabled(!canSubmit, "请回答必需的问题")) {
                     Text("核对并提交")
                 }
             } else null,
@@ -196,14 +205,14 @@ fun McpElicitationRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
             }
         )
         if (isForm && !formValid) {
-            Text("填写完整并核对格式后，即可提交。",
+            Text("回答必需的问题后即可核对并提交。",
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
         }
     }
     if (confirmation) {
         CodexConfirmDialog(
             title = "向 MCP 服务提交确认",
-            message = if (kind == "url") "确认外部服务授权已完成。" else "即将提交已填写的表单字段。",
+            message = if (kind == "url") "确认外部服务授权已完成。" else "即将提交已填写的问题回答。",
             detail = "服务：" + params.optString("serverName") + "\n提交字段数：" + answers.size,
             confirmLabel = "确认提交",
             onConfirm = {

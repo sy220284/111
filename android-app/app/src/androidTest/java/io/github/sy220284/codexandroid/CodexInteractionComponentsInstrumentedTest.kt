@@ -425,7 +425,7 @@ class CodexInteractionComponentsInstrumentedTest {
             var address by remember { mutableStateOf("") }
             CodexTheme {
                 Column {
-                    AtlasFormField(address, { address = it }, "服务地址",
+                    ActionQuestionRow(address, { address = it }, "服务地址",
                         modifier = androidx.compose.ui.Modifier.testTag("test-service-address"),
                         error = if (address.isNotBlank() && !ProviderAddressPolicy.valid(address))
                             "请输入有效的 HTTP 或 HTTPS 地址" else null)
@@ -435,13 +435,40 @@ class CodexInteractionComponentsInstrumentedTest {
             }
         }
         rule.onNodeWithTag("test-save-address").assertIsNotEnabled()
-        rule.onNodeWithTag("test-service-address").performTextInput("not-an-address")
+        rule.onNodeWithTag("test-service-address").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextInput("not-an-address")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithText("请输入有效的 HTTP 或 HTTPS 地址").assertExists()
         rule.onNodeWithTag("test-save-address").assertIsNotEnabled()
-        rule.onNodeWithContentDescription("清除服务地址").performClick()
-        rule.onNodeWithTag("test-service-address").performTextInput("https://example.com/v1")
+        rule.onNodeWithTag("test-service-address").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextReplacement("https://example.com/v1")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithText("请输入有效的 HTTP 或 HTTPS 地址").assertDoesNotExist()
         rule.onNodeWithTag("test-save-address").assertIsEnabled()
+    }
+
+    @Test fun actionReplyCancellationPreservesOriginalValue() {
+        var committed = "原始名称"
+        rule.setContent {
+            var current by remember { mutableStateOf(committed) }
+            CodexTheme {
+                Column {
+                    ActionQuestionRow(current, { current = it; committed = it }, "名称",
+                        modifier = androidx.compose.ui.Modifier.testTag("reply-row"))
+                }
+            }
+        }
+        rule.onNodeWithTag("action-reply-input").assertDoesNotExist()
+        rule.onNodeWithTag("reply-row").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextReplacement("新名称")
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("reply-row").assertTextContains("原始名称")
+        rule.runOnIdle { org.junit.Assert.assertEquals("原始名称", committed) }
+        rule.onNodeWithTag("reply-row").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextReplacement("已确认名称")
+        rule.onNodeWithTag("action-reply-send").performClick()
+        rule.onNodeWithTag("reply-row").assertTextContains("已确认名称")
+        rule.runOnIdle { org.junit.Assert.assertEquals("已确认名称", committed) }
     }
 
     @Test fun attachmentPreviewSupportsZoomSwitchResetAndRemove() {

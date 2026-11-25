@@ -29,7 +29,8 @@ SHARED = {
     "CodexFilterChip": "CodexControlPrimitives", "CodexCheckBox": "CodexControlPrimitives",
     "CodexRadio": "CodexControlPrimitives", "CodexActivityIndicator": "CodexControlPrimitives",
     "AtlasExclusiveChip": "CodexControlPrimitives", "CodexSuggestionChip": "CodexControlPrimitives",
-    "AtlasFormField": "AtlasFormField", "AtlasSearchField": "AtlasInteractionComponents",
+    "ActionReplyRow": "ActionReply", "ActionQuestionRow": "ActionReply",
+    "ActionNumberStepper": "ActionReply", "AgentActionRow": "ActionReply", "AtlasSearchField": "AtlasInteractionComponents",
     "AtlasChoiceRow": "AtlasInteractionComponents", "AtlasCompactChoice": "AtlasInteractionComponents",
     "AtlasOperationProgress": "AtlasInteractionComponents",
 }
@@ -60,6 +61,16 @@ def audit(sources):
                     calls[name].append(location)
         if re.search(r"\bfun\s+WelcomeActionCard\s*\(", source):
             errors.append(f"{file}: 旧欢迎卡片已退役")
+        if re.search(r"\bAtlasFormField\s*\(", source):
+            errors.append(f"{file}: 配置表单已退役")
+        allowed_input = {"CodexControlPrimitives", "ActionReply", "AtlasInteractionComponents",
+            "ConversationComposer", "RealtimeVoiceSheet", "TerminalPage", "WorkspaceFileEditor", "EcosystemScreens"}
+        if file not in allowed_input and re.search(r"\bCodexInputField\s*\(", code):
+            errors.append(f"{file}: 非对话、编辑、搜索或密钥直接输入，改用动作组件")
+    if "EcosystemScreens" in sources:
+        provider_inputs = re.findall(r"\bCodexInputField\s*\(\s*(\w+)", sources["EcosystemScreens"])
+        if provider_inputs != ["customApiKey"]:
+            errors.append("EcosystemScreens: 服务商页面只保留密钥直接输入")
     for name, owner in SHARED.items():
         if not any(hit["file"] != owner for hit in calls[name]):
             errors.append(f"{name}: 缺少其他生产文件调用")

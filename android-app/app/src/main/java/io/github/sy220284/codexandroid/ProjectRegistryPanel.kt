@@ -23,7 +23,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
     val running by vm.running.collectAsState()
     val selectedPath by vm.activeWorkspace.collectAsState()
     val root = File(vm.workingDirectory).canonicalFile
-    var name by remember { mutableStateOf("") }
+    val name = currentFolder.name.ifBlank { "Codex" }
     var confirmCreate by remember { mutableStateOf(false) }
     var withThread by remember { mutableStateOf(false) }
     var projectPages by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
@@ -79,8 +79,6 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                 Text("当前目录：" + currentFolder.relativeTo(root).path.takeIf { it != "." }
                     ?.let { (WorkspaceStorage.DISPLAY_ROOT + "/") + it }.orEmpty().ifBlank { (WorkspaceStorage.DISPLAY_ROOT + "/") },
                     style = MaterialTheme.typography.bodySmall)
-                CodexInputField(name, { name = it }, label = { Text("新项目名称") },
-                    singleLine = true, modifier = Modifier.fillMaxWidth())
                 if (!currentThread.isNullOrBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CodexCheckBox(checked = withThread, onCheckedChange = { withThread = it },
@@ -100,7 +98,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                 if ("projectsCatalog" !in loading && projects.isEmpty() &&
                     errors["projectsCatalog"] == null) {
                     CodexEmptyState("暂无登记项目",
-                        "输入项目名称即可登记当前工作目录，之后可从这里快速切换。")
+                        "直接登记当前工作目录，默认使用文件夹名称，可在项目管理中修改。")
                 }
                 projects.forEachIndexed { index, project ->
                     val projectId = project.optString("id")
@@ -238,7 +236,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
             title = { Text("登记 Codex 项目") },
             text = {
                 Column {
-                    Text("项目目录及名称会写入本机 Codex 项目库。原有文件保持不变。")
+                    Text("将以「$name」登记当前目录，原有文件保持不变。")
                     if (currentThread != null) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CodexCheckBox(checked = withThread, onCheckedChange = { withThread = it })
@@ -256,7 +254,6 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
                     vm.rpc("projectWrite",
                         if (withThread && currentThread != null) "project/import" else "project/create",
                         payload, after = {
-                            name = ""
                             withThread = false
                             reload()
                         })
@@ -271,7 +268,7 @@ fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () 
             title = { Text("修改项目名称") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CodexInputField(renameText, { renameText = it },
+                    ActionReplyRow(renameText, { renameText = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("项目名称") }, singleLine = true)
                     errors["projectWrite"]?.let {

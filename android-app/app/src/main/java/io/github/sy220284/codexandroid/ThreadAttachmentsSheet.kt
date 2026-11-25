@@ -22,6 +22,7 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val errors by vm.errors.collectAsState()
     val loading by vm.loading.collectAsState()
     var noteKey by rememberSaveable(active) { mutableStateOf("") }
+    var editNoteName by rememberSaveable(active) { mutableStateOf(false) }
     var noteText by rememberSaveable(active) { mutableStateOf("") }
     var removeTarget by remember(active) { mutableStateOf<JSONObject?>(null) }
     var reader by remember(active) { mutableStateOf<String?>(null) }
@@ -58,10 +59,15 @@ fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     contentPadding = PaddingValues(bottom = 20.dp)) {
                     item { MaterialPanel(Modifier.fillMaxWidth()) {
                     Text("添加文本备注", style = MaterialTheme.typography.titleMedium)
-                    CodexInputField(noteKey, { noteKey = it }, singleLine = true,
+                    ActionReplyRow(noteText, { input ->
+                        noteText = input
+                        if (noteKey.isBlank()) noteKey = input.lineSequence().firstOrNull { it.isNotBlank() }
+                            ?.trim()?.take(60).orEmpty() + " · " + java.util.UUID.randomUUID().toString().take(8)
+                    }, minLines = 2, maxLines = 5, label = { Text("添加备注内容") }, modifier = Modifier.fillMaxWidth())
+                    if (noteKey.isNotBlank()) Text(noteKey, color = Ink.muted)
+                    CodexTextAction(onClick = { editNoteName = !editNoteName }) { Text(if (editNoteName) "收起名称" else "自定义备注名称") }
+                    if (editNoteName) ActionReplyRow(noteKey, { noteKey = it }, singleLine = true,
                         label = { Text("备注名称") }, modifier = Modifier.fillMaxWidth())
-                    CodexInputField(noteText, { noteText = it }, minLines = 2, maxLines = 5,
-                        label = { Text("备注内容") }, modifier = Modifier.fillMaxWidth())
                     CodexSecondaryButton(onClick = {
                         val originalKey = noteKey.trim()
                         val originalText = noteText.trim()

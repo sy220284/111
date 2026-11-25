@@ -370,6 +370,21 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         return true
     }
 
+    internal val agentActionNavigation = MutableStateFlow(0L)
+
+    internal fun prepareAgentAction(request: String) {
+        if (request.isBlank() || AppDataTransfer.state.value.busy ||
+            threadSwitching.value || firstThreadStarting.value) return
+        if (running.value && !resetConversation(activeWorkspace.value, activeProjectId.value)) return
+        val thread = activeThread.value
+        val owner = composerOwner(thread)
+        composerDrafts.update { drafts ->
+            ThreadComposerDrafts.text(drafts, owner,
+                AgentActionDraftPolicy.append(drafts[owner]?.text.orEmpty(), request))
+        }
+        agentActionNavigation.value += 1
+    }
+
     fun editComposerText(threadId: String?, text: String) =
         attachmentController.editText(composerOwner(threadId), text)
 

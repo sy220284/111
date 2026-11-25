@@ -130,7 +130,7 @@ internal fun ThreadSectionSheet(
                     load()
                 }
             }, canConfirm = !operation.busy && name.trim().length in 1..120) {
-            CodexInputField(name, { name = it }, label = { Text("分组名称") }, singleLine = true,
+            ActionReplyRow(name, { name = it }, label = { Text("分组名称") }, singleLine = true,
                 modifier = Modifier.fillMaxWidth())
         }
     }

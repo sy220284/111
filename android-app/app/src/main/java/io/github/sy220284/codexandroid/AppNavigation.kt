@@ -231,6 +231,13 @@ fun CodexShell(vm: CodexViewModel) {
             }
         }
     }
+    val agentActionNavigation by vm.agentActionNavigation.collectAsState()
+    LaunchedEffect(agentActionNavigation) {
+        if (agentActionNavigation != 0L) {
+            move("chat")
+            vm.agentActionNavigation.value = 0L
+        }
+    }
     LaunchedEffect(pendingDeepLink, status) {
         val id = pendingDeepLink
         if (id != null && status == EngineStatus.Connected) {

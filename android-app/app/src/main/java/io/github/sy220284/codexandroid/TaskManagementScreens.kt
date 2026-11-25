@@ -96,7 +96,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text(if (goal == null) "设置新目标" else "更新目标", style = MaterialTheme.typography.titleMedium)
-            CodexInputField(objective, { text ->
+            ActionReplyRow(objective, { text ->
                 vm.editTaskPanelDraft(active) { it.copy(goalText = text) }
             }, modifier = Modifier.fillMaxWidth(),
                 label = { Text("目标说明") }, placeholder = { Text("写明期望结果与验收标准") },
@@ -195,10 +195,16 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
             },
             canConfirm = safeBudgetInput
         ) {
-            CodexInputField(
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf("" to "不限额度", "10000" to "1 万 Token", "50000" to "5 万 Token",
+                    "100000" to "10 万 Token").forEach { (id, name) ->
+                    AtlasChoiceRow(name, "", budgetInput == id, onClick = { budgetInput = id })
+                }
+            }
+            ActionReplyRow(
                 value = budgetInput,
                 onValueChange = { budgetInput = it.filter(Char::isDigit) },
-                label = { Text("Token 上限（可留空）") },
+                label = { Text("其他 Token 上限") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth().testTag("goal-budget-input")
             )
@@ -307,7 +313,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
         }
         MaterialPanel(Modifier.fillMaxWidth()) {
             Text("添加后续指令", style = MaterialTheme.typography.titleMedium)
-            CodexInputField(draft, { text ->
+            ActionReplyRow(draft, { text ->
                 vm.editTaskPanelDraft(active) { it.copy(queueText = text) }
             }, modifier = Modifier.fillMaxWidth().testTag("thread-queue-draft"),
                 minLines = 2, maxLines = 6,
@@ -496,7 +502,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             title = { Text("编辑排队任务") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    CodexInputField(
+                    ActionReplyRow(
                         value = editText, onValueChange = { editText = it },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text("任务内容") }, minLines = 2, maxLines = 6

@@ -817,7 +817,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("workspace-create-toggle").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithTag("workspace-folder-mode").performClick()
-        rule.onNodeWithTag("workspace-new-name").performTextInput(name)
+        rule.onNodeWithTag("workspace-new-name").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextReplacement(name)
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithTag("workspace-create").performClick()
         rule.onNodeWithTag("workspace-new-name").assertDoesNotExist()
         rule.waitUntil(10000) {
@@ -999,7 +1001,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-search").performTextInput("API Key")
         rule.onNodeWithTag("settings-route-providers").performClick()
         rule.waitUntil(5_000L) {
-            rule.onAllNodesWithText("服务商名称").fetchSemanticsNodes().isNotEmpty()
+            rule.onAllNodesWithTag("provider-endpoint").fetchSemanticsNodes().isNotEmpty()
         }
         rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.onNodeWithTag("settings-search").performTextClearance()
@@ -1080,6 +1082,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("codex-detail-title").assertTextEquals("高级自定义配置")
     }
 
+    @Test fun advancedConfigPreparesAgentDraftWithoutSubmitting() {
+        val vm = (rule.activity.application as CodexApplication).session
+        rule.runOnUiThread { vm.editComposerText(vm.activeThread.value, "原有草稿") }
+        openSettingRoute("config")
+        rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
+        rule.onNodeWithTag("config-agent-action").performClick()
+        rule.onNodeWithTag("composer-input").assertExists()
+        rule.onNodeWithTag("composer-input").assertTextContains("原有草稿", substring = true)
+        rule.onNodeWithTag("composer-input").assertTextContains("请帮我调整本机 Codex", substring = true)
+        rule.runOnIdle {
+            org.junit.Assert.assertFalse(vm.running.value)
+        }
+    }
+
     @Test fun settingsSearchDoesNotExposeTaskOperations() {
         openDrawerRoute("settings")
         rule.onNodeWithTag("settings-search").performTextInput("任务队列")
@@ -1116,7 +1132,9 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("queue")
-        rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
+        rule.onNodeWithTag("thread-queue-draft").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextInput("保留未发送的队列内容")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
@@ -1196,23 +1214,23 @@ class UiNavigationInstrumentedTest {
 
         openSettingRoute("providers")
         rule.onNodeWithText("添加自定义服务商").performScrollTo().performClick()
-        rule.onNodeWithText("服务地址（HTTP / HTTPS）").assertExists()
+        rule.onNodeWithTag("provider-endpoint").assertExists()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         captureOverlay("audit-provider-editor-android35.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("config")
         rule.onNodeWithTag("config-advanced-toggle").performScrollTo().performClick()
-        rule.onNodeWithText("文本值").assertExists()
-        rule.onNodeWithText("开关").assertExists()
-        rule.onNodeWithText("高级数据").assertExists()
+        rule.onNodeWithTag("config-agent-action").assertExists()
+        rule.onNodeWithText("设置项名称").assertDoesNotExist()
+        rule.onNodeWithText("高级数据").assertDoesNotExist()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         captureOverlay("audit-config-editor-android35.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("environments")
         rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
-        rule.onNodeWithTag("environment-remote-name").assertExists()
+        rule.onNodeWithTag("environment-remote-name").assertDoesNotExist()
         rule.onNodeWithTag("environment-endpoint").assertExists()
         capture("audit-environment-editor-android35.png")
     }
@@ -1226,19 +1244,25 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("本机服务标识：local").assertDoesNotExist()
 
         rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
-        rule.onNodeWithTag("environment-remote-name").assertExists()
+        rule.onNodeWithTag("environment-remote-name").assertDoesNotExist()
         rule.onNodeWithTag("environment-endpoint").assertExists()
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
-        rule.onNodeWithTag("environment-remote-name").performTextInput("工作电脑")
-        rule.onNodeWithTag("environment-endpoint").performTextInput("wss://example.com/exec")
+        rule.onNodeWithTag("environment-endpoint").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextInput("wss://example.com/exec")
+        rule.onNodeWithTag("action-reply-send").performClick()
+        rule.onNodeWithText("连接：example.com").assertExists()
+        rule.onNodeWithTag("environment-rename").performClick()
+        rule.onNodeWithTag("environment-remote-name").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextReplacement("工作电脑")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
 
         rule.onNodeWithTag("environment-local-option").performScrollTo().performClick()
         rule.onNodeWithTag("environment-endpoint").assertDoesNotExist()
         rule.onNodeWithTag("environment-local-option").assertExists()
         rule.onNodeWithTag("environment-remote-option").performClick()
-        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         rule.onNodeWithTag("environment-endpoint").assertTextContains("wss://example.com/exec")
+        rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
     }
 
     @Test fun directlySelectableSecurityAndAboutViewsAreCaptured() {

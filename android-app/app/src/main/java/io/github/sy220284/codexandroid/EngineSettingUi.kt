@@ -76,7 +76,7 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
         when (setting.type) {
             "choice", "reasoning", "model", "boolean" -> {
                 val choices = if (setting.type == "boolean") linkedMapOf("true" to "开启", "false" to "关闭") else available
-                if (setting.type == "model") AtlasFormField(search, { search = it }, "搜索模型")
+                if (setting.type == "model") AtlasSearchField(search, { search = it }, "搜索模型", onClear = { search = "" })
                 val visible = choices.filter { (id, label) -> search.isBlank() || id.contains(search, true) || label.contains(search, true) }
                 if (visible.isEmpty()) Text("没有匹配的可用选项", color = Ink.muted)
                 Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -88,9 +88,9 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
                     }
                 }
             }
-            "number" -> AtlasFormField(draft, { edited = true; draft = it }, "数值（" + setting.unit + "）",
-                keyboardType = KeyboardType.Number, enabled = !busy,
-                error = if (draft.isNotBlank() && parsed.isFailure) parsed.exceptionOrNull()?.message else null)
+            "number" -> ActionNumberStepper(draft, { edited = true; draft = it }, setting.unit,
+                setting.min, minOf(setting.max, Long.MAX_VALUE / setting.scale),
+                if (setting.unit == "秒") 1L else 100L, enabled = !busy)
             else -> {
                 if (setting.key == "developer_instructions") {
                     CodexTextAction(onClick = {
@@ -99,7 +99,7 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
                     }, enabled = enabled && !busy && !draft.contains(ProgressiveReplyProjection.instruction),
                         modifier = Modifier.testTag("append-progressive-reply-instruction")) { Text("添加渐进式回复指令") }
                 }
-                AtlasFormField(draft, { edited = true; draft = it }, "执行指令", singleLine = false, enabled = !busy)
+                ActionQuestionRow(draft, { edited = true; draft = it }, "描述全局工作要求", singleLine = false, enabled = !busy)
             }
         }
         saveError?.let { ErrorText(it) }
@@ -158,23 +158,21 @@ private fun EngineInlineControl(setting: EngineSetting, current: Any?, loaded: B
                         Text("100%", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
                 } else {
-                    val number = draft.toLongOrNull()
-                    val step = if (setting.unit == "秒") 1L else 100L
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        CodexSecondaryButton(onClick = { draft = ((number ?: setting.min) - step).coerceAtLeast(setting.min).toString() },
-                            enabled = enabled && number != null && number > setting.min) { Text("−") }
-                        Box(Modifier.weight(1f)) {
-                            AtlasFormField(draft, { draft = it }, "数值（" + setting.unit + "）",
-                                keyboardType = KeyboardType.Number, enabled = enabled,
-                                error = if (draft.isNotBlank() && value == null) "请输入有效数值" else null)
+                    val step = if (setting.unit == "秒") 1L else 1000L
+                    ActionNumberStepper(draft, { draft = it }, setting.unit, setting.min,
+                        minOf(setting.max, Long.MAX_VALUE / setting.scale), step, enabled,
+                        allowUnset = false)
+                    val presets = if (setting.unit == "秒") listOf(5L, 30L, 60L, 300L)
+                        else listOf(1000L, 8000L, 32000L, 128000L)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        presets.filter { it in setting.min..minOf(setting.max, Long.MAX_VALUE / setting.scale) }.forEach { n ->
+                            AtlasChoiceRow("$n ${setting.unit}", "", draft == n.toString(),
+                                onClick = { draft = n.toString() }, enabled = enabled)
                         }
-                        CodexSecondaryButton(onClick = {
-                            val n = number ?: setting.min
-                            draft = (if (n > Long.MAX_VALUE - step) Long.MAX_VALUE else n + step)
-                                .coerceAtMost(minOf(setting.max, Long.MAX_VALUE / setting.scale)).toString()
-                        }, enabled = enabled && (number ?: setting.min) < minOf(setting.max, Long.MAX_VALUE / setting.scale)) { Text("+") }
                     }
+                    ActionQuestionRow(draft, { draft = it }, "其他数值", enabled = enabled,
+                        keyboardType = KeyboardType.Number,
+                        error = if (draft.isNotBlank() && value == null) "数值不符合实际范围" else null)
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     CodexTextAction(onClick = { draft = currentInput }, enabled = enabled && draft != currentInput) { Text("取消修改") }
@@ -281,6 +279,9 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
                 val current = EngineSettings.valueAt(config, setting.key)
                 val available = EngineSettings.choices(setting, config, models, requirements, requirementsRead)
                 if (setting.type == "text") {
+                    AgentActionRow(vm, "让 Codex 整理工作偏好", "在对话中说明工作要求，再核对生效配置",
+                        "请协助我整理全局工作偏好。先询问我希望长期遵循的要求，核对已有偏好并保留未修改的内容，提供修改预览；经我确认后再保存并核实生效值。不要修改审批和安全策略。",
+                        enabled = enabled, modifier = Modifier.testTag("personalization-agent-action"))
                     AtlasSettingsActionRow(setting.title, setting.label(current), CodexGlyph.Edit,
                         onClick = { clearFeedback(); selectedKey = setting.key },
                         enabled = enabled, outlined = false,

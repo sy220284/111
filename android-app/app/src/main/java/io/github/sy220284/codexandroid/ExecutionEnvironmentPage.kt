@@ -14,6 +14,12 @@ import org.json.JSONObject
 
 /** Validates the connection scheme and destination before enabling remote submission. */
 internal object ExecutionEnvironmentConnectionPolicy {
+    fun defaultName(raw: String): String {
+        if (!supportsEndpoint(raw)) return ""
+        val uri = URI(raw.trim())
+        return uri.host + (if (uri.port > 0) "-${uri.port}" else "")
+    }
+
     fun supportsEndpoint(raw: String): Boolean {
         val uri = try {
             URI(raw.trim())
@@ -43,6 +49,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
     LaunchedEffect(target) {
         if (target == "remote") useRemote = true
     }
+    var editConnectionName by rememberSaveable { mutableStateOf(false) }
     var remoteName by rememberSaveable { mutableStateOf("") }
     var endpoint by rememberSaveable { mutableStateOf("") }
     var showAdvanced by rememberSaveable { mutableStateOf(false) }
@@ -73,7 +80,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
         CodexSecondaryButton(onClick = { remoteControl = true },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("remote-control-entry")) { Text("远程控制与配对") }
         Text("在哪里执行任务", style = MaterialTheme.typography.titleLarge)
-        Text("先选择运行位置，需要连接时再填写配置。", color = Ink.muted)
+        Text("先选择运行位置，外部设备采用逐步连接。", color = Ink.muted)
         CodexSecondaryButton(
             onClick = { useRemote = false },
             modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
@@ -108,9 +115,12 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                 Text("连接外部执行服务", style = MaterialTheme.typography.titleMedium)
                 Text("需要预先在另一台设备部署兼容的执行服务，并获得连接地址。",
                     style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
-                AtlasFormField(remoteName, { remoteName = it }, "连接名称",
-                    placeholder = "例如：工作电脑", modifier = Modifier.testTag("environment-remote-name"))
-                AtlasFormField(endpoint, { endpoint = it }, "安全连接地址（WebSocket）",
+                ActionQuestionRow(endpoint, { address ->
+                    val oldName = ExecutionEnvironmentConnectionPolicy.defaultName(endpoint)
+                    endpoint = address
+                    if (remoteName.isBlank() || remoteName == oldName)
+                        remoteName = ExecutionEnvironmentConnectionPolicy.defaultName(address)
+                }, "安全连接地址（WebSocket）",
                     placeholder = "wss://example.com/exec",
                     confirmedValid = endpoint.isNotBlank() && ExecutionEnvironmentConnectionPolicy.supportsEndpoint(endpoint),
                     helper = "使用 wss:// 加密连接；本机回环地址可使用 ws://127.0.0.1",
@@ -118,6 +128,13 @@ fun EnvironmentsPage(vm: CodexViewModel) {
                         "连接地址格式不正确，或不符合安全连接要求。" else null,
                     keyboardType = androidx.compose.ui.text.input.KeyboardType.Uri,
                     modifier = Modifier.testTag("environment-endpoint"))
+                if (remoteName.isNotBlank()) Text("连接：$remoteName", color = Ink.muted)
+                CodexTextAction(onClick = { editConnectionName = !editConnectionName },
+                    modifier = Modifier.testTag("environment-rename")) {
+                    Text(if (editConnectionName) "收起名称设置" else "自定义连接名称")
+                }
+                if (editConnectionName) ActionQuestionRow(remoteName, { remoteName = it }, "连接名称",
+                    placeholder = "例如：工作电脑", modifier = Modifier.testTag("environment-remote-name"))
                 CodexSecondaryButton(
                     onClick = {
                         val id = remoteName.trim()
@@ -154,7 +171,7 @@ fun EnvironmentsPage(vm: CodexViewModel) {
             onDismiss = { showAdvanced = false }
         ) {
             Text("当前环境：" +
-                if (useRemote) remoteName.ifBlank { "请先填写连接名称" } else "本机",
+                if (useRemote) remoteName.ifBlank { "尚未选择连接" } else "本机",
                 style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
             Row(
                 Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)

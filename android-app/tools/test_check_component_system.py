@@ -2,7 +2,8 @@ import unittest
 from check_component_system import audit, SHARED, without_comments_and_literals
 
 def fixture():
-    return {"BusinessPage": "\n".join(name + "()" for name in SHARED)}
+    return {"BusinessPage": "\n".join(name + "()" for name in SHARED if name != "CodexInputField"),
+            "ConversationComposer": "CodexInputField()"}
 
 class ComponentSystemTest(unittest.TestCase):
     def test_shared_calls_and_native_implementation(self):
@@ -28,9 +29,19 @@ class ComponentSystemTest(unittest.TestCase):
 
     def test_declaration_and_test_only_do_not_count(self):
         sources = fixture()
-        sources["BusinessPage"] = sources["BusinessPage"].replace("CodexInputField()", "")
+        sources["ConversationComposer"] = ""
         sources["CodexControlPrimitives"] = "fun CodexInputField() {}"
         self.assertTrue(any("CodexInputField: 缺少" in x for x in audit(sources)["errors"]))
+
+    def test_configuration_input_is_rejected(self):
+        sources = fixture()
+        sources["BusinessPage"] += "\nCodexInputField()"
+        self.assertTrue(any("非对话" in error for error in audit(sources)["errors"]))
+
+    def test_retired_form_is_rejected(self):
+        sources = fixture()
+        sources["BusinessPage"] += "\nAtlasFormField()"
+        self.assertTrue(any("配置表单已退役" in error for error in audit(sources)["errors"]))
 
     def test_comments_and_strings_do_not_count(self):
         sources = fixture()

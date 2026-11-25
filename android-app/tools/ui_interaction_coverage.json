@@ -328,7 +328,7 @@
       "parent": "providers",
       "file": "EcosystemScreens.kt",
       "owner": "ProvidersPage",
-      "component": "AtlasFormField",
+      "component": "ActionQuestionRow",
       "test": "settingsSearchOpensPreciseProviderAndRemoteEditors",
       "screenshot": "audit-provider-editor"
     },
@@ -337,7 +337,7 @@
       "parent": "config",
       "file": "ControlScreens.kt",
       "owner": "ConfigPage",
-      "component": "AtlasFormField",
+      "component": "AgentActionRow",
       "test": "settingsSearchDirectlyExpandsAdvancedConfig",
       "screenshot": "audit-config-editor"
     },
@@ -346,7 +346,7 @@
       "parent": "environments",
       "file": "ExecutionEnvironmentPage.kt",
       "owner": "EnvironmentsPage",
-      "component": "AtlasFormField",
+      "component": "ActionQuestionRow",
       "test": "settingsSearchOpensPreciseProviderAndRemoteEditors",
       "screenshot": "audit-environment-editor"
     },

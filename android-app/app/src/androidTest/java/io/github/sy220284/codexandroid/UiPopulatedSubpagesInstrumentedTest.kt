@@ -641,11 +641,17 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithText("MCP 服务请求用户操作").assertExists()
         rule.onNodeWithTag("elicitation-submit").assertExists().assertIsNotEnabled()
-        rule.onNodeWithTag("elicitation-field-title").performTextInput("验收标题")
+        rule.onNodeWithTag("elicitation-field-title").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextInput("验收标题")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithTag("elicitation-submit").assertIsEnabled()
-        rule.onNodeWithTag("elicitation-field-title").performTextClearance()
+        rule.onNodeWithTag("elicitation-field-title").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextClearance()
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithTag("elicitation-submit").assertIsNotEnabled()
-        rule.onNodeWithTag("elicitation-field-title").performTextInput("验收标题")
+        rule.onNodeWithTag("elicitation-field-title").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextInput("验收标题")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithTag("elicitation-submit").assertIsEnabled().performClick()
         rule.onNodeWithText("向 MCP 服务提交确认").assertExists()
         rule.onNodeWithTag("confirm-dialog-cancel").assertExists().performClick()
@@ -716,7 +722,9 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithText("每行填写一项").assertExists()
         rule.onNodeWithText("JSON 数组").assertDoesNotExist()
-        rule.onNodeWithText("每行填写一项").performTextInput("第一项\n第二项")
+        rule.onNodeWithText("每行填写一项").performClick()
+        rule.onNodeWithTag("action-reply-input").performTextInput("第一项\n第二项")
+        rule.onNodeWithTag("action-reply-send").performClick()
         rule.onNodeWithText("第一项", substring = true).assertExists()
     }
 

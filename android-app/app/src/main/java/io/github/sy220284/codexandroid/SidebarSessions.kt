@@ -358,7 +358,7 @@ internal fun SidebarSessions(
     }
     rename?.let { row ->
         CodexDialogFrame(onDismissRequest = { rename = null }, title = { Text("重命名会话") },
-            text = { CodexInputField(name, { name = it }, label = { Text("会话名称") },
+            text = { ActionReplyRow(name, { name = it }, label = { Text("会话名称") },
                 singleLine = true, modifier = Modifier.fillMaxWidth()) },
             confirmButton = { CodexSecondaryButton(onClick = {
                 vm.rpc("threadLibraryAction", "thread/name/set", JSONObject()
