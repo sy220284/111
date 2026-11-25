@@ -840,6 +840,32 @@
         "UiNavigationInstrumentedTest.featureCatalogKeepsUserFacingRoutesOnly",
         "UiNavigationInstrumentedTest.pluginDiscoveryUsesClipboardWithoutSearchField"
       ]
+    },
+    {
+      "asset": "native-task-experience.svg",
+      "business": "简洁主界面、原生指令流、按需能力入口与备份恢复保护；设计参考，实际运行以 CI 与设备证据为准",
+      "components": [
+        [
+          "ConversationTimelineViewport",
+          "ConversationTimelineViewport"
+        ],
+        [
+          "ChatTimelineComponents",
+          "TimelineStepCard"
+        ],
+        [
+          "TaskCapabilityActions",
+          "TaskCapabilitiesSheet"
+        ],
+        [
+          "GlobalWorkUi",
+          "DataTransferBusyOverlay"
+        ]
+      ],
+      "tests": [
+        "UiNavigationInstrumentedTest.chatTimelineSeparatesMessagesAndExecutionSteps",
+        "UiNavigationInstrumentedTest.chatKeyboardKeepsComposerActionsAccessible"
+      ]
     }
   ],
   "requiredStateScreens": [

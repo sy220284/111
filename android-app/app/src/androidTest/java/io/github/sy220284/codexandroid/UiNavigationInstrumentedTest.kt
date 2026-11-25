@@ -977,6 +977,7 @@ class UiNavigationInstrumentedTest {
         }
         try {
             rule.onNodeWithTag("chat-user-message").assertExists()
+            rule.onNodeWithTag("chat-user-prompt-marker", useUnmergedTree = true).assertExists()
             rule.onNodeWithTag("chat-assistant-message").assertExists()
             rule.onNodeWithTag("message-copy-ui-agent").assertExists()
             rule.onNodeWithTag("message-retry-ui-agent").assertExists()

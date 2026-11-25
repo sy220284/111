@@ -29,6 +29,8 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
     val store = remember(context.applicationContext) { WorkspaceEditorDraftStore(File(context.filesDir, "editor-drafts")) }
     var recoveredConflict by remember(file.path) { mutableStateOf(false) }
     var recovered by remember(file.path) { mutableStateOf(false) }
+    var compareOpen by remember(file.path) { mutableStateOf(false) }
+    var compareConfirmed by remember(file.path) { mutableStateOf(false) }
     var discard by remember(file.path) { mutableStateOf(false) }
     var original by remember(file.path) { mutableStateOf<String?>(null) }
     var draft by remember(file.path) { mutableStateOf("") }
@@ -64,7 +66,18 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
 
     fun requestClose() {
         if (saving) return
-        if (dirty) confirmExit = true else onBack()
+        if (dirty) confirmExit = true
+        else if (recovered) {
+            saving = true
+            scope.launch {
+                try {
+                    AppDataTransfer.mutateLocal { store.clear(root, file) }
+                    onBack()
+                } catch (cancelled: CancellationException) { throw cancelled }
+                catch (error: Exception) { failure = PresentationPolicy.readableError(error.message ?: "草稿清除失败") }
+                finally { saving = false }
+            }
+        } else onBack()
     }
 
     Dialog(onDismissRequest = { requestClose() },
@@ -134,8 +147,12 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
                                 Text("复制未保存草稿")
                             }
                         }
-                        if (recoveredConflict) CodexTextAction(onClick = { recoveredConflict = false; failure = null },
-                            modifier = Modifier.heightIn(min = 48.dp)) { Text("已核对，允许保存到当前文件") }
+                        if (recoveredConflict) {
+                            CodexTextAction(onClick = { compareOpen = true },
+                                modifier = Modifier.heightIn(min = 48.dp)) { Text("查看当前文件版本") }
+                            CodexTextAction(onClick = { compareConfirmed = true },
+                                modifier = Modifier.heightIn(min = 48.dp)) { Text("保留我的草稿并覆盖") }
+                        }
                         if (dirty && !saving) CodexTextAction(onClick = { discard = true },
                             modifier = Modifier.heightIn(min = 48.dp).testTag("workspace-editor-discard")) { Text("放弃编辑草稿") }
                         if (saving) AtlasOperationProgress("正在保存文件")
@@ -170,6 +187,14 @@ internal fun FileEditor(file: File, root: File, onBack: () -> Unit) {
             }
         },
         onDismiss = { confirmExit = false }
+    )
+    if (compareOpen) FullTextReaderDialog(title = "当前磁盘文件", text = original.orEmpty(), onDismiss = { compareOpen = false })
+    if (compareConfirmed) CodexConfirmDialog(
+        title = "允许覆盖当前磁盘版本？",
+        message = "原文件已被其他操作修改。确认后仍需点击保存；再次发生修改时会阻止覆盖。",
+        confirmLabel = "允许保存", destructive = true,
+        onConfirm = { compareConfirmed = false; recoveredConflict = false; failure = null },
+        onDismiss = { compareConfirmed = false }
     )
     if (discard) CodexConfirmDialog(
         title = "放弃未保存的修改？",
