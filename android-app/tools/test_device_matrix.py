@@ -1,5 +1,7 @@
 import unittest
-from device_matrix import CONFIG, PROFILES, dimensions, matrix, job_name
+import tempfile
+from pathlib import Path
+from device_matrix import CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd
 
 class DeviceMatrixTests(unittest.TestCase):
     def test_three_distinct_current_phones_and_one_update_owner(self):
@@ -24,3 +26,15 @@ class DeviceMatrixTests(unittest.TestCase):
         self.assertEqual(16384, CONFIG["page_size"])
         self.assertEqual("google_apis_ps16k", CONFIG["target"])
         self.assertGreaterEqual(int(CONFIG["ram"].removesuffix("M")), 4096)
+
+    def test_avd_boot_geometry_is_unique_and_unrelated_settings_preserved(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / "config.ini"
+            path.write_text("hw.lcd.width=480\nhw.lcd.width=720\nhw.cpu.ncore=2\nskin.path=old\n")
+            configure_avd(path, "ultra")
+            lines = path.read_text().splitlines()
+            self.assertEqual(["hw.lcd.width=1440"], [line for line in lines if line.startswith("hw.lcd.width=")])
+            self.assertIn("hw.lcd.height=3120", lines)
+            self.assertIn("hw.lcd.density=520", lines)
+            self.assertIn("hw.cpu.ncore=2", lines)
+            self.assertIn("skin.path=_no_skin", lines)

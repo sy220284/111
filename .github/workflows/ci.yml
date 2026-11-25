@@ -287,6 +287,8 @@ jobs:
           target: ${{ needs.plan.outputs.device_target }}
           ram-size: ${{ needs.plan.outputs.device_ram }}
           disk-size: 8192M
+          avd-name: test
+          pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd ${{ matrix.profile }}
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |
@@ -304,7 +306,7 @@ jobs:
             test "$(adb shell settings get secure show_ime_with_hard_keyboard | tr -d '\r')" = "1"
             adb shell ime list -s
             test "$(adb shell ime list -s | tr -d '\r' | grep -c .)" -gt 0
-            test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "${{ matrix.width_px }}x${{ matrix.height_px }}"
+            test "$(adb shell wm size | awk '/(Override|Physical) size:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.width_px }}x${{ matrix.height_px }}"
             test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.density_dpi }}"
             # The instrumentation test captures the home screen after a visible
             # Compose assertion, so slow devices cannot record the splash screen.
@@ -492,6 +494,8 @@ jobs:
           target: ${{ needs.plan.outputs.device_target }}
           ram-size: ${{ needs.plan.outputs.device_ram }}
           disk-size: 8192M
+          avd-name: test
+          pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd mainstream
           disable-animations: true
           emulator-boot-timeout: 1200
           script: bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence

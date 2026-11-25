@@ -19,6 +19,7 @@ jobs:
           sparse-checkout: |
             /android-app/tools/capture_dsh_onboarding.py
             /android-app/tools/device-matrix.json
+            /android-app/tools/device_matrix.py
           sparse-checkout-cone-mode: false
       - name: 下载官方安装包并校验签名清单
         shell: bash
@@ -91,6 +92,8 @@ jobs:
           target: ${{ steps.device.outputs.target }}
           ram-size: ${{ steps.device.outputs.ram }}
           disk-size: 8192M
+          avd-name: test
+          pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd mainstream
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |

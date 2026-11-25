@@ -34,3 +34,5 @@ Rust 源码、运行时、终端、远端执行、原生适配及关键权限输
 密度是测试选择，用于模拟不同显示缩放，非各厂商原厂系统默认值。三档各执行原有 145 项交互测试两次，共 870 次；系统安装器专项在主流大屏执行。运行报告与截图清单记录实际系统版本、页大小、分辨率、显示密度、字号和逻辑尺寸，旧 API 35 证据不得作为 API 37 的通过凭证。正式 ARM64 真机须实际运行 API 37。竞品参考采用同一主流配置。
 
 系统与屏幕配置来源：Android 官方 https://developer.android.com/about/versions/17/get；Chromium Android 17 16KB 镜像说明 https://chromium.googlesource.com/chromium/src/+/main/docs/android_emulator.md；OnePlus 15 官方规格 https://www.oneplus.com/global/15/specs；Samsung S26 Ultra 官方规格 https://www.samsung.com/sg/business/smartphones/galaxy-s/galaxy-s26-ultra-sm-s948bzkbs02/。
+
+模拟器创建后、启动前按同一矩阵设置 AVD 原生 LCD 宽高与显示密度，避免用低分辨率设备仅拉伸逻辑窗口；适配轮次独立调整窗口及字体。截图清单另记录每张 PNG 的实际宽高。

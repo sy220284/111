@@ -87,6 +87,7 @@ def main():
     for old in destination.glob("*.png"):
         old.unlink()
     present = []
+    dimensions = {}
     missing = []
     discovered = discover_device_screens()
     # Required coverage still blocks regressions; new screenshots automatically
@@ -100,6 +101,10 @@ def main():
         output = destination / name
         if result.returncode == 0 and valid_png(output):
             present.append(screen)
+            with output.open('rb') as png:
+                png.seek(16)
+                width, height = struct.unpack('>II', png.read(8))
+            dimensions[screen] = {'width_px': width, 'height_px': height}
             print(f"SCREENSHOT_OK {screen}", flush=True)
         elif screen in REQUIRED_SCREENS:
             missing.append(screen)
@@ -108,7 +113,7 @@ def main():
         "\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
     (destination / "manifest.json").write_text(
         json.dumps({"required": REQUIRED_SCREENS, "discovered": discovered,
-                    "present": present, "missing": missing},
+                    "present": present, "missing": missing, "screenshot_dimensions": dimensions},
                    ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
