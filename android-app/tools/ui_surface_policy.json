@@ -1015,7 +1015,7 @@
     "fs/readDirectory": {
       "kind": "local",
       "source": "DeveloperScreens.kt",
-      "evidence": "folder.listFiles()",
+      "evidence": "requestedDirectory.listFiles()",
       "reason": "文件浏览器读取当前目录"
     },
     "fs/remove": {
