@@ -24,7 +24,6 @@ import kotlinx.coroutines.launch
 /** 设置只容纳长期配置和能力管理；任务操作由会话和工作区触发。 */
 @Composable
 fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    var query by rememberSaveable { mutableStateOf("") }
     val listState = rememberLazyListState()
     val listScope = rememberCoroutineScope()
     var showAbout by remember { mutableStateOf(false) }
@@ -33,19 +32,13 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val isAccountLoaded = data["account"] != null
     val isSignedIn = data["account"]?.optJSONObject("account") != null
     val darkMode by UiPreferences.darkMode.collectAsState()
-    val showTransfers = query.isBlank() || listOf("本地数据", "备份", "导入", "导出", "迁移", "恢复").any {
-        it.contains(query.trim(), ignoreCase = true)
-    }
-    val showUpdate = query.isBlank() ||
-        NavigationPolicy.matches(query, "应用更新", "检查并下载更新 安装 版本", "update")
     val groups = NavigationPolicy.featureGroups.map { group ->
         group to group.routes.mapNotNull { id ->
             pages.firstOrNull { it.id == id &&
-                NavigationPolicy.showInSettingsGroup(id, query) &&
-                NavigationPolicy.matches(query, it.title, it.subtitle, it.id) }
+                NavigationPolicy.showInSettingsGroup(id, "") }
         }
     }.filter { (group, entries) ->
-        entries.isNotEmpty() || ("update" in group.routes && (showUpdate || showTransfers))
+        entries.isNotEmpty() || "update" in group.routes
     }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
@@ -53,16 +46,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
-        item(key = "search") {
-            AtlasSearchField(
-                value = query,
-                onValueChange = { query = it },
-                placeholder = "搜索账号、设置或扩展",
-                modifier = Modifier.testTag("settings-search"),
-                onClear = { query = "" }
-            )
-        }
-        if (query.isBlank()) item(key = "overview") {
+        item(key = "overview") {
             MaterialPanel(Modifier.fillMaxWidth().testTag("settings-overview")) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 51.dp)
@@ -109,11 +93,6 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        if (groups.isEmpty()) {
-            item { CodexEmptyState("未找到相关设置", "试试常用名称，例如字体、API Key 或日志。",
-                    artworkRes = R.drawable.ic_empty_no_results,
-                actionLabel = "清除搜索", onAction = { query = "" }) }
-        }
         items(groups, key = { it.first.title }) { (group, entries) ->
             Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                 Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 9.dp),
@@ -124,9 +103,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         shadowElevation = 0.dp, tonalElevation = 0.dp) {
                         Column {
                             entries.forEach { entry ->
-                                val spot = NavigationPolicy.matchedSettingSpot(entry.id, query)
-                                SettingRouteRow(page = entry, showDetail = query.isNotBlank(), detail = spot?.label
-                                    ?: NavigationPolicy.matchedSettingTopic(entry.id, query) ?: when(entry.id) {
+                                SettingRouteRow(page = entry, showDetail = false, detail = when(entry.id) {
                                     "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                                     "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
                                     "environments" -> "本机或其他设备"
@@ -135,7 +112,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                     "plugins" -> "安装与管理"
                                     else -> ""
                                 }) {
-                                    SettingsDeepLink.select(entry.id, spot?.target)
+                                    SettingsDeepLink.select(entry.id, null)
                                     when(entry.id) {
                                         "about" -> showAbout = true
                                         else -> navigate(entry.id)
@@ -146,8 +123,8 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     }
                 }
                 if ("update" in group.routes) {
-                    if (showUpdate) AppUpdateCard(vm = vm)
-                    if (showTransfers) LocalDataTransferCard(vm)
+                    AppUpdateCard(vm = vm)
+                    LocalDataTransferCard(vm)
                 }
             }
         }

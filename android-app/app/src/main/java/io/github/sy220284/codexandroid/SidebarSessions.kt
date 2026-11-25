@@ -232,23 +232,14 @@ internal fun SidebarSessions(
         continuationLabel?.let { Text("选择会话后继续：$it", style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(8.dp)) }
         if (state.searching) {
-            AtlasSearchField(value = state.search, onValueChange = { state.search = it },
-                modifier = Modifier.fillMaxWidth().testTag("sidebar-search"),
-                placeholder = if (state.fullText) "搜索历史正文" else "搜索会话标题",
-                onClear = { state.search = "" },
-                onSubmit = {
-                    val term = state.search.trim()
-                    if (term.isNotBlank()) {
-                        try {
-                            if (state.fullText) recentFull = RecentThreadSearches.record(context, true, term)
-                            else recentTitle = RecentThreadSearches.record(context, false, term)
-                            historyError = ""
-                        } catch (failure: Exception) {
-                            historyError = failure.message ?: "搜索记录保存失败"
-                        }
-                        if (state.fullText) vm.sessions.search(term, state.archived)
-                    }
-                })
+            ClipboardQueryAction("使用剪贴板检索会话", state.search, onQuery = { term ->
+                state.search = term
+                try {
+                    if (state.fullText) recentFull = RecentThreadSearches.record(context, true, term)
+                    else recentTitle = RecentThreadSearches.record(context, false, term)
+                    historyError = ""
+                } catch (failure: Exception) { historyError = failure.message ?: "搜索记录保存失败" }
+            }, onClear = { state.search = "" }, tag = "sidebar-clipboard-query")
             AtlasCompactChoice(if (state.fullText) "full" else "title",
                 listOf("title" to "标题搜索", "full" to "全文搜索"),
                 onSelect = { state.fullText = it == "full" })

@@ -84,15 +84,14 @@ internal fun ComposerFileReferenceSheet(vm: CodexViewModel, workspace: String, i
             value = ComposerFileSearch.search(File(vm.workingDirectory), File(workspace), query)
         }
     }
-    CodexFloatingMenu(title = "引用项目文件", onDismiss = onDismiss, description = PresentationPolicy.workspaceName(workspace), wide = true, searchable = true) {
-        AtlasSearchField(query, { query = it }, "搜索文件名称或路径", onClear = { query = "" },
-            modifier = Modifier.testTag("composer-reference-search"))
+    CodexFloatingMenu(title = "引用项目文件", onDismiss = onDismiss, description = PresentationPolicy.workspaceName(workspace), wide = true) {
+        ClipboardQueryAction("按剪贴板定位文件", query, { query = it }, { query = "" })
         val current = result
         if (current == null) AtlasOperationProgress("正在搜索文件")
         else if (current.error != null) ErrorText(current.error)
         else {
             if (current.files.isEmpty()) Text("没有匹配的项目文件", color = Ink.muted)
-            if (current.more) Text("显示前 100 项，请缩小搜索范围", color = Ink.muted)
+            if (current.more) Text("显示前 100 项；可复制文件名或路径后定位", color = Ink.muted)
             current.files.forEach { file ->
                 AtlasSettingsActionRow(file.name, File(file.path).relativeTo(File(workspace)).path,
                     CodexGlyph.Description, onClick = { onSelect(file) }, outlined = false,
@@ -115,8 +114,7 @@ internal fun ComposerSkillSheet(vm: CodexViewModel, workspace: String, onSelect:
         group.optJSONArray("skills")?.let { array -> (0 until array.length()).mapNotNull { array.optJSONObject(it) } }.orEmpty()
     }.filter { it.optBoolean("enabled") && it.optString("path").isNotBlank() && it.optString("name").isNotBlank() }
         .distinctBy { it.optString("path") }
-    var query by remember(workspace) { mutableStateOf("") }
-    CodexFloatingMenu(title = "选择技能", onDismiss = onDismiss, description = "当前工作区已启用的技能", wide = true, searchable = true) {
+    CodexFloatingMenu(title = "选择技能", onDismiss = onDismiss, description = "当前工作区已启用的技能", wide = true) {
         if (status != EngineStatus.Connected) Text("连接内核后可选择技能", color = Ink.muted)
         else if (key in loading) AtlasOperationProgress("正在读取技能")
         else if (errors[key] != null) {
@@ -124,9 +122,7 @@ internal fun ComposerSkillSheet(vm: CodexViewModel, workspace: String, onSelect:
             CodexSecondaryButton(onClick = { reload() }) { Text("重新读取") }
         } else if (skills.isEmpty()) Text("当前没有已启用技能", color = Ink.muted)
         else {
-            AtlasSearchField(query, { query = it }, "搜索技能", onClear = { query = "" })
-            skills.filter { it.optString("name").contains(query, true) ||
-                it.optJSONObject("interface")?.optString("displayName")?.contains(query, true) == true }.forEach { skill ->
+            skills.sortedBy { it.optString("name") }.forEach { skill ->
                 val name = skill.optString("name")
                 AtlasSettingsActionRow(skill.optJSONObject("interface")?.optString("displayName").orEmpty().ifBlank { name },
                     skill.optString("description").take(100), CodexGlyph.School, outlined = false,
@@ -160,7 +156,6 @@ internal fun ComposerContextUsageSheet(usage: org.json.JSONObject?, onCompact: (
 internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onRegistry: () -> Unit, onDismiss: () -> Unit) {
     val root = remember { File(vm.workingDirectory).canonicalFile }
     var directory by remember { mutableStateOf(File(workspace)) }
-    var directoryQuery by remember(directory) { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
     val result by produceState<Result<List<File>>?>(null, directory) {
         value = null
@@ -174,7 +169,7 @@ internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onReg
             }
         }
     }
-    CodexFloatingMenu(title = "选择工作区", onDismiss = onDismiss, wide = true, searchable = true,
+    CodexFloatingMenu(title = "选择工作区", onDismiss = onDismiss, wide = true,
         description = "选择目录开始新任务，原会话和草稿会保留。") {
         Text(if (directory == root) WorkspaceStorage.DISPLAY_ROOT else directory.relativeTo(root).path, style = MaterialTheme.typography.titleSmall)
         error?.let { ErrorText(it) }
@@ -188,10 +183,8 @@ internal fun ComposerWorkspaceSheet(vm: CodexViewModel, workspace: String, onReg
         val current = result
         if (current == null) AtlasOperationProgress("正在读取目录")
         else current.fold(onSuccess = { dirs ->
-            AtlasSearchField(directoryQuery, { directoryQuery = it }, "搜索子目录", onClear = { directoryQuery = "" })
-            val matching = dirs.filter { it.name.contains(directoryQuery.trim(), ignoreCase = true) }
-            if (matching.isEmpty()) Text(if (dirs.isEmpty()) "没有子目录" else "没有匹配的目录", color = Ink.muted)
-            matching.forEach { child ->
+            if (dirs.isEmpty()) Text("没有子目录", color = Ink.muted)
+            dirs.forEach { child ->
                 AtlasSettingsActionRow(child.name, "", CodexGlyph.Folder, onClick = { directory = child }, outlined = false)
             }
         }, onFailure = { ErrorText(it.message ?: "无法读取目录") })

@@ -22,7 +22,6 @@ internal fun ThreadSectionSheet(
     var sections by remember { mutableStateOf<List<AndroidThreadSection>?>(null) }
     var editing by remember { mutableStateOf<AndroidThreadSection?>(null) }
     var name by remember { mutableStateOf("") }
-    var query by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<AndroidThreadSection?>(null) }
     var remaining by remember(moving) { mutableStateOf(moving.orEmpty()) }
     var attempt by remember(moving) { mutableStateOf<SectionMoveAttempt?>(null) }
@@ -92,8 +91,7 @@ internal fun ThreadSectionSheet(
         }, enabled = !operation.busy && attempt == null && (moving == null || remaining.isNotEmpty())) {
             Text(if (moving == null) "未分组" else "移出分组")
         }
-        AtlasSearchField(query, { query = it }, "搜索分组", onClear = { query = "" })
-        sections.orEmpty().filter { it.name.contains(query.trim(), ignoreCase = true) }.forEach { section ->
+        sections.orEmpty().sortedBy { it.name }.forEach { section ->
             Row(Modifier.fillMaxWidth()) {
                 CodexSecondaryButton(onClick = {
                     if (moving == null) onFilter(section) else move(section.id, section.name)

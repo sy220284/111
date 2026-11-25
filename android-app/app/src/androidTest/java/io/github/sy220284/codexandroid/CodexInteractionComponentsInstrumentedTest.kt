@@ -104,28 +104,23 @@ class CodexInteractionComponentsInstrumentedTest {
     @Test fun sharedSearchSubmitsAndClearsWithoutLeakingOldQuery() {
         rule.setContent {
             var query by remember { mutableStateOf("") }
-            var output by remember { mutableStateOf("未搜索") }
-            CodexTheme {
-                Column {
-                    AtlasSearchField(
-                        value = query, onValueChange = { query = it },
-                        placeholder = "查找任务",
-                        modifier = androidx.compose.ui.Modifier.testTag("atlas-search-field"),
-                        onSubmit = { output = "已搜索：" + query },
-                        onClear = { query = ""; output = "已清空" },
-                        submitTestTag = "atlas-search-submit"
-                    )
-                    Text(output)
-                }
-            }
+            CodexTheme { Column {
+                ClipboardQueryAction("明确检索", query, { query = it }, { query = "" }, tag = "clipboard-test")
+            } }
         }
-        rule.onNodeWithTag("atlas-search-submit").assertIsNotEnabled()
-        rule.onNodeWithTag("atlas-search-field").performTextInput("新任务")
-        rule.onNodeWithTag("atlas-search-submit").assertIsEnabled().performClick()
-        rule.onNodeWithText("已搜索：新任务").assertExists()
-        rule.onNodeWithContentDescription("清除搜索词").performClick()
-        rule.onNodeWithText("已清空").assertExists()
-        rule.onNodeWithTag("atlas-search-submit").assertIsNotEnabled()
+        setQueryClipboard("新任务")
+        rule.onNodeWithTag("clipboard-test").performClick()
+        rule.onNodeWithText("新任务").assertExists()
+        rule.onNodeWithText("清除查找条件").performClick()
+        rule.onNodeWithText("新任务").assertDoesNotExist()
+    }
+
+    private fun setQueryClipboard(value: String) {
+        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val clipboard = instrumentation.targetContext.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("测试检索词", value))
+        }
     }
 
     @Test fun statusSelectorShowsActualSelectedTaskStatus() {
@@ -333,15 +328,14 @@ class CodexInteractionComponentsInstrumentedTest {
                 CodexChoiceSheet(title = "选择模型", description = "选择实际可用模型",
                     choices = listOf(CodexChoice("alpha", "Alpha"), CodexChoice("beta", "Beta")),
                     selectedId = selected, onSelect = { selected = it }, onDismiss = {},
-                    searchable = true)
+                    wide = true)
             }
         }
         rule.onNodeWithTag("choice-option-alpha").assertIsSelected()
-        rule.onNodeWithTag("choice-search").performTextInput("Beta")
-        rule.onNodeWithTag("choice-option-alpha").assertDoesNotExist()
+        rule.onNodeWithTag("choice-search").assertDoesNotExist()
+        rule.onNodeWithTag("choice-option-alpha").assertExists()
         rule.onNodeWithTag("choice-option-beta").performClick()
         rule.onNodeWithTag("choice-option-beta").assertIsSelected()
-        rule.onNodeWithContentDescription("清除搜索词").performClick()
         rule.onNodeWithTag("choice-option-alpha").assertIsNotSelected()
         rule.onNodeWithTag("choice-option-beta").assertIsSelected()
     }
@@ -364,14 +358,15 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.setContent {
             CodexTheme { FullTextReaderDialog("阅读记录", "alpha beta alpha", onDismiss = {}) }
         }
-        rule.onNodeWithTag("full-text-search").performTextInput("alpha")
+        setQueryClipboard("alpha")
+        rule.onNodeWithTag("full-text-clipboard-query").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithContentDescription("上一个匹配").performClick()
         rule.onNodeWithText("第 2 / 2 处").assertExists()
         captureComponentEvidence("audit-full-text-match-android35.png")
         rule.onNodeWithContentDescription("下一个匹配").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
-        rule.onNodeWithContentDescription("清除搜索词").performClick()
+        rule.onNodeWithText("清除查找条件").performClick()
         rule.onNodeWithText("alpha beta alpha").assertExists()
     }
 
@@ -592,8 +587,9 @@ class CodexInteractionComponentsInstrumentedTest {
         }
         rule.onNodeWithTag("timeline-header-test-message-reader").performClick()
         rule.onNodeWithText("全文阅读").performClick()
-        rule.onNodeWithTag("full-text-search").assertExists()
-        rule.onNodeWithTag("full-text-search").performTextInput("原始")
+        rule.onNodeWithTag("full-text-search").assertDoesNotExist()
+        setQueryClipboard("原始")
+        rule.onNodeWithTag("full-text-clipboard-query").performClick()
         rule.onNodeWithText("第 1 / 1 处").assertExists()
     }
 
@@ -709,7 +705,8 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.setContent {
             CodexTheme { FullTextReaderDialog("长文本定位", sample, onDismiss = {}) }
         }
-        rule.onNodeWithTag("full-text-search").performTextInput("needle")
+        setQueryClipboard("needle")
+        rule.onNodeWithTag("full-text-clipboard-query").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         val list = rule.onNodeWithTag("full-text-reader-list")
         fun scrollValue(): Float = list.fetchSemanticsNode().config[
@@ -860,7 +857,8 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithTag("timeline-header-final-ui").performClick()
         rule.onNodeWithText("全文阅读").performClick()
         rule.onNodeWithTag("full-text-reader").assertExists()
-        rule.onNodeWithTag("full-text-search").performTextInput("第二部分")
+        setQueryClipboard("第二部分")
+        rule.onNodeWithTag("full-text-clipboard-query").performClick()
         rule.onNodeWithText("第 1 / 1 处").assertExists()
     }
 

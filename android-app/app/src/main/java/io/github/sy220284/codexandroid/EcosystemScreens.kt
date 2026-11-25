@@ -376,11 +376,10 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     var action by remember(epoch) { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }
     var sharingPath by remember { mutableStateOf<String?>(null) }
     var selectedPlugin by remember(epoch) { mutableStateOf<Pair<JSONObject, JSONObject>?>(null) }
-    var installedQuery by rememberSaveable { mutableStateOf("") }
     var searchDraft by rememberSaveable { mutableStateOf("") }
     var searchSubmitted by rememberSaveable { mutableStateOf("") }
     var searchPage by rememberSaveable { mutableIntStateOf(0) }
-    val query = if (installedOnly) installedQuery else searchDraft
+    val query = if (installedOnly) "" else searchDraft
     val searchActive = !installedOnly && searchSubmitted.isNotBlank() &&
         ThreadSearchSubmission.matches(searchDraft, searchSubmitted)
     val searchPrefix = "pluginSearch:" + searchSubmitted + ":"
@@ -461,21 +460,11 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             explanation = "点击插件查看能力与来源。安装和卸载由 Codex 核心执行，操作成功后更新目录。",
             refreshing = activeKey in busy, enabled = connected && !mutating,
             onRefresh = { refreshCatalog(true) })
-        if (!installedOnly || data[activeKey] != null && allCount > 0) {
-            if (!installedOnly) Text("搜索插件", modifier = Modifier.testTag("plugins-search-heading"),
-                style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-            AtlasSearchField(value = query,
-                onValueChange = { if (installedOnly) installedQuery = it else searchDraft = it },
-                placeholder = if (installedOnly) "搜索已安装插件" else "插件名称或关键字",
-                enabled = if (installedOnly) true else !mutating,
-                busy = searchActive && searchKey in busy,
-                onClear = {
-                    if (installedOnly) installedQuery = "" else {
-                        searchDraft = ""; searchSubmitted = ""; searchPage = 0
-                    }
-                },
-                onSubmit = if (installedOnly || !connected) null else ({ submitSearch() }),
-                submitTestTag = "plugins-search-submit")
+        if (!installedOnly) {
+            ClipboardQueryAction("使用剪贴板发现插件", searchDraft,
+                onQuery = { searchDraft = it; submitSearch(it) },
+                onClear = { searchDraft = ""; searchSubmitted = ""; searchPage = 0 },
+                enabled = canOperate && searchKey !in busy, tag = "plugins-clipboard-query")
         }
         ProtocolFeedback(vm, listOf("pluginMutation"))
         if (!installedOnly && connected && !installedVerified && "installedPlugins" !in busy)
@@ -542,7 +531,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             activeKey !in busy && activeKey !in errors && catalogErrors == 0 && searchSettled) {
             if (query.isNotBlank()) CodexEmptyState("没有匹配的插件", "试试其他名称或关键字。",
                 artworkRes = R.drawable.ic_empty_no_results, actionLabel = "清除搜索", onAction = {
-                    if (installedOnly) installedQuery = "" else { searchDraft = ""; searchSubmitted = ""; searchPage = 0 }
+                    searchDraft = ""; searchSubmitted = ""; searchPage = 0
                 })
             else CodexEmptyState(if (installedOnly) "暂无已安装插件" else "暂无可用插件",
                 if (installedOnly) "发现并安装所需插件后，可在这里管理。" else "当前目录未返回插件。",

@@ -10,7 +10,7 @@
       "route": "threads",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessions",
-      "component": "AtlasSearchField"
+      "component": "AtlasCompactChoice"
     },
     {
       "route": "approvals",
@@ -22,7 +22,7 @@
       "route": "search",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessions",
-      "component": "AtlasSearchField"
+      "component": "ClipboardQueryAction"
     },
     {
       "route": "goals",
@@ -46,7 +46,7 @@
       "route": "diff",
       "file": "DiffReaderPage.kt",
       "owner": "DiffReaderPage",
-      "component": "AtlasSearchField"
+      "component": "CodexChoiceSheet"
     },
     {
       "route": "terminal",
@@ -76,19 +76,19 @@
       "route": "skills",
       "file": "SkillsPage.kt",
       "owner": "SkillsPage",
-      "component": "AtlasSearchField"
+      "component": "WhiteSwitch"
     },
     {
       "route": "plugins",
       "file": "EcosystemScreens.kt",
       "owner": "PluginsPage",
-      "component": "AtlasSearchField"
+      "component": "AtlasCompactChoice"
     },
     {
       "route": "apps",
       "file": "IntegrationScreens.kt",
       "owner": "ConnectedAppsPage",
-      "component": "AtlasSearchField"
+      "component": "MaterialPanel"
     },
     {
       "route": "mcp",
@@ -160,7 +160,7 @@
       "route": "settings",
       "file": "SettingsHub.kt",
       "owner": "SettingsHubPage",
-      "component": "AtlasSearchField"
+      "component": "SettingRouteRow"
     },
     {
       "route": "update",
@@ -193,7 +193,7 @@
       "parent": "threads",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessions",
-      "component": "AtlasSearchField",
+      "component": "AtlasCompactChoice",
       "test": "sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection",
       "screenshot": "audit-sidebar-filtered"
     },
@@ -283,7 +283,7 @@
       "parent": "terminal",
       "file": "FullTextReaderDialog.kt",
       "owner": "FullTextReaderDialog",
-      "component": "AtlasSearchField",
+      "component": "ClipboardQueryAction",
       "test": "fullTextSearchShowsFirstAndPreviousMatchesWithoutChangingOriginalText",
       "screenshot": "audit-full-text-match"
     },
@@ -454,7 +454,7 @@
       "parent": "chat",
       "file": "AdvancedThreadTimelineDialog.kt",
       "owner": "AdvancedThreadTimelineDialog",
-      "component": "AtlasSearchField",
+      "component": "CodexFilterChip",
       "test": "taskSpecificSheetsAreReachableAndReadable",
       "screenshot": null
     },

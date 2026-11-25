@@ -795,7 +795,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                     .put("enabled", true).put("callable", true))))
         }
         rule.onNodeWithText("样例应用").assertIsDisplayed()
-        rule.onNodeWithText("搜索应用").assertExists()
+        rule.onNodeWithText("搜索应用").assertDoesNotExist()
         capture("audit-apps-installed-snapshot-android35.png")
         rule.onNodeWithText("样例应用").performClick()
         rule.onNodeWithText("应用说明").assertIsDisplayed()
@@ -815,7 +815,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithText("样例插件").assertIsDisplayed()
         rule.onNodeWithText("卸载", substring = false).assertDoesNotExist()
-        rule.onNodeWithText("搜索已安装插件").assertExists()
+        rule.onNodeWithText("搜索已安装插件").assertDoesNotExist()
         capture("audit-plugins-compact-installed-android35.png")
         rule.onNodeWithText("样例插件").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()

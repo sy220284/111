@@ -99,16 +99,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val installed = data["appInstalled"]
     val directory = data["apps"]
     val apps = remember(directory, installed) { ExtensionCatalogPolicy.apps(directory, installed) }
-    var appQuery by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     val verified = installed != null && "appInstalled" !in errors && engineStatus == EngineStatus.Connected
     val installedById = remember(installed) { records(installed).associateBy { it.optString("id") } }
     val statuses = remember(apps, installedById, verified) {
         apps.associate { it.optString("id") to ExtensionCatalogPolicy.appStatusForRecord(it, installedById[it.optString("id")], verified) }
     }
     val connectedCount = remember(statuses) { statuses.values.count { it == "已连接" } }
-    val visible = remember(apps, appQuery) {
-        apps.filter { it.optString("name").contains(appQuery.trim(), ignoreCase = true) }
-    }
+    val visible = apps
     val groups = remember(visible, statuses) { visible.groupBy { statuses[it.optString("id")] == "已连接" } }
     var target by remember(epoch) { mutableStateOf<JSONObject?>(null) }
     var inspectingId by remember(epoch) { mutableStateOf<String?>(null) }
@@ -153,10 +150,6 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             AtlasCatalogStatus(vm, "appInstalled", "连接状态", onRefresh = { refreshApps(true) },
                 onDiagnostics = { navigate("diagnostics") })
         if (apps.isNotEmpty()) {
-            AtlasSearchField(appQuery, { appQuery = it }, "搜索应用", onClear = { appQuery = "" },
-                modifier = Modifier.testTag("apps-search"))
-            if (visible.isEmpty()) CodexEmptyState("没有匹配的应用", "修改搜索词查看其他应用。",
-                actionLabel = "清除搜索", onAction = { appQuery = "" })
             for (isConnected in listOf(true, false)) {
                 val items = groups[isConnected].orEmpty()
                 if (items.isEmpty()) continue

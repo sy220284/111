@@ -124,7 +124,7 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
             choices.isEmpty() -> "当前没有可用模型，检查服务状态后刷新。"
             else -> "可重新读取模型目录，已选择的模型不会因此改变。"
         },
-        searchable = true,
+        wide = true,
         loading = catalogKey in loading,
         extraContent = {
             AtlasSettingsActionRow("刷新模型目录", "直接向当前服务商重新查询，不使用缓存", CodexGlyph.Retry,

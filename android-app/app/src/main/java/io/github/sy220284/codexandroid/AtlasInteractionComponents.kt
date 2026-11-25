@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.foundation.clickable
@@ -34,62 +35,27 @@ import androidx.compose.ui.unit.dp
  * 组件只处理呈现和可访问操作，搜索、提交、审批、进度均由调用方的真实状态驱动。
  */
 
-/** 统一查询框：文本搜索使用搜索键提交；即时过滤可不提供 onSubmit。 */
+/** Explicit clipboard action, without a text input or keyboard. */
 @Composable
-fun AtlasSearchField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    placeholder: String,
-    modifier: Modifier = Modifier,
-    onSubmit: (() -> Unit)? = null,
-    onClear: (() -> Unit)? = null,
-    enabled: Boolean = true,
-    busy: Boolean = false,
-    label: String? = null,
-    submitTestTag: String? = null
+internal fun ClipboardQueryAction(
+    title: String, current: String, onQuery: (String) -> Unit, onClear: () -> Unit,
+    enabled: Boolean = true, tag: String = "clipboard-query"
 ) {
-    CodexInputField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
-        label = label?.let { labelText -> { Text(labelText) } },
-        placeholder = { Text(placeholder) },
-        singleLine = true,
-        enabled = enabled,
-        shape = RoundedCornerShape(18.dp),
-        leadingIcon = { CodexIcon(CodexGlyph.Search, contentDescription = null) },
-        trailingIcon = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (value.isNotBlank() && onClear != null) {
-                    CodexIconAction(
-                        onClick = onClear,
-                        modifier = Modifier.size(48.dp),
-                        enabled = enabled
-                    ) { CodexIcon(CodexGlyph.Close, contentDescription = "清除搜索词") }
-                }
-                if (onSubmit != null) {
-                    CodexIconAction(
-                        onClick = onSubmit,
-                        enabled = enabled && !busy && value.isNotBlank(),
-                        modifier = Modifier.size(48.dp).let {
-                            if (submitTestTag == null) it else it.testTag(submitTestTag)
-                        }
-                    ) {
-                        if (busy) CodexActivityIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = Ink.copper, strokeWidth = 2.dp
-                        ) else CodexIcon(CodexGlyph.ArrowForward, contentDescription = "开始搜索")
-                    }
-                }
-            }
-        },
-        keyboardOptions = KeyboardOptions(
-            imeAction = if (onSubmit == null) ImeAction.Done else ImeAction.Search
-        ),
-        keyboardActions = KeyboardActions(
-            onSearch = { if (onSubmit != null && enabled && !busy && value.isNotBlank()) onSubmit() }
-        )
-    )
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    var error by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        CodexSecondaryButton(onClick = {
+            val term = clipboard.getText()?.text?.trim().orEmpty()
+            if (term.isBlank()) error = "请先复制要查找的文字"
+            else if (term.length > 4096) error = "复制的文字过长，请选择较短的内容"
+            else { error = ""; onQuery(term) }
+        }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)) { Text(title) }
+        if (current.isNotBlank()) {
+            Text(current, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink.muted)
+            CodexTextAction(onClick = { error = ""; onClear() }, enabled = enabled) { Text("清除查找条件") }
+        }
+        if (error.isNotBlank()) Text(error, color = Ink.red, style = MaterialTheme.typography.bodySmall)
+    }
 }
 
 /** 明确选择的是任务执行状态，而非普通内容筛选条件。 */

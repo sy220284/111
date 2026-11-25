@@ -80,9 +80,7 @@ fun FullTextReaderDialog(title: String, text: String, onDismiss: () -> Unit) {
                         CodexIcon(CodexGlyph.ContentCopy, contentDescription = "复制全文")
                     }
                 }
-                AtlasSearchField(search, { search = it }, "在全文中查找",
-                    modifier = Modifier.testTag("full-text-search"),
-                    onClear = { search = "" })
+                ClipboardQueryAction("使用剪贴板查找正文", search, { search = it }, { search = "" }, tag = "full-text-clipboard-query")
                 if (search.isNotBlank()) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(if (searchHits == null) "正在查找…" else if (hits.isEmpty()) "没有匹配结果" else

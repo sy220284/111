@@ -30,7 +30,7 @@ SHARED = {
     "CodexRadio": "CodexControlPrimitives", "CodexActivityIndicator": "CodexControlPrimitives",
     "AtlasExclusiveChip": "CodexControlPrimitives", "CodexSuggestionChip": "CodexControlPrimitives",
     "ActionReplyRow": "ActionReply", "ActionQuestionRow": "ActionReply",
-    "ActionNumberStepper": "ActionReply", "AgentActionRow": "ActionReply", "AtlasSearchField": "AtlasInteractionComponents",
+    "ActionNumberStepper": "ActionReply", "AgentActionRow": "ActionReply",
     "AtlasChoiceRow": "AtlasInteractionComponents", "AtlasCompactChoice": "AtlasInteractionComponents",
     "AtlasOperationProgress": "AtlasInteractionComponents",
 }
@@ -47,6 +47,9 @@ def audit(sources):
     raw = {name: [] for name in RAW_OWNERS}
     for file, source in sorted(sources.items()):
         code = without_comments_and_literals(source)
+        for hit in re.finditer(r"\b(?:AtlasSearchField|SearchBar|DockedSearchBar|SearchField|SearchInput)\s*\(|\bImeAction\.Search\b", code):
+            line = code.count("\n", 0, hit.start()) + 1
+            errors.append(f"{file}:{line}: 禁止搜索输入框；使用分类、选择列表或明确的剪贴板/智能体检索动作")
         # Remove declarations; extension and ordinary declarations are treated equally.
         code = re.sub(r"\bfun\s+(?:[\w.]+\.)?(\w+)\s*\(", lambda m: " " * len(m.group()), code)
         for name in list(RAW_OWNERS) + list(SHARED):

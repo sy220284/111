@@ -420,15 +420,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false) {
                         onChoice = { choice -> command = choice.command; historyPosition = choice.position },
                         onOpenHistory = { historyVisible = true })
                     if (historyVisible) CodexFloatingMenu(
-                        title = "历史命令", wide = true, searchable = true,
+                        title = "历史命令", wide = true,
                         description = "选择后填入输入栏，执行前仍需确认",
                         onDismiss = { historyVisible = false }
                     ) {
-                        var historyQuery by remember { mutableStateOf("") }
-                        AtlasSearchField(historyQuery, { historyQuery = it }, "搜索历史命令",
-                            onClear = { historyQuery = "" })
                         recentCommands.forEachIndexed { index, previous ->
-                            if (!previous.contains(historyQuery.trim(), ignoreCase = true)) return@forEachIndexed
                             CodexSecondaryButton(
                                 onClick = {
                                     command = previous

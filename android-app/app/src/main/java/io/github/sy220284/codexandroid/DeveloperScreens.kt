@@ -159,10 +159,7 @@ fun WorkspacePage(vm: CodexViewModel) {
         }
     }
     val children = directoryResult?.getOrNull().orEmpty()
-    var fileQuery by remember(folder) { mutableStateOf("") }
-    val visibleChildren = remember(children, fileQuery) {
-        children.filter { it.file.name.contains(fileQuery.trim(), ignoreCase = true) }
-    }
+    val visibleChildren = children
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
@@ -289,18 +286,9 @@ fun WorkspacePage(vm: CodexViewModel) {
                 Text(when {
                     directoryResult == null -> "读取中"
                     directoryResult?.isFailure == true -> "读取失败"
-                    fileQuery.isBlank() -> "${children.size} 项"
-                    else -> "${visibleChildren.size} / ${children.size} 项"
+                    else -> "${children.size} 项"
                 }, style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             }
-        }
-        if (children.isNotEmpty()) item(key = "workspace-search") {
-            AtlasSearchField(fileQuery, { fileQuery = it }, "搜索当前目录",
-                onClear = { fileQuery = "" }, modifier = Modifier.testTag("workspace-file-search"))
-        }
-        if (children.isNotEmpty() && visibleChildren.isEmpty()) item {
-            CodexEmptyState("没有匹配的文件", "试试其他文件名。",
-                actionLabel = "清除搜索", onAction = { fileQuery = "" })
         }
         when {
             directoryResult == null -> item(key = "workspace-directory-loading") {

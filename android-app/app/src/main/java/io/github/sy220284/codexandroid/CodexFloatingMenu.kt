@@ -27,7 +27,6 @@ internal fun CodexFloatingMenu(
     onDismiss: () -> Unit,
     description: String = "",
     wide: Boolean = false,
-    searchable: Boolean = false,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val config = LocalConfiguration.current
@@ -42,8 +41,7 @@ internal fun CodexFloatingMenu(
     val height = minOf(420.dp, config.screenHeightDp.dp * .64f,
         (visibleHeight - topClearance - 12.dp).coerceAtLeast(48.dp))
     // A simple menu must not steal the existing text field's IME connection.
-    // The model search needs its own editable focus; otherwise keep the IME window.
-    val focusable = searchable || ime == 0.dp
+    val focusable = ime == 0.dp
     BackHandler(enabled = !focusable, onBack = onDismiss)
     val menuWidth = minOf(if (wide) 280.dp else 248.dp,
         (config.screenWidthDp - 32).dp.coerceAtLeast(160.dp))
