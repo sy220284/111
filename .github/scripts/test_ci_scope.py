@@ -105,6 +105,18 @@ class AndroidCIScopeTests(unittest.TestCase):
         self.assertNotIn(":app:testDebugUnitTest", contents)
         self.assertIn("release_change_gate.py", contents)
 
+    def test_release_gate_changes_trigger_both_main_acceptances(self):
+        for name in ("build-android.yml", "check-android-ui.yml"):
+            paths = workflow(name).split("  push:", 1)[1].split("  workflow_dispatch:", 1)[0].split("  pull_request:", 1)[0]
+            for path in (".github/workflows/release.yml",
+                         ".github/scripts/select_release_candidate.py",
+                         ".github/scripts/test_select_release_candidate.py",
+                         ".github/scripts/verify_release_acceptance.py"):
+                self.assertIn(f'- "{path}"', paths)
+        release = workflow("release.yml")
+        self.assertIn("select_release_candidate.py", release)
+        self.assertIn("--check-only", release)
+
     def test_git_abi_validation_has_one_maintained_implementation(self):
         self.assertFalse((WORKFLOWS / "verify-android-git.yml").exists())
         self.assertIn('bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh"',

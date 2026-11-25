@@ -13,6 +13,11 @@ on:
       - ".github/scripts/create-android-update-fixture.sh"
       - ".github/scripts/audit_apk_contents.py"
       - ".github/workflows/build-android.yml"
+      - ".github/workflows/release.yml"
+      - ".github/scripts/select_release_candidate.py"
+      - ".github/scripts/test_select_release_candidate.py"
+      - ".github/scripts/verify_release_acceptance.py"
+      - ".github/scripts/test_verify_release_acceptance.py"
       - ".github/scripts/select_native_artifacts.py"
   workflow_dispatch:
     inputs:
