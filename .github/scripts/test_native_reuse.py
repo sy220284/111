@@ -6,7 +6,7 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from select_native_artifacts import ArtifactSelector, SelectionError, native_recipe
+from select_native_artifacts import ArtifactSelector, SelectionError, native_recipe, configured_abis
 
 
 COMPILER_JOB = """
@@ -161,6 +161,29 @@ jobs:
                          native_recipe(arm_only, "arm64-v8a"))
         self.assertNotEqual(native_recipe(full, "x86_64"),
                             native_recipe(full, "arm64-v8a"))
+
+    def test_dynamic_missing_abi_matrix_keeps_existing_arm_signature(self):
+        prefix = "jobs:\n  native:\n    runs-on: ubuntu-latest\n    strategy:\n      matrix:\n"
+        suffix = "\n    env:\n      RUST: 1.99.1\n    steps:\n      - name: build\n        run: cargo build\n      - name: 上传原生内核与构建清单\n"
+        matrix = [
+            {"rust_target": "aarch64-linux-android", "clang": "aarch64-linux-android29-clang",
+             "clangxx": "aarch64-linux-android29-clang++", "abi": "arm64-v8a", "elf_arch": "AArch64"},
+            {"rust_target": "x86_64-linux-android", "clang": "x86_64-linux-android29-clang",
+             "clangxx": "x86_64-linux-android29-clang++", "abi": "x86_64", "elf_arch": "X86-64"},
+        ]
+        static = "        include:\n" + "\n".join(
+            "\n".join(("          - " if index == 0 else "            ") + key + ": " + value
+                      for index, (key, value) in enumerate(entry.items())) for entry in matrix
+        )
+        dynamic = "ABI_MATRIX_JSON: '" + json.dumps(matrix) + "'\n" + prefix + "        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}" + suffix
+        for abi in ("arm64-v8a", "x86_64"):
+            self.assertEqual(native_recipe(prefix + static + suffix, abi), native_recipe(dynamic, abi))
+        self.assertEqual(["arm64-v8a", "x86_64"], configured_abis(dynamic))
+        with self.assertRaises(SelectionError):
+            native_recipe(dynamic.replace("ABI_MATRIX_JSON:", "UNKNOWN:"), "arm64-v8a")
+        edited = dynamic.replace("x86_64-linux-android29-clang++", "x86_64-linux-android30-clang++")
+        self.assertEqual(native_recipe(dynamic, "arm64-v8a"), native_recipe(edited, "arm64-v8a"))
+        self.assertNotEqual(native_recipe(dynamic, "x86_64"), native_recipe(edited, "x86_64"))
 
     def test_unrecognized_recipe_is_error(self):
         with self.assertRaises(SelectionError):

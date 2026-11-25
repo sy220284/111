@@ -17,7 +17,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.collectLatest
@@ -29,18 +28,13 @@ import kotlinx.coroutines.launch
  * currently emitting tokens. Its stop action uses the same validated VM RPC.
  */
 internal object ForegroundTaskPolicy {
-    fun shouldKeepAlive(running: Boolean, terminalRunning: Boolean, approvals: Int): Boolean =
-        running || terminalRunning || approvals > 0
-
-    fun shouldReconnect(
-        connected: Boolean, running: Boolean, terminalRunning: Boolean, approvals: Int
-    ): Boolean = !connected && shouldKeepAlive(running, terminalRunning, approvals)
+    fun shouldKeepAlive(snapshot: GlobalWorkSnapshot): Boolean = snapshot.requiresForegroundProtection
 }
 
 class CodexForegroundService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private var watch: Job? = null
-    private var reconnectWatcher: Job? = null
+    private var foregroundPromoted = false
 
     private data class TaskNotificationState(
         val running: Boolean,
@@ -49,7 +43,8 @@ class CodexForegroundService : Service() {
         val approvals: Int,
         val connected: Boolean,
         val events: Int,
-        val canStop: Boolean
+        val canStop: Boolean,
+        val protectedWork: Boolean = true
     )
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -64,6 +59,7 @@ class CodexForegroundService : Service() {
         // A foreground notification must exist immediately, before collecting flows.
         try {
             showNotification(TaskNotificationState(true, 1, false, 0, true, 0, false), foreground = true)
+            foregroundPromoted = true
             readiness.ready()
         } catch (failure: Exception) {
             val reason = failure.message ?: "系统拒绝前台服务启动"
@@ -75,65 +71,35 @@ class CodexForegroundService : Service() {
 
         val session = (application as CodexApplication).session
         watch = scope.launch {
-            val activeCount = combine(
-                session.running, session.threadExecutions, session.firstThreadStarting
-            ) { visibleRunning, executions, starting ->
-                executions.size + if (starting || (visibleRunning && executions.isEmpty())) 1 else 0
-            }
-            val activeWork = combine(
-                activeCount, session.terminalSession, session.terminalStarting, session.bridge.prompts
-            ) { count, terminal, starting, prompts ->
-                Triple(count, terminal.running || starting, prompts.size)
-            }
             combine(
-                activeWork, session.bridge.status, session.timeline, session.activeTurn
+                session.globalWorkChanges(), session.bridge.status, session.timeline, session.activeTurn
             ) { work, status, timeline, turn ->
+                val count = work.executingThreads + if (work.creatingThread ||
+                    (work.visibleTurnRunning && work.executingThreads == 0)) 1 else 0
                 TaskNotificationState(
-                    running = work.first > 0,
-                    threads = work.first,
-                    terminalRunning = work.second,
-                    approvals = work.third,
-                    connected = status == EngineStatus.Connected,
+                    running = count > 0, threads = count,
+                    terminalRunning = work.terminalRunning || work.terminalStarting,
+                    approvals = work.pendingApprovals, connected = status == EngineStatus.Connected,
                     events = timeline.size,
-                    canStop = (session.running.value && !turn.isNullOrBlank()) ||
-                        session.terminalSession.value.running
+                    canStop = (work.visibleTurnRunning && !turn.isNullOrBlank()) || work.terminalRunning,
+                    protectedWork = ForegroundTaskPolicy.shouldKeepAlive(work)
                 )
             }.distinctUntilChanged().collectLatest { state ->
-                if (!ForegroundTaskPolicy.shouldKeepAlive(
-                        state.running, state.terminalRunning, state.approvals)) {
-                    reconnectWatcher?.cancel()
-                    stopSelf()
-                } else {
-                    showNotification(state, foreground = false)
-                    // A pending approval is a live interaction even when its turn is idle.
-                    // Reconnect while the foreground service is legitimately active;
-                    // exponential backoff avoids thrashing a failed native child.
-                    if (ForegroundTaskPolicy.shouldReconnect(
-                            state.connected, state.running,
-                            state.terminalRunning, state.approvals
-                        ) && reconnectWatcher?.isActive != true) {
-                        reconnectWatcher = scope.launch {
-                            var interval = 2_000L
-                            while (isActive && ForegroundTaskPolicy.shouldKeepAlive(
-                                    session.threadExecutions.value.isNotEmpty() ||
-                                        session.running.value || session.firstThreadStarting.value,
-                                    session.terminalSession.value.running ||
-                                        session.terminalStarting.value,
-                                    session.bridge.prompts.value.size
-                                ) && session.bridge.status.value != EngineStatus.Connected) {
-                                delay(interval)
-                                session.reconnectIfNeeded()
-                                interval = (interval * 2).coerceAtMost(60_000L)
-                            }
-                        }
+                if (!state.protectedWork) {
+                    // Keep promotion through short gaps between related requests.
+                    delay(1_000L)
+                    if (!session.globalWorkSnapshot().requiresForegroundProtection) {
+                        readiness.stopped()
+                        stopSelf()
                     }
-                    if (state.connected) reconnectWatcher?.cancel()
-                }
+                } else showNotification(state, foreground = false)
             }
         }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        // A new start can arrive during the previous idle stop handoff.
+        if (foregroundPromoted && readiness.state.value == ForegroundStartState.Starting) readiness.ready()
         if (intent?.action == ACTION_STOP) {
             // A notification action is an explicit user request; use the same
             // thread/turn validation and RPC as the in-app stop control.
@@ -172,7 +138,8 @@ class CodexForegroundService : Service() {
             state.approvals > 0 -> "点击返回任务对话，查看内容并决定是否允许"
             state.threads > 1 -> "多会话任务持续运行，点按查看并切换会话"
             state.terminalRunning && state.threads == 0 -> "终端仍在运行，点按查看输出或停止命令"
-            else -> "已记录 ${state.events} 条执行事件，点按查看详情"
+            state.running -> "已记录 ${state.events} 条执行事件，点按查看详情"
+            else -> "操作正在处理，点按返回查看详情"
         }
         val builder = Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_codex_status)
@@ -205,9 +172,9 @@ class CodexForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        foregroundPromoted = false
         readiness.stopped()
         watch?.cancel()
-        reconnectWatcher?.cancel()
         scope.cancel()
         super.onDestroy()
     }
@@ -218,7 +185,9 @@ class CodexForegroundService : Service() {
         private const val ACTION_STOP = "io.github.sy220284.codexandroid.STOP_ACTIVE_TURN"
         private val readiness = ForegroundServiceReadiness()
 
-        fun start(context: Context) {
+        @Synchronized fun start(context: Context) {
+            if (readiness.state.value == ForegroundStartState.Ready ||
+                readiness.state.value == ForegroundStartState.Starting) return
             readiness.begin()
             try {
                 androidx.core.content.ContextCompat.startForegroundService(
@@ -233,7 +202,11 @@ class CodexForegroundService : Service() {
         /** Only dispatch a long terminal RPC after Android has started foreground mode. */
         suspend fun startAndAwaitReady(context: Context) {
             start(context)
-            readiness.awaitReady()
+            try { readiness.awaitReady() }
+            catch (timeout: kotlinx.coroutines.TimeoutCancellationException) {
+                if (readiness.state.value == ForegroundStartState.Starting) readiness.failed("系统前台服务启动超时")
+                throw timeout
+            }
         }
     }
 }

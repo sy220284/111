@@ -98,7 +98,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val terminalTasks by lazy { TerminalTaskOperations(this, viewModelScope) }
     internal val catalogWarmup by lazy { CatalogWarmupController(this, viewModelScope) }
-    private val mcpCatalog by lazy { McpCatalogController(this) }
+    internal val mcpCatalog by lazy { McpCatalogController(this) }
     internal val accountMetrics by lazy {
         AccountMetricsSync(viewModelScope, data, loading, errors,
             canRead = { bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy },
@@ -113,33 +113,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private var firstTurnImages: List<String> = emptyList()
 
-    fun connect() = viewModelScope.launch {
-        try {
-            val previousThread = activeThread.value
-            val alreadyConnected = bridge.status.value == EngineStatus.Connected
-            bridge.connect()
-            threadOrganization.invalidate()
-            mcpCatalog.reset()
-            // A new native process invalidates ephemeral status from the old session.
-            threadActivities.value = emptyMap()
-            errors.value = errors.value - "engine" - "protocol"
-            refresh("account", "account/read", JSONObject())
-            refresh("models", "model/list", JSONObject())
-            syncRecentThreads()
-            if (!alreadyConnected) extensions.invalidate(preserveAuthorization = true)
-            extensions.refreshAfterAppAuthorization()
-            catalogWarmup.connected()
-            if (alreadyConnected) accountMetrics.refreshIfStale() else accountMetrics.accountChanged()
-            // Rebuild visible history after a connection loss, without resending a task.
-            if (!previousThread.isNullOrBlank() && !running.value) chooseThread(previousThread, forceReload = true)
-        } catch (failure: Exception) {
-            errors.value = errors.value + ("engine" to (failure.message ?: "无法连接运行核心"))
-        }
-    }
-
-    fun reconnectIfNeeded() {
-        if (bridge.status.value is EngineStatus.Unavailable) connect()
-    }
+    private val runtimeConnection by lazy { RuntimeConnectionController(this) }
+    fun connect() = runtimeConnection.connect()
+    fun reconnectIfNeeded() = runtimeConnection.reconnectIfNeeded()
 
     /**
      * 同一结果键只接受最后发起的请求，避免较早的慢响应覆盖新结果。

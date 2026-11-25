@@ -178,12 +178,82 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  runtime-test:
+    name: Android 35 真实内核及异常恢复验收
+    needs: build
+    if: always() && needs.build.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: 检出同提交 Android 工程与原生配方
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            android-app
+            CODEX_UPSTREAM_COMMIT
+            .github/scripts
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+      - name: 核验与复用 x86_64 Android 原生核心
+        id: native
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          RUN_ID="$(python3 .github/scripts/select_native_artifacts.py --repo "$GITHUB_REPOSITORY" --abis x86_64)"
+          echo "run_id=$RUN_ID" >> "$GITHUB_OUTPUT"
+      - uses: actions/download-artifact@v4
+        with:
+          name: codex-android-native-x86_64
+          run-id: ${{ steps.native.outputs.run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/native-x86
+      - name: 装配仅供 Android 模拟器验收的真实内核 APK
+        run: |
+          set -euo pipefail
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
+          STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
+          bash .github/scripts/prepare-android-patcher.sh x86_64
+          bash .github/scripts/create-android-update-fixture.sh
+          gradle -p android-app :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
+      - name: 允许模拟器硬件加速
+        run: |
+          sudo adduser "$USER" kvm || true
+          sudo chmod 666 /dev/kvm
+      - name: 执行真实内核启动、终端、回收与恢复
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: default
+          disable-animations: true
+          emulator-boot-timeout: 900
+          script: bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
+      - name: 保存真实内核验收证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-android-real-runtime-evidence
+          path: runtime-evidence/
+          if-no-files-found: error
+          retention-days: 30
+
   verify-apk:
     name: ARM64 手机安装包二次核验
-    needs: build
+    needs: [build, runtime-test]
     # On workflow_run/dispatch, the push-only preflight is skipped. Avoid
     # inheriting its implicit success() guard through the build dependency.
-    if: always() && needs.build.result == 'success'
+    if: always() && needs.build.result == 'success' && needs.runtime-test.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
