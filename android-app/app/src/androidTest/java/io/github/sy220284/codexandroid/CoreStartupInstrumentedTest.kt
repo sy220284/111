@@ -527,6 +527,64 @@ class CoreStartupInstrumentedTest {
         } finally { process.destroyForcibly() }
     }
 
+    /** Real Codex command RPC, not only a ProcessBuilder version probe. The dedicated
+     * test device uses a disposable workspace and digest-locked, pure-language packages. */
+    @Test fun bundledDeveloperPackagesAndHttpsUseRealCore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        val work = File(WorkspaceStorage.root(app), "runtime-probe-" + UUID.randomUUID())
+        check(work.mkdir())
+        try {
+            File(work, "python-requirements.txt").writeText(
+                "packaging==26.3 --hash=sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c\n")
+            val node = File(work, "node").apply { check(mkdir()) }
+            File(node, "package.json").writeText(JSONObject().put("name", "codex-runtime-probe")
+                .put("version", "1.0.0").put("private", true)
+                .put("dependencies", JSONObject().put("is-number", "7.0.0")).toString())
+            val dependency = JSONObject().put("version", "7.0.0")
+                .put("resolved", "https://registry.npmjs.org/is-number/-/is-number-7.0.0.tgz")
+                .put("integrity", "sha512-41Cifkg6e8TylSpdtTpeLVMqvSBEVzTttHvERD741+pnZ8ANv0004MRL43QKPDlK9cGvNp6NZWZUBlbGXYxxng==")
+            File(node, "package-lock.json").writeText(JSONObject()
+                .put("name", "codex-runtime-probe").put("version", "1.0.0").put("lockfileVersion", 3)
+                .put("requires", true).put("packages", JSONObject()
+                    .put("", JSONObject().put("name", "codex-runtime-probe").put("version", "1.0.0")
+                        .put("dependencies", JSONObject().put("is-number", "7.0.0")))
+                    .put("node_modules/is-number", dependency)).toString())
+            val arm64 = Build.SUPPORTED_ABIS.firstOrNull() == "arm64-v8a"
+            val script = """set -e
+                git init -q local
+                printf probe > local/probe.txt
+                git -C local add probe.txt
+                git -C local -c user.name=Probe -c user.email=probe@example.invalid commit -q --no-gpg-sign -m probe
+                git -C local rev-parse --verify HEAD
+                curl --fail --silent --show-error --location --proto '=https' --max-time 30 https://pypi.org/simple/packaging/ -o index.html
+                test -s index.html
+                python3 -m pip --isolated install --index-url https://pypi.org/simple --disable-pip-version-check --no-deps --only-binary=:all: --require-hashes --target python -r python-requirements.txt
+                PYTHONPATH="${'$'}PWD/python" python3 -c 'import packaging; from packaging.version import Version; assert packaging.__version__ == "26.3" and Version("2.0") > Version("1.0")'
+                (cd node && npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/ --cache="${'$'}PWD/.npm-cache")
+                node -e 'if (!require("./node/node_modules/is-number")(42) || require("./node/node_modules/is-number")("abc")) process.exit(1)'
+                ${if (arm64) "GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code https://github.com/octocat/Hello-World.git HEAD" else "printf 'x86_64 Git HTTPS not provided\\n'"}
+                printf developer-network-packages-ok
+            """.trimIndent()
+            withTimeout(240_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                val result = bridge.request("command/exec", JSONObject()
+                    .put("command", JSONArray().put("/system/bin/sh").put("-c").put(script))
+                    .put("cwd", work.absolutePath).put("timeoutMs", 180_000)
+                    .put("outputBytesCap", 32_000)
+                    .put("sandboxPolicy", JSONObject().put("type", "externalSandbox").put("networkAccess", "enabled")),
+                    timeoutMillis = 200_000L)
+                val stdout = result.optString("stdout")
+                assertEquals(stdout + "\n" + result.optString("stderr"), 0, result.optInt("exitCode", -1))
+                org.junit.Assert.assertTrue(stdout, stdout.contains("developer-network-packages-ok"))
+            }
+        } finally {
+            bridge.close()
+            check(work.deleteRecursively()) { "无法清理开发工具测试工作区" }
+        }
+    }
+
     @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
