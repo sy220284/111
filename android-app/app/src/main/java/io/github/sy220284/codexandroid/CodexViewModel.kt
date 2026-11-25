@@ -201,8 +201,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         dynamicRequestHistory.retain(key)
         val ticket = latestRequests.begin(key)
         val configOwner = configGeneration
+        val requestEpoch = bridge.connectedSession.value
+        val accountOwner = catalogWarmup.accountRevision.value
         val permissionWorkspace = if (key in setOf("composerPermissionConfig", "permissionProfiles")) params?.optString("cwd") else null
-        fun ownsReceipt() = latestRequests.isLatest(key, ticket) &&
+        fun ownsReceipt() = latestRequests.isLatest(key, ticket) && requestEpoch == bridge.connectedSession.value &&
+            (!accountScopedRead(method) || accountOwner == catalogWarmup.accountRevision.value) &&
             (method !in setOf("config/read", "configRequirements/read", "permissionProfile/list") || configOwner == configGeneration) &&
             (permissionWorkspace == null || permissionWorkspace == activeWorkspace.value)
         val retainQueue = method == "thread/queue/list" && key.startsWith("queue:")
@@ -213,17 +216,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         loading.value = loading.value + key
         viewModelScope.launch {
             try {
-                val forkRemote = if (method == "thread/fork") remoteBindings.forThread(params?.optString("threadId")) else null
-                val response = if (forkRemote != null && params != null) {
-                    val parent = params.getString("threadId")
-                    ensureRemoteThread(parent, forkRemote)
-                    val reply = bridge.request(method, params)
-                    val forked = reply.getJSONObject("thread")
-                    remoteBindings.bind(forked.getString("id"), forkRemote)
-                    check(forkRemote.matches(forked)) { "远端新会话归属未确认，请重新打开核对" }
-                    reply
-                } else if (method == "thread/fork" && params != null) modelPreviews.request(method, params)
-                    else bridge.request(method, params)
+                val response = dispatchOwnedRequest(method, params, requireNotNull(requestEpoch) { "运行核心尚未连接" })
                 if (ownsReceipt()) {
                     val published = if (key == "apps" && method == "app/list" &&
                         !params?.optString("cursor").isNullOrBlank())
@@ -294,67 +287,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val sessions by lazy { SessionListController(this, viewModelScope) }
     internal fun syncRecentThreads() = sessions.refresh()
 
-    fun chooseThread(id: String, forceReload: Boolean = false, onOpened: (() -> Unit)? = null) {
-        if (!globalWorkSnapshot().canStartNewTask) {
-            errors.value = errors.value + ("conversation" to "本机备份或恢复正在进行，完成后再切换会话")
-            return
-        }
-        // Serialize resume requests: multiple rapid taps must not race the active session.
-        if (threadSwitching.value || loadingEarlier.value || timelineCompacting) return
-        if (firstThreadStarting.value) {
-            errors.value = errors.value + ("conversation" to "正在建立新会话，请在会话创建后切换")
-            return
-        }
-        if (!forceReload && id.isNotBlank() && id == activeThread.value) {
-            sessions.markRead(id, false)
-            onOpened?.invoke()
-            return
-        }
-        if (!forceReload && !ThreadDisplayPolicy.canOpenThread(activeThread.value, id, running.value)) return
-        threadSwitching.value = true
-        activeThread.value?.let { current ->
-            if (running.value) liveTimelines.capture(current, activeTurn.value, timeline.value)
-        }
-        if (forceReload && !running.value) liveTimelines.remove(id)
-        hydratingThread = id
-        errors.value = errors.value - "conversation"
-        viewModelScope.launch {
-            try {
-                val history = bridge.request("thread/read", JSONObject().put("threadId", id))
-                val nativeThread = history.getJSONObject("thread")
-                val remote = remoteBindings.forThread(id)
-                check(remote != null || !RemoteExecutionBinding.hasRemote(nativeThread)) { "远端会话缺少本机连接记录，请先核对执行环境" }
-                val threadDirectory = workspaceTasks.resumeDirectory(id, nativeThread.getString("cwd"),
-                    nativeThread.optString("projectId").takeUnless { value -> value == "null" }.orEmpty(), remote)
-                val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
-                    .put("sortDirection", "desc").put("limit", 120))
-                val restored = readHistoryPage(page)
-                val turns = TimelineEventReducer.historyTurns(restored)
-                val newest = timelineWindow.replace(id, restored, ++timelineEpoch)
-                workspacePreferences.edit()
-                    .putString("activeDirectory", threadDirectory.absolutePath).apply()
-                restoreComposerOptions(id)
-                val execution = threadExecutions.value[id]
-                errors.value = errors.value - "conversation"
-                threadFailures.value[id]?.let { reason ->
-                    errors.value = errors.value + ("conversation" to reason)
-                }
-                olderServerCursor.value = historyCursor(page)
-                conversationState.value = ActiveConversationContext(threadDirectory.absolutePath,
-                    history.getJSONObject("thread").optString("projectId").takeIf { it.isNotBlank() },
-                    id, execution?.turnId, execution != null,
-                    IndexedTimeline.from(liveTimelines.restore(id, newest)), ThreadDiffHistory.latest(turns),
-                    ComposerProviderScope.provider(history.getJSONObject("thread").optString("modelProvider")), remote)
-                answerVersions.select(id); sessions.markRead(id, false, history.optJSONObject("readState"))
-                onOpened?.invoke()
-            } catch (failure: Exception) {
-                errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
-            } finally {
-                hydratingThread = null
-                threadSwitching.value = false
-            }
-        }
-    }
+    fun chooseThread(id: String, forceReload: Boolean = false, onOpened: (() -> Unit)? = null) =
+        selectConversation(id, forceReload, onOpened, workspaceTasks, workspacePreferences)
 
     /** Workspace and plan actions share the validated local project root. */
     fun selectWorkspace(folder: File) = workspaceTasks.selectWorkspace(folder)
@@ -370,12 +304,6 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         conversationState.update { it.copy(remote = binding) }
         restoreComposerOptions(null)
         return true
-    }
-    internal suspend fun ensureRemoteThread(id: String, binding: RemoteExecutionBinding, running: Boolean = false) {
-        val epoch = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" }
-        remoteBindings.ensureThread(id, binding, running) { method, params ->
-            bridge.request(method, params, expectedSession = epoch)
-        }
     }
     internal fun resetConversation(workspace: String, projectId: String?, agentDraft: Boolean = false): Boolean {
         if (!globalWorkSnapshot().canStartNewTask) {
