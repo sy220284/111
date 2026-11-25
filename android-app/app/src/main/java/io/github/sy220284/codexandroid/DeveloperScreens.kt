@@ -291,6 +291,8 @@ fun WorkspacePage(vm: CodexViewModel) {
                 }, enabled = !editingCreateName && !actionBusy && WorkspaceFileActions.nameError(createName) == null,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("workspace-create")) {
+                    CodexIcon(if (createKind == "file") CodexGlyph.Description else CodexGlyph.CreateNewFolder, null)
+                    Spacer(Modifier.width(8.dp))
                     Text(if (actionBusy) "正在创建" else if (createKind == "file") "创建文本文件" else "创建文件夹")
                 }
             }
