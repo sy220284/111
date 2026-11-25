@@ -60,7 +60,8 @@ internal fun ConversationComposer(
     addMenu: (@Composable () -> Unit)? = null,
     modelMenu: (@Composable () -> Unit)? = null,
     modeMenu: (@Composable () -> Unit)? = null,
-    taskMenu: (@Composable () -> Unit)? = null
+    taskMenu: (@Composable () -> Unit)? = null,
+    providerLabel: String = ""
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     var expandedEditor by remember { mutableStateOf(false) }
@@ -142,8 +143,7 @@ internal fun ConversationComposer(
                 }
                 Box(Modifier.weight(1f)) {
                     Row(Modifier.fillMaxWidth()) {
-                        ConversationControlBar(if (running) "下轮 · " + modelLabel.ifBlank { "默认模型" } else modelLabel,
-                            if (running) "" else effortLabel, modelOptionsEnabled, onModel)
+                        ConversationControlBar(modelLabel, effortLabel, modelOptionsEnabled, onModel, providerLabel)
                     }
                     modelMenu?.invoke()
                 }

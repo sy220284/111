@@ -520,7 +520,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-model-control").performClick()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         rule.onNodeWithTag("composer-effort").assertExists()
-        rule.onNodeWithTag("codex-floating-title").assertTextEquals("选择运行模型")
+        rule.onNodeWithTag("codex-floating-title").assertTextEquals("切换模型")
         captureOverlay("model-sheet-android35.png")
         pressSystemBack()
         rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()

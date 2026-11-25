@@ -102,8 +102,26 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val queuePaused by vm.queuePausedThreads.collectProjection { thread != null && thread in it }
     val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
     val queueReadError by vm.errors.collectProjection { it["queue:$thread"] }
-    val modelData = models["models"]
-    val availableModels = remember(modelData) { records(modelData) }
+    val threadProvider by vm.activeModelProvider.collectAsState()
+    val providerKey = ComposerProviderScope.catalogKey(if (thread != null) threadProvider
+        else ComposerProviderScope.provider(snapshot.options.modelProvider))
+    val scopedCatalog by vm.data.collectEntries(providerKey, "composerThread:$thread", "providers")
+    val providerId = if (thread != null) ComposerProviderScope.provider(threadProvider)
+        else ComposerProviderScope.provider(snapshot.options.modelProvider)
+            ?: ComposerProviderScope.provider(scopedCatalog["providers"]?.optString("defaultProviderId"))
+    val providerLabel = records(scopedCatalog["providers"]).firstOrNull { it.optString("id") == providerId }
+        ?.optString("name")?.takeIf { it.isNotBlank() }?.let { PresentationPolicy.providerName(it) }.orEmpty()
+    val availableModels = remember(scopedCatalog[providerKey]) { records(scopedCatalog[providerKey]) }
+    val configured = scopedCatalog["composerThread:$thread"]?.optJSONObject("thread")
+    val inheritedModel = ComposerProviderScope.provider(configured?.optString("model"))
+    val shownModel = selectedModel.ifBlank { inheritedModel.orEmpty() }
+    val shownEffort = snapshot.options.effort.ifBlank {
+        if (selectedModel.isBlank()) ComposerProviderScope.provider(configured?.optString("reasoningEffort")).orEmpty() else ""
+    }
+    LaunchedEffect(thread, busy, status, switching) {
+        if (thread != null && !busy && !switching && status == EngineStatus.Connected)
+            vm.refresh("composerThread:$thread", "thread/read", JSONObject().put("threadId", thread))
+    }
     val diffSummary by rememberDiffSummary(latestDiff)
     LaunchedEffect(thread) {
         if (thread != null) {
@@ -326,7 +344,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     onStart = { vm.startQueuedComposer(thread) })
             }
             val optionsEnabled = !busy && !firstThreadStarting && !switching
-            val modelOptionsEnabled = !firstThreadStarting && !switching && status == EngineStatus.Connected && !transferBusy
+            val modelOptionsEnabled = !firstThreadStarting && !switching && !transferBusy && !restarting
             val tools = buildList {
                 add(ComposerShortcut("files", "工作区文件", "浏览当前项目", CodexGlyph.Project,
                     enabled = !switching, onOpen = { keyboard?.hide(); navigate("files") }))
@@ -418,10 +436,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 imageImporting = attachmentBusy || documentBusy,
                 onAddContent = { composerMenu = "add" },
                 compactControls = compactWorkArea,
-                modelLabel = ComposerModelPolicy.model(availableModels, selectedModel)
-                    ?.optString("displayName")?.takeIf { it.isNotBlank() } ?: selectedModel,
+                modelLabel = (if (busy) "下轮 · " else "") +
+                    (ComposerModelPolicy.model(availableModels, shownModel)
+                        ?.optString("displayName")?.takeIf { it.isNotBlank() }
+                        ?: shownModel.ifBlank { if (thread == null) "默认模型" else "沿用会话模型" }),
                 modeLabel = selectedMode,
-                effortLabel = snapshot.options.effort.takeIf { it.isNotBlank() }?.let { PresentationPolicy.reasoningLabel(it) }.orEmpty(),
+                effortLabel = PresentationPolicy.reasoningLabel(shownEffort),
+                providerLabel = providerLabel,
                 optionsEnabled = optionsEnabled,
                 modelOptionsEnabled = modelOptionsEnabled,
                 onModel = { composerMenu = "models" },
