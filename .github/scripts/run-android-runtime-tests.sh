@@ -12,6 +12,11 @@ adb wait-for-device
 adb shell getprop ro.product.cpu.abi | tr -d '\r' | tee "$OUT/abi.txt"
 test "$(cat "$OUT/abi.txt")" = "$ABI"
 adb shell getprop ro.build.version.sdk | tr -d '\r' > "$OUT/api.txt"
+EXPECTED_API="$(python3 -c 'import json; print(json.load(open("android-app/tools/device-matrix.json"))["api"])')"
+EXPECTED_PAGE="$(python3 -c 'import json; print(json.load(open("android-app/tools/device-matrix.json"))["page_size"])')"
+test "$(cat "$OUT/api.txt")" = "$EXPECTED_API"
+adb shell getconf PAGESIZE | tr -d '\r' > "$OUT/page-size.txt"
+test "$(cat "$OUT/page-size.txt")" = "$EXPECTED_PAGE"
 sha256sum "$APP" "$TEST" > "$OUT/apks.sha256"
 # Avoid replacing a user's installed app, whose data/credentials could be exposed to tests.
 if adb shell pm path "$PKG" | grep -q '^package:'; then

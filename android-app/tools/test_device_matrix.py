@@ -1,0 +1,26 @@
+import unittest
+from device_matrix import CONFIG, PROFILES, dimensions, matrix, job_name
+
+class DeviceMatrixTests(unittest.TestCase):
+    def test_three_distinct_current_phones_and_one_update_owner(self):
+        self.assertEqual(len(CONFIG["profiles"]), len(PROFILES))
+        self.assertEqual(3, len(PROFILES))
+        self.assertEqual(1, sum(p["self_update"] for p in PROFILES.values()))
+        self.assertEqual(set(PROFILES), {p["profile"] for p in matrix()["include"]})
+        self.assertEqual(3, len({job_name(p) for p in PROFILES}))
+    def test_high_resolution_and_adaptive_narrow_screen(self):
+        for profile in PROFILES:
+            b = dimensions(profile, "baseline")
+            a = dimensions(profile, "adaptive")
+            self.assertGreaterEqual(b["width_px"], 1080)
+            self.assertGreaterEqual(b["height_px"], 2340)
+            self.assertGreaterEqual(b["density_dpi"], 400)
+            self.assertGreater(a["font_scale"], b["font_scale"])
+            self.assertGreaterEqual(a["width_px"] * 160 / a["density_dpi"], 360)
+        self.assertEqual(360, dimensions("compact", "adaptive")["width_px"] * 160 / dimensions("compact", "adaptive")["density_dpi"])
+    def test_android17_16kb_image(self):
+        self.assertEqual(37, CONFIG["api"])
+        self.assertEqual(17, CONFIG["android_release"])
+        self.assertEqual(16384, CONFIG["page_size"])
+        self.assertEqual("google_apis_ps16k", CONFIG["target"])
+        self.assertGreaterEqual(int(CONFIG["ram"].removesuffix("M")), 4096)

@@ -1,4 +1,4 @@
-"""Contract checks for the Android 35 package-replacement evidence gate."""
+"""Contract checks for the Android package-replacement evidence gate."""
 import unittest
 import xml.etree.ElementTree as ET
 from unittest.mock import patch

@@ -41,15 +41,15 @@ class ScreenshotDiscoveryTest(unittest.TestCase):
             self.assertFalse(valid_png(path))
 
     def test_discovers_current_and_future_ui_screenshots(self):
-        output = "home-android35.png\r\naudit-rtl-200font-bulk-android35.png\nnew-component-android35.png\n"
+        output = "home-android.png\r\naudit-rtl-200font-bulk-android.png\nnew-component-android.png\n"
         self.assertEqual(
             ["audit-rtl-200font-bulk", "home", "new-component"],
             parse_discovered_screens(output),
         )
 
     def test_rejects_traversals_other_extensions_and_noise(self):
-        output = "../outside-android35.png\nmalicious/side-android35.png\n"
-        output += "foo.txt\nalert.png\naudit-rtl-200font-bulk-android35.png\n"
+        output = "../outside-android.png\nmalicious/side-android.png\n"
+        output += "foo.txt\nalert.png\naudit-rtl-200font-bulk-android.png\n"
         self.assertEqual(
             ["audit-rtl-200font-bulk"], parse_discovered_screens(output)
         )

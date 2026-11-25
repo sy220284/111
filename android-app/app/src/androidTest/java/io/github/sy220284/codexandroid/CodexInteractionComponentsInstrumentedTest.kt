@@ -433,7 +433,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithContentDescription("上一个匹配").performClick()
         rule.onNodeWithText("第 2 / 2 处").assertExists()
-        captureComponentEvidence("audit-full-text-match-android35.png")
+        captureComponentEvidence("audit-full-text-match-android.png")
         rule.onNodeWithContentDescription("下一个匹配").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithText("清除查找条件").performClick()
@@ -578,7 +578,7 @@ class CodexInteractionComponentsInstrumentedTest {
             assertDisplayedImage(1, android.graphics.Color.RED)
             rule.onNodeWithTag("attachment-zoom-in").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("150%")
-            captureComponentEvidence("audit-attachment-preview-android35.png")
+            captureComponentEvidence("audit-attachment-preview-android.png")
             rule.onNodeWithTag("attachment-preview-reset").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
             rule.onNodeWithTag("attachment-previous").assertIsNotEnabled()
@@ -691,7 +691,7 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.onNodeWithTag("workspace-editor-content").performTextReplacement("修改内容")
             rule.onNodeWithContentDescription("返回文件列表").performClick()
             rule.onNodeWithText("保留草稿并返回？").assertExists()
-            captureComponentEvidence("audit-file-editor-android35.png")
+            captureComponentEvidence("audit-file-editor-android.png")
             rule.onNodeWithText("取消").performClick()
             rule.onNodeWithTag("workspace-editor-content").assertExists()
             rule.onNodeWithTag("workspace-editor-save").assertIsEnabled()
@@ -748,7 +748,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Retry, action) }
         rule.onNodeWithTag("timeline-header-long-press").performTouchInput { longClick() }
         rule.onNodeWithTag("message-fork-long-press").assertIsEnabled()
-        captureComponentEvidence("audit-message-menu-android35.png")
+        captureComponentEvidence("audit-message-menu-android.png")
         rule.onNodeWithTag("message-fork-long-press").performClick()
         rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Fork, action) }
         rule.onNodeWithTag("timeline-header-long-press").performClick()
@@ -769,7 +769,7 @@ class CodexInteractionComponentsInstrumentedTest {
             }
         }
         rule.onNodeWithText("47%").assertExists()
-        captureComponentEvidence("audit-update-progress-android35.png")
+        captureComponentEvidence("audit-update-progress-android.png")
         rule.onNodeWithText("模拟真实失败状态").performClick()
         rule.onNodeWithText("47%").assertDoesNotExist()
         rule.onNodeWithText("校验失败").assertExists()

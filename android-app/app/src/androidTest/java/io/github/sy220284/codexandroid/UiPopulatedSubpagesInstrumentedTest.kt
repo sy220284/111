@@ -70,7 +70,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                 rule.onAllNodesWithText("second line", substring = true).fetchSemanticsNodes().isNotEmpty()
             }
             rule.onNodeWithText("定位第 2 行 · 只读预览").assertExists()
-            capture("audit-model-document-preview-android35.png")
+            capture("audit-model-document-preview-android.png")
             rule.onNodeWithContentDescription("关闭文件预览").performClick()
             rule.onNodeWithTag("model-document-pane").assertDoesNotExist()
         } finally { root.deleteRecursively() }
@@ -92,14 +92,14 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("查看配置").assertDoesNotExist()
         rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
         rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
-        capture("audit-mcp-service-boundary-android35.png")
+        capture("audit-mcp-service-boundary-android.png")
         rule.onNodeWithText("演示扩展服务").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithText("工具 1 项 · 资源 1 项").assertExists()
         rule.onNodeWithText("已连接 · 启动耗时 240 毫秒").assertExists()
         rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
         rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
-        capture("audit-mcp-detail-sheet-android35.png")
+        capture("audit-mcp-detail-sheet-android.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
     }
@@ -115,7 +115,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("认证：ChatGPT 账号").assertDoesNotExist()
         rule.onNodeWithText("授权登录").assertDoesNotExist()
         rule.onNodeWithText("查看账号").assertDoesNotExist()
-        capture("audit-mcp-chatgpt-available-android35.png")
+        capture("audit-mcp-chatgpt-available-android.png")
     }
 
     @Test fun mcpListKeepsOnlyUsableServersAndPreservesAgentToolBoundary() {
@@ -165,7 +165,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("授权登录").assertDoesNotExist()
         rule.onNodeWithText("查看配置").assertDoesNotExist()
         rule.onNodeWithText("toolA").assertDoesNotExist()
-        capture("audit-mcp-usable-directory-android35.png")
+        capture("audit-mcp-usable-directory-android.png")
     }
 
     @Test fun androidMcpManagementSkillInstallsLocallyAndRemainsIdempotent() {
@@ -255,7 +255,7 @@ class UiPopulatedSubpagesInstrumentedTest {
                 selectAll.right <= 360f && done.right <= 360f)
         assertTrue("Large-font actions must not overlap",
             selectAll.right <= done.left || done.right <= selectAll.left)
-        capture("audit-rtl-200font-bulk-android35.png")
+        capture("audit-rtl-200font-bulk-android.png")
     }
 
     @Test fun darkAppearanceWithSystemDoubleFontRemainsReachable() {
@@ -278,7 +278,7 @@ class UiPopulatedSubpagesInstrumentedTest {
             rule.onNodeWithText("减少动效").performScrollTo().assertIsDisplayed()
             rule.onNodeWithText("深色工作台").performScrollTo().assertIsDisplayed()
             rule.onNodeWithText("界面配色").performScrollTo().assertIsDisplayed()
-            capture("audit-dark-200font-appearance-android35.png")
+            capture("audit-dark-200font-appearance-android.png")
         } finally {
             rule.runOnIdle { UiPreferences.setDarkMode(originalDark) }
         }
@@ -330,7 +330,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("sidebar-search-toggle").assertDoesNotExist()
         rule.onNodeWithText("最近会话").assertDoesNotExist()
         rule.onNodeWithText("查看全部会话").assertDoesNotExist()
-        capture("audit-sidebar-filtered-android35.png")
+        capture("audit-sidebar-filtered-android.png")
     }
 
     @Test fun flatSidebarHasPinnedUnreadAndLongPressWithoutHeadings() {
@@ -392,7 +392,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithContentDescription("全选当前结果").performClick()
         rule.onNodeWithTag("thread-bulk-delete").performClick()
         rule.runOnIdle { assertEquals("delete", requested) }
-        capture("audit-thread-bulk-selection-android35.png")
+        capture("audit-thread-bulk-selection-android.png")
     }
 
     @Test fun approvalLogShowsPrivateHistoryAndConfirmsDeletion() {
@@ -407,7 +407,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithTag("approval-audit-toggle").performClick()
         rule.onNodeWithText("git status").assertIsDisplayed()
-        capture("audit-approval-history-android35.png")
+        capture("audit-approval-history-android.png")
         rule.onNodeWithTag("approval-audit-clear").performClick()
         rule.onNodeWithText("确认清除").performClick()
         rule.runOnIdle { assertEquals(true, cleared) }
@@ -430,7 +430,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("composer-send").assertIsNotEnabled()
         rule.onNodeWithTag("composer-input").performTextInput("检查交互链路")
         rule.onNodeWithTag("composer-send").assertIsEnabled()
-        capture("audit-composer-edit-android35.png")
+        capture("audit-composer-edit-android.png")
         rule.onNodeWithTag("composer-send").performClick()
         rule.runOnIdle { assertEquals("检查交互链路", submitted) }
     }
@@ -462,7 +462,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("等待审批").assertExists()
         rule.onNodeWithText("等待回答").assertExists()
         rule.onNodeWithTag("sidebar-thread-local").assertIsSelected()
-        capture("audit-sidebar-background-status-android35.png")
+        capture("audit-sidebar-background-status-android.png")
     }
 
     @Test fun sidebarTaskCenterSwitchesAndStopsOnlyTheSelectedThread() {
@@ -491,7 +491,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("sidebar-task-stop-first").performClick()
         rule.runOnIdle { assertEquals("first", stopped) }
         rule.onNodeWithTag("sidebar-thread-second").assertExists()
-        capture("audit-multi-thread-tasks-android35.png")
+        capture("audit-multi-thread-tasks-android.png")
     }
 
     @Test fun sidebarStopsOtherTurnWhileSessionSwitchIsBusy() {
@@ -538,7 +538,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("sidebar-thread-ci-thread-001").assertIsDisplayed()
         rule.onNodeWithText("检查工作区代码").assertExists()
         rule.onNodeWithTag("sidebar-thread-ci-thread-001").assertIsSelected()
-        capture("audit-sidebar-thread-android35.png")
+        capture("audit-sidebar-thread-android.png")
         rule.onNodeWithTag("sidebar-thread-ci-thread-001").performClick()
         rule.runOnIdle { assertEquals("ci-thread-001", opened) }
     }
@@ -578,7 +578,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("composer-stop").performClick()
         rule.runOnIdle { assertEquals(true, stopped); stopped = false }
         rule.onNodeWithTag("composer-input").assertTextContains("检查这一轮修改")
-        capture("audit-composer-running-android35.png")
+        capture("audit-composer-running-android.png")
         rule.onNodeWithTag("composer-send-queue").performClick()
         rule.runOnIdle { assertEquals(true, queued) }
         rule.onNodeWithTag("composer-send-queue").assertDoesNotExist()
@@ -609,7 +609,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("命令执行确认").assertExists()
         rule.onNodeWithText("git status").assertExists()
         rule.onNodeWithText("仅本次允许").assertExists()
-        capture("audit-conversation-approval-android35.png")
+        capture("audit-conversation-approval-android.png")
     }
 
     @Test fun elicitationRendersOnlyRequiredUserForm() {
@@ -644,7 +644,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("向 MCP 服务提交确认").assertExists()
         rule.onNodeWithTag("confirm-dialog-cancel").assertExists().performClick()
         rule.onNodeWithText("向 MCP 服务提交确认").assertDoesNotExist()
-        capture("audit-mcp-elicitation-android35.png")
+        capture("audit-mcp-elicitation-android.png")
     }
 
     @Test fun approvalActionsStayReachableAtLargeFontAndLongContent() {
@@ -786,7 +786,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         }
         rule.onNodeWithText("样例应用").assertIsDisplayed()
         rule.onNodeWithText("搜索应用").assertDoesNotExist()
-        capture("audit-apps-installed-snapshot-android35.png")
+        capture("audit-apps-installed-snapshot-android.png")
         rule.onNodeWithText("样例应用").performClick()
         rule.onNodeWithText("应用说明").assertIsDisplayed()
     }
@@ -806,7 +806,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("样例插件").assertIsDisplayed()
         rule.onNodeWithText("卸载", substring = false).assertDoesNotExist()
         rule.onNodeWithText("搜索已安装插件").assertDoesNotExist()
-        capture("audit-plugins-compact-installed-android35.png")
+        capture("audit-plugins-compact-installed-android.png")
         rule.onNodeWithText("样例插件").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
     }
@@ -826,7 +826,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.runOnIdle { assertTrue(opened); assertTrue(!installed) }
         rule.onNodeWithTag("plugin-install-sample").performClick()
         rule.runOnIdle { assertTrue(installed) }
-        capture("audit-plugins-compact-discovery-android35.png")
+        capture("audit-plugins-compact-discovery-android.png")
     }
 
     @Test fun pluginOriginalEnglishDescriptionIsAvailableOnlyOnDemand() {
@@ -864,6 +864,6 @@ class UiPopulatedSubpagesInstrumentedTest {
         vm.data.value = vm.data.value + ("pluginDetail:样例插件源:fixture" to
             JSONObject().put("plugin", plugin))
         rule.onNodeWithText("提供的技能").assertExists()
-        capture("audit-plugin-detail-android35.png")
+        capture("audit-plugin-detail-android.png")
     }
 }

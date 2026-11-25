@@ -20,3 +20,17 @@
 Rust 源码、运行时、终端、远端执行、原生适配及关键权限输入变更自动启用 x86_64 真实核心专项；普通 UI 变更复用 ARM64，不额外编译 x86。统一门禁本身有失败、取消、漏跑、未知任务、文档提交及手动运行的自动回归用例。
 
 编译和 Rust 回归使用独立指纹与独立凭证索引。只改变回归规则时，复用匹配的 ELF、补跑 Rust 测试；只有编译输入改变或产物过期才补编译。
+
+## 2026 Android 17 设备矩阵
+
+所有生产 UI 和真实核心模拟器升级为 Android 17（API 37），统一使用 Google APIs 16KB 页镜像及 4GB RAM。测试 OS 更新不改变应用的 compileSdk、targetSdk 和 minSdk。
+
+| 档位 | 基准像素 | 显示密度 | 逻辑宽度约 | 适配场景 |
+|---|---|---|---|---|
+| 紧凑旗舰（Galaxy S26 尺寸参考） | 1080×2340 | 440dpi | 393dp | 1080×2160、480dpi、360dp、1.3倍字体 |
+| 主流大屏（OnePlus 15 尺寸参考） | 1272×2772 | 480dpi | 424dp | 1272×2400、480dpi、1.3倍字体 |
+| 高分辨率旗舰（Galaxy S26 Ultra 尺寸参考） | 1440×3120 | 520dpi | 443dp | 原始分辨率、1.5倍字体 |
+
+密度是测试选择，用于模拟不同显示缩放，非各厂商原厂系统默认值。三档各执行原有 145 项交互测试两次，共 870 次；系统安装器专项在主流大屏执行。运行报告与截图清单记录实际系统版本、页大小、分辨率、显示密度、字号和逻辑尺寸，旧 API 35 证据不得作为 API 37 的通过凭证。正式 ARM64 真机须实际运行 API 37。竞品参考采用同一主流配置。
+
+系统与屏幕配置来源：Android 官方 https://developer.android.com/about/versions/17/get；Chromium Android 17 16KB 镜像说明 https://chromium.googlesource.com/chromium/src/+/main/docs/android_emulator.md；OnePlus 15 官方规格 https://www.oneplus.com/global/15/specs；Samsung S26 Ultra 官方规格 https://www.samsung.com/sg/business/smartphones/galaxy-s/galaxy-s26-ultra-sm-s948bzkbs02/。

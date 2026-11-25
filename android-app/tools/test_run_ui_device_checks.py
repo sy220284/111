@@ -31,14 +31,21 @@ class DeviceEvidenceTest(unittest.TestCase):
         self.assertEqual("failed", parse_instrumentation("OK (1 test)\nOK (1 test)\n", 0)["status"])
 
     def test_actual_device_parameters_are_required(self):
-        with patch("run_ui_device_checks.adb", side_effect=["Physical size: 1080x1920\nOverride size: 393x800", "Physical density: 160", "1.0"]):
-            self.assertEqual(1.0, assert_device(393, 800, 1.0))
-        with patch("run_ui_device_checks.adb", side_effect=["Physical size: 360x800", "Physical density: 160"]):
-            with self.assertRaises(RuntimeError):
-                assert_device(393, 800)
+        from device_matrix import dimensions, CONFIG
+        spec = dimensions("compact", "baseline")
+        replies = ["Physical size: 1080x1920\nOverride size: 1080x2340", "Override density: 440", str(CONFIG["api"]), str(CONFIG["android_release"]), str(CONFIG["page_size"]), "1.0"]
+        with patch("run_ui_device_checks.adb", side_effect=replies):
+            evidence = assert_device(spec)
+            self.assertEqual(392.73, evidence["width_dp"])
+            self.assertEqual(CONFIG["api"], evidence["android_api"])
+        for index, bad in [(0, "Physical size: 360x800"), (1, "Physical density: 160"), (2, "35"), (3, "15"), (4, "4096"), (5, "1.5")]:
+            wrong = replies.copy()
+            wrong[index] = bad
+            with patch("run_ui_device_checks.adb", side_effect=wrong), self.assertRaises(RuntimeError):
+                assert_device(spec)
 
     def test_stale_screens_must_be_removed(self):
-        with patch("run_ui_device_checks.adb", side_effect=["home-android35.png", "", "home-android35.png"]):
+        with patch("run_ui_device_checks.adb", side_effect=["home-android.png", "", "home-android.png"]):
             with self.assertRaises(RuntimeError):
                 clear_device_screens()
 

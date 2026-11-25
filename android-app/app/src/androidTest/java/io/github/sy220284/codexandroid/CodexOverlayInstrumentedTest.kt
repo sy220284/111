@@ -106,7 +106,7 @@ class CodexOverlayInstrumentedTest {
         }
         rule.onNodeWithText("命令执行 · 执行依据").assertExists()
         rule.waitForIdle()
-        captureVerifiedDisplayScreenshot("evidence-sheet-android35.png")
+        captureVerifiedDisplayScreenshot("evidence-sheet-android.png")
         rule.onNodeWithText("执行成功").assertExists()
         rule.onNodeWithText("done").assertExists()
         rule.onNodeWithText("exitCode", substring = true).assertDoesNotExist()

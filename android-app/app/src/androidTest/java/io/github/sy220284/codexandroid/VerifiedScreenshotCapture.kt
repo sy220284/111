@@ -8,7 +8,7 @@ import java.io.File
 /**
  * 所有全屏弹层截图共用这个验证入口。判据是 WindowManager 当前焦点窗口，
  * 能识别跨应用的系统 ANR 对话框；无障碍节点树只作为读不到焦点信息时的补充。
- * Android 35 某些屏宽下 getRootInActiveWindow() 会暂时返回 null，
+ * Android 某些系统版本及屏宽下 getRootInActiveWindow() 会暂时返回 null，
  * 因此单独依赖该接口会错误拒绝正常的 Compose 弹层。
  */
 internal fun captureVerifiedDisplayScreenshot(fileName: String) {

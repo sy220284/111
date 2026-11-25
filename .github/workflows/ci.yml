@@ -28,6 +28,11 @@ jobs:
     outputs:
       full: ${{ steps.plan.outputs.full }}
       runtime: ${{ steps.plan.outputs.runtime }}
+      device_matrix: ${{ steps.plan.outputs.device_matrix }}
+      device_api: ${{ steps.plan.outputs.device_api }}
+      device_release: ${{ steps.plan.outputs.device_release }}
+      device_target: ${{ steps.plan.outputs.device_target }}
+      device_ram: ${{ steps.plan.outputs.device_ram }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,6 +52,7 @@ jobs:
           python3 -m unittest discover -s .github/scripts -p 'test_ci_gate.py'
           python3 -m unittest discover -s .github/scripts -p 'test_retain_check_artifacts.py'
           python3 -m unittest discover -s .github/scripts -p 'test_repository_steward.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_device_matrix.py'
           python3 .github/scripts/ci_policy.py
   native:
     needs: plan
@@ -240,14 +246,13 @@ jobs:
 
 
   ui-emulator:
-    name: Android 35 · ${{ matrix.width_dp }}dp UI 交互与截图验收
-    needs: verify-ui
+    name: Android ${{ matrix.android_release }} (API ${{ matrix.api }}) · ${{ matrix.profile }} UI 交互与截图验收
+    needs: [plan, verify-ui]
     strategy:
       fail-fast: false
-      matrix:
-        width_dp: [360, 393, 411]
+      matrix: ${{ fromJSON(needs.plan.outputs.device_matrix) }}
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 85
     steps:
       - name: 检出截图采集器
         uses: actions/checkout@v4
@@ -258,6 +263,8 @@ jobs:
             /android-app/tools/collect_ui_screenshots.py
             /android-app/tools/ui_evidence_manifest.py
             /android-app/tools/run_ui_device_checks.py
+            /android-app/tools/device_matrix.py
+            /android-app/tools/device-matrix.json
             /android-app/tools/verify_self_update_open.py
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
@@ -272,29 +279,33 @@ jobs:
           sudo chmod 666 /dev/kvm
       - name: 在真实 Android 环境验证侧栏导航并生成首页截图
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         with:
-          api-level: 35
+          api-level: ${{ needs.plan.outputs.device_api }}
           arch: x86_64
-          # 使用 AOSP 系统镜像，避免不参与测试的 Pixel Launcher 进程
-          # 在动态切换 360/393/411dp 后产生 ANR 系统弹窗，污染证据截图。
-          target: default
+          target: ${{ needs.plan.outputs.device_target }}
+          ram-size: ${{ needs.plan.outputs.device_ram }}
+          disk-size: 8192M
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1200
           script: |
             adb install -r apks/debug/app-debug.apk
             adb shell appops set io.github.sy220284.codexandroid MANAGE_EXTERNAL_STORAGE allow
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
-            # The three phone-width checks share the same Android 35 APK, and never run 320dp.
-            adb shell wm size ${{ matrix.width_dp }}x800
-            adb shell wm density 160
+            # Physical pixel resolution and logical density come from one device matrix.
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
+            adb shell wm size ${{ matrix.width_px }}x${{ matrix.height_px }}
+            adb shell wm density ${{ matrix.density_dpi }}
+            adb shell settings put system font_scale 1.0
             # The emulator has a hardware keyboard. Explicitly allow the software IME,
             # otherwise performTextInput succeeds while keyboard screenshots are false positives.
             adb shell settings put secure show_ime_with_hard_keyboard 1
             test "$(adb shell settings get secure show_ime_with_hard_keyboard | tr -d '\r')" = "1"
             adb shell ime list -s
             test "$(adb shell ime list -s | tr -d '\r' | grep -c .)" -gt 0
-            test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "${{ matrix.width_dp }}x800"
-            test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "160"
+            test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "${{ matrix.width_px }}x${{ matrix.height_px }}"
+            test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.density_dpi }}"
             # The instrumentation test captures the home screen after a visible
             # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
@@ -303,19 +314,19 @@ jobs:
             # so the overlay cannot cover screenshots of later business pages.
             # One runner preserves raw JUnit logs, screenshot evidence and classified
             # failure details; it must fail the job even when adb returns success.
-            python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode baseline
+            python3 android-app/tools/run_ui_device_checks.py --profile ${{ matrix.profile }} --mode baseline
             # All pages and component tests repeat at short/tall windows and large text.
-            python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode adaptive
+            python3 android-app/tools/run_ui_device_checks.py --profile ${{ matrix.profile }} --mode adaptive
             file ui-screenshots/*.png
-            # Only the 393dp emulator replaces the running app, then presses the
+            # Only the designated mainstream emulator replaces the running app, then presses the
             # system installer's actual Install and Open buttons. Execute after
             # screenshots: package replacement kills the old app process.
-            if [ "${{ matrix.width_dp }}" = "393" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
+            if [ "${{ matrix.self_update }}" = "true" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: codex-android-ui-device-evidence-${{ matrix.width_dp }}dp
+          name: codex-android-ui-device-evidence-api${{ matrix.api }}-${{ matrix.profile }}
           path: |
             ui-instrument-result.log
             ui-baseline-diagnosis.json
@@ -429,7 +440,7 @@ jobs:
 
 
   runtime-test:
-    name: Android 35 真实内核及异常恢复验收（手动 x86_64）
+    name: Android ${{ needs.plan.outputs.device_release }} (API ${{ needs.plan.outputs.device_api }}) 真实内核及异常恢复验收（x86_64）
     needs: [plan, native, build]
     if: needs.build.result == 'success' && needs.plan.outputs.runtime == 'true'
     runs-on: ubuntu-latest
@@ -476,11 +487,13 @@ jobs:
       - name: 执行真实内核启动、终端、回收与恢复
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 35
+          api-level: ${{ needs.plan.outputs.device_api }}
           arch: x86_64
-          target: default
+          target: ${{ needs.plan.outputs.device_target }}
+          ram-size: ${{ needs.plan.outputs.device_ram }}
+          disk-size: 8192M
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1200
           script: bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
       - name: 保存真实内核验收证据
         if: always()

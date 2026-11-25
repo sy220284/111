@@ -18,7 +18,7 @@ from ui_evidence_manifest import load_evidence_manifest, declared_screens as evi
 ROW = re.compile(r"^\|\s*(\d{2})\s*\|\s*`([a-z]+)`\s*\|\s*(P[012])\s*\|\s*([^|]*)\|\s*([^|]*)\|\s*([^|]*)\|", re.M)
 PAGE = re.compile(r'\bPage\("([a-z]+)"')
 FEATURE = re.compile(r'\bUiFeature\("([a-z]+)"')
-SCREEN = re.compile(r'([a-z][a-z0-9-]+)-android35\.png')
+SCREEN = re.compile(r'([a-z][a-z0-9-]+)-android\.png')
 TEST_METHOD = re.compile(r'@Test(?:\([^)]*\))?\s+fun\s+([A-Za-z][A-Za-z0-9_]*)\b')
 TEST_CLASS = re.compile(r'\bclass\s+([A-Za-z][A-Za-z0-9_]*Test)\b')
 SOURCE_NAME = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\.kt\b')
@@ -128,7 +128,7 @@ def markdown(report: dict) -> str:
     ]
     for entry in report["workflows"]:
         evidence = ", ".join(entry["regression_tests"] + [
-            s + "-android35.png" for s in entry["screenshot_declarations"]
+            s + "-android.png" for s in entry["screenshot_declarations"]
         ])
         lines.append(
             f"| {entry['number']:02} | `{entry['route']}` | {entry['priority']} | "

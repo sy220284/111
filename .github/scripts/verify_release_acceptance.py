@@ -4,14 +4,15 @@ import argparse
 import json
 import subprocess
 import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'android-app/tools'))
+from device_matrix import PROFILES, job_name
 
 REQUIRED_JOBS = {
     "ci.yml": frozenset({
         "111 合并验收", "build", "ARM64 手机安装包二次核验",
         "Kotlin 编译、协议单元测试与 Android Lint",
-        "Android 35 · 360dp UI 交互与截图验收",
-        "Android 35 · 393dp UI 交互与截图验收",
-        "Android 35 · 411dp UI 交互与截图验收",
+        *(job_name(profile) for profile in PROFILES),
         "原生核心统一验收", "发布脚本回归检查", "MXC 和 Code Mode Host 源码适配预演",
     }),
 }

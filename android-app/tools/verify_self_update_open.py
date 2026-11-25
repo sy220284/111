@@ -222,7 +222,7 @@ def failure_diagnostics() -> None:
                 ("PackageInstaller", "PackageManager", "ActivityTaskManager", "ActivityManager",
                  "AndroidRuntime", "InstallSuccess", "InstallInstalling", PACKAGE))]
         print(title + ":\n" + "\n".join(lines[-90:]), file=sys.stderr, flush=True)
-    screenshot = Path("ui-screenshots/self-update-failure-android35.png")
+    screenshot = Path("ui-screenshots/self-update-failure-android.png")
     try:
         result = subprocess.run(["adb", "exec-out", "screencap", "-p"],
                                 capture_output=True, check=True)
@@ -245,7 +245,7 @@ def main() -> int:
 
     report = {
         "schema_version": 1,
-        "test_type": "android35_aosp_debug_same_apk",
+        "test_type": "android_emulator_debug_same_apk",
         "commit": args.commit,
         "package": PACKAGE,
         "apk_sha256": hashlib.sha256(args.apk.read_bytes()).hexdigest(),

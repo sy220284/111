@@ -9,13 +9,14 @@ import time
 import uuid
 from collect_ui_screenshots import parse_discovered_screens
 from pathlib import Path
+from device_matrix import CONFIG, PROFILES, dimensions
 
 PACKAGE = "io.github.sy220284.codexandroid"
 RUNNER = PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner"
 SUITE = ["UiNavigationInstrumentedTest", "UiPopulatedSubpagesInstrumentedTest",
          "CodexInteractionComponentsInstrumentedTest", "CodexOverlayInstrumentedTest",
          "EngineSettingInstrumentedTest", "SelfUpdateInstallerIntentInstrumentedTest"]
-VARIANTS = {360: (720, "1.3"), 393: (720, "1.3"), 411: (915, "1.5")}
+
 DEVICE_ROOT = "/sdcard/Android/data/" + PACKAGE + "/files"
 
 
@@ -67,27 +68,35 @@ def execute_instrumentation(classes, log_path):
 def clear_device_screens():
     command = f'if [ -d "{DEVICE_ROOT}" ]; then ls -1 "{DEVICE_ROOT}"; fi'
     for screen in parse_discovered_screens(adb("shell", command)):
-        adb("shell", "rm", "-f", DEVICE_ROOT + "/" + screen + "-android35.png")
+        adb("shell", "rm", "-f", DEVICE_ROOT + "/" + screen + "-android.png")
     if parse_discovered_screens(adb("shell", command)):
         raise RuntimeError("Previous device screenshots were not cleared")
 
 
-def assert_device(width, height, font=None):
+def assert_device(spec):
     size = adb("shell", "wm", "size")
     density = adb("shell", "wm", "density")
     actual_size = re.findall(r"(?:Override|Physical) size: (\d+x\d+)", size)
     actual_density = re.findall(r"(?:Override|Physical) density: (\d+)", density)
-    if not actual_size or actual_size[-1] != f"{width}x{height}" or not actual_density or actual_density[-1] != "160":
-        raise RuntimeError("Device configuration does not match evidence label")
+    api = int(adb("shell", "getprop", "ro.build.version.sdk"))
+    release = adb("shell", "getprop", "ro.build.version.release")
+    page_size = int(adb("shell", "getconf", "PAGESIZE"))
+    width, height, dpi = (spec[k] for k in ("width_px", "height_px", "density_dpi"))
+    if api != CONFIG["api"] or release.split(".")[0] != str(CONFIG["android_release"]) or page_size != CONFIG["page_size"]:
+        raise RuntimeError("Android OS or memory page size does not match device matrix")
+    if not actual_size or actual_size[-1] != f"{width}x{height}" or not actual_density or int(actual_density[-1]) != dpi:
+        raise RuntimeError("Device resolution/density does not match evidence label")
     actual_font = adb("shell", "settings", "get", "system", "font_scale")
     measured_font = float(actual_font) if actual_font != "null" else 1.0
-    if font is not None and measured_font != float(font):
+    if measured_font != float(spec["font_scale"]):
         raise RuntimeError("Device font scale does not match evidence label")
-    return measured_font
+    return dict(spec, android_api=api, android_release=release, page_size=page_size,
+                width_dp=round(width * 160 / dpi, 2), height_dp=round(height * 160 / dpi, 2))
 
 
-def run_fresh_suite(width, height, font, log, destination):
-    font = assert_device(width, height, font)
+def run_fresh_suite(profile, mode, log, destination):
+    measured = assert_device(dimensions(profile, mode))
+    measured.update(profile=profile, mode=mode)
     adb("shell", "am", "force-stop", PACKAGE)
     clear_device_screens()
     run_id = uuid.uuid4().hex
@@ -98,11 +107,9 @@ def run_fresh_suite(width, height, font, log, destination):
     if manifest.is_file():
         evidence = json.loads(manifest.read_text(encoding="utf-8"))
         evidence.update(run_id=run_id, started_at_epoch=started,
-                        commit=os.environ.get("GITHUB_SHA"), width_dp=width,
-                        height_dp=height, font_scale=font)
+                        commit=os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA"), **measured)
         manifest.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    result.update(run_id=run_id, width_dp=width, height_dp=height,
-                  font_scale=font, missing_screens=missing, screenshot_collection_exit=code)
+    result.update(run_id=run_id, **measured, missing_screens=missing, screenshot_collection_exit=code)
     if missing or code:
         result.update(status="failed", evidence_category="screenshot_missing_or_collection_error")
     return result
@@ -116,18 +123,21 @@ def collect_screens(destination):
     return missing, collected.returncode
 
 
-def baseline(width):
-    return run_fresh_suite(width, 800, 1.0, "ui-instrument-result.log", "ui-screenshots")
+def baseline(profile):
+    return run_fresh_suite(profile, "baseline", "ui-instrument-result.log", "ui-screenshots")
 
 
-def adaptive(width):
-    height, font = VARIANTS[width]
+def adaptive(profile):
+    spec = dimensions(profile, "adaptive")
     original_font = adb("shell", "settings", "get", "system", "font_scale")
     original_size = re.search(r"Override size: (\d+x\d+)", adb("shell", "wm", "size"))
+    original_density = re.search(r"Override density: (\d+)", adb("shell", "wm", "density"))
     try:
-        adb("shell", "wm", "size", f"{width}x{height}")
-        adb("shell", "settings", "put", "system", "font_scale", font)
-        result = run_fresh_suite(width, height, float(font), "ui-adaptive-result.log", "ui-screenshots-adaptive")
+        adb("shell", "am", "force-stop", PACKAGE)
+        adb("shell", "wm", "size", f"{spec['width_px']}x{spec['height_px']}")
+        adb("shell", "wm", "density", str(spec["density_dpi"]))
+        adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
+        result = run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive")
         baseline_result = json.loads(Path("ui-baseline-diagnosis.json").read_text(encoding="utf-8"))
         result["expected_tests"] = baseline_result["tests"]
         if result["tests"] != baseline_result["tests"]:
@@ -135,6 +145,7 @@ def adaptive(width):
         return result
     finally:
         adb("shell", "wm", "size", original_size.group(1) if original_size else "reset")
+        adb("shell", "wm", "density", original_density.group(1) if original_density else "reset")
         if original_font == "null":
             adb("shell", "settings", "delete", "system", "font_scale")
         else:
@@ -143,14 +154,14 @@ def adaptive(width):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--width", type=int, choices=sorted(VARIANTS), required=True)
+    parser.add_argument("--profile", choices=sorted(PROFILES), required=True)
     parser.add_argument("--mode", choices=["baseline", "adaptive"], required=True)
     args = parser.parse_args()
     report = Path("ui-" + args.mode + "-diagnosis.json")
     try:
-        result = baseline(args.width) if args.mode == "baseline" else adaptive(args.width)
+        result = baseline(args.profile) if args.mode == "baseline" else adaptive(args.profile)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
-        result = {"status": "failed", "category": "runner_or_device", "error": str(error), "width_dp": args.width}
+        result = {"status": "failed", "category": "runner_or_device", "error": str(error), "profile": args.profile}
     report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
     return int(result["status"] != "passed")
