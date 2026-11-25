@@ -55,6 +55,7 @@ val pages = listOf(
     Page("environments", "运行管理", "设置与账户", "执行设备、后台资源和终端等待", CodexGlyph.Dns, "environment/status", true),
     Page("account", "账号登录", "设置与账户", "ChatGPT 登录与会话", CodexGlyph.AccountCircle, "account/read"),
     Page("providers", "模型服务商", "设置与账户", "供应商及默认项", CodexGlyph.Tune, "modelProvider/list"),
+    Page("features", "功能开关", "设置与账户", "全部内核能力、实验功能和默认状态", CodexGlyph.Tune, "experimentalFeature/list"),
     Page("config", "开发者设置", "设置与账户", "高级配置和运行诊断", CodexGlyph.Settings, "config/read"),
     Page("personalization", "个性化设置", "设置与账户", "全局执行指令与工作偏好", CodexGlyph.AccountCircle, "config/read"),
     Page("context", "上下文管理", "设置与账户", "历史压缩与工具输出保留", CodexGlyph.Thread, "config/read"),

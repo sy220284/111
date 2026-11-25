@@ -48,6 +48,7 @@ object NavigationPolicy {
         SettingsTopic("apps", "连接应用与授权", listOf("应用授权", "连接应用", "连接器")),
         SettingsTopic("mcp", "MCP 工具服务", listOf("工具服务", "MCP服务器", "外部工具")),
         SettingsTopic("environments", "选择执行设备", listOf("远程主机", "执行环境", "工作主机", "远程执行服务", "本机执行", "连接其他设备", "后台运行", "终端等待", "会话释放", "运行参数")),
+        SettingsTopic("features", "功能开关", listOf("全部开关", "实验功能", "功能管理", "记忆开关", "Code Mode", "内核能力")),
         SettingsTopic("config", "开发者高级配置", listOf("高级设置", "引擎配置", "配置键值")),
         SettingsTopic("personalization", "全局执行指令", listOf("自定义指令", "工作偏好", "个性化")),
         SettingsTopic("context", "上下文管理", listOf("上下文", "历史压缩", "自动压缩", "词元", "工具输出")),

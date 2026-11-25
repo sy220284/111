@@ -103,11 +103,11 @@ class NavigationPolicyTest {
     }
 
     @Test fun userRoutesRemainRegisteredAndSettingsExcludeWorkActions() {
-        assertEquals(29, UiFeatureCatalog.legacyRoutes.size)
-        assertEquals(29, UiFeatureCatalog.legacyRoutes.distinct().size)
+        assertEquals(30, UiFeatureCatalog.legacyRoutes.size)
+        assertEquals(30, UiFeatureCatalog.legacyRoutes.distinct().size)
         assertEquals(5, NavigationPolicy.featureGroups.size)
         val settings = NavigationPolicy.settingsRoutes
-        assertEquals(17, settings.size)
+        assertEquals(18, settings.size)
         assertEquals(settings.size, settings.distinct().size)
         assertTrue(settings.containsAll(listOf("models","usage","appearance","about","update")))
         assertFalse(settings.contains("limits")) // 兼容旧路由，但设置里只有一个用量与额度入口
@@ -115,7 +115,7 @@ class NavigationPolicyTest {
         assertTrue(NavigationPolicy.matches("用量", "", "", "usage"))
         assertEquals(FeatureSurface.Page, UiFeatureCatalog.find("limits").surface)
         assertTrue(settings.none { it in listOf("goals","queue","review","search","diff","terminal", "hooks") })
-        assertEquals(29, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
+        assertEquals(30, UiFeatureCatalog.legacyRoutes.count { it !in listOf("settings","update") })
     }
 
     @Test fun projectAndThreadToolsUseTheirOwnContext() {

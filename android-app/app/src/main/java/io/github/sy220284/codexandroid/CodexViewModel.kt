@@ -139,6 +139,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         loading.value = loading.value - keys
         errors.value = errors.value - keys
     }
+    internal val featureSwitches by lazy { FeatureSwitchController(this) }
     internal val extensions by lazy { ExtensionCatalogController(this, latestRequests) }
     // Query cache ownership is independent of the ViewModel's RPC orchestration.
     private val dynamicRequestHistory by lazy {

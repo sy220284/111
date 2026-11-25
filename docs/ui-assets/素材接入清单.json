@@ -377,6 +377,19 @@
       ]
     },
     {
+      "route": "features",
+      "title": "功能开关",
+      "sources": [
+        "FeatureSwitchPage",
+        "FeatureSwitchController",
+        "Screens"
+      ],
+      "business": "从内核读取真实功能开关目录，搜索和筛选生效状态，独立确认写入并回读，管理策略及不适用项只读",
+      "tests": [
+        "UiNavigationInstrumentedTest.featureCatalogKeepsUserFacingRoutesOnly"
+      ]
+    },
+    {
       "route": "settings",
       "title": "设置中心",
       "sources": [
