@@ -8,7 +8,8 @@ import pathlib
 import re
 import subprocess
 import tempfile
-from host_components import api, download_artifact, install, environment, timestamp, require, JOB_NAMES, GROUPS
+from urllib.parse import urlencode
+from host_components import api, complete_index, download_artifact, install, environment, timestamp, require, JOB_NAMES, GROUPS
 
 WORKFLOWS = {".github/workflows/dev-toolchain.yml", ".github/workflows/ci.yml",
              ".github/workflows/build-native-codex.yml", ".github/workflows/release.yml"}
@@ -63,9 +64,8 @@ def names(group, fingerprint):
 
 def direct_job(run,group):
     attempt=run["run_attempt"]
-    index=api(f"actions/runs/{run['id']}/attempts/{attempt}/jobs?per_page=100")
-    require(index["total_count"]==len(index["jobs"]),"incomplete toolchain job index")
-    jobs=[j for j in index["jobs"] if j["name"].rsplit(" / ",1)[-1]==JOB_NAMES[group]
+    index=complete_index(f"actions/runs/{run['id']}/attempts/{attempt}/jobs","jobs",api)
+    jobs=[j for j in index if j["name"].rsplit(" / ",1)[-1]==JOB_NAMES[group]
           and j.get("head_sha")==run["head_sha"] and j.get("run_attempt")==attempt
           and j.get("status")=="completed" and j.get("conclusion")=="success"
           and any(s.get("name")=="生成并断网验证独立组件" and s.get("conclusion")=="success" for s in j.get("steps",[]))]
@@ -79,12 +79,12 @@ def review(run, group, fingerprint, artifact_ids=None):
     job=direct_job(run,group)
     if job is None:
         return None
-    rows=api(f"actions/runs/{run['id']}/artifacts?per_page=100")
-    require(rows["total_count"]==len(rows["artifacts"]),"incomplete artifact index")
+ 
     start,end=timestamp(job["started_at"]),timestamp(job["completed_at"])
     selected={}
     for name in names(group,fingerprint):
-        matches=[r for r in rows["artifacts"] if r["name"]==name and not r["expired"] and
+        rows=complete_index(f"actions/runs/{run['id']}/artifacts?"+urlencode({"name":name}),"artifacts",api)
+        matches=[r for r in rows if r["name"]==name and not r["expired"] and
                  type(r.get("id")) is int and r.get("size_in_bytes",0)>0 and
                  re.fullmatch(r"sha256:[0-9a-f]{64}",r.get("digest") or "") and
                  start<=timestamp(r["created_at"])<=end]

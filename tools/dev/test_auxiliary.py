@@ -36,6 +36,23 @@ class PortableAuxiliaryTest(unittest.TestCase):
             with self.assertRaises(ValueError):
                 auxiliary.bazel_registry_snapshot(root/"output",root/"bad")
 
+    def test_all_registry_snapshots_are_required_for_disconnected_fetch(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp)
+            dest=root/"stage"; dest.mkdir()
+            for name in auxiliary.BAZEL_REGISTRY_REPOS:
+                source=root/"output"/"hash"/"external"/name
+                source.mkdir(parents=True)
+                (source/"config.json").write_text(name)
+                auxiliary.bazel_registry_snapshot(root/"output",dest/name,name)
+            self.assertEqual(len(list(auxiliary.bazel_registry_overrides(dest))),2)
+            for name in auxiliary.BAZEL_REGISTRY_REPOS:
+                self.assertEqual((dest/name/"config.json").read_text(),name)
+            (dest/auxiliary.BAZEL_REGISTRY_REPOS[1]/"config.json").unlink()
+            (dest/auxiliary.BAZEL_REGISTRY_REPOS[1]).rmdir()
+            with self.assertRaisesRegex(ValueError,"incomplete Bazel registry set"):
+                list(auxiliary.bazel_registry_overrides(dest))
+
     def test_git_repository_snapshots_preserve_internal_links_and_materialize_build_file(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp)

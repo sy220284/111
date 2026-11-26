@@ -10,6 +10,7 @@ import pathlib
 import re
 import subprocess
 import tempfile
+import time
 
 HERE = pathlib.Path(__file__).resolve().parent
 LOCK = json.loads((HERE/"toolchain-lock.json").read_text())
@@ -180,6 +181,36 @@ def environment(root,names):
 def api(endpoint):
     return json.loads(subprocess.check_output(["gh","api","repos/"+REPOSITORY+"/"+endpoint],text=True))
 
+def complete_index(endpoint, field, request=None):
+    """Read a bounded, consistent paginated index; producers may upload concurrently."""
+    request=request or api
+    separator="&" if "?" in endpoint else "?"
+    for attempt in range(4):
+        items=[]
+        expected=None
+        consistent=True
+        for page in range(1,11):
+            response=request(f"{endpoint}{separator}per_page=100&page={page}")
+            total=response["total_count"]
+            batch=response[field]
+            require(type(total) is int and 0<=total<=1000 and isinstance(batch,list),
+                    "invalid or oversized "+field+" index")
+            if expected is None:
+                expected=total
+            if total!=expected or len(batch)!=min(100,max(0,expected-len(items))):
+                consistent=False
+                break
+            items.extend(batch)
+            if len(items)==expected:
+                ids=[item.get("id") for item in items]
+                if all(type(i) is int and i>0 for i in ids) and len(set(ids))==len(ids):
+                    return items
+                consistent=False
+                break
+        if not consistent and attempt<3:
+            time.sleep(2**attempt)
+    raise ValueError("incomplete or unstable "+field+" index")
+
 def timestamp(value):
     return datetime.fromisoformat(value.replace("Z","+00:00"))
 
@@ -196,22 +227,20 @@ def reviewed_artifacts(run_id, names):
     head=run["head_sha"]
     require(re.fullmatch(r"[0-9a-f]{40}",head),"invalid producer source")
     attempt=run["run_attempt"]
-    jobs=api(f"actions/runs/{run_id}/attempts/{attempt}/jobs?per_page=100")
-    require(jobs["total_count"]==len(jobs["jobs"]),"incomplete job index")
+    jobs=complete_index(f"actions/runs/{run_id}/attempts/{attempt}/jobs","jobs")
     groups={group_for(n) for n in names}
     windows={}
     for group in groups:
-        rows=[j for j in jobs["jobs"] if j["name"].rsplit(" / ",1)[-1]==JOB_NAMES[group] and j.get("run_attempt")==attempt and j.get("head_sha")==head]
+        rows=[j for j in jobs if j["name"].rsplit(" / ",1)[-1]==JOB_NAMES[group] and j.get("run_attempt")==attempt and j.get("head_sha")==head]
         require(len(rows)==1 and rows[0]["conclusion"]=="success" and rows[0]["status"]=="completed",
                 "selected component producer not accepted: "+group)
         windows[group]=(timestamp(rows[0]["started_at"]),timestamp(rows[0]["completed_at"]))
-    response=api(f"actions/runs/{run_id}/artifacts?per_page=100")
-    require(response["total_count"]==len(response["artifacts"]),"incomplete artifact index")
+    artifacts=complete_index(f"actions/runs/{run_id}/artifacts","artifacts")
     wanted={"111-toolchain-"+n:group_for(n) for n in names}
     wanted.update({"111-toolchain-"+g+"-manifest-pins":g for g in groups})
     result={}
     for name, group in wanted.items():
-        rows=[r for r in response["artifacts"] if r["name"]==name or (name.endswith("-manifest-pins") and re.fullmatch(re.escape(name)+r"-[0-9a-f]{64}",r["name"]))]
+        rows=[r for r in artifacts if r["name"]==name or (name.endswith("-manifest-pins") and re.fullmatch(re.escape(name)+r"-[0-9a-f]{64}",r["name"]))]
         require(len(rows)==1,"missing or ambiguous artifact: "+name)
         row=rows[0]
         start,end=windows[group]

@@ -2,7 +2,7 @@ import pathlib
 import tempfile
 import unittest
 from unittest.mock import patch
-from host_components import bundle, install, selected, reviewed_artifacts, reusable, object_path, cache_downloaded_object
+from host_components import complete_index, bundle, install, selected, reviewed_artifacts, reusable, object_path, cache_downloaded_object
 
 class HostComponentTests(unittest.TestCase):
     def test_exact_source_and_cache_reuse(self):
@@ -83,10 +83,28 @@ class HostComponentTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError,"archive digest mismatch"):
                     bundle.verify_stream(packed,manifest)
 
+    def test_complete_index_reads_every_page_and_retries_concurrent_upload(self):
+        first=[{"id":i} for i in range(1,101)]
+        second=[{"id":101},{"id":102}]
+        with patch("host_components.time.sleep") as sleep, patch("host_components.api",side_effect=[
+            {"total_count":101,"artifacts":first},
+            {"total_count":102,"artifacts":second},
+            {"total_count":102,"artifacts":first},
+            {"total_count":102,"artifacts":second},
+        ]) as request:
+            self.assertEqual(len(complete_index("actions/runs/7/artifacts","artifacts")),102)
+            self.assertEqual(request.call_count,4)
+            sleep.assert_called_once_with(1)
+        with patch("host_components.time.sleep"), patch("host_components.api",return_value={
+            "total_count":2,"artifacts":[{"id":1},{"id":1}]
+        }):
+            with self.assertRaisesRegex(ValueError,"unstable"):
+                complete_index("actions/runs/7/artifacts","artifacts")
+
     def test_remote_producer_requires_actual_success_and_matching_attempt(self):
         head="a"*40
         run={"id":7,"head_repository":{"full_name":"sy220284/111"},"path":".github/workflows/dev-toolchain.yml","head_sha":head,"status":"completed","run_attempt":2}
-        job={"name":"111 专用 JDK、Android SDK、Gradle 离线依赖","head_sha":head,"run_attempt":2,"status":"completed","conclusion":"success","started_at":"2026-11-26T00:00:00Z","completed_at":"2026-11-26T00:05:00Z"}
+        job={"id":123,"name":"111 专用 JDK、Android SDK、Gradle 离线依赖","head_sha":head,"run_attempt":2,"status":"completed","conclusion":"success","started_at":"2026-11-26T00:00:00Z","completed_at":"2026-11-26T00:05:00Z"}
         rows=[{"name":n,"id":i+1,"size_in_bytes":100,"digest":"sha256:"+"b"*64,"expired":False,"created_at":"2026-11-26T00:03:00Z"} for i,n in enumerate(("111-toolchain-jdk","111-toolchain-android-manifest-pins"))]
         responses=[run,{"total_count":1,"jobs":[job]},{"total_count":2,"artifacts":rows}]
         with patch("host_components.api",side_effect=responses):

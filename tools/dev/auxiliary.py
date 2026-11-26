@@ -129,10 +129,12 @@ def pnpm_install(stage,offline):
         run(cmd,"exec","prettier","--version",cwd=UPSTREAM,env=env)
 
 BAZEL_REGISTRY_REPO="rules_rs++crate+crates_https___index.crates.io_"
+BAZEL_REGISTRY_REPOS=(BAZEL_REGISTRY_REPO,"rules_rs++crate+argument_comment_lint_crates_https___index.crates.io_")
 
-def bazel_registry_snapshot(output_root, destination):
+def bazel_registry_snapshot(output_root, destination, name=BAZEL_REGISTRY_REPO):
     """Retain the exact generated registry repository not cached by Bazel downloads."""
-    roots=list(output_root.glob("*/external/"+BAZEL_REGISTRY_REPO))
+    need(name in BAZEL_REGISTRY_REPOS,"unexpected Bazel registry")
+    roots=list(output_root.glob("*/external/"+name))
     need(len(roots)==1 and roots[0].is_dir() and not roots[0].is_symlink(), "Bazel registry repository missing or ambiguous")
     source=roots[0]
     # It is a small generated repository; reject links rather than preserving host paths.
@@ -224,6 +226,14 @@ def bazel_git_overrides(destination):
         yield "--override_repository="+name+"="+str(path.resolve())
 
 
+def bazel_registry_overrides(directory):
+    need(directory.is_dir() and not directory.is_symlink(),"missing verified Bazel registries")
+    need({p.name for p in directory.iterdir()}==set(BAZEL_REGISTRY_REPOS),"incomplete Bazel registry set")
+    for name in BAZEL_REGISTRY_REPOS:
+        path=directory/name
+        need(path.is_dir() and not path.is_symlink(),"invalid Bazel registry: "+name)
+        yield "--override_repository="+name+"="+str(path.resolve())
+
 def bazel_fetch(stage,offline):
     exe=stage/"bin/bazel"
     need(output(exe,"--version")=="bazel "+LOCK["bazel"],"Bazel version mismatch")
@@ -234,16 +244,17 @@ def bazel_fetch(stage,offline):
         # Only the content-addressed cache and verified small registry repository travel.
         args=[exe,"--batch","--output_user_root="+d,"fetch","--lockfile_mode=error",
               "--repository_cache="+str(cache),"--repo_contents_cache="+str(contents),"--disk_cache=","--jobs=4"]
-        registry=stage/"registry-repository"
+        registries=stage/"registry-repositories"
         git_repositories=stage/"git-repositories"
         if offline:
-            need(registry.is_dir() and not registry.is_symlink(), "missing verified Bazel registry repository")
-            args.extend(("--repository_disable_download",
-                         "--override_repository="+BAZEL_REGISTRY_REPO+"="+str(registry.resolve())))
+            args.append("--repository_disable_download")
+            args.extend(bazel_registry_overrides(registries))
             args.extend(bazel_git_overrides(git_repositories))
         run(*args,*BAZEL_TARGETS,cwd=UPSTREAM)
         if not offline:
-            bazel_registry_snapshot(pathlib.Path(d),registry)
+            registries.mkdir()
+            for name in BAZEL_REGISTRY_REPOS:
+                bazel_registry_snapshot(pathlib.Path(d),registries/name,name)
             roots=list(pathlib.Path(d).glob("*/external/"+BAZEL_REGISTRY_REPO))
             need(len(roots)==1,"Bazel output root missing or ambiguous")
             bazel_git_snapshots(roots[0].parent,git_repositories,pathlib.Path(d))
