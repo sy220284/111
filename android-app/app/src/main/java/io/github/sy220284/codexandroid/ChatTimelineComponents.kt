@@ -33,14 +33,14 @@ internal fun TimelineActivityGroup(
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null,
     forceActivity: Boolean = false, note: String? = null, liveProcess: Boolean = false,
     partialCopy: Boolean = false, liveVisibleIds: Set<String>? = null,
-    replyPage: ReplyRenderPage? = null, lastPage: Boolean = true
+    replyPage: ReplyRenderPage? = null, lastPage: Boolean = true, firstPage: Boolean = true
 ) {
     if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "userMessage", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity", "hookRun")) {
         TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion,
             showMessageActions && lastPage, actionItem, note.takeIf { lastPage },
             partialCopy = partialCopy && lastPage, replyPage = replyPage,
-            firstLongPage = !lastPage && replyPage?.firstHeading == 0 && group.first().id.isNotBlank())
+            firstLongPage = firstPage && !lastPage)
         return
     }
     val active = group.any { it.active() }
@@ -110,7 +110,7 @@ internal fun TimelineStepCard(
     val copy = rememberConversationCopy()
     var menuOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var readerOpen by rememberSaveable(item.id) { mutableStateOf(false) }
-    var sourceReaderOpen by rememberSaveable(item.id) { mutableStateOf(false) }
+    var sourceReaderSnapshot by remember(item.id) { mutableStateOf<String?>(null) }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var rawOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     val detail = item.hasEvidence
@@ -145,7 +145,7 @@ internal fun TimelineStepCard(
                         }
                     }
                 } else {
-                    if (firstLongPage) CodexTextAction(onClick = { sourceReaderOpen = true },
+                    if (firstLongPage) CodexTextAction(onClick = { sourceReaderSnapshot = item.text },
                         modifier = Modifier.heightIn(min = 48.dp).testTag("reply-cross-page-read")) {
                         Text("阅读原文 / 跨页选取")
                     }
@@ -229,7 +229,9 @@ internal fun TimelineStepCard(
     }
     if (readerOpen) FullTextReaderDialog(title, actionMessage.text,
         if (assistant) CopyContentFormat.Markdown else CopyContentFormat.Literal) { readerOpen = false }
-    if (sourceReaderOpen) FullTextReaderDialog(title, item.text, CopyContentFormat.Markdown) { sourceReaderOpen = false }
+    sourceReaderSnapshot?.let { snapshot ->
+        FullTextReaderDialog(title, snapshot, CopyContentFormat.Markdown) { sourceReaderSnapshot = null }
+    }
     if (evidenceOpen) CodexEvidenceSheet(title = "$title · 执行详情", payload = item.evidence,
         onDismiss = { evidenceOpen = false })
     if (rawOpen) FullTextReaderDialog("原始执行记录", TimelineEvidenceText.render(item)) { rawOpen = false }

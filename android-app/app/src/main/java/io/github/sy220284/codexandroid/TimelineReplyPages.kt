@@ -55,16 +55,8 @@ internal class TimelineReplyPages {
         const val BLOCKS_PER_PAGE = 8
         const val TEXT_CHUNK = 3200
         /** Do not split a Unicode surrogate pair at a render boundary. */
-        fun textChunks(source: String): List<String> = buildList {
-            var start = 0
-            while (start < source.length) {
-                var end = minOf(source.length, start + TEXT_CHUNK)
-                if (end < source.length && Character.isHighSurrogate(source[end - 1]) &&
-                    Character.isLowSurrogate(source[end])) end--
-                add(source.substring(start, end))
-                start = end
-            }
-        }
+        fun textChunks(source: String): List<String> =
+            if (source.isEmpty()) emptyList() else ReaderTextIndex.chunks(source, TEXT_CHUNK).map { it.text }
 
         fun paginate(blocks: List<PreparedReplyBlock>): List<ReplyRenderPage> {
             // A very long literal paragraph is also independently laid out in

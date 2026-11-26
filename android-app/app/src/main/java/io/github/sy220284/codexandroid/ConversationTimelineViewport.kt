@@ -244,7 +244,7 @@ internal fun ConversationTimelineViewport(
                     showMessageActions = row.showActions, actionItem = row.actionItem,
                     forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess,
                     partialCopy = row.partialCopy, liveVisibleIds = row.liveVisibleIds,
-                    replyPage = display.page, lastPage = display.lastPage)
+                    replyPage = display.page, lastPage = display.lastPage, firstPage = display.pageIndex == 0)
                 if (thread != null && display.lastPage) {
                     NativeReplyMetadata(vm, thread, row.group, canSwitchVersion)
                     row.group.flatMap(AsyncReplyContract::questions).distinctBy { it.id }.forEach { question ->

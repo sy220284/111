@@ -15,7 +15,6 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlin.math.roundToInt
@@ -28,7 +27,7 @@ import androidx.compose.ui.window.DialogProperties
 
 /** 任务/资源大文本全部可读、可复制、可检索；分块渲染避免弹层截断。 */
 @Composable
-fun FullTextReaderDialog(title: String, text: String,
+internal fun FullTextReaderDialog(title: String, text: String,
     copyFormat: CopyContentFormat = CopyContentFormat.Literal, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -126,7 +125,7 @@ fun FullTextReaderDialog(title: String, text: String,
                         }, modifier = Modifier.weight(1f), color = Ink.muted,
                             style = MaterialTheme.typography.labelSmall)
                         CodexIconAction(onClick = { selected?.let { copy(it.copy(text), copyFormat) } },
-                            enabled = selected?.let { it.end > it.start } == true,
+                            enabled = selected?.let { it.end > it.start && text.substring(it.start, it.end).isNotBlank() } == true,
                             modifier = Modifier.size(48.dp).testTag("full-text-range-copy")) {
                             CodexIcon(CodexGlyph.ContentCopy, "复制跨页选区")
                         }
@@ -167,8 +166,10 @@ fun FullTextReaderDialog(title: String, text: String,
                             // Boundary buttons offer a keyboard/accessibility alternative
                             // and precise taps can select an offset inside a chunk.
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                                CodexTextAction(onClick = { select(chunk.start) }) { Text("选此段开头") }
-                                CodexTextAction(onClick = { select(chunk.end) }) { Text("选此段末尾") }
+                                CodexTextAction(onClick = { select(chunk.start) },
+                                    modifier = Modifier.testTag("full-text-range-start-$index")) { Text("选此段开头") }
+                                CodexTextAction(onClick = { select(chunk.end) },
+                                    modifier = Modifier.testTag("full-text-range-end-$index")) { Text("选此段末尾") }
                             }
                             content()
                         } else SelectionContainer(content = content)

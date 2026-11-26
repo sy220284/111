@@ -929,6 +929,26 @@ class CodexInteractionComponentsInstrumentedTest {
         }
     }
 
+    @Test fun crossPageSelectionCopiesExactMarkdownAcrossUnloadedItems() {
+        val sample = "第一段**粗体**\n" + "正文\n".repeat(4000) + "\n[末尾](./file.md)"
+        lateinit var context: android.content.Context
+        rule.setContent {
+            context = androidx.compose.ui.platform.LocalContext.current
+            CodexTheme { FullTextReaderDialog("长回复", sample, CopyContentFormat.Markdown, onDismiss = {}) }
+        }
+        rule.waitUntil(10_000) { rule.onAllNodesWithTag("full-text-chunk-0").fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag("full-text-range-toggle").performClick()
+        rule.onNodeWithTag("full-text-range-start-0").performClick()
+        val last = ReaderTextIndex.chunks(sample).lastIndex
+        rule.onNodeWithTag("full-text-reader-list").performScrollToIndex(last)
+        rule.onNodeWithTag("full-text-range-end-$last").performClick()
+        rule.onNodeWithTag("full-text-range-copy").assertIsEnabled().performClick()
+        rule.waitUntil(10_000) {
+            val clip = context.getSystemService(android.content.ClipboardManager::class.java)?.primaryClip
+            clip?.getItemAt(0)?.text?.toString() == sample
+        }
+    }
+
     @Test fun fullTextSearchScrollsToDistantMatchWithinSameChunk() {
         val sample = "needle\n" + "one two three four\n".repeat(90) + "needle"
         rule.setContent {
