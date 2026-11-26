@@ -12,36 +12,39 @@ versions = {p["version"] for p in lock["package"] if p["name"] == "v8"}
 if versions != {sys.argv[2]}:
     raise SystemExit(f"Code Mode V8 mismatch: Cargo.lock={versions}, Android builder={sys.argv[2]}")
 PY
-if [ "$TARGET" = aarch64-linux-android ]; then
-  ARCHIVE="librusty_v8_ptrcomp_sandbox_release_aarch64-linux-android.a.gz"
-  BINDING="src_binding_ptrcomp_sandbox_release_aarch64-linux-android.rs"
-else
-  ARCHIVE="librusty_v8_ptrcomp_sandbox_release_x86_64-linux-android.a"
-  BINDING="src_binding_ptrcomp_sandbox_release_x86_64-linux-android.rs"
-fi
+SOURCE_COMMIT=2768994f664e8a6e3aba27503606c58339136e2a
+ARCHIVE="librusty_v8_ptrcomp_sandbox_release-$TARGET.a"
+BINDING="src_binding_ptrcomp_sandbox_release-$TARGET.rs"
+case "$TARGET" in
+  aarch64-linux-android) CPU=arm64; ELF_ARCH=AArch64 ;;
+  x86_64-linux-android) CPU=x64; ELF_ARCH=X86-64 ;;
+esac
+: "$ANDROID_NDK_HOME"
+export RUSTUP_TOOLCHAIN=1.99.1
 mkdir -p "$CACHE"
+CACHE="$(realpath "$CACHE")"
+EXPECTED_INPUTS="$(mktemp)"
+trap 'rm -f "$EXPECTED_INPUTS"' EXIT
+(
+  printf 'source=%s\nversion=%s\ntarget=%s\n' "$SOURCE_COMMIT" "$VERSION" "$TARGET"
+  rustc --version
+  grep '^Pkg.Revision' "$ANDROID_NDK_HOME/source.properties"
+  cd "$GITHUB_WORKSPACE"
+  sha256sum android-app/tools/prepare_android_v8.sh android-app/tools/adapt_android_v8_build.py upstream/codex/codex-rs/Cargo.lock
+) > "$EXPECTED_INPUTS"
 if [ -s "$CACHE/SHA256SUMS" ]; then
-  (cd "$CACHE" && sha256sum -c SHA256SUMS)
+  cmp "$EXPECTED_INPUTS" "$CACHE/BUILD_INPUTS"
 else
-  test -z "$(find "$CACHE" -maxdepth 1 -type f -print -quit)" || {
+  test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     echo "Incomplete V8 cache, refusing partial reuse: $CACHE" >&2; exit 1;
   }
-  if [ "$TARGET" = aarch64-linux-android ]; then
-    BASE="https://github.com/DioNanos/codex-vl/releases/download/rusty-v8-v152.2.0-vl1"
-    curl -fL --retry 3 "$BASE/$ARCHIVE" -o "$CACHE/$ARCHIVE"
-    curl -fL --retry 3 "$BASE/$BINDING" -o "$CACHE/$BINDING"
-    cat > "$CACHE/SHA256SUMS" <<'SHA'
-422ddb869bda03c250081160231bc8940adab7d63b050ce1c468760dde92085c  librusty_v8_ptrcomp_sandbox_release_aarch64-linux-android.a.gz
-13c9b755752972a7ee9748dbc2aecb1dc9e349baff6c7c019c395ff801779059  src_binding_ptrcomp_sandbox_release_aarch64-linux-android.rs
-SHA
-  else
     : " ${ANDROID_NDK_HOME:?NDK must be installed} "
     ROOT="$RUNNER_TEMP/rusty-v8-android"
     SRC="$ROOT/rusty_v8-src"
     WRAPPER="$ROOT/wrapper"
     mkdir -p "$ROOT"
     git clone --depth 1 --branch v152.2.0 https://github.com/denoland/rusty_v8.git "$SRC"
-    test "$(git -C "$SRC" rev-parse HEAD)" = "2768994f664e8a6e3aba27503606c58339136e2a" || {
+    test "$(git -C "$SRC" rev-parse HEAD)" = "$SOURCE_COMMIT" || {
       echo "Pinned V8 source commit mismatch" >&2; exit 1;
     }
     git -C "$SRC" submodule update --init --recursive --depth 1
@@ -68,28 +71,20 @@ SHA
     if [ ! -e "$SRC/build/rust/known-target-triples.txt" ]; then
       printf 'x86_64-linux-android\naarch64-linux-android\nx86_64-unknown-linux-gnu\n' > "$SRC/build/rust/known-target-triples.txt"
     fi
-    # For the x86_64 Android cross-build the target uses the NDK sysroot.
+    # Both Android targets use the NDK sysroot.
     # The build host runs Linux tools from this runner, so it needs no separately
     # downloaded Debian sysroot. Patch the pinned V8 build recipe explicitly,
     # rather than letting its unconditional downloader block Android builds.
     python3 "$GITHUB_WORKSPACE/android-app/tools/adapt_android_v8_build.py" "$SRC/build.rs"
-    mkdir -p "$WRAPPER/src" "$WRAPPER/.cargo"
-    printf 'fn main() {}\n' > "$WRAPPER/src/main.rs"
-    cat > "$WRAPPER/Cargo.toml" <<'TOML'
-[package]
-name = "android-v8-builder"
-version = "0.1.0"
-edition = "2021"
-[dependencies]
-v8 = { path = "../rusty_v8-src", features = ["v8_enable_sandbox"] }
-TOML
+    mkdir -p "$WRAPPER/.cargo"
     BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
-    LINKER="$BIN/x86_64-linux-android29-clang"
+    LINKER="$BIN/$TARGET"29-clang
     test -x "$LINKER"
-    printf '[target.x86_64-linux-android]\nlinker = "%s"\n' "$LINKER" > "$WRAPPER/.cargo/config.toml"
+    printf '[target.%s]\nlinker = "%s"\n' "$TARGET" "$LINKER" > "$WRAPPER/.cargo/config.toml"
     SYSROOT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
     export LIBCLANG_PATH=/usr/lib/llvm-21/lib
-    export BINDGEN_EXTRA_CLANG_ARGS_x86_64_linux_android="--sysroot=$SYSROOT -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/x86_64-linux-android"
+    export "BINDGEN_EXTRA_CLANG_ARGS_$(printf '%s' "$TARGET" | tr '-' '_')=--sysroot=$SYSROOT -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/$TARGET"
+    export "CARGO_TARGET_$(printf '%s' "$TARGET" | tr '[:lower:]-' '[:upper:]_')_LINKER=$LINKER"
     # The pinned rusty_v8 source does not contain buildtools/linux64/gn.
     # Its build.rs provisions the GN binary from the matching V8 dependency
     # versions when GN is unset; retaining a guessed path caused CI to exit
@@ -126,36 +121,41 @@ TOML
     )
     ELF="$PREFLIGHT/target/$TARGET/release/android-v8-linker-preflight"
     test -s "$ELF"
-    "$BIN/llvm-readelf" -h "$ELF" | grep -F 'X86-64'
+    "$BIN/llvm-readelf" -h "$ELF" | grep -F "$ELF_ARCH"
     echo "Verified Android NDK linker before the lengthy V8 build"
+    # Build the official crate with its checked-in dependency lock, not a
+    # newly resolved wrapper dependency graph.
     (
-      cd "$WRAPPER"
-      cargo build --release --target "$TARGET" -j 2
+      cd "$SRC"
+      CARGO_TARGET_DIR="$ROOT/target" cargo build --locked --release -p v8 --lib \
+        --features v8_enable_sandbox --target "$TARGET" -j 2
     )
-    GN_OUT="$WRAPPER/target/$TARGET/release/gn_out"
+    GN_OUT="$ROOT/target/$TARGET/release/gn_out"
     test -s "$GN_OUT/obj/librusty_v8.a"
     test -s "$GN_OUT/src_binding.rs"
     grep -Eq '^v8_enable_sandbox = true$' "$GN_OUT/args.gn"
     grep -Eq '^v8_enable_pointer_compression = true$' "$GN_OUT/args.gn"
+    grep -Fx "v8_target_cpu = \"$CPU\"" "$GN_OUT/args.gn"
+    grep -Fx 'target_os = "android"' "$GN_OUT/args.gn"
     cp "$GN_OUT/obj/librusty_v8.a" "$CACHE/$ARCHIVE"
     cp "$GN_OUT/src_binding.rs" "$CACHE/$BINDING"
-    (cd "$CACHE" && sha256sum "$ARCHIVE" "$BINDING" > SHA256SUMS)
-  fi
-  (cd "$CACHE" && sha256sum -c SHA256SUMS)
+    cp "$EXPECTED_INPUTS" "$CACHE/BUILD_INPUTS"
+    {
+      printf 'official_repository=https://github.com/denoland/rusty_v8\ncommit=%s\ntarget=%s\n' "$SOURCE_COMMIT" "$TARGET"
+      printf 'upstream_lock_sha256='
+      sha256sum "$SRC/Cargo.lock" | cut -d' ' -f1
+      git -C "$SRC" submodule status --recursive
+      cat "$GN_OUT/args.gn"
+    } > "$CACHE/SOURCE_PROVENANCE"
+    (cd "$CACHE" && sha256sum "$ARCHIVE" "$BINDING" BUILD_INPUTS SOURCE_PROVENANCE > SHA256SUMS)
 fi
 test -s "$CACHE/$ARCHIVE" && test -s "$CACHE/$BINDING"
-if [ "$TARGET" = aarch64-linux-android ]; then
-  # Verify the pinned trust anchor even on restored Actions cache hits.
-  (cd "$CACHE" && sha256sum -c - <<'SHA'
-422ddb869bda03c250081160231bc8940adab7d63b050ce1c468760dde92085c  librusty_v8_ptrcomp_sandbox_release_aarch64-linux-android.a.gz
-13c9b755752972a7ee9748dbc2aecb1dc9e349baff6c7c019c395ff801779059  src_binding_ptrcomp_sandbox_release_aarch64-linux-android.rs
-SHA
-  )
-else
-  # Cache manifest must describe exactly both expected outputs.
-  (cd "$CACHE" && test "$(wc -l < SHA256SUMS)" -eq 2 &&
-    sha256sum "$ARCHIVE" "$BINDING" | cmp - SHA256SUMS)
-fi
+test -s "$CACHE/SOURCE_PROVENANCE"
+cmp "$EXPECTED_INPUTS" "$CACHE/BUILD_INPUTS"
+grep -Fx "commit=$SOURCE_COMMIT" "$CACHE/SOURCE_PROVENANCE"
+grep -Fx "target=$TARGET" "$CACHE/SOURCE_PROVENANCE"
+# Exact expected file set and digests, not an arbitrary cache-supplied list.
+(cd "$CACHE" && sha256sum "$ARCHIVE" "$BINDING" BUILD_INPUTS SOURCE_PROVENANCE | cmp - SHA256SUMS)
 echo "RUSTY_V8_ARCHIVE=$(realpath "$CACHE/$ARCHIVE")" >> "$GITHUB_ENV"
 echo "RUSTY_V8_SRC_BINDING_PATH=$(realpath "$CACHE/$BINDING")" >> "$GITHUB_ENV"
-echo "Sandbox-enabled Android V8 $VERSION verified for $TARGET"
+echo "Sandbox-enabled Android V8 $VERSION source $SOURCE_COMMIT verified for $TARGET"
