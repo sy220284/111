@@ -69,6 +69,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         flow.update { ThreadComposerDrafts.reclaimRejectedNewThread(it, ThreadComposerDrafts.NEW_THREAD, composerOwner(null)) }
     }
     // Transient form drafts belong to the session, not a ModalBottomSheet's window.
+    internal val asyncReplyReceipts = AsyncReplyReceipts()
     internal val taskPanelDrafts = MutableStateFlow<Map<String, TaskPanelDraft>>(emptyMap())
     internal fun editTaskPanelDraft(threadId: String?, edit: (TaskPanelDraft) -> TaskPanelDraft) {
         taskPanelDrafts.update { TaskPanelDraftPolicy.change(it, threadId, edit) }

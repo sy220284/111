@@ -28,7 +28,7 @@ internal object TimelineEventReducer {
         val text = when (kind) {
             "userMessage" -> item.optJSONArray("content").objects().mapNotNull {
                 when (it.string("type")) {
-                    "text" -> it.string("text")
+                    "text" -> AsyncReplyContract.visibleUserText(it.string("text"))
                     "image", "localImage" -> "［图片］"
                     "audio", "localAudio" -> "［音频］"
                     "skill", "mention" -> it.string("name").takeIf(String::isNotBlank)?.let { name -> "@" + name }

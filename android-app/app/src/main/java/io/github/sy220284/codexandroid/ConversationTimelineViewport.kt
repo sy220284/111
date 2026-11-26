@@ -57,6 +57,10 @@ internal fun ConversationTimelineViewport(
     val connected by vm.bridge.status.collectProjection { it == EngineStatus.Connected }
     val savingPermissions by vm.securitySaveBusy.collectAsState()
     val restarting by vm.connectionRestarter.busy.collectAsState()
+    val steering by vm.steerBusy.collectAsState()
+    val queueBusy by vm.loading.collectProjection { "queueWrite" in it || "interrupt" in it }
+    val queue by vm.data.collectProjection { thread?.let { id -> it["queue:$id"] } }
+    val answeredQuestions = remember(items, queue) { AsyncReplyContract.answeredFromTimeline(items) + AsyncReplyContract.answeredFromQueue(queue) }
     val canSwitchVersion = connected && !busy && !contextLoading && thread != null && !loadingEarlier &&
         !firstThreadStarting && !mutatingHistory && !savingPermissions && !restarting
     val canChangeTurn = canSwitchVersion && !familyBusy
@@ -180,11 +184,25 @@ internal fun ConversationTimelineViewport(
                     row.showActions && ProgressiveReplyProjection.answer(it)
                 }
                 val version = message?.let { item -> thread?.let { answerVersions.choice(it, item.turnId) } }
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 TimelineActivityGroup(row.group, workspaceRoot = vm.workingDirectory,
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
                     version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null,
                     showMessageActions = row.showActions, actionItem = row.actionItem,
                     forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess)
+                if (thread != null) {
+                    NativeReplyMetadata(vm, thread, row.group, canSwitchVersion)
+                    row.group.flatMap(AsyncReplyContract::questions).distinctBy { it.id }.forEach { question ->
+                        NativeAsyncReplyCard(vm, thread, question,
+                            question.id in answeredQuestions || question.messageId in answeredQuestions,
+                            frame.running && frame.turnId == question.turnId,
+                            connected && !contextLoading && !savingPermissions && !restarting && !steering && !queueBusy)
+                    }
+                    row.group.filter { it.kind == "mcpToolCall" }.forEach { item ->
+                        NativeMcpResourceCard(vm, thread, item, connected && !contextLoading && !restarting)
+                    }
+                }
+                }
             }
             if (fallbackVersion != null) item(key = "answer-version-recovery") {
                 Column { Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted, style = MaterialTheme.typography.labelMedium)

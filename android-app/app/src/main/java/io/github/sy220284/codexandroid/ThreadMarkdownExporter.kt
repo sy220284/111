@@ -8,7 +8,7 @@ internal object ThreadMarkdownExporter {
     private fun body(item: JSONObject): String {
         if (item.optString("type") == "agentMessage") return AgentReplyContract.visibleText(item)
         val direct = item.optString("text")
-        if (direct.isNotEmpty() && !item.isNull("text")) return direct
+        if (direct.isNotEmpty() && !item.isNull("text")) return if (item.optString("type") == "userMessage") AsyncReplyContract.visibleUserText(direct) else direct
         val content = item.optJSONArray("content") ?: return ""
         return (0 until content.length()).mapNotNull { content.optJSONObject(it)?.let { part ->
             when (part.optString("type")) {
@@ -16,7 +16,7 @@ internal object ThreadMarkdownExporter {
                 "localImage", "localAudio" -> if (part.optString("type") == "localImage") "[本地图片]" else "[本地音频]"
                 "skill", "mention" -> "[" + part.optString("type").let { if (it == "skill") "技能" else "引用" } +
                     "：" + part.optString("name") + "]"
-                else -> part.optString("text").takeUnless { part.isNull("text") }
+                else -> part.optString("text").takeUnless { part.isNull("text") }?.let(AsyncReplyContract::visibleUserText)
             }
         } }.joinToString("\n")
     }

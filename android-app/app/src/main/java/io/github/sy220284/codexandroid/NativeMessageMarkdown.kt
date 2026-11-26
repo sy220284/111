@@ -114,8 +114,8 @@ internal object MessageMarkdown {
                         rows = rich.rows, source = lines.subList(fenceStart, i + 1).joinToString("\n"))
                     else MessageBlock("code", code, label = language))
                 }
-                trimmed == "\$\$" || trimmed == "\\\\[" -> {
-                    val ending = if (trimmed == "\$\$") "\$\$" else "\\\\]"
+                trimmed == "\$\$" || trimmed == "\\[" -> {
+                    val ending = if (trimmed == "\$\$") "\$\$" else "\\]"
                     val end = (i + 1 until lines.size).firstOrNull { lines[it].trim() == ending }
                     val sourceMath = end?.let { lines.subList(i + 1, it).joinToString(" ") }
                     val math = sourceMath?.let { RichReplyContent.parse("codex-math", it) }
