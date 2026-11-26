@@ -105,7 +105,12 @@ internal object MessageMarkdown {
                         if (end.length >= opening.length && end.all { it == opening.first() }) break
                         content.add(lines[i++])
                     }
-                    result.add(MessageBlock("code", content.joinToString("\n"), label = language))
+                    val code = content.joinToString("\n")
+                    val closed = i < lines.size
+                    val rich = if (closed) RichReplyContent.parse(language, code) else null
+                    result.add(if (rich != null) MessageBlock(rich.kind, code, label = language,
+                        rows = rich.rows, source = opening + language + "\n" + code + "\n" + opening)
+                    else MessageBlock("code", code, label = language))
                 }
                 tableHeader(lines, i) -> {
                     flush()
@@ -243,10 +248,15 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
             blocks.forEach { block ->
                 when (block.kind) {
                     "code" -> MessageCodeBlock(block)
+                    "metrics", "flow" -> NativeRichReplyBlock(block)
                     "table" -> MessageTable(block)
                     "rule" -> HorizontalDivider(color = Ink.border)
                     "heading" -> Text(MessageMarkdown.inlineText(block.text), fontWeight = FontWeight.SemiBold,
-                        style = if (block.level <= 2) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall)
+                        style = when (block.level) {
+                            1 -> MaterialTheme.typography.titleLarge
+                            2 -> MaterialTheme.typography.titleMedium
+                            else -> MaterialTheme.typography.titleSmall
+                        })
                     "bullet" -> Row(Modifier.fillMaxWidth().padding(start = (block.level * 12).dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(block.label, color = Ink.muted)
@@ -316,8 +326,10 @@ private fun MessageTable(block: MessageBlock) {
         return row in minOf(a.first, b.first)..maxOf(a.first, b.first) &&
             column in minOf(a.second, b.second)..maxOf(a.second, b.second)
     }
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-        color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val cellWidth = (maxWidth / count).coerceIn((82 * codexEffectiveFontScale()).dp, 220.dp)
+        Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+            color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
         Column {
             DisableSelection {
             Row(Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -346,7 +358,7 @@ private fun MessageTable(block: MessageBlock) {
                 rows.forEachIndexed { index, row ->
                     Row(Modifier.background(if (index == 0) Ink.recessed else Ink.canvas)) {
                         repeat(count) { column ->
-                            val cell = Modifier.width(132.dp).then(if (selecting)
+                            val cell = Modifier.width(cellWidth).then(if (selecting)
                                 Modifier.background(if (selected(index, column)) Ink.border else
                                     if (index == 0) Ink.recessed else Ink.canvas)
                                     .clickable {
@@ -369,6 +381,7 @@ private fun MessageTable(block: MessageBlock) {
                 }
             }
         }
+    }
     }
 }
 

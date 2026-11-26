@@ -128,10 +128,13 @@ class TimelineReconcilerTest {
         assertEquals(live.map { it.id }, visible.flatMap { it.group }.map { it.id })
         org.junit.Assert.assertFalse(visible.first { it.key == "p" }.showActions)
         org.junit.Assert.assertFalse(visible.first { it.key == "f" }.showActions)
+        org.junit.Assert.assertTrue(visible.first { it.key == "tool" }.liveProcess)
+        org.junit.Assert.assertFalse(visible.first { it.key == "c" }.liveProcess)
         val ended = rows(live.dropLast(1) + final.copy(status = "completed"), false)
         assertEquals(listOf("u", "c", "p"), ended.map { it.key })
         assertEquals(listOf("c", "tool"), ended[1].group.map { it.id })
         org.junit.Assert.assertTrue(ended[1].forceActivity)
+        org.junit.Assert.assertFalse(ended[1].liveProcess)
         assertEquals("第一部分\n\n第二部分", ended.last().group.single().text)
         assertEquals("第一部分\n\n第二部分", ended.last().actionItem?.text)
         assertEquals("f", ended.last().actionItem?.id)
@@ -157,6 +160,22 @@ class TimelineReconcilerTest {
         val instruction = ProgressiveReplyProjection.appendInstruction("原有指令")
         org.junit.Assert.assertTrue(instruction.startsWith("原有指令\n\n"))
         assertEquals(instruction, ProgressiveReplyProjection.appendInstruction(instruction))
+    }
+
+    @Test fun richReplyBlocksRequireCompleteValidatedFences() {
+        val fence = "```"
+        val metrics = fence + "codex-metrics\n文件数|11,404|已检查\n开放 PR|3\n" + fence
+        val block = MessageMarkdown.blocks(metrics).single()
+        assertEquals("metrics", block.kind)
+        assertEquals(listOf("文件数", "11,404", "已检查"), block.rows.first())
+        assertEquals(metrics, block.source)
+        assertEquals("code", MessageMarkdown.blocks(metrics.dropLast(3)).single().kind)
+        assertEquals("code", MessageMarkdown.blocks(fence + "codex-metrics\n错误行\n" + fence).single().kind)
+        val flow = MessageMarkdown.blocks(fence + "codex-flow\n读取源码\n执行检查\n" + fence).single()
+        assertEquals("flow", flow.kind)
+        assertEquals(listOf(listOf("读取源码"), listOf("执行检查")), flow.rows)
+        org.junit.Assert.assertNull(RichReplyContent.parse("codex-flow", List(13) { "步骤" }.joinToString("\n")))
+        org.junit.Assert.assertNull(RichReplyContent.parse("codex-metrics", "标签||说明"))
     }
 
     @Test fun streamingMarkdownNeverCommitsBlankLinesInsideOpenCode() {

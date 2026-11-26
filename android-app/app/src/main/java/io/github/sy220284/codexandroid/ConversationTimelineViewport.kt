@@ -184,7 +184,7 @@ internal fun ConversationTimelineViewport(
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
                     version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null,
                     showMessageActions = row.showActions, actionItem = row.actionItem,
-                    forceActivity = row.forceActivity, note = row.note)
+                    forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess)
             }
             if (fallbackVersion != null) item(key = "answer-version-recovery") {
                 Column { Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted, style = MaterialTheme.typography.labelMedium)

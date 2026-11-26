@@ -8,7 +8,8 @@ internal object ProgressiveReplyProjection {
         val showActions: Boolean = true,
         val actionItem: TimelineItem? = null,
         val forceActivity: Boolean = false,
-        val note: String? = null
+        val note: String? = null,
+        val liveProcess: Boolean = false
     )
 
     private val assistantKinds = setOf("agent", "agentMessage")
@@ -78,7 +79,8 @@ internal object ProgressiveReplyProjection {
                 val allow = !formal || (!open && !clipped && single?.phase != "partial_answer")
                 add(Row(group.first().id, group, showActions = allow,
                     actionItem = single?.takeIf { formal && clipped && !open },
-                    note = if (formal && clipped && !open) incompleteNote else null))
+                    note = if (formal && clipped && !open) incompleteNote else null,
+                    liveProcess = open && group.all { it.kind in activityKinds }))
             }
             return@buildList
         }
