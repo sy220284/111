@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 from pathlib import Path
-from device_matrix import CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd, MODES, SHARDS, shard_matrix, shard_classes, shard_job_name
+from device_matrix import verify_resources, CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd, MODES, SHARDS, shard_matrix, shard_classes, shard_job_name
 
 class DeviceMatrixTests(unittest.TestCase):
     def test_two_distinct_current_phones_and_one_update_owner(self):
@@ -52,7 +52,17 @@ class DeviceMatrixTests(unittest.TestCase):
         self.assertEqual("35", CONFIG["sdk_platform"])
         self.assertIn(CONFIG["runtime_profile"], PROFILES)
         self.assertGreaterEqual(CONFIG["minimum_ui_tests"], 150)
-        self.assertGreaterEqual(int(CONFIG["ram"].removesuffix("M")), 4096)
+        self.assertEqual("8192M", CONFIG["ram"])
+        self.assertEqual(4, CONFIG["cores"])
+        self.assertEqual("8192M", CONFIG["disk"])
+        self.assertEqual(4, CONFIG["mesa_threads"])
+
+    def test_actual_guest_full_resources(self):
+        self.assertEqual("passed", verify_resources("4", "MemTotal:       7864320 kB\n")["status"])
+        self.assertEqual("failed", verify_resources("2", "MemTotal:       7864320 kB\n")["status"])
+        self.assertEqual("failed", verify_resources("4", "MemTotal:       3932160 kB\n")["status"])
+        with self.assertRaises(ValueError):
+            verify_resources("4", "MemFree: 123 kB\n")
 
     def test_avd_boot_geometry_is_unique_and_unrelated_settings_preserved(self):
         with tempfile.TemporaryDirectory() as folder:

@@ -47,6 +47,9 @@ jobs:
       device_release: ${{ steps.plan.outputs.device_release }}
       device_target: ${{ steps.plan.outputs.device_target }}
       device_ram: ${{ steps.plan.outputs.device_ram }}
+      device_cores: ${{ steps.plan.outputs.device_cores }}
+      device_disk: ${{ steps.plan.outputs.device_disk }}
+      device_mesa_threads: ${{ steps.plan.outputs.device_mesa_threads }}
       device_emulator_options: ${{ steps.plan.outputs.device_emulator_options }}
     steps:
       - uses: actions/checkout@v4
@@ -281,24 +284,24 @@ jobs:
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         env:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
-          # The hosted runner has four logical CPUs; keep Mesa software rendering
-          # workers within the remaining CPU budget of the two-vCPU guest.
+          # Full four-vCPU runner; Mesa software rendering shares the host CPU.
           # SwiftShader does not use this Mesa-specific setting.
-          LP_NUM_THREADS: "2"
+          LP_NUM_THREADS: ${{ needs.plan.outputs.device_mesa_threads }}
         with:
           api-level: ${{ needs.plan.outputs.device_sdk_platform }}
           system-image-api-level: ${{ needs.plan.outputs.device_image_api }}
           arch: x86_64
           target: ${{ needs.plan.outputs.device_target }}
           ram-size: ${{ needs.plan.outputs.device_ram }}
-          cores: 2
-          disk-size: 8192M
+          cores: ${{ needs.plan.outputs.device_cores }}
+          disk-size: ${{ needs.plan.outputs.device_disk }}
           avd-name: test
           pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd ${{ matrix.profile }}
           emulator-options: ${{ matrix.mode == 'baseline' && '-no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim' || needs.plan.outputs.device_emulator_options }}
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |
+            python3 android-app/tools/device_matrix.py --verify-resources ui-device-resources.json
             adb install -r apks/debug/app-debug.apk
             adb shell appops set io.github.sy220284.codexandroid MANAGE_EXTERNAL_STORAGE allow
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
@@ -340,6 +343,7 @@ jobs:
         with:
           name: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-${{ matrix.shard }}
           path: |
+            ui-device-resources.json
             ui-instrument-result.log
             ui-baseline-diagnosis.json
             ui-adaptive-result.log
@@ -421,6 +425,7 @@ jobs:
             ui-screenshots/
             ui-shards/*/*.log
             ui-shards/*/ui-*-diagnosis.json
+            ui-shards/*/ui-device-resources.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -609,13 +614,16 @@ jobs:
           arch: x86_64
           target: ${{ needs.plan.outputs.device_target }}
           ram-size: ${{ needs.plan.outputs.device_ram }}
-          disk-size: 8192M
+          cores: ${{ needs.plan.outputs.device_cores }}
+          disk-size: ${{ needs.plan.outputs.device_disk }}
           avd-name: test
           pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd ${{ needs.plan.outputs.device_runtime_profile }}
           emulator-options: ${{ needs.plan.outputs.device_emulator_options }}
           disable-animations: true
           emulator-boot-timeout: 1200
-          script: bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
+          script: |
+            python3 android-app/tools/device_matrix.py --verify-resources runtime-evidence/device-resources.json
+            bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
       - name: 保存真实内核验收证据
         if: always()
         uses: actions/upload-artifact@v4
