@@ -1690,3 +1690,35 @@ async fn media_sample_native_inputs_scope_and_parent_isolation() -> Result<()> {
     assert!(!requests[2].body_contains_text("Media-only test:"));
     Ok(())
 }
+
+#[tokio::test]
+async fn media_sample_native_empty_source_no_dummy_turn() -> Result<()> {
+    let server = responses::start_mock_server().await;
+    let mock = responses::mount_sse_sequence(&server, ["media", "follow-up"].map(|id| {
+        responses::sse(vec![responses::ev_assistant_message(id, "Verified response."), responses::ev_completed(id)])
+    }).to_vec()).await;
+    let home = TempDir::new()?;
+    let mut client = client_with_modalities(&home, &server, true, EffortUpdates::Supported, "",
+        Some(vec![InputModality::Text, InputModality::Image])).await?;
+    let start = client.send_raw_request("thread/start", Some(json!({}))).await?;
+    let started: serde_json::Value = timeout(WAIT, client.read_response(start)).await??;
+    let thread_id = started["thread"]["id"].as_str().context("thread id")?.to_string();
+    let scope_id = client.send_raw_request("thread/sample/scope", Some(json!({"threadId":thread_id,"model":SAMPLE_MODEL}))).await?;
+    let scope: ThreadSampleScopeResponse = timeout(WAIT, client.read_response(scope_id)).await??;
+    let picture = home.path().join("sample.png");
+    std::fs::write(&picture, base64::engine::general_purpose::STANDARD.decode("iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKUlEQVR4nO3NMQEAAAjDsIF/z2ACvlRAU8nks369AwAAAAAAAAAAgMMWocYBP7wfsd0AAAAASUVORK5CYII=")?)?;
+    let request = json!({"threadId":thread_id,"expectedTurnId":"","model":SAMPLE_MODEL,"prompt":"Fresh media analysis only", "media":[{"type":"localImage","path":picture}],"mediaScope":scope.scope,"disableMcp":true});
+    let id = client.send_raw_request("thread/sample", Some(request.clone())).await?;
+    let result: ThreadSampleResponse = timeout(WAIT, client.read_response(id)).await??;
+    assert_eq!(result.source_turn_id, "");
+    assert_eq!(result.text.as_deref(), Some("Verified response."));
+    assert_eq!(mock.requests().len(), 1);
+    assert!(mock.requests()[0].body_json().to_string().contains("input_image"));
+    client.start_turn_and_wait_for_completion(TurnStartParams { thread_id, input: input("Follow-up"), ..Default::default() }).await?;
+    let invalid = client.send_raw_request("thread/sample", Some(request)).await?;
+    let error = timeout(WAIT, client.read_stream_until_error_message(RequestId::Integer(invalid))).await??;
+    assert!(error.error.message.contains("without turns"), "{}", error.error.message);
+    assert_eq!(mock.requests().len(), 2);
+    assert!(!mock.requests()[1].body_contains_text("Fresh media analysis only"));
+    Ok(())
+}

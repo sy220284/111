@@ -85,7 +85,9 @@ pub(crate) async fn generate_sample(
     rpc_gate: Arc<ConnectionRpcGate>,
 ) -> SampleResult {
     let deadline = Instant::now() + if task.params.media.is_empty() { SAMPLE_TIMEOUT } else { Duration::from_secs(120) };
-    if task.params.expected_turn_id.trim().is_empty() || task.params.prompt.trim().is_empty() {
+    let fresh_media = !task.params.media.is_empty() && task.params.expected_turn_id.is_empty()
+        && !task.params.allow_in_progress_turn;
+    if (!fresh_media && task.params.expected_turn_id.trim().is_empty()) || task.params.prompt.trim().is_empty() {
         return Err(invalid_request(
             "thread/sample requires a nonblank expectedTurnId and prompt",
         ));
@@ -118,7 +120,9 @@ impl SampleTask {
             cancellation,
         } = self;
         let id = parent.startup_metadata().thread_id;
-        if !params.allow_in_progress_turn && parent.agent_status().await == AgentStatus::Running {
+        let fresh_media = !params.media.is_empty() && params.expected_turn_id.is_empty()
+            && !params.allow_in_progress_turn;
+        if !params.allow_in_progress_turn && (parent.agent_status().await == AgentStatus::Running || parent.has_active_turn().await) {
             return Err(invalid_request("sample source must be idle"));
         }
         let snapshot = parent.config_snapshot().await;
@@ -129,6 +133,13 @@ impl SampleTask {
         }
         let parent_history = parent.conversation_history_snapshot().await;
         let revision = parent_history.history_version();
+        if fresh_media {
+            let scope = params.media_scope.as_deref().ok_or_else(|| invalid_request("media sample requires a credential scope"))?;
+            if parent.media_analysis_scope().await.map_err(|e| invalid_request(e.to_string()))? != scope {
+                return Err(invalid_request("media sample credential scope changed"));
+            }
+            parent.checkpoint_preparation().await.map_err(|e| internal_error(e.to_string()))?;
+        }
         parent
             .flush_rollout()
             .await
@@ -140,7 +151,20 @@ impl SampleTask {
             })
             .await
             .map_err(|error| invalid_request(error.to_string()))?;
-        let latest_turn_in_progress = match snapshot.history_mode {
+        let latest_turn_in_progress = if fresh_media {
+            let empty = match snapshot.history_mode {
+                ThreadHistoryMode::Legacy => {
+                    let full = parent.load_history(false).await.map_err(|e| invalid_request(e.to_string()))?;
+                    build_legacy_api_turns_from_rollout_items(&full.items).is_empty()
+                }
+                ThreadHistoryMode::Paginated => store.list_turns(ListTurnsParams {
+                    thread_id: id, include_archived: false, cursor: None, page_size: 1,
+                    sort_direction: SortDirection::Desc, items_view: StoredTurnItemsView::NotLoaded,
+                }).await.map_err(|e| invalid_request(e.to_string()))?.turns.is_empty(),
+            };
+            if !empty { return Err(invalid_request("empty media source requires a thread without turns")); }
+            Some(false)
+        } else { match snapshot.history_mode {
             ThreadHistoryMode::Legacy => build_legacy_api_turns_from_rollout_items(&history.items)
                 .last()
                 .filter(|turn| turn.id == params.expected_turn_id)
@@ -161,7 +185,7 @@ impl SampleTask {
                 .first()
                 .filter(|turn| turn.turn_id == params.expected_turn_id)
                 .map(|turn| turn.status == StoredTurnStatus::InProgress),
-        };
+        }};
         let Some(source_in_progress) =
             latest_turn_in_progress.filter(|running| !running || params.allow_in_progress_turn)
         else {
@@ -287,6 +311,9 @@ impl SampleTask {
                 if fork.thread.media_analysis_scope().await.map_err(|e| invalid_request(e.to_string()))? != scope {
                     return Err(invalid_request("media sample credential scope changed"));
                 }
+            }
+            if !params.allow_in_progress_turn && (parent.has_active_turn().await || parent.conversation_history_snapshot().await.history_version() != revision) {
+                return Err(invalid_request("sample source changed before dispatch"));
             }
             let mut parts = vec![UserInput::Text {
                 text: params.prompt,

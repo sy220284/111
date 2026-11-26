@@ -16,6 +16,7 @@ use std::collections::HashMap;
 pub struct ThreadSampleParams {
     pub thread_id: String,
     /// The loaded source's latest turn, which must be finished (completed, failed, or interrupted) unless `allowInProgressTurn` is true.
+    /// For media sampling only, an empty string denotes a verified idle source with no turns.
     pub expected_turn_id: String,
     /// Allow sampling the latest turn before it finishes.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
