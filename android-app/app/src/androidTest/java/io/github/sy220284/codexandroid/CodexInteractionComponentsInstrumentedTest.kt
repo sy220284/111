@@ -42,17 +42,19 @@ class CodexInteractionComponentsInstrumentedTest {
     @Test fun unreadableMediaRecordOffersExplicitClearWithoutAnotherProviderCall() {
         var cleared = false
         var providerCalls = 0
+        var selectedRecords = 0
         rule.setContent {
             CodexTheme {
                 MediaAnalysisActions(emptyList(), MediaAnalysisController.State(owner = "thread",
                     scope = "a".repeat(64), error = "分析记录无法读取，原记录已保留"),
                     owner = "thread", enabled = false, onChoose = { _, _ -> providerCalls++ },
+                    onContinue = { _, _ -> providerCalls++ }, onSelectRecord = { selectedRecords++ },
                     onCancel = {}, onReview = {}, onDismiss = { cleared = true })
             }
         }
         rule.onNodeWithText("分析记录无法读取，原记录已保留").assertIsDisplayed()
-        rule.onNodeWithText("清除记录").assertIsDisplayed().performClick()
-        rule.runOnIdle { assertEquals(true, cleared); assertEquals(0, providerCalls) }
+        rule.onNodeWithText("清除损坏记录").assertIsDisplayed().performClick()
+        rule.runOnIdle { assertEquals(true, cleared); assertEquals(0, providerCalls); assertEquals(0, selectedRecords) }
     }
 
     @get:Rule val rule = createComposeRule()
