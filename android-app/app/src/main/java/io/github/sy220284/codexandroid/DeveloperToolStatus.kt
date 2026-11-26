@@ -18,9 +18,9 @@ internal fun DeveloperToolStatus(vm: CodexViewModel) {
     val session by vm.bridge.connectedSession.collectAsState()
     var checkedSession by remember { mutableStateOf<Long?>(null) }
     var details by remember { mutableStateOf(false) }
-    val capabilities = mapOf("git" to "代码版本管理", "rg" to "快速查找项目内容", "curl" to "访问网络资源",
+    val capabilities = mapOf("git" to "代码版本管理", "rg" to "快速查找项目内容", "curl" to "访问网络资源", "jq" to "处理 JSON 数据",
         "python3" to "运行 Python 脚本", "node" to "运行 JavaScript", "npm" to "管理前端依赖",
-        "pip (python3 -m pip)" to "管理 Python 依赖", "Git HTTPS" to "远程 Git 传输")
+        "pip" to "管理 Python 依赖", "pip (python3 -m pip)" to "Python 模块入口", "Git HTTPS" to "远程 Git 传输")
     MaterialPanel(Modifier.fillMaxWidth()) {
         Text("本机开发工具", style = MaterialTheme.typography.titleMedium)
         Text("智能体按任务选择这些工具。检查仅验证本机命令启动和版本，不联网或安装依赖。", color = Ink.muted,

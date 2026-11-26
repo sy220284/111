@@ -1,0 +1,101 @@
+{
+  "schema": 1,
+  "source": {
+    "repository": "sy220284/777",
+    "head": "15437765368eecfbdbee7d9e372a74195efff0e4",
+    "run": 44730301955
+  },
+  "target": {
+    "repository": "sy220284/111",
+    "auditHead": "51e4a2de9c9c91b8d75ee622dde6d5098e07e45b"
+  },
+  "shared": {
+    "node": {
+      "id": 14627472200,
+      "name": "777-toolchain-node-latest",
+      "sha256": "a82891f272368eee01e48b4948e1ed01d6bc7cf4a41197d364c3197322adaa1b",
+      "size": 67175622,
+      "version": "24.22.3",
+      "root": "node-current",
+      "probe": [
+        "node-current/bin/node",
+        "--version"
+      ]
+    },
+    "actionlint": {
+      "id": 14627152750,
+      "name": "777-toolchain-actionlint-latest",
+      "sha256": "e4a389aa27de73413e12774113999f82202d6c2498380b1e84d86c7596ba037c",
+      "size": 2513706,
+      "version": "1.7.12",
+      "root": "bin",
+      "probe": [
+        "bin/actionlint",
+        "-version"
+      ]
+    },
+    "runtime-cache": {
+      "id": 14627402419,
+      "name": "777-toolchain-runtime-cache-latest",
+      "sha256": "80d13981c67fcae39177237a1000ae2544d7d767f2800138d186351ab2835b6e",
+      "size": 63285019,
+      "version": "arm64-v8a",
+      "root": "runtime-cache",
+      "probe": null
+    }
+  },
+  "project": {
+    "jdk": "17",
+    "jvmTarget": "17",
+    "gradle": "8.11.1",
+    "gradleDistributionSha256": "f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6",
+    "agp": "8.9.2",
+    "kotlin": "2.1.20",
+    "composeBom": "2025.04.01",
+    "minSdk": 29,
+    "compileSdk": 35,
+    "targetSdk": 35,
+    "buildTools": "35.0.0",
+    "ndk": "27.2.12479018",
+    "rust": "1.99.1",
+    "rustTargets": [
+      "aarch64-linux-android",
+      "x86_64-linux-android"
+    ],
+    "llvmMajor": "21",
+    "v8": "152.2.0",
+    "v8Commit": "2768994f664e8a6e3aba27503606c58339136e2a",
+    "pnpm": "10.34.5",
+    "nodeMin": "24.22.1",
+    "bazel": "9.3.3",
+    "deviceImage": "37.2",
+    "deviceApi": 37,
+    "deviceTarget": "google_apis_ps16k",
+    "pillow": "13.0.0",
+    "jsonschema": "4.26.0"
+  },
+  "runtime777": {
+    "abi": "arm64-v8a",
+    "git": "2.56.1",
+    "curl": "8.23.0",
+    "jq": "1.8.2",
+    "ripgrep": "15.2.0",
+    "python": "3.14.10",
+    "pip": "26.3-1",
+    "node": "26.13.1",
+    "npm": "11.6.2",
+    "gitPackageSha256": "3343f56fc99e2f0631a553a39789769495435cb07b6ffb3c71a7fcb7bd561e95"
+  },
+  "incompatible777": {
+    "jdk": "27",
+    "gradle": "9.8.1",
+    "agp": "9.4.0",
+    "kotlin": "2.4.20",
+    "jvmTarget": "21",
+    "compileSdk": 37,
+    "minSdk": 36,
+    "buildTools": "37.0.0",
+    "deviceImage": "37.0",
+    "reason": "不得覆盖111专用构建锁、Gradle缓存、Android API 35/NDK及37.2设备镜像。"
+  }
+}

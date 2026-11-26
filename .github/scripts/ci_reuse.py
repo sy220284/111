@@ -15,10 +15,10 @@ GROUPS = {
     "static": {"static-ui"},
     "compile": {"verify-ui"},
     "ui": {"ui-emulator", "ui-collect", "ui-evidence"},
-    "package": {"native", "build", "verify-apk"},
+    "package": {"native", "runtime-arm64", "build", "verify-apk"},
     "preflight": {"preflight"},
     "compat": {"compatibility"},
-    "runtime": {"runtime-test"},
+    "runtime": {"runtime-x86", "runtime-test"},
     "sign": {"release-signing-smoke"},
 }
 FULL_GROUPS = set(GROUPS) - {"sign"}
@@ -28,10 +28,10 @@ JOB_NAMES = {
     "ui": {"四组 UI 用例与证据一致性验收",
            *(shard_job_name(p,m,s) for p in PROFILES for m in MODES for s in SHARDS),
            *(collect_job_name(p,m) for p in PROFILES for m in MODES)},
-    "package": {"原生核心统一验收", "build", "ARM64 手机安装包二次核验"},
+    "package": {"原生核心统一验收", "ARM64 工具链产物核验", "build", "ARM64 手机安装包二次核验"},
     "preflight": {"发布脚本回归检查"},
     "compat": {"MXC 和 Code Mode Host 源码适配预演"},
-    "runtime": {f"Android {RELEASE} (API {API}) 真实内核及异常恢复验收（x86_64）"},
+    "runtime": {"x86_64 工具链产物核验", f"Android {RELEASE} (API {API}) 真实内核及异常恢复验收（x86_64）"},
     "sign": {"PR 内验证 Release 签名构建"},
 }
 ARTIFACTS = {
@@ -42,9 +42,9 @@ ARTIFACTS = {
            *(f"ui-shard-{p}-{m}-{s}" for p in PROFILES for m in MODES for s in SHARDS),
            *(f"codex-android-ui-visual-api{API}-{p}-{m}" for p in PROFILES for m in MODES),
            *(f"codex-android-ui-device-evidence-api{API}-{p}-{m}" for p in PROFILES for m in MODES)},
-    "package": {"codex-android-arm64-apk", "codex-android-arm64-git-corresponding-source",
+    "package": {"111-runtime-arm64-v8a", "codex-android-arm64-apk", "codex-android-arm64-git-corresponding-source",
                 "codex-android-instrumentation-apk", "codex-android-arm64-apk-audit"},
-    "runtime": {"codex-android-real-runtime-evidence"},
+    "runtime": {"111-runtime-x86_64", "codex-android-real-runtime-evidence"},
 }
 SCHEMA = 3
 MAX_AGE = timedelta(days=2)

@@ -2,7 +2,7 @@ name: 111 统一质量验收
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, validation/combined-111-reply-20261126]
   push:
     branches: [main]
   workflow_dispatch:
@@ -86,6 +86,22 @@ jobs:
     with:
       include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}
       native_key: ${{ needs.plan.outputs.native_key }}
+
+  runtime-arm64:
+    needs: [plan, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: arm64-v8a
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  runtime-x86:
+    needs: [plan, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_runtime == 'true' && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: x86_64
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
 
   static-ui:
     name: 协议、视觉规范与静态覆盖检查
@@ -551,8 +567,8 @@ jobs:
         run: python3 android-app/tools/verify_ui_matrix_evidence.py ui-proofs
 
   build:
-    needs: [plan, native]
-    if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success'
+    needs: [plan, native, runtime-arm64]
+    if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
@@ -567,6 +583,8 @@ jobs:
             upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
+            tools/dev
+            tools/runtime
       - name: 安装 Java 17
         uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
@@ -593,11 +611,19 @@ jobs:
           run-id: ${{ needs.native.outputs.arm_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: 111-runtime-arm64-v8a
+          path: ${{ runner.temp }}/developer-runtime-bundle
       - name: 核验并装配 ARM64 手机原生核心
+        env:
+          RUNTIME_MANIFEST_SHA: ${{ needs.runtime-arm64.outputs.manifest_sha }}
         shell: bash
         run: |
           set -euo pipefail
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          CODEX_RUNTIME_PREPARED="$(python3 tools/dev/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
+          export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
           head -n 1 CODEX_UPSTREAM_COMMIT
       - name: 下载并校验官方安卓增量恢复组件
@@ -650,8 +676,8 @@ jobs:
 
   runtime-test:
     name: Android ${{ needs.plan.outputs.device_release }} (API ${{ needs.plan.outputs.device_api }}) 真实内核及异常恢复验收（x86_64）
-    needs: [plan, native]
-    if: needs.native.result == 'success' && needs.plan.outputs.run_runtime == 'true'
+    needs: [plan, native, runtime-x86]
+    if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.plan.outputs.run_runtime == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -666,6 +692,8 @@ jobs:
             upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
+            tools/dev
+            tools/runtime
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
@@ -683,12 +711,20 @@ jobs:
           run-id: ${{ needs.native.outputs.x86_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-x86
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: 111-runtime-x86_64
+          path: ${{ runner.temp }}/developer-runtime-bundle
       - name: 装配仅供 Android 模拟器验收的真实内核 APK
+        env:
+          RUNTIME_MANIFEST_SHA: ${{ needs.runtime-x86.outputs.manifest_sha }}
         run: |
           set -euo pipefail
           SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
           "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          CODEX_RUNTIME_PREPARED="$(python3 tools/dev/component-bundle.py install runtime-x86 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
+          export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
@@ -938,7 +974,7 @@ jobs:
 
   quality:
     name: 111 合并验收
-    needs: [plan, native, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
+    needs: [plan, native, runtime-arm64, runtime-x86, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

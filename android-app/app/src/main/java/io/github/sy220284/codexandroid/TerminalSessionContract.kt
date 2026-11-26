@@ -19,7 +19,7 @@ object TerminalSessionContract {
     internal fun developerProbe(cwd: String): JSONObject {
         require(cwd.isNotBlank()) { "工作目录不可为空" }
         val script = listOf(
-            "for name in git rg curl python3 node npm; do",
+            "for name in git rg jq curl python3 node npm pip; do",
             "  if command -v \"\$name\" >/dev/null 2>&1; then",
             "    output=\$(\"\$name\" --version 2>&1); code=\$?",
             "    output=\$(printf '%s\\n' \"\$output\" | head -n 1)",

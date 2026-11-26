@@ -10,18 +10,22 @@ object NativeToolInstaller {
     @Synchronized fun prepare(context: Context): File {
         val nativeDir = File(context.applicationInfo.nativeLibraryDir).canonicalFile
         val tools = File(context.filesDir, "native-tools")
-        val required = linkedMapOf(
-            "rg" to "libcodex_rg.so", "git" to "libcodex_git.so",
-            "curl" to "libcodex_curl.so", "python" to "libpython3.so",
-            "python3" to "libpython3.so", "node" to "libnode.so", "npm" to "libnpm.so"
-        )
-        if (android.os.Build.SUPPORTED_ABIS.firstOrNull() == "arm64-v8a") {
-            required["git-remote-http"] = "libcodex_git_remote_http.so"
-            required["git-remote-https"] = "libcodex_git_remote_http.so"
+        val commands = linkedMapOf<String, String>()
+        context.assets.open("development-runtime/development-runtime.commands.tsv").bufferedReader().useLines { lines ->
+            lines.forEach { line ->
+                val parts = line.split('\t')
+                require(parts.size == 2 && parts[0].matches(Regex("[a-zA-Z0-9][a-zA-Z0-9._+-]*")) &&
+                    parts[1].matches(Regex("libcodex_[a-zA-Z0-9_]+\\.so"))) { "开发工具入口清单非法" }
+                require(commands.put(parts[0], parts[1]) == null) { "开发工具入口重复" }
+            }
         }
-        required.values.distinct().forEach { library ->
+        require(commands.keys.containsAll(listOf("git", "git-remote-http", "git-remote-https", "rg", "jq",
+            "curl", "python", "python3", "pip", "pip3", "node", "npm"))) { "APK 开发工具清单不完整" }
+        commands.values.distinct().forEach { library ->
             require(File(nativeDir, library).isFile) { "APK 缺少开发工具：" + library }
         }
+        val required = commands.keys.associateWith { "libcodex_tool_launcher.so" }
+        require(File(nativeDir, "libcodex_tool_launcher.so").isFile) { "APK 缺少开发工具启动器" }
         val invalid = Files.isSymbolicLink(tools.toPath()) || (tools.exists() &&
             (!tools.isDirectory || tools.list()?.any { it !in required } != false || required.any { (name, library) ->
                 val link = File(tools, name).toPath()
