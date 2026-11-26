@@ -49,7 +49,7 @@ internal object ComposerProviderScope {
         if (required.isEmpty()) return
         val thread = rpc("thread/read", JSONObject().put("threadId", threadId)).getJSONObject("thread")
         val provider = requireNotNull(provider(thread.optString("modelProvider"))) { "当前会话服务商未确认" }
-        val model = requireNotNull(provider(thread.optString("model"))) { "当前会话模型未确认，请重新打开会话" }
+        val model = requireNotNull(ComposerProviderScope.provider(thread.optString("model"))) { "当前会话模型未确认，请重新打开会话" }
         val catalog = records(rpc("model/list", request(provider)))
         ComposerModelPolicy.requireMediaInput(catalog, model, required)
     }

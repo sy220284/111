@@ -1645,7 +1645,7 @@ async fn media_sample_native_inputs_scope_and_parent_isolation() -> Result<()> {
     assert!(scope.input_modalities.contains(&InputModality::Audio));
     let picture = home.path().join("sample.png");
     std::fs::write(&picture, base64::engine::general_purpose::STANDARD.decode(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="
+        "iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKUlEQVR4nO3NMQEAAAjDsIF/z2ACvlRAU8nks369AwAAAAAAAAAAgMMWocYBP7wfsd0AAAAASUVORK5CYII="
     )?)?;
     let audio = home.path().join("sample.wav");
     let mut wav = Vec::new();

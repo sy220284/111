@@ -16,7 +16,8 @@ internal data class MediaAnalysisTarget(
 ) {
     val checkpointScope get() = AnalysisCheckpoint.digest("$provider\n$model\n$credentialScope")
     fun requireModalities(required: Set<String>) {
-        val missing = required - inputModalities
+        require(inputModalities.isNotEmpty()) { "核心尚未确认分析模型输入能力" }
+        val missing = MediaRoutePolicy.missing(inputModalities, required)
         require(missing.isEmpty()) { "当前模型不接收" + missing.sorted().joinToString("、") {
             when (it) { "image" -> "图片"; "audio" -> "音频"; else -> it }
         } + "，请调整媒体处理方式或选择支持该能力的模型；原附件已保留" }

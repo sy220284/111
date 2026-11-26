@@ -38,7 +38,10 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
     }
     var preview by remember(item.id, workspaceRoot, candidates) { mutableStateOf<String?>(null) }
     var playback by remember(item.id, workspaceRoot, candidates) { mutableStateOf<String?>(null) }
-    val clientId = raw.optString("clientId").takeIf { it.isNotBlank() && it != "null" }
+    val hasWireMedia = raw.optJSONArray("content")?.let { parts ->
+        (0 until parts.length()).any { parts.optJSONObject(it)?.optString("type") in setOf("localImage", "localAudio", "image", "audio") }
+    } == true
+    val clientId = raw.optString("clientId").takeIf { hasWireMedia && it.isNotBlank() && it != "null" }
     val original by loadCodexUiState<Result<List<String>>?>(null, item.id, clientId) {
         codexLoadResult { MediaHistoryStore.read(LocalImageAttachments.directory(context), clientId) }
     }
@@ -67,6 +70,7 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
         return
     }
     if (original?.isFailure == true) Text("原始媒体记录无法读取，保留原生消息资料", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+    if (hasWireMedia && shownCandidates.isEmpty()) Text("该历史媒体由内核保存为内嵌数据，无法定位本机原件", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
     if (shownCandidates.isNotEmpty()) {
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)) {

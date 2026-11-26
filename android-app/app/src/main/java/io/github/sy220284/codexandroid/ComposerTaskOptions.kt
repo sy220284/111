@@ -62,13 +62,8 @@ internal object ComposerModelPolicy {
 
     fun requireMediaInput(catalog: List<JSONObject>, modelId: String, required: Set<String>) {
         if (required.isEmpty() || modelId.isBlank()) return
-        val kinds = model(catalog, modelId)?.let(::inputKinds).orEmpty()
-        if (kinds.isEmpty()) return
-        val missing = required - kinds.toSet()
-        require(missing.isEmpty()) {
-            "当前模型不接收" + missing.joinToString("、") { if (it == "audio") "音频" else "图片" } +
-                "，草稿附件已保留。请选择支持所需能力的模型或移除附件。"
-        }
+        val decision = MediaRoutePolicy.decide(catalog, modelId, required)
+        require(decision.acceptsNative) { decision.reason }
     }
 
     fun requireImageInput(catalog: List<JSONObject>, modelId: String, hasImages: Boolean) =

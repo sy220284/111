@@ -115,6 +115,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val configured = scopedCatalog["composerThread:$thread"]?.optJSONObject("thread")
     val inheritedModel = configured?.value("model")?.takeIf { it.isNotBlank() && it != "null" }
     val shownModel = selectedModel.ifBlank { inheritedModel.orEmpty() }
+    val mediaRequirements by loadCodexUiState<Result<Set<String>>?>(null, attachedImages) {
+        codexLoadResult { LocalMediaAttachmentPolicy.modalities(attachedImages) }
+    }
+    val mediaRoute = MediaRoutePolicy.decide(availableModels, shownModel,
+        mediaRequirements?.getOrNull().orEmpty())
     val shownEffort = snapshot.options.effort.ifBlank {
         if (selectedModel.isBlank()) configured?.value("reasoningEffort")?.takeIf { it.isNotBlank() && it != "null" }.orEmpty() else ""
     }
@@ -301,11 +306,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 actionLabel = when {
                     status is EngineStatus.Unavailable -> "重新连接"
+                    !busy && !switching && !mediaRoute.acceptsNative -> "选择模型"
                     !busy && !switching && snapshot.hasInput -> "重试发送"
                     else -> null
                 },
                 onAction = {
                     if (status is EngineStatus.Unavailable) vm.connect()
+                    else if (!busy && !switching && !mediaRoute.acceptsNative) composerMenu = "models"
                     else if (!busy && !switching) {
                         vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = false, expectedOwner = draftOwner)
                     }
@@ -605,6 +612,10 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 },
                 attachmentContent = {
                     LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
+                    if (attachedImages.isNotEmpty() && !mediaRoute.acceptsNative) {
+                        Text(mediaRoute.reason, style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                        if (!busy && modelOptionsEnabled) CodexTextAction(onClick = { composerMenu = "models" }) { Text("选择支持媒体的模型") }
+                    }
                     if ((analysisModel != null || mediaAnalysis.owner == draftOwner) && remote == null) MediaAnalysisActions(
                         paths = attachedImages, state = mediaAnalysis, owner = draftOwner,
                         enabled = analysisModel != null && !busy && !switching && !attachmentBusy && !transferBusy && !restarting,

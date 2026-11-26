@@ -118,6 +118,22 @@ internal class AnalysisCheckpointStore(private val directory: File) {
         if (readFile(legacy, record.owner, record.scope)?.identity == record.identity)
             check(legacy.delete()) { "无法清除旧分析记录" }
     }
+    /** Explicit recovery only: delete invalid records, never healthy sibling analyses. */
+    fun removeDamagedMedia(owner: String, scope: String): Unit = synchronized(lock) {
+        val legacy = file(owner, scope, false)
+        val prefix = legacy.nameWithoutExtension + "-"
+        if (!directory.exists()) return@synchronized
+        val files = requireNotNull(directory.listFiles()) { "无法读取分析记录" }
+            .filter { it.name == legacy.name || (it.name.startsWith(prefix) && it.name.endsWith(".json")) }
+        for (target in files) {
+            val valid = try {
+                val record = readFile(target, owner, scope)
+                record != null && (target == legacy || target == mediaFile(owner, scope, record.identity))
+            } catch (_: org.json.JSONException) { false }
+              catch (_: IllegalArgumentException) { false }
+            if (!valid) check(target.delete()) { "无法清除损坏记录" }
+        }
+    }
     fun remove(owner: String, scope: String, screen: Boolean): Unit = synchronized(lock) {
         val target = file(owner, scope, screen)
         val targets = if (screen) listOf(target) else {

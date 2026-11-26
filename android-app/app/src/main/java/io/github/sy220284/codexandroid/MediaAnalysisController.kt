@@ -17,8 +17,8 @@ import java.io.File
 internal class MediaAnalysisController(private val vm: CodexViewModel, private val adapter: MediaAnalysisAdapter) {
     data class RecordSummary(val identity: String, val label: String)
     private fun summary(record: AnalysisCheckpoint) = RecordSummary(record.identity,
-        (runCatching { MediaAnalysisMode.valueOf(record.mode).label }.getOrDefault(record.mode)) +
-            " · " + LocalMediaAttachmentPolicy.kind(record.source) + " · " +
+        (MediaAnalysisMode.entries.firstOrNull { it.name == record.mode }?.label ?: record.mode) +
+            " · " + File(record.source).extension.uppercase(java.util.Locale.ROOT) + " · " +
             record.parts.size + "/" + record.total + " · " + record.question.take(36))
     data class State(val owner: String? = null, val revision: Long = 0, val source: String? = null,
                      val mode: MediaAnalysisMode? = null, val completed: Int = 0, val total: Int = 0,
@@ -170,7 +170,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
                 val scope = requireNotNull(current.scope)
                 val record = current.checkpoint
                 AppDataTransfer.mutateLocal {
-                    if (record != null) store.removeMedia(record) else store.remove(owner, scope, false)
+                    if (record != null) store.removeMedia(record) else store.removeDamagedMedia(owner, scope)
                 }
                 val remaining = withContext(Dispatchers.IO) { store.listMedia(owner, scope) }
                 results.update { it - owner }; state.value = State()
