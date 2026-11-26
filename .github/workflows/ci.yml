@@ -79,13 +79,22 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_verify_ui_matrix_evidence.py'
           python3 -m unittest discover -s android-app/tools -p 'test_merge_ui_shards.py'
           python3 .github/scripts/ci_policy.py
+  host-android:
+    needs: plan
+    if: needs.plan.outputs.run_compile == 'true' || needs.plan.outputs.run_package == 'true' || needs.plan.outputs.run_runtime == 'true' || needs.plan.outputs.run_sign == 'true'
+    uses: ./.github/workflows/prepare-host-toolchain.yml
+    with:
+      group: android
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
   native:
-    needs: [plan, static-ui, preflight]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    needs: [plan, static-ui, preflight, host-android]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     uses: ./.github/workflows/build-native-codex.yml
     with:
       include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}
       native_key: ${{ needs.plan.outputs.native_key }}
+      android_descriptor: ${{ needs.host-android.outputs.descriptor }}
 
   runtime-arm64:
     needs: [plan, preflight]
@@ -182,8 +191,8 @@ jobs:
 
   verify-ui:
     name: Kotlin 编译、协议单元测试与 Android Lint
-    needs: [plan, static-ui, preflight]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    needs: [plan, static-ui, preflight, host-android]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -197,6 +206,8 @@ jobs:
             /upstream/codex/codex-rs/model-provider/catalogs/
             /.github/workflows/
             /.github/scripts/
+            /.github/actions/install-host-toolchain/
+            /tools/dev/
             /.github/ci/
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
@@ -209,27 +220,18 @@ jobs:
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs
             /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
-      - name: 安装 JDK 17
-        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+      - name: 安装已断网验收的 Android 工具组件
+        uses: ./.github/actions/install-host-toolchain
         with:
-          distribution: temurin
-          java-version: "17"
-      - name: 安装 Android API 35
-        run: |
-          set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          test -x "$SDK_MANAGER"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
-      - name: 配置 Gradle 缓存
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-        with:
-          gradle-version: "8.11.1"
+          group: android
+          descriptor: ${{ needs.host-android.outputs.descriptor }}
+          token: ${{ github.token }}
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
           printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证 Compose、协议测试与静态检查
-        run: ./android-app/gradlew -p android-app :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
@@ -279,30 +281,6 @@ jobs:
         with:
           name: ui-apk-integrity
           path: ${{ runner.temp }}/ui-apk-sha256.txt
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: 生成待核验的 Gradle 依赖基线
-        id: dependency-baseline
-        if: ${{ hashFiles('android-app/app/gradle.lockfile') == '' || hashFiles('android-app/gradle/verification-metadata.xml') == '' }}
-        run: |
-          set -euo pipefail
-          STORE="$RUNNER_TEMP/dependency-baseline.jks"
-          keytool -genkeypair -noprompt -keystore "$STORE" -storetype PKCS12 -alias 111-release -keyalg RSA -keysize 2048 -validity 1 -storepass ci-only-password -keypass ci-only-password -dname "CN=111 dependency baseline"
-          CODEX_RELEASE_KEYSTORE_PATH="$STORE" CODEX_RELEASE_PASSWORD=ci-only-password CODEX_RELEASE_KEY_ALIAS=111-release \
-            ./android-app/gradlew -p android-app :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:lintRelease :app:assembleRelease \
-            -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 \
-            --write-locks --write-verification-metadata sha256 --no-daemon --stacktrace
-          test -s android-app/app/gradle.lockfile
-          test -s android-app/gradle/verification-metadata.xml
-      - name: 上传待审查依赖基线
-        if: steps.dependency-baseline.outcome == 'success'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: gradle-dependency-baseline-candidate
-          path: |
-            android-app/app/gradle.lockfile
-            android-app/gradle/verification-metadata.xml
           if-no-files-found: error
           retention-days: 14
 
@@ -567,8 +545,8 @@ jobs:
         run: python3 android-app/tools/verify_ui_matrix_evidence.py ui-proofs
 
   build:
-    needs: [plan, native, runtime-arm64]
-    if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success'
+    needs: [plan, native, runtime-arm64, host-android]
+    if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success' && needs.host-android.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 55
     steps:
@@ -583,23 +561,16 @@ jobs:
             upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
+            .github/actions/install-host-toolchain
+            tools/dev
             tools/dev
             tools/runtime
-      - name: 安装 Java 17
-        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+      - name: 安装已断网验收的 Android 工具组件
+        uses: ./.github/actions/install-host-toolchain
         with:
-          distribution: temurin
-          java-version: "17"
-      - name: 安装 Android 平台
-        run: |
-          set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          test -x "$SDK_MANAGER"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
-      - name: 安装 Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-        with:
-          gradle-version: "8.11.1"
+          group: android
+          descriptor: ${{ needs.host-android.outputs.descriptor }}
+          token: ${{ github.token }}
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -633,7 +604,7 @@ jobs:
         shell: bash
         run: bash .github/scripts/create-android-update-fixture.sh
       - name: 编译 Android APK 和设备测试包（单元测试由独立 UI 工作流执行）
-        run: ./android-app/gradlew -p android-app :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
       - name: 验证 ARM64 APK 的原生功能组件和 ABI
         shell: bash
         run: |
@@ -676,8 +647,8 @@ jobs:
 
   runtime-test:
     name: Android ${{ needs.plan.outputs.device_release }} (API ${{ needs.plan.outputs.device_api }}) 真实内核及异常恢复验收（x86_64）
-    needs: [plan, native, runtime-x86]
-    if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.plan.outputs.run_runtime == 'true'
+    needs: [plan, native, runtime-x86, host-android]
+    if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.host-android.result == 'success' && needs.plan.outputs.run_runtime == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -692,15 +663,16 @@ jobs:
             upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
+            .github/actions/install-host-toolchain
+            tools/dev
             tools/dev
             tools/runtime
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+      - name: 安装已断网验收的 Android 工具组件
+        uses: ./.github/actions/install-host-toolchain
         with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-        with:
-          gradle-version: "8.11.1"
+          group: android
+          descriptor: ${{ needs.host-android.outputs.descriptor }}
+          token: ${{ github.token }}
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -720,15 +692,13 @@ jobs:
           RUNTIME_MANIFEST_SHA: ${{ needs.runtime-x86.outputs.manifest_sha }}
         run: |
           set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
           CODEX_RUNTIME_PREPARED="$(python3 tools/dev/component-bundle.py install runtime-x86 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
           export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
-          ./android-app/gradlew -p android-app -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          ./android-app/gradlew -p android-app --offline --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
           python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
       - name: 允许模拟器硬件加速
         run: |
@@ -832,8 +802,8 @@ jobs:
 
   release-signing-smoke:
     name: PR 内验证 Release 签名构建
-    needs: [plan, static-ui, preflight]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_sign == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    needs: [plan, static-ui, preflight, host-android]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_sign == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -844,24 +814,18 @@ jobs:
             android-app
             upstream/codex/codex-rs/model-provider/catalogs
             .github/scripts
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+            .github/actions/install-host-toolchain
+            tools/dev
+      - name: 安装已断网验收的 Android 工具组件
+        uses: ./.github/actions/install-host-toolchain
         with:
-          distribution: temurin
-          java-version: '17'
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
-        with:
-          gradle-version: '8.11.1'
+          group: android
+          descriptor: ${{ needs.host-android.outputs.descriptor }}
+          token: ${{ github.token }}
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
           printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
-      - name: 配置 Android API 35
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          test -x "$SDK_MANAGER"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
       - name: 生成仅本次 CI 有效的测试签名
         shell: bash
         run: |
@@ -882,7 +846,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 \
@@ -901,7 +865,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexR8Candidate=true -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
           APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
@@ -976,7 +940,7 @@ jobs:
 
   quality:
     name: 111 合并验收
-    needs: [plan, native, runtime-arm64, runtime-x86, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
+    needs: [plan, host-android, native, runtime-arm64, runtime-x86, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

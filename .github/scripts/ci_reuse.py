@@ -255,7 +255,11 @@ def validate(repo, record, source, required, *, now=None):
     return set(record["execute"])
 
 def actual_jobs(groups):
-    return set().union(*(GROUPS[g] for g in groups))
+    groups = set(groups)
+    jobs = set().union(*(GROUPS[g] for g in groups))
+    if groups & {"compile", "package", "runtime", "sign"}:
+        jobs.add("host-android")
+    return jobs
 
 def native_key(source):
     from native_index import fingerprint
