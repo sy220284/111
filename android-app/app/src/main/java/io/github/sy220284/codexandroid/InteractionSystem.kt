@@ -30,6 +30,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
@@ -66,6 +67,9 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
     Box(Modifier.fillMaxSize().clipToBounds()) {
         Box(Modifier.fillMaxSize().graphicsLayer {
             val visible = if (reducedMotion) 1f else progress.value
+            // A nearly opaque full-screen fade must not allocate a viewport-sized
+            // offscreen texture every frame. Keep the existing fade and motion.
+            compositingStrategy = CompositingStrategy.ModulateAlpha
             alpha = .94f + .06f * visible
             translationY = 6.dp.toPx() * (1f - visible)
         }) { content() }

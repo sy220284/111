@@ -96,12 +96,20 @@ class UiMotionPerformanceInstrumentedTest {
 
     @Test fun realNavigationFramesAndRepeatedGestures() {
         val samples = Collections.synchronizedList(mutableListOf<Pair<Long, Long>>())
+        val phases = Collections.synchronizedList(mutableListOf<List<Long>>())
+        val phaseIds = listOf(FrameMetrics.INPUT_HANDLING_DURATION, FrameMetrics.ANIMATION_DURATION,
+            FrameMetrics.LAYOUT_MEASURE_DURATION, FrameMetrics.DRAW_DURATION, FrameMetrics.SYNC_DURATION,
+            FrameMetrics.COMMAND_ISSUE_DURATION, FrameMetrics.SWAP_BUFFERS_DURATION, FrameMetrics.GPU_DURATION)
+        val phaseNames = listOf("input", "animation", "layout_measure", "draw", "sync", "command_issue", "swap_buffers", "gpu")
         val lost = java.util.concurrent.atomic.AtomicInteger()
         val thread = HandlerThread("ci-frame-metrics").apply { start() }
         val listener = Window.OnFrameMetricsAvailableListener { _, metrics, dropped ->
             val total = metrics.getMetric(FrameMetrics.TOTAL_DURATION)
             val deadline = metrics.getMetric(FrameMetrics.DEADLINE)
-            if (total > 0) samples.add(total to deadline)
+            if (total > 0) {
+                samples.add(total to deadline)
+                phases.add(phaseIds.map { metrics.getMetric(it) })
+            }
             lost.addAndGet(dropped)
         }
         val originalMotion = UiPreferences.reducedMotion.value
@@ -153,6 +161,16 @@ class UiMotionPerformanceInstrumentedTest {
             .put("listener_dropped", lost.get())
             .put("p95_ms", if (p95.isFinite()) p95 else JSONObject.NULL)
             .put("frame_ns", JSONArray(values)).put("deadline_ns", JSONArray(frames.map { it.second }))
+        // Diagnose CPU/UI versus renderer costs without weakening the original gate.
+        val phaseSamples = synchronized(phases) { phases.toList() }
+        val phaseReport = JSONObject()
+        phaseNames.forEachIndexed { index, name ->
+            val sortedPhase = phaseSamples.map { it[index] }.filter { it >= 0 }.sorted()
+            if (sortedPhase.isNotEmpty()) phaseReport.put(name, JSONObject()
+                .put("samples", sortedPhase.size)
+                .put("p95_ms", sortedPhase[(kotlin.math.ceil(sortedPhase.size * .95).toInt() - 1).coerceAtLeast(0)] / 1_000_000.0))
+        }
+        report.put("phase_metrics", phaseReport)
         val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
         File(folder, "ui-motion-performance.json").writeText(report.toString(2))
         assertTrue("Insufficient rendered frame evidence: $report", values.size >= 12 && lost.get() == 0)
