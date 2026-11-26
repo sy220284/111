@@ -10,15 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'android-app/tools'
 from device_matrix import PROFILES, MODES, job_name
 from ci_reuse import FULL_GROUPS, JOB_NAMES, validate, successful_names
 
-REQUIRED_JOBS = {
-    "ci.yml": frozenset({
-        "111 合并验收", "build", "ARM64 手机安装包二次核验",
-        "Kotlin 编译、协议单元测试与 Android Lint",
-        "协议、视觉规范与静态覆盖检查", "六组 UI 用例与证据一致性验收",
-        *(job_name(profile, mode) for profile in PROFILES for mode in MODES),
-        "原生核心统一验收", "发布脚本回归检查", "MXC 和 Code Mode Host 源码适配预演",
-    }),
-}
+REQUIRED_JOBS = {"ci.yml": frozenset({"111 合并验收"} | set().union(*(JOB_NAMES[g] for g in FULL_GROUPS)))}
 
 def accepted(workflow: str, jobs: list[dict]) -> bool:
     required = REQUIRED_JOBS[workflow]

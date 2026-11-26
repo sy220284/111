@@ -20,7 +20,7 @@ GROUPS = {
     "runtime": {"runtime-test"},
     "sign": {"release-signing-smoke"},
 }
-FULL_GROUPS = set(GROUPS) - {"runtime", "sign"}
+FULL_GROUPS = set(GROUPS) - {"sign"}
 JOB_NAMES = {
     "static": {"协议、视觉规范与静态覆盖检查"},
     "ui": {"Kotlin 编译、协议单元测试与 Android Lint", "四组 UI 用例与证据一致性验收",
@@ -84,8 +84,8 @@ def required_groups(full, runtime, event, ref):
             raise ValueError("Runtime requires full acceptance")
         return set()
     result = set(FULL_GROUPS)
-    if runtime:
-        result.add("runtime")
+    if not runtime:
+        raise ValueError("Full acceptance requires x86 real runtime")
     if event == "pull_request" or (event == "workflow_dispatch" and ref != "refs/heads/main"):
         result.add("sign")
     return result
