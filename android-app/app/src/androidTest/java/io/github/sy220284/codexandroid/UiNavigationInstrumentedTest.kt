@@ -120,21 +120,28 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
     }
 
-    /** Wait for platform window/IME motion as well as the Compose clock before a physical tap. */
-    private fun stableClick(tag: String) {
+    /** Wait for the actual visible touch target, including platform IME/window motion. */
+    private fun stableClick(tag: String, scrollTo: Boolean = false) {
         var last: androidx.compose.ui.geometry.Rect? = null
         var stableSince = 0L
-        rule.waitUntil(5_000L) {
-            val node = rule.onNodeWithTag(tag).fetchSemanticsNode()
+        val target = rule.onNodeWithTag(tag)
+        rule.waitUntil(10_000L) {
+            val node = rule.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull()
+            if (node == null || !target.isDisplayed()) {
+                last = null
+                stableSince = 0L
+                if (node != null && scrollTo) target.performScrollTo()
+                return@waitUntil false
+            }
             val bounds = node.boundsInWindow
             val now = android.os.SystemClock.elapsedRealtime()
             val previous = last
             if (previous == null || kotlin.math.abs(bounds.left - previous.left) > .5f ||
                 kotlin.math.abs(bounds.top - previous.top) > .5f || kotlin.math.abs(bounds.right - previous.right) > .5f ||
                 kotlin.math.abs(bounds.bottom - previous.bottom) > .5f) { last = bounds; stableSince = now }
-            bounds.width > 0 && bounds.height > 0 && now - stableSince >= 200L
+            bounds.width > 0 && bounds.height > 0 && now - stableSince >= 300L
         }
-        rule.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled().performClick()
+        target.assertIsDisplayed().assertIsEnabled().assertHasClickAction().performClick()
     }
 
     /**
@@ -160,8 +167,13 @@ class UiNavigationInstrumentedTest {
 
     private fun openComposerShortcut(command: String) {
         val input = rule.onNodeWithTag("composer-input")
+        input.performClick()
+        assertRealSoftKeyboardOpen()
         input.performTextReplacement("/$command")
-        rule.onNodeWithTag("composer-shortcut-$command").assertHasClickAction().performClick()
+        stableClick("composer-shortcut-$command")
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("composer-shortcuts").fetchSemanticsNodes().isEmpty()
+        }
         rule.onNodeWithTag("composer-shortcuts").assertDoesNotExist()
         // Insets may briefly report hidden before a queued IME show is dispatched.
         // Require a stable platform acknowledgement before sending the next Back.
@@ -922,7 +934,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("workspace-new-name").performScrollTo().assertIsDisplayed().performClick()
         rule.onNodeWithTag("workspace-create").assertIsNotEnabled()
         rule.onNodeWithTag("action-reply-input").performScrollTo().assertIsDisplayed().performTextReplacement(name)
-        rule.onNodeWithTag("action-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        stableClick("action-reply-send", scrollTo = true)
         rule.onNodeWithTag("workspace-new-name").assertTextContains(name)
         rule.onNodeWithTag("workspace-create").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
         rule.waitUntil(10000) {
