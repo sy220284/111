@@ -33,7 +33,7 @@ internal object MessageSelectionCopy {
         if (selected.isBlank()) return null
         val segments = blocks.flatMap { block ->
             when (block.kind) {
-                "rule", "metrics", "flow" -> emptyList()
+                "rule", in RichReplyContent.kinds -> emptyList()
                 "code", "stream-tail" -> listOf(Segment(listOf(MessageMarkdown.CopyPart(block.text)), block.kind))
                 "table" -> block.rows.flatten().map { Segment(MessageMarkdown.copyParts(it), "table") }
                 "heading" -> listOf(Segment(MessageMarkdown.copyParts(block.text), block.kind,

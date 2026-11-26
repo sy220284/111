@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
@@ -40,6 +42,23 @@ internal fun NativeRichReplyBlock(block: MessageBlock) {
                                     if (row.size < columns) Spacer(Modifier.weight(1f))
                                 }
                             }
+                        }
+                    }
+                } else if (block.kind in setOf("bar", "line", "pie")) {
+                    ReplyDataChart(block)
+                } else if (block.kind == "graph") {
+                    ReplyBranchGraph(block.rows)
+                } else if (block.kind == "checklist") {
+                    block.rows.forEach { row ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(when (row[0]) { "done" -> "✓"; "doing" -> "◉"; else -> "○" }, color = Ink.muted)
+                            Text(row[1], style = MaterialTheme.typography.bodyMedium)
+                        }
+                    }
+                } else if (block.kind == "math") {
+                    block.rows.forEach { row ->
+                        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+                            ReplyMath.parse(row[0])?.let { ReplyMathLayout(it) }
                         }
                     }
                 } else {

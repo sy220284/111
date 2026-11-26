@@ -114,6 +114,18 @@ internal object MessageMarkdown {
                         rows = rich.rows, source = lines.subList(fenceStart, i + 1).joinToString("\n"))
                     else MessageBlock("code", code, label = language))
                 }
+                trimmed == "\$\$" || trimmed == "\\\\[" -> {
+                    val ending = if (trimmed == "\$\$") "\$\$" else "\\\\]"
+                    val end = (i + 1 until lines.size).firstOrNull { lines[it].trim() == ending }
+                    val sourceMath = end?.let { lines.subList(i + 1, it).joinToString(" ") }
+                    val math = sourceMath?.let { RichReplyContent.parse("codex-math", it) }
+                    if (math != null && end != null) {
+                        flush()
+                        result.add(MessageBlock("math", sourceMath, rows = math.rows,
+                            source = lines.subList(i, end + 1).joinToString("\n")))
+                        i = end
+                    } else paragraph.add(line)
+                }
                 tableHeader(lines, i) -> {
                     flush()
                     val start = i
@@ -144,9 +156,12 @@ internal object MessageMarkdown {
                 listItem != null -> {
                     flush()
                     val prefix = listItem.groupValues[1]
-                    result.add(MessageBlock("bullet", listItem.groupValues[2],
+                    val body = listItem.groupValues[2]
+                    val task = Regex("^\\[([ xX])\\]\\s+(.+)$").matchEntire(body)
+                    result.add(MessageBlock("bullet", task?.groupValues?.get(2) ?: body,
                         ((line.length - trimmed.length) / 2).coerceIn(0, 3),
-                        if (prefix.first().isDigit()) prefix else "•"))
+                        if (task != null) if (task.groupValues[1].isBlank()) "☐" else "☑"
+                        else if (prefix.first().isDigit()) prefix else "•"))
                 }
                 else -> paragraph.add(line)
             }
@@ -250,7 +265,7 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
             blocks.forEach { block ->
                 when (block.kind) {
                     "code" -> MessageCodeBlock(block)
-                    "metrics", "flow" -> NativeRichReplyBlock(block)
+                    in RichReplyContent.kinds -> NativeRichReplyBlock(block)
                     "table" -> MessageTable(block)
                     "rule" -> HorizontalDivider(color = Ink.border)
                     "heading" -> Text(MessageMarkdown.inlineText(block.text), fontWeight = FontWeight.SemiBold,
