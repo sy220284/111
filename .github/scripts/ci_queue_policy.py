@@ -62,6 +62,11 @@ def reconcile(repo, pr_number, api, pages, cancel, apply=False):
         if not eligible(repo,current,live_pr,candidate,jobs):
             continue
         if apply:
+            # Refresh the run after the job and head checks to narrow the
+            # unavoidable REST cancellation race. No force-cancel is used.
+            latest_run=api(repo,f"actions/runs/{old['id']}")
+            if latest_run.get("status") not in WAITING or latest_run.get("run_attempt") != current.get("run_attempt"):
+                continue
             cancel(repo,old["id"])
         selected.append(old["id"])
     return selected

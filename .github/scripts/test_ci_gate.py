@@ -63,3 +63,15 @@ class GateTests(unittest.TestCase):
         data["plan"]["outputs"]["runtime"] = "false"
         with self.assertRaises(ValueError):
             verify(data, "pull_request", "refs/pull/1/merge")
+
+    def test_reused_compile_source_is_bound_to_receipt(self):
+        jobs=fixture()
+        record=json.loads(jobs["plan"]["outputs"]["receipt"])
+        record["execute"].remove("compile")
+        record["reused"]["compile"]={"run_id":12}
+        jobs["verify-ui"]["result"]="skipped"
+        jobs["plan"]["outputs"]["receipt"]=json.dumps(record)
+        jobs["plan"]["outputs"]["compile_run_id"]="13"
+        with self.assertRaises(ValueError): verify(jobs,"pull_request","refs/pull/1/merge")
+        jobs["plan"]["outputs"]["compile_run_id"]="12"
+        self.assertIn("ui-emulator",verify(jobs,"pull_request","refs/pull/1/merge"))

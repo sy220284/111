@@ -21,6 +21,8 @@ def verify(jobs, event, ref):
     groups = required_groups(full,runtime,event,ref)
     receipt = json.loads(outputs["receipt"])
     check_shape(receipt,receipt["source"],groups)
+    if "compile" in receipt["reused"] and outputs.get("compile_run_id") != str(receipt["reused"]["compile"]["run_id"]):
+        raise ValueError("UI APK source does not match the compile receipt")
     required = actual_jobs(receipt["execute"])
     for name in ALL - {"plan"}:
         expected = "success" if name in required else "skipped"

@@ -18,16 +18,16 @@ class ReuseTests(unittest.TestCase):
                         for i,n in enumerate(sorted(set().union(*ARTIFACTS.values())))}
     def test_exact_tree_and_safe_dependency_changes(self):
         with patch("ci_reuse.ancestor",return_value=True), patch("ci_reuse.tree",return_value="tree"), \
-             patch("ci_reuse.run_names",return_value=self.names),patch("ci_reuse.artifact_index",return_value=self.artifacts), \
+             patch("ci_reuse.run_names",return_value=(self.names,self.now)),patch("ci_reuse.artifact_index",return_value=self.artifacts), \
              patch("ci_reuse.delta",return_value=[]):
             self.assertEqual(set(GROUPS),set(candidate("o/r",self.run,self.target,self.now)))
         with patch("ci_reuse.ancestor",return_value=True),patch("ci_reuse.tree",return_value="tree"), \
-             patch("ci_reuse.run_names",return_value=self.names),patch("ci_reuse.artifact_index",return_value=self.artifacts), \
+             patch("ci_reuse.run_names",return_value=(self.names,self.now)),patch("ci_reuse.artifact_index",return_value=self.artifacts), \
              patch("ci_reuse.delta",return_value=["android-app/app/src/main/Foo.kt"]):
             self.assertEqual({"compat"},set(candidate("o/r",self.run,self.target,self.now)))
     def test_failed_missing_foreign_old_and_unknown_never_reuse(self):
         with patch("ci_reuse.ancestor",return_value=True),patch("ci_reuse.tree",return_value="tree"), \
-             patch("ci_reuse.run_names",return_value={"统一变更分类"}),patch("ci_reuse.artifact_index",return_value={}), \
+             patch("ci_reuse.run_names",return_value=({"统一变更分类"},self.now)),patch("ci_reuse.artifact_index",return_value={}), \
              patch("ci_reuse.delta",return_value=[]):
             self.assertEqual({},candidate("o/r",self.run,self.target,self.now))
             self.assertEqual({},candidate("o/r",dict(self.run,conclusion="failure"),self.target,self.now))
@@ -63,7 +63,7 @@ class ReuseTests(unittest.TestCase):
     def test_completed_failure_preserves_only_actual_successful_groups(self):
         names={"统一变更分类"} | JOB_NAMES["compile"] | JOB_NAMES["preflight"]
         with patch("ci_reuse.ancestor",return_value=True),patch("ci_reuse.tree",return_value="tree"), \
-             patch("ci_reuse.run_names",return_value=names),patch("ci_reuse.artifact_index",return_value=self.artifacts), \
+             patch("ci_reuse.run_names",return_value=(names,self.now)),patch("ci_reuse.artifact_index",return_value=self.artifacts), \
              patch("ci_reuse.delta",return_value=["android-app/tools/run_ui_motion_checks.py"]):
             result=candidate("o/r",dict(self.run,conclusion="failure"),self.target,self.now)
             self.assertEqual({"compile"},set(result))
@@ -71,10 +71,15 @@ class ReuseTests(unittest.TestCase):
             self.assertIsNone(candidate("o/r",dict(self.run,status="in_progress"),self.target,self.now))
 
     def test_run_attempt_and_artifact_window(self):
-        jobs={"total_count":2,"jobs":[{"name":"old","conclusion":"success","run_attempt":1},
-                                      {"name":"new","conclusion":"success","run_attempt":2}]}
+        jobs={"total_count":4,"jobs":[
+            {"name":"old","conclusion":"success","run_attempt":1,"head_sha":self.source},
+            {"name":"new","conclusion":"success","run_attempt":2,"head_sha":self.source},
+            {"name":"wrong-source","conclusion":"success","run_attempt":2,"head_sha":self.target},
+            {"name":"统一变更分类","conclusion":"success","run_attempt":2,"head_sha":self.source,
+             "started_at":self.now.isoformat()}]}
         with patch("ci_reuse.api",return_value=jobs):
-            self.assertEqual({"new"},run_names("o/r",12,2))
+            self.assertEqual(({"new","统一变更分类"},self.now),run_names("o/r",12,2,self.source))
+            self.assertEqual((set(),None),run_names("o/r",12,2,self.target))
         old=self.now-timedelta(hours=1)
         row={"name":"proof","id":1,"expired":False,"size_in_bytes":8,
              "digest":"sha256:"+"1"*64,"created_at":old.isoformat()}

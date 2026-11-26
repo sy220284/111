@@ -385,6 +385,7 @@ jobs:
             ui-motion.log
             ui-motion-diagnosis.json
             ui-motion-performance.json
+            ui-motion-environment.json
             ui-motion-failure.*
             ui-screenshots-adaptive/
             self-update-open.log
@@ -451,6 +452,7 @@ jobs:
             ui-motion.log
             ui-motion-diagnosis.json
             ui-motion-performance.json
+            ui-motion-environment.json
             ui-motion-failure.*
             ui-screenshots-adaptive/
             self-update-open.log
@@ -473,6 +475,7 @@ jobs:
             ui-visual-evidence/report.json
             ui-motion-diagnosis.json
             ui-motion-performance.json
+            ui-motion-environment.json
             self-update-open.json
           if-no-files-found: error
           retention-days: 14

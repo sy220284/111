@@ -119,11 +119,17 @@ def api(repo, endpoint):
 def successful_names(jobs):
     return {x["name"].rsplit(" / ",1)[-1] for x in jobs if x.get("conclusion") == "success"}
 
-def run_names(repo, run_id, attempt):
+def run_names(repo, run_id, attempt, source):
     rows = api(repo, f"actions/runs/{run_id}/attempts/{attempt}/jobs?per_page=100")
     if rows["total_count"] > len(rows["jobs"]):
         raise ValueError("Incomplete CI job index")
-    return successful_names([j for j in rows["jobs"] if j.get("run_attempt") == attempt])
+    jobs = [j for j in rows["jobs"] if j.get("run_attempt") == attempt and j.get("head_sha") == source]
+    plans = [j for j in jobs if j["name"] == "统一变更分类" and j["conclusion"] == "success"]
+    if len(plans) != 1 or not plans[0].get("started_at"):
+        return set(), None
+    # The planning job must have actually executed in this attempt. Its start
+    # time bounds every artifact; stale uploads from earlier attempts cannot qualify.
+    return successful_names(jobs), datetime.fromisoformat(plans[0]["started_at"].replace("Z","+00:00"))
 
 def artifact_index(repo, run_id, started, finished):
     response = api(repo, f"actions/runs/{run_id}/artifacts?per_page=100")
@@ -161,10 +167,10 @@ def candidate(repo, run, target, now):
     touched = set().union(*(affected(p) for p in changes))
     if touched == set(GROUPS):
         return {}
-    names = run_names(repo, run["id"], attempt)
-    if "统一变更分类" not in names:
+    names, plan_started = run_names(repo, run["id"], attempt, old)
+    if "统一变更分类" not in names or plan_started is None:
         return None
-    artifacts = artifact_index(repo, run["id"], started, finished)
+    artifacts = artifact_index(repo, run["id"], max(started, plan_started), finished)
     result = {}
     for group, expected in JOB_NAMES.items():
         required = ARTIFACTS.get(group,set())
