@@ -23,7 +23,17 @@ def main():
             if float(adb("shell", "settings", "get", "global", name)) != 1.0:
                 raise RuntimeError("System animations not enabled: " + name)
         adb("shell", "rm", "-f", remote)
-        adb("shell", "am", "force-stop", "io.github.sy220284.codexandroid")
+        package = "io.github.sy220284.codexandroid"
+        adb("shell", "am", "force-stop", package)
+        # Measure the same APK after ART compilation, rather than mixing first-run
+        # debug JIT compilation with renderer latency. No frames are discarded.
+        compiled = adb("shell", "cmd", "package", "compile", "-m", "speed", "-f", package)
+        if "Success" not in compiled:
+            raise RuntimeError("ART performance preparation failed: " + compiled)
+        print("ART compilation: " + compiled)
+        print("Host logical CPUs:", __import__("os").cpu_count())
+        print("Guest CPUs:", adb("shell", "getconf", "_NPROCESSORS_ONLN"))
+        adb("shell", "dumpsys", "gfxinfo", package, "reset")
         result = execute_instrumentation(["UiMotionPerformanceInstrumentedTest"], "ui-motion.log")
         Path("ui-motion-diagnosis.json").write_text(json.dumps(result, indent=2))
         subprocess.run(["adb", "pull", remote, str(local)], check=True)

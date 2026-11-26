@@ -289,6 +289,7 @@ jobs:
           arch: x86_64
           target: ${{ needs.plan.outputs.device_target }}
           ram-size: ${{ needs.plan.outputs.device_ram }}
+          cores: 4
           disk-size: 8192M
           avd-name: test
           pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd ${{ matrix.profile }}
@@ -313,6 +314,10 @@ jobs:
             test "$(adb shell ime list -s | tr -d '\r' | grep -c .)" -gt 0
             test "$(adb shell wm size | awk '/(Override|Physical) size:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.width_px }}x${{ matrix.height_px }}"
             test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.density_dpi }}"
+            # Measure motion on a fresh process before the 150+ deterministic UI cases.
+            # Preserve both results even if the performance gate fails.
+            motion_status=0
+            if [ "${{ matrix.motion }}" = "true" ]; then python3 android-app/tools/run_ui_motion_checks.py --profile ${{ matrix.profile }} || motion_status=$?; fi
             # The instrumentation test captures the home screen after a visible
             # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
@@ -323,11 +328,11 @@ jobs:
             # failure details; it must fail the job even when adb returns success.
             python3 android-app/tools/run_ui_device_checks.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }}
             # Motion is measured once per physical profile, on its baseline device.
-            if [ "${{ matrix.motion }}" = "true" ]; then python3 android-app/tools/run_ui_motion_checks.py --profile ${{ matrix.profile }}; fi
             # Only the designated mainstream emulator replaces the running app, then presses the
             # system installer's actual Install and Open buttons. Execute after
             # screenshots: package replacement kills the old app process.
             if [ "${{ matrix.self_update }}" = "true" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
+            test "$motion_status" -eq 0
       - name: 截图内容及历史视觉变化审计
         if: always()
         env:
