@@ -141,7 +141,7 @@ class TimelineReconcilerTest {
         assertEquals("t", ended.last().actionItem?.turnId)
         val interrupted = rows(live.dropLast(1), false)
         assertEquals("第一部分\n\n", interrupted.last().actionItem?.text)
-        assertEquals("已保留阶段性回答，未收到最终回答", interrupted.last().note)
+        assertEquals("已保留阶段性回答，未收到确认的最终回答", interrupted.last().note)
         val clipped = rows(live.drop(1).dropLast(1) + final.copy(status = "completed"), false, true)
         org.junit.Assert.assertFalse(clipped.last().showActions)
         org.junit.Assert.assertNotNull(clipped.last().note)
@@ -217,6 +217,40 @@ class TimelineReconcilerTest {
             TimelineEventReducer.historyEntry(params(it).put("completedAtMs", 1))
         }
         assertEquals(before, ProgressiveReplyProjection.rows(TimelineEventReducer.groups(saved), false, null, false))
+    }
+
+    @Test fun terminalTurnPreservesLatePhaseAndNeverPromotesInterruptedText() {
+        fun message(id: String, text: String, phase: String? = null) =
+            org.json.JSONObject().put("id", id).put("type", "agentMessage").put("text", text)
+                .apply { if (phase != null) put("phase", phase) }
+        fun params(raw: org.json.JSONObject) = org.json.JSONObject().put("turnId", "t").put("item", raw)
+        fun ended(status: String, vararg raw: org.json.JSONObject) = org.json.JSONObject()
+            .put("turn", org.json.JSONObject().put("id", "t").put("status", status)
+                .put("items", org.json.JSONArray(raw.toList())))
+        val prior = TimelineEventReducer.reduce("item/completed", params(message("a", "已确认")), emptyList())
+        val phase = TimelineEventReducer.reduce("turn/completed",
+            ended("completed", message("a", "已确认", "commentary")), prior)
+        assertEquals("commentary", phase.single().phase)
+        assertEquals("已确认", phase.single().text)
+        val stream = TimelineEventReducer.reduce("item/started", params(message("f", "", "final_answer")), emptyList())
+        val delta = org.json.JSONObject().put("turnId", "t").put("itemId", "f").put("delta", "尚未完成")
+        val pending = TimelineEventReducer.reduce("item/agentMessage/delta", delta, stream)
+        val terminal = TimelineEventReducer.reduce("turn/completed",
+            ended("interrupted", message("f", "", "final_answer")), pending)
+        assertEquals("尚未完成", terminal.first().text)
+        assertEquals("interrupted", terminal.first().status)
+        assertEquals("interrupted", terminal.last().status)
+        val rows = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(terminal), false, null, false)
+        assertEquals("任务未成功完成，已保留收到的回答", rows.first().note)
+        assertEquals(terminal, TimelineEventReducer.reduce("item/agentMessage/delta", delta, terminal))
+        assertEquals(pending, TimelineEventReducer.reduce("turn/completed", ended("inProgress"), pending))
+        val completed = TimelineEventReducer.reduce("turn/completed",
+            ended("completed", message("f", "完整正文", "final_answer")), pending)
+        assertEquals("completed", completed.single().status)
+        assertEquals("完整正文", completed.single().text)
+        assertEquals("commentary", ConversationLiveTimeline.merge(prior, phase).single().phase)
+        val updated = ConversationLiveTimeline.merge(listOf(prior.single().copy(phase = "partial_answer")), phase)
+        assertEquals("commentary", updated.single().phase)
     }
 
     @Test fun latePhaseAndOffscreenResumeKeepAccumulatedNativeText() {

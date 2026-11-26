@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 internal enum class MessageTurnAction { Fork, Retry, Revert }
 
 private fun TimelineItem.active() = status in setOf("inProgress", "in_progress", "running", "streaming", "sending")
-private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "blocked", "declined", "interrupted", "cancelled")
+private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "blocked", "declined", "interrupted", "cancelled", "incomplete", "stopped")
 
 @Composable
 internal fun TimelineActivityGroup(

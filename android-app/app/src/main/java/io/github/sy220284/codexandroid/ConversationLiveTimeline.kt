@@ -26,7 +26,7 @@ internal class ConversationLiveTimeline {
     fun remove(threadId: String) { sessions.remove(threadId) }
 
     companion object {
-        private val terminal = setOf("completed", "failed", "blocked", "stopped", "declined", "interrupted", "cancelled")
+        private val terminal = setOf("completed", "failed", "blocked", "stopped", "declined", "interrupted", "cancelled", "incomplete")
         fun merge(saved: List<TimelineItem>, live: List<TimelineItem>): List<TimelineItem> {
             val byId = live.associateBy { it.id }
             val existing = saved.mapTo(hashSetOf()) { it.id }
@@ -53,7 +53,8 @@ internal class ConversationLiveTimeline {
                 }
                 // The longest/terminal snapshot owns text. An explicit phase from the other
                 // snapshot still belongs to this same native item and must not be discarded.
-                val phase = selected.phase.ifBlank { if (selected === prior) next.phase else prior.phase }
+                val phase = if (selected.kind == "agentMessage") next.phase.ifBlank { prior.phase }
+                    else selected.phase
                 if (phase == selected.phase) selected else selected.copy(phase = phase,
                     evidence = if (selected.hasEvidence) JSONObject(selected.evidence).put("phase", phase).toString() else "")
             } + live.filterNot { it.id in existing }

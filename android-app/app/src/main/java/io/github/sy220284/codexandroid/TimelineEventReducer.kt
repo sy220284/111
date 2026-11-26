@@ -11,6 +11,9 @@ internal object TimelineEventReducer {
         "item/fileChange/outputDelta", "item/fileChange/patchUpdated",
         "item/mcpToolCall/progress", "hook/started", "hook/completed", "turn/plan/updated", "turn/completed")
 
+    private val runningStates = setOf("streaming", "inProgress", "in_progress", "running", "sending")
+    private val terminalStates = setOf("completed", "failed", "blocked", "stopped", "declined", "interrupted", "cancelled", "incomplete")
+
     private fun JSONObject.string(key: String) = if (isNull(key)) "" else optString(key)
     private fun JSONArray?.objects() = if (this == null) emptyList() else
         (0 until length()).mapNotNull { optJSONObject(it) }
@@ -70,7 +73,7 @@ internal object TimelineEventReducer {
         // Do not expose private/raw reasoning content through the evidence reader.
         val evidence = JSONObject(item.toString()).apply { if (kind == "reasoning") remove("content") }
         return TimelineItem(item.getString("id"), if (kind == "userMessage") "user" else kind,
-            text, status, evidence.toString(), turnId, item.string("phase"))
+            text, status, evidence.toString(), turnId, if (kind == "agentMessage") item.string("phase") else "")
     }
 
     fun historyTurns(items: List<TimelineItem>): JSONArray = JSONArray().apply {
@@ -116,16 +119,40 @@ internal object TimelineEventReducer {
             val turn = params.getJSONObject("turn")
             val id = turn.getString("id")
             val status = turn.string("status")
+            if (status !in setOf("completed", "failed", "interrupted")) return current
             turn.optJSONArray("items").objects().forEach { raw ->
-                val item = project(raw, id, "completed")
-                if (items.byId(item.id)?.status !in setOf("completed", "failed", "declined", "interrupted")) put(item)
+                val item = project(raw, id, status)
+                val prior = items.byId(item.id)
+                if (prior == null || prior.status !in terminalStates) {
+                    // A turn snapshot may contain an unfinished message with no explicit item status.
+                    // On failure preserve the text actually received and never promote it to success.
+                    val evidence = JSONObject(item.evidence)
+                    if (prior?.hasEvidence == true) {
+                        val previous = JSONObject(prior.evidence)
+                        for (key in listOf("aggregatedOutput", "output", "progress")) {
+                            if (evidence.isNull(key) && !previous.isNull(key)) evidence.put(key, previous.get(key))
+                        }
+                    }
+                    val retainedText = if (item.kind == "agentMessage" && prior != null &&
+                        (raw.isNull("text") || (status != "completed" && prior.text.startsWith(item.text))))
+                        prior.text else item.text
+                    if (item.kind == "agentMessage") evidence.put("text", retainedText)
+                    put(item.copy(text = retainedText, evidence = evidence.toString()))
+                } else if (item.kind == "agentMessage" && prior.kind == item.kind &&
+                    item.phase.isNotBlank() && item.phase != prior.phase) {
+                    // A terminal item is not a terminal turn. Accept authoritative phase metadata
+                    // from the turn snapshot without replacing already completed visible text.
+                    val evidence = JSONObject(if (prior.hasEvidence) prior.evidence else item.evidence)
+                        .put("phase", item.phase).put("text", prior.text)
+                    put(prior.copy(phase = item.phase, evidence = evidence.toString()))
+                }
             }
             if (status != "completed") put(TimelineItem("turn-error:$id", "error",
-                turn.optJSONObject("error")?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }, status, turnId = id))
+                turn.optJSONObject("error")?.optString("message").orEmpty().ifBlank {
+                    if (status == "interrupted") "任务已中断，已保留收到的内容" else "任务执行失败，已保留收到的内容"
+                }, status, turnId = id))
             return IndexedTimeline.from(items.map {
-                if (it.turnId == id && it.status in setOf("streaming", "inProgress", "running"))
-                    it.withStatus(if (status == "completed") "completed" else status)
-                else it
+                if (it.turnId == id && it.status in runningStates) it.withStatus(status) else it
             })
         }
         if (method == "turn/plan/updated") {
@@ -142,6 +169,7 @@ internal object TimelineEventReducer {
             val old = items.byId(id)
             val complete = method == "item/completed"
             val next = project(raw, turnId, if (complete) "completed" else "inProgress")
+            if (old?.status in terminalStates && !complete && next.kind != "agentMessage") return current
             if (!complete && old != null && old.status != "sending") {
                 // A resumed subscription may have received text before its lifecycle metadata.
                 // Enrich the same native item without resetting its accumulated text.
@@ -169,7 +197,7 @@ internal object TimelineEventReducer {
         if (id.isBlank()) return current
         val kind = method.substringAfter("item/").substringBefore("/")
         val old = items.byId(id)
-        if (old != null && old.status in setOf("completed", "failed", "declined", "interrupted")) return current
+        if (old != null && old.status in terminalStates) return current
         val delta = params.string("delta")
         val field = when (method) {
             "item/agentMessage/delta", "item/plan/delta" -> "text"
