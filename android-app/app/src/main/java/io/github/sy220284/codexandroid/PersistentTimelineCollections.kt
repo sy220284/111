@@ -21,7 +21,7 @@ internal class PersistentIndex<K : Comparable<K>, V : Any> private constructor(p
 
     /** Ordered traversal visits each node once, with logarithmic stack space. */
     fun values(): Iterator<V> = object : Iterator<V> {
-        private val stack = ArrayDeque<Node<K, V>>()
+        private val stack = java.util.ArrayDeque<Node<K, V>>()
         init { pushLeft(root) }
         private fun pushLeft(start: Node<K, V>?) {
             var node = start
