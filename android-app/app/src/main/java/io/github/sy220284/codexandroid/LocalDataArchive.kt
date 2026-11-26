@@ -62,6 +62,7 @@ internal object LocalDataArchive {
     /** Streams the selected user data directly into the system document provider. */
     fun export(context: Context, output: OutputStream): Int {
         val privateRoot = context.filesDir.canonicalFile
+        BackupCheckpointValidation.verifyStore(File(privateRoot, AnswerCheckpointFormat.ROOT))
         val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs").canonicalFile
         var count = 0
         var total = 0L

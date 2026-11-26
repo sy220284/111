@@ -120,6 +120,63 @@ class RuntimeOwnershipInstrumentedTest {
         }
     }
 
+    @Test fun isolatedProcessHasSeparateUidAndDeniesUnbrokeredAccess() {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val sentinel = java.io.File.createTempFile("isolation-probe-", ".txt", app.filesDir)
+        sentinel.writeText("private-sentinel")
+        val connected = java.util.concurrent.CountDownLatch(1)
+        val received = java.util.concurrent.CountDownLatch(1)
+        val remote = java.util.concurrent.atomic.AtomicReference<android.os.Messenger>()
+        val result = java.util.concurrent.atomic.AtomicReference<android.os.Bundle>()
+        val callback = android.os.Messenger(android.os.Handler(android.os.Looper.getMainLooper()) { message ->
+            if (message.what != 2) return@Handler false
+            result.set(message.data)
+            received.countDown()
+            true
+        })
+        val connection = object : android.content.ServiceConnection {
+            override fun onServiceConnected(name: ComponentName, service: android.os.IBinder) {
+                remote.set(android.os.Messenger(service))
+                connected.countDown()
+            }
+            override fun onServiceDisconnected(name: ComponentName) {}
+        }
+        val intent = android.content.Intent().setClassName(app.packageName, app.packageName + ".CiIsolationProbeService")
+        var bound = false
+        try {
+            java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { server ->
+                bound = app.bindService(intent, connection, android.content.Context.BIND_AUTO_CREATE)
+                assertTrue("无法启动独立 UID 测试服务", bound)
+                assertTrue("独立 UID 测试服务未连接", connected.await(15, java.util.concurrent.TimeUnit.SECONDS))
+                android.os.ParcelFileDescriptor.open(sentinel, android.os.ParcelFileDescriptor.MODE_READ_ONLY).use { fd ->
+                    val request = android.os.Message.obtain(null, 1)
+                    request.replyTo = callback
+                    request.data = android.os.Bundle().apply {
+                        putString("sentinel", sentinel.absolutePath)
+                        putInt("port", server.localPort)
+                        putParcelable("fd", fd)
+                    }
+                    requireNotNull(remote.get()).send(request)
+                    assertTrue("隔离能力测试未返回", received.await(15, java.util.concurrent.TimeUnit.SECONDS))
+                }
+                val evidence = requireNotNull(result.get())
+                android.util.Log.i("CodexIsolationProbe",
+                    "uid=${evidence.getInt("uid")} appUid=${android.os.Process.myUid()} privateRead=${evidence.getBoolean("privateRead")} privateWrite=${evidence.getBoolean("privateWrite")} networkConnected=${evidence.getBoolean("networkConnected")} fd=${evidence.getString("descriptor")} shell=${evidence.getString("shell")}")
+                assertTrue("执行者必须使用独立 UID", evidence.getInt("uid") != android.os.Process.myUid())
+                assertTrue("独立进程不得直接读取应用私有数据", !evidence.getBoolean("privateRead"))
+                assertTrue("独立进程不得直接修改应用私有数据", !evidence.getBoolean("privateWrite"))
+                assertTrue("独立进程不得直接联网", !evidence.getBoolean("networkConnected"))
+                org.junit.Assert.assertEquals("private-sentinel", sentinel.readText())
+                // FD/exec availability is recorded as feasibility evidence, not an assertion that
+                // the existing terminal is already isolated.
+                assertTrue(evidence.containsKey("descriptor") && evidence.containsKey("shell"))
+            }
+        } finally {
+            if (bound) app.unbindService(connection)
+            check(sentinel.delete())
+        }
+    }
+
     @Test fun serviceAndActivityReferToSameProcessRuntime() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext
             .applicationContext as CodexApplication

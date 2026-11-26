@@ -762,7 +762,11 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            /.github/scripts/
+            /android-app/app/gradle.lockfile
+            /android-app/gradle/verification-metadata.xml
+          sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: 汇总并强制核对所有适用验收
         env:
@@ -771,3 +775,9 @@ jobs:
           REF: ${{ github.ref }}
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 .github/scripts/ci_gate.py
+      - name: 强制核对已审查的 Gradle 依赖基线
+        if: needs.plan.outputs.full == 'true'
+        run: |
+          set -euo pipefail
+          test -s android-app/app/gradle.lockfile || { echo "::error::须审查并提交真实依赖锁文件"; exit 1; }
+          test -s android-app/gradle/verification-metadata.xml || { echo "::error::须审查并提交依赖验证元数据"; exit 1; }

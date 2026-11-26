@@ -34,12 +34,9 @@ trap 'rm -f "$EXPECTED_INPUTS"' EXIT
   cd "$GITHUB_WORKSPACE"
   sha256sum android-app/tools/prepare_android_v8.sh android-app/tools/adapt_android_v8_build.py upstream/codex/codex-rs/Cargo.lock
 ) > "$EXPECTED_INPUTS"
-if [ -s "$CACHE/SHA256SUMS" ]; then
-  cmp "$EXPECTED_INPUTS" "$CACHE/BUILD_INPUTS"
-else
-  test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
-    echo "Incomplete V8 cache, refusing partial reuse: $CACHE" >&2; exit 1;
-  }
+test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
+  echo "Raw V8 cache reuse is disabled; use a verified complete native artifact: $CACHE" >&2; exit 1;
+}
     : " ${ANDROID_NDK_HOME:?NDK must be installed} "
     ROOT="$RUNNER_TEMP/rusty-v8-android"
     SRC="$ROOT/rusty_v8-src"
@@ -52,12 +49,12 @@ else
     git -C "$SRC" submodule update --init --recursive --depth 1
     sudo apt-get update
     sudo apt-get install -y ninja-build libssl-dev pkg-config
-    if ! apt-cache show libclang-21-dev clang-21 >/dev/null 2>&1; then
+    if ! apt-cache show libclang-21-dev >/dev/null 2>&1 || ! apt-cache show clang-21 >/dev/null 2>&1; then
       . /etc/os-release
       test "$VERSION_CODENAME" = noble
       KEY="$RUNNER_TEMP/llvm-snapshot.asc"
       curl --proto '=https' --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o "$KEY"
-      FINGERPRINT="$(gpg --batch --with-colons --show-keys "$KEY" | awk -F: '$1=="fpr"{print $10; exit}')"
+      FINGERPRINT="$(gpg --batch --with-colons --show-keys "$KEY" | awk -F: '$1=="pub"{primary=1} $1=="fpr"&&primary{print $10;primary=0}')"
       test "$FINGERPRINT" = 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421
       sudo install -m 0644 "$KEY" /usr/share/keyrings/111-llvm-snapshot.asc
       printf '%s\n' 'deb [signed-by=/usr/share/keyrings/111-llvm-snapshot.asc] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main' | sudo tee /etc/apt/sources.list.d/111-llvm.list >/dev/null
@@ -158,7 +155,6 @@ TOML
       cat "$GN_OUT/args.gn"
     } > "$CACHE/SOURCE_PROVENANCE"
     (cd "$CACHE" && sha256sum "$ARCHIVE" "$BINDING" BUILD_INPUTS SOURCE_PROVENANCE > SHA256SUMS)
-fi
 test -s "$CACHE/$ARCHIVE" && test -s "$CACHE/$BINDING"
 test -s "$CACHE/SOURCE_PROVENANCE"
 cmp "$EXPECTED_INPUTS" "$CACHE/BUILD_INPUTS"

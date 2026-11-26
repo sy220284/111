@@ -141,4 +141,5 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
 // Lock resolved dependency graphs; baseline creation is an explicit review operation.
 dependencyLocking {
     lockAllConfigurations()
+    if (file("gradle.lockfile").isFile) lockMode.set(org.gradle.api.artifacts.dsl.LockMode.STRICT)
 }

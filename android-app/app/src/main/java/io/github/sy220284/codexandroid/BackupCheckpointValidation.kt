@@ -7,8 +7,9 @@ import java.io.IOException
 /** All referenced snapshot objects must be in the archive, with the correct bytes.
  * This deliberately does not interpret project code or use an imported cwd. */
 internal object BackupCheckpointValidation {
-    fun verify(staged: File) {
-        val checkpoint = File(staged, "files/" + AnswerCheckpointFormat.ROOT)
+    fun verify(staged: File) = verifyStore(File(staged, "files/" + AnswerCheckpointFormat.ROOT))
+
+    fun verifyStore(checkpoint: File) {
         if (!checkpoint.exists()) return
         val objects = File(checkpoint, AnswerCheckpointFormat.OBJECTS)
         val manifests = File(checkpoint, AnswerCheckpointFormat.MANIFESTS)
