@@ -62,7 +62,14 @@
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/TerminalTaskOperations.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteExecutionBinding.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteEnvironmentProtocol.kt",
-      "android-app/app/src/main/AndroidManifest.xml"
+      "android-app/app/src/main/AndroidManifest.xml",
+      "android-app/app/build.gradle.kts",
+      "android-app/gradlew",
+      "android-app/gradlew.bat",
+      "android-app/gradle/wrapper/gradle-wrapper.jar",
+      "android-app/gradle/wrapper/gradle-wrapper.properties",
+      ".github/workflows/build-native-codex.yml",
+      ".github/scripts/audit_apk_contents.py"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",

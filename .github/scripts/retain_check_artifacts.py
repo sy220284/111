@@ -5,6 +5,7 @@ import json
 import re
 import subprocess
 from collections import defaultdict
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 
 from select_native_artifacts import ArtifactSelector, configured_abis
@@ -51,8 +52,21 @@ def family(name):
     return DSH.sub(r"\1current\2", name)
 
 
-def plan(artifacts, runs, open_heads, native_keep, native_safe):
+def protected_recent_proof(artifact, run, now):
+    """Do not delete direct CI evidence while it may be used by a 48-hour receipt."""
+    if (workflow_path(run)!=".github/workflows/ci.yml" or run.get("conclusion")!="success"
+        or (run.get("head_repository") or {}).get("full_name")!=run["repository"]["full_name"]):
+        return False
+    name=artifact["name"]
+    if not (name=="ci-acceptance-receipt" or name.startswith(("ui-proof-","codex-android-ui-",
+            "codex-android-arm64-", "codex-android-real-runtime-evidence", "codex-android-instrumentation-apk"))):
+        return False
+    age=now-datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
+    return timedelta(0)<=age<=timedelta(days=2)
+
+def plan(artifacts, runs, open_heads, native_keep, native_safe, *, accepted_visual_runs=(), now=None):
     """Select only superseded completed artifacts, independent of API ordering."""
+    now=now or datetime.now(timezone.utc)
     groups = defaultdict(list)
     for a in artifacts:
         run = runs[a["workflow_run"]["id"]]
@@ -75,7 +89,15 @@ def plan(artifacts, runs, open_heads, native_keep, native_safe):
                     and (run.get("head_repository") or {}).get("full_name") == run["repository"]["full_name"],
                     run["created_at"], run["id"], a["created_at"], a["id"])
         newest = max(entries, key=rank)
-        delete.extend(a for a in entries if a["id"] != newest["id"])
+        keep = {newest["id"]}
+        keep.update(a["id"] for a in entries if protected_recent_proof(a,runs[a["workflow_run"]["id"]],now))
+        if lane is None and newest["name"].startswith("codex-android-ui-visual-api"):
+            accepted = [a for a in entries if runs[a["workflow_run"]["id"]].get("conclusion") == "success"
+                        and (runs[a["workflow_run"]["id"]]["head_branch"] == "main" or a["workflow_run"]["id"] in accepted_visual_runs)
+                        and (runs[a["workflow_run"]["id"]].get("head_repository") or {}).get("full_name") == runs[a["workflow_run"]["id"]]["repository"]["full_name"]]
+            if accepted:
+                keep.add(max(accepted,key=lambda a:(runs[a["workflow_run"]["id"]]["created_at"],a["id"]))["id"])
+        delete.extend(a for a in entries if a["id"] not in keep)
 
     if native_safe:
         for a in artifacts:
@@ -171,7 +193,17 @@ def main():
     if not native_safe:
         print("原生内核暂缓清理：构建/发布仍在运行或当前源码缺少已验证内核。")
 
-    candidates = plan(artifacts, runs, open_heads, native_keep, native_safe)
+    # Preserve the newest directly tested visual ancestor even when main
+    # inherited the PR's CI receipt and produced no new screenshots.
+    visual_runs={a["workflow_run"]["id"] for a in artifacts if a["name"].startswith("codex-android-ui-visual-api")}
+    accepted_visual_runs=set()
+    selector=ArtifactSelector()
+    for rid in visual_runs:
+        run=runs[rid]
+        if (run.get("conclusion")=="success" and (run.get("head_repository") or {}).get("full_name")==repo
+            and run.get("head_sha") and selector.is_ancestor(run["head_sha"],main_sha)):
+            accepted_visual_runs.add(rid)
+    candidates = plan(artifacts, runs, open_heads, native_keep, native_safe,accepted_visual_runs=accepted_visual_runs)
     removed = 0
     for a in candidates:
         rid = a["workflow_run"]["id"]
