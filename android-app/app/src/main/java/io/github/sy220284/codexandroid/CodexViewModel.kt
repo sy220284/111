@@ -443,7 +443,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 owner.requireCurrent(this@CodexViewModel)
                 if (submittedThread == null && chosenRemote == null) workspaceTasks.relocateProject(chosenProject, epoch)
                 if (chosenRemote == null) captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread)
-                LocalImageAttachments.preserveForHistory(getApplication(), images)
+                LocalImageAttachments.preserveForHistory(getApplication(), images, pendingId.removePrefix("pending-"))
                 val outcome = TurnSubmissionCoordinator { method, params ->
                     check(permit()) { "账号已变化，未继续提交任务" }
                     if (method == "thread/start" && chosenRemote != null) {

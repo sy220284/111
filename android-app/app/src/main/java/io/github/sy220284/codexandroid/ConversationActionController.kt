@@ -10,6 +10,9 @@ import org.json.JSONObject
 
 /** Conversation commands execute on their captured thread with foreground protection. */
 internal class ConversationActionController(private val vm: CodexViewModel) {
+    private suspend fun withContextMediaHistory(root: File, clientId: String?): List<String> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { MediaHistoryStore.read(root, clientId) }
+
     private fun available(id: String, foregroundOnly: Boolean = true): Boolean = with(vm) {
         val foregroundReady = id == activeThread.value && !running.value && !threadSwitching.value &&
             !firstThreadStarting.value && !loadingEarlier.value && !timelineCompacting
@@ -87,7 +90,10 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 val input = answerWorkspaces.remap(original.input, prepared.originalWorkspace, copy.absolutePath)
                 val staged = LocalImageAttachments.directory(app).canonicalFile
                 val images = replay.validateInput(input).filter { File(it).canonicalFile.parentFile == staged }
-                LocalImageAttachments.preserveForHistory(app, images)
+                val originals = withContextMediaHistory(staged, original.clientId)
+                if (originals.isNotEmpty() && originals.all { File(it).isFile })
+                    LocalImageAttachments.preserveForHistory(app, originals, clientId)
+                else LocalImageAttachments.preserveForHistory(app, images)
                 val config = owner.request(vm, "config/read", JSONObject().put("cwd", copy.absolutePath))
                 val permission = AnswerWorkspaceStore.permission(File(workingDirectory), copy.absolutePath, ComposerPermissionPolicy.selected(config))
                 check(activeThread.value == id && !running.value && !threadSwitching.value &&

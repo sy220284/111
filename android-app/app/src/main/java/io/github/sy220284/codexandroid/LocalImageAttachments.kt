@@ -115,9 +115,10 @@ object LocalImageAttachments {
             AttachmentRetentionPolicy.prune(directory(context), referenced)
         }
 
-    suspend fun preserveForHistory(context: Context, paths: List<String>) {
+    suspend fun preserveForHistory(context: Context, paths: List<String>, clientId: String? = null) {
         if (paths.isNotEmpty()) withContext(Dispatchers.IO) {
             AttachmentRetentionPolicy.preserveForHistory(directory(context), paths)
+            if (clientId != null) MediaHistoryStore.record(directory(context), clientId, paths)
         }
     }
 

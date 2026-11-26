@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.Image
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +28,7 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
             "user" -> {
                 val parts = raw.optJSONArray("content")
                 (0 until (parts?.length() ?: 0)).mapNotNull {
-                    parts?.optJSONObject(it)?.takeIf { part -> part.optString("type") == "localImage" }?.optString("path")
+                    parts?.optJSONObject(it)?.takeIf { part -> part.optString("type") in setOf("localImage", "localAudio") }?.optString("path")
                 }
             }
             "imageGeneration" -> listOf(raw.optString("savedPath"))
@@ -36,12 +37,19 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
         }.filter { it.isNotBlank() && it != "null" }
     }
     var preview by remember(item.id, workspaceRoot, candidates) { mutableStateOf<String?>(null) }
-    val resolved by key(item.id, workspaceRoot, candidates) {
-        loadCodexUiState<List<String>?>(null, item.id, workspaceRoot, candidates) {
+    var playback by remember(item.id, workspaceRoot, candidates) { mutableStateOf<String?>(null) }
+    val clientId = raw.optString("clientId").takeIf { it.isNotBlank() && it != "null" }
+    val original by loadCodexUiState<Result<List<String>>?>(null, item.id, clientId) {
+        codexLoadResult { MediaHistoryStore.read(LocalImageAttachments.directory(context), clientId) }
+    }
+    val originalPaths = original?.getOrNull().orEmpty()
+    val shownCandidates = if (originalPaths.isNotEmpty()) originalPaths else candidates
+    val resolved by key(item.id, workspaceRoot, shownCandidates) {
+        loadCodexUiState<List<String>?>(null, item.id, workspaceRoot, shownCandidates) {
             val workspace = workspaceRoot?.let { File(it).canonicalFile }
             val legacy = WorkspaceStorage.legacyRoot(context)
             val roots = listOfNotNull(context.filesDir.canonicalFile, context.cacheDir.canonicalFile, workspace)
-            candidates.mapNotNull { path ->
+            shownCandidates.mapNotNull { path ->
                 try {
                     val original = File(path).canonicalFile
                     val file = workspace?.let { WorkspaceSelectionContract.remap(legacy, it, original) } ?: original
@@ -54,14 +62,22 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
         }
     }
     val paths = resolved
-    if (paths == null) {
-        if (candidates.isNotEmpty()) Text("正在读取图片…", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+    if (original == null || paths == null) {
+        if (candidates.isNotEmpty() || clientId != null) Text("正在读取媒体…", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
         return
     }
-    if (candidates.isNotEmpty()) {
+    if (original?.isFailure == true) Text("原始媒体记录无法读取，保留原生消息资料", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+    if (shownCandidates.isNotEmpty()) {
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)) {
             paths.take(3).forEach { path -> key(path) {
+                val extension = File(path).extension.lowercase(java.util.Locale.ROOT)
+                if (extension in setOf("wav", "mp3", "m4a", "ogg", "webm", "mp4")) {
+                    Column {
+                        Text(if (extension == "mp4") "视频附件" else "音频附件", style = MaterialTheme.typography.labelMedium)
+                        CodexTextAction(onClick = { playback = path }) { Text("播放原件") }
+                    }
+                } else {
                 val image by rememberAttachmentImage(path, 320)
                 val info = image.info
                 when {
@@ -74,15 +90,43 @@ internal fun NativeTimelineMedia(item: TimelineItem, raw: JSONObject?, workspace
                             Text("${info.width} × ${info.height}", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                     }
                 }
+                }
             } }
         }
-        if (paths.size < candidates.size) Text("部分原图已不存在或不在本机工作区",
+        if (paths.size < shownCandidates.size) Text("部分原始媒体已不存在或不在本机工作区",
             style = MaterialTheme.typography.labelSmall, color = Ink.muted)
     }
     if (item.kind == "imageGeneration") ImageGenerationPresentation.summary(raw)?.let {
         Text(it, style = MaterialTheme.typography.labelSmall, color = Ink.muted)
     }
     preview?.let { path ->
-        AttachmentPreviewDialog(paths, path, onDismiss = { preview = null }, onRemove = null)
+        AttachmentPreviewDialog(paths.filter { File(it).extension.lowercase(java.util.Locale.ROOT) !in setOf("wav", "mp3", "m4a", "ogg", "webm", "mp4") }, path, onDismiss = { preview = null }, onRemove = null)
     }
+    playback?.let { path -> LocalHistoryPlayback(path) { playback = null } }
+}
+
+@Composable
+private fun LocalHistoryPlayback(path: String, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var failure by remember(path) { mutableStateOf(false) }
+    val player = remember(path) { android.widget.VideoView(context) }
+    DisposableEffect(player) {
+        onDispose { player.stopPlayback() }
+    }
+    CodexDialogFrame(onDismissRequest = onDismiss,
+        title = { Text(if (path.endsWith(".mp4", true)) "视频原件" else "音频原件") },
+        text = {
+            Column {
+                if (failure) Text("本机播放器无法读取此媒体")
+                AndroidView(factory = {
+                    player.apply {
+                        setMediaController(android.widget.MediaController(context).also { it.setAnchorView(this) })
+                        setOnErrorListener { _, _, _ -> failure = true; true }
+                        setOnPreparedListener { start() }
+                        setVideoPath(path)
+                    }
+                }, modifier = Modifier.fillMaxWidth().height(220.dp))
+            }
+        },
+        confirmButton = { CodexTextAction(onClick = onDismiss) { Text("关闭") } })
 }

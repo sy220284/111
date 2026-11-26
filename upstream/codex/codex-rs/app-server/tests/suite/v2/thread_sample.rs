@@ -16,6 +16,9 @@ use codex_app_server_protocol::ThreadLoadedListResponse;
 use codex_app_server_protocol::ThreadSampleCancelResponse;
 use codex_app_server_protocol::ThreadSampleParams;
 use codex_app_server_protocol::ThreadSampleResponse;
+use codex_app_server_protocol::ThreadSampleScopeResponse;
+use codex_protocol::openai_models::InputModality;
+use base64::Engine;
 use codex_app_server_protocol::ThreadSource;
 use codex_app_server_protocol::ThreadStartParams;
 use codex_app_server_protocol::TurnCompletedNotification;
@@ -77,6 +80,17 @@ async fn client_with_effort_updates(
     effort_updates: EffortUpdates,
     extra_config: &str,
 ) -> Result<TestAppServer> {
+    client_with_modalities(home, server, overrides, effort_updates, extra_config, None).await
+}
+
+async fn client_with_modalities(
+    home: &TempDir,
+    server: &wiremock::MockServer,
+    overrides: bool,
+    effort_updates: EffortUpdates,
+    extra_config: &str,
+    modalities: Option<Vec<InputModality>>,
+) -> Result<TestAppServer> {
     let config = ConfigBuilder::default()
         .codex_home(home.path().to_path_buf())
         .loader_overrides(codex_config::LoaderOverrides::without_managed_config_for_tests())
@@ -84,6 +98,9 @@ async fn client_with_effort_updates(
         .await?;
     let mut model = construct_model_info_offline("gpt-5.4", &config);
     model.supports_reasoning_effort_updates = matches!(effort_updates, EffortUpdates::Supported);
+    if let Some(modalities) = modalities {
+        model.input_modalities = modalities;
+    }
     model.use_responses_lite = true;
     model.service_tiers = vec![ModelServiceTier {
         id: "priority".to_string(),
@@ -1594,5 +1611,82 @@ async fn unsupported_effort_updates_keep_inherited_effort(
             .iter()
             .any(|item| item["type"] == "configuration_update")
     );
+    Ok(())
+}
+
+
+/// The actual app-server, native media resolver and Responses transport must agree.
+/// The mock receives real encoded attachment bytes; no paid provider is contacted.
+#[tokio::test]
+async fn media_sample_native_inputs_scope_and_parent_isolation() -> Result<()> {
+    let server = responses::start_mock_server().await;
+    let mock = responses::mount_sse_sequence(
+        &server,
+        ["parent", "media", "follow-up"].map(|id| {
+            responses::sse(vec![
+                responses::ev_assistant_message(id, "Verified response."),
+                responses::ev_completed(id),
+            ])
+        }).to_vec(),
+    ).await;
+    let home = TempDir::new()?;
+    let mut client = client_with_modalities(
+        &home, &server, true, EffortUpdates::Supported, "",
+        Some(vec![InputModality::Text, InputModality::Image, InputModality::Audio]),
+    ).await?;
+    let (thread_id, turn_id) = ready_parent(&mut client, ThreadStartParams::default()).await?;
+    let scope_id = client.send_raw_request("thread/sample/scope", Some(json!({
+        "threadId": thread_id, "model": SAMPLE_MODEL
+    }))).await?;
+    let scope: ThreadSampleScopeResponse = timeout(WAIT, client.read_response(scope_id)).await??;
+    assert_eq!(scope.model, SAMPLE_MODEL);
+    assert_eq!(scope.scope.len(), 64);
+    assert!(scope.input_modalities.contains(&InputModality::Image));
+    assert!(scope.input_modalities.contains(&InputModality::Audio));
+    let picture = home.path().join("sample.png");
+    std::fs::write(&picture, base64::engine::general_purpose::STANDARD.decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII="
+    )?)?;
+    let audio = home.path().join("sample.wav");
+    let mut wav = Vec::new();
+    let samples = 3200u32;
+    wav.extend_from_slice(b"RIFF");
+    wav.extend_from_slice(&(36 + samples).to_le_bytes());
+    wav.extend_from_slice(b"WAVEfmt ");
+    wav.extend_from_slice(&16u32.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&1u16.to_le_bytes());
+    wav.extend_from_slice(&16000u32.to_le_bytes());
+    wav.extend_from_slice(&32000u32.to_le_bytes());
+    wav.extend_from_slice(&2u16.to_le_bytes());
+    wav.extend_from_slice(&16u16.to_le_bytes());
+    wav.extend_from_slice(b"data");
+    wav.extend_from_slice(&samples.to_le_bytes());
+    wav.resize(44 + samples as usize, 0);
+    std::fs::write(&audio, wav)?;
+    let mut request = json!({
+        "threadId": thread_id, "expectedTurnId": turn_id, "model": SAMPLE_MODEL,
+        "prompt": "Media-only test: describe the image and audio.",
+        "media": [{"type":"localImage","path":picture}, {"type":"localAudio","path":audio}],
+        "mediaScope": "0".repeat(64), "disableMcp":true, "interruptOnCancel":true,
+    });
+    let bad = client.send_raw_request("thread/sample", Some(request.clone())).await?;
+    let error = timeout(WAIT, client.read_stream_until_error_message(RequestId::Integer(bad))).await??;
+    assert!(error.error.message.contains("credential scope"), "{}", error.error.message);
+    assert_eq!(mock.requests().len(), 1);
+    request["mediaScope"] = json!(scope.scope);
+    let good = client.send_raw_request("thread/sample", Some(request)).await?;
+    let result: ThreadSampleResponse = timeout(WAIT, client.read_response(good)).await??;
+    assert_eq!(result.source_turn_id, turn_id);
+    assert_eq!(result.text.as_deref(), Some("Verified response."));
+    client.start_turn_and_wait_for_completion(TurnStartParams {
+        thread_id, input: input("Follow-up"), ..Default::default()
+    }).await?;
+    let requests = mock.requests();
+    assert_eq!(requests.len(), 3);
+    let body = requests[1].body_json().to_string();
+    assert!(body.contains("input_image") && body.contains("data:image/"), "image bytes not in native request");
+    assert!(body.contains("input_audio") && body.contains("data:audio/wav"), "audio bytes not in native request");
+    assert!(!requests[2].body_contains_text("Media-only test:"));
     Ok(())
 }

@@ -120,6 +120,10 @@ internal class AnalysisCheckpointStore(private val directory: File) {
     }
     fun remove(owner: String, scope: String, screen: Boolean): Unit = synchronized(lock) {
         val target = file(owner, scope, screen)
-        if (target.exists()) check(target.delete()) { "无法清除分析记录" }
+        val targets = if (screen) listOf(target) else {
+            val prefix = target.nameWithoutExtension + "-"
+            (directory.listFiles()?.filter { it.name == target.name || (it.name.startsWith(prefix) && it.name.endsWith(".json")) }.orEmpty())
+        }
+        targets.forEach { if (it.exists()) check(it.delete()) { "无法清除分析记录" } }
     }
 }
