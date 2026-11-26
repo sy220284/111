@@ -150,6 +150,10 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("plan")
     sub.add_parser("check")
+    shared = sub.add_parser("shared-install")
+    shared.add_argument("--artifacts-dir", type=pathlib.Path, required=True)
+    shared.add_argument("--components", nargs="+", choices=sorted(COMPONENTS), default=list(COMPONENTS))
+    shared.add_argument("--download", action="store_true")
     boot = sub.add_parser("bootstrap")
     boot.add_argument("--artifacts-dir", type=pathlib.Path, required=True)
     run = sub.add_parser("run")
@@ -161,6 +165,26 @@ def main():
             "777 当前组件仅适用于 Linux/WSL x64")
     root = args.root.resolve()
     require(root != pathlib.Path("/") and root != pathlib.Path.home(), "工具链根目录不安全")
+    if args.command == "shared-install":
+        args.artifacts_dir.mkdir(parents=True, exist_ok=True)
+        for name in args.components:
+            spec = COMPONENTS[name]
+            if not check_installed(root, name, spec):
+                expected = args.artifacts_dir / (spec["name"] + ".zip")
+                alternate = args.artifacts_dir / ("777-" + name + ".zip")
+                if args.download and not expected.is_file() and not alternate.is_file():
+                    partial = expected.with_suffix(".partial")
+                    try:
+                        with partial.open("wb") as output:
+                            subprocess.run(["gh", "api", f"repos/{LOCK['source']['repository']}/actions/artifacts/{spec['id']}/zip"], stdout=output, check=True)
+                        verify_zip(partial, name, spec)
+                        partial.replace(expected)
+                    finally:
+                        partial.unlink(missing_ok=True)
+                install(root, name, find_archive(args.artifacts_dir, name, spec))
+            require(check_installed(root, name, spec), "共享组件未通过校验: " + name)
+        print(json.dumps({name: str(component_dir(root, name, COMPONENTS[name]) / COMPONENTS[name]["root"]) for name in args.components}, indent=2))
+        return 0
     missing_locks = project_check()
     if args.command == "bootstrap":
         for name, spec in COMPONENTS.items():
@@ -185,6 +209,6 @@ def main():
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (ValueError, OSError, zipfile.BadZipFile, tarfile.TarError) as exc:
+    except (ValueError, OSError, subprocess.SubprocessError, zipfile.BadZipFile, tarfile.TarError) as exc:
         print(str(exc), file=sys.stderr)
         sys.exit(2)
