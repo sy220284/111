@@ -190,8 +190,11 @@ internal object MessageMarkdown {
         val styles: Set<String> = emptySet(), val url: String? = null, val original: String? = null)
     fun copyParts(source: String): List<CopyPart> = ReplyInlineMarkdown.parts(source)
 
-    fun inlineText(source: String, openFile: ((String) -> Unit)? = null) = buildAnnotatedString {
-        for (part in copyParts(source)) {
+    fun inlineText(source: String, openFile: ((String) -> Unit)? = null) =
+        inlineText(copyParts(source), openFile)
+
+    fun inlineText(parts: List<CopyPart>, openFile: ((String) -> Unit)? = null) = buildAnnotatedString {
+        for (part in parts) {
             val style = SpanStyle(
                 fontWeight = if ("strong" in part.styles) FontWeight.Bold else null,
                 fontStyle = if ("emphasis" in part.styles || "math" in part.styles) FontStyle.Italic else null,
@@ -213,56 +216,47 @@ internal object MessageMarkdown {
     }
 }
 
-@Composable
-private fun replyInline(source: String) = MessageMarkdown.inlineText(source, LocalReplyFileOpen.current)
+/** Prepared content is scoped to its block; callbacks remain live without
+ * invalidating the token cache on each frame or session callback change. */
+internal val LocalPreparedReplyBlock = staticCompositionLocalOf<PreparedReplyBlock?> { null }
 
-/** Keeps the already verified block boundary while an append-only message grows. */
-private class MarkdownBoundary {
-    private var prefix = ""
-    fun target(source: String, streaming: Boolean): String {
-        if (!streaming) return source
-        val from = if (source.startsWith(prefix)) prefix.length else 0
-        prefix = source.take(MessageMarkdown.stablePrefixLength(source, from))
-        return prefix
+@Composable
+private fun replyInline(source: String): AnnotatedString {
+    val prepared = checkNotNull(LocalPreparedReplyBlock.current)
+    val parts = prepared.inline.getValue(source)
+    val openFile = LocalReplyFileOpen.current
+    val currentOpen by rememberUpdatedState(openFile)
+    val canOpen = openFile != null
+    return remember(parts, canOpen) {
+        MessageMarkdown.inlineText(parts, if (canOpen) ({ path -> currentOpen?.invoke(path) }) else null)
     }
 }
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
-    // Keep the already formatted prefix while a long answer is extending. A single conflated
-    // collector finishes each background parse; the next delta cannot cancel it repeatedly.
-    val boundary = remember { MarkdownBoundary() }
-    val target = remember(source, streaming) { boundary.target(source, streaming) }
-    val latest by rememberUpdatedState(target)
-    var parsed by remember { mutableStateOf<Pair<String, List<MessageBlock>>?>(null) }
+    val latest by rememberUpdatedState(source to streaming)
+    var document by remember { mutableStateOf<ReplyDocumentEngine.Document?>(null) }
     LaunchedEffect(Unit) {
-        snapshotFlow { latest }.conflate().collect { value ->
-            if (value.length >= 4096) {
-                val previous = parsed
-                val blocks = withContext(Dispatchers.Default) {
-                    if (previous != null && value.startsWith(previous.first) &&
-                        MessageMarkdown.stablePrefixLength(previous.first) == previous.first.length) {
-                        previous.second + MessageMarkdown.blocks(value.substring(previous.first.length))
-                    } else MessageMarkdown.blocks(value)
-                }
-                withContext(Dispatchers.Main.immediate) { parsed = value to blocks }
-            }
+        // Keep one serial worker per message. Conflation drops obsolete render
+        // requests, never protocol events or received text.
+        val engine = ReplyDocumentEngine()
+        snapshotFlow { latest }.conflate().collect { (text, live) ->
+            val prepared = withContext(Dispatchers.Default) { engine.prepare(text, live) }
+            document = prepared
         }
     }
-    val ready = if (target.length < 4096) target to remember(target) { MessageMarkdown.blocks(target) }
-        else parsed?.takeIf { (prefix, _) -> prefix == target ||
-            (target.startsWith(prefix) && MessageMarkdown.stablePrefixLength(prefix) == prefix.length) }
-    val prefix = ready?.first.orEmpty()
-    val tail = source.substring(prefix.length)
-    val unfinished = if (tail.isEmpty()) emptyList() else if (tail.length < 4096) {
-        remember(tail) { MessageMarkdown.blocks(tail) }
-    } else listOf(MessageBlock("stream-tail", tail))
-    val blocks = ready?.second.orEmpty() + unfinished
+    val ready = document?.takeIf { source.startsWith(it.prefix) }
+    val tail = source.substring(ready?.prefix?.length ?: 0)
+    val blocks = ready?.blocks.orEmpty() +
+        (if (tail.isEmpty()) emptyList() else listOf(PreparedReplyBlock.tail(tail)))
     MessageSelectionContainer(blocks) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             var headingIndex = 0
-            blocks.forEach { block ->
+            blocks.forEachIndexed { blockIndex, prepared ->
+                val block = prepared.block
+                key(blockIndex, block.kind) {
+                CompositionLocalProvider(LocalPreparedReplyBlock provides prepared) {
                 when (block.kind) {
                     "code" -> MessageCodeBlock(block)
                     in RichReplyContent.kinds -> NativeRichReplyBlock(block)
@@ -294,6 +288,8 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
                     "quote" -> MessageQuote(block)
                     "stream-tail" -> Text(block.text, style = MaterialTheme.typography.bodyLarge)
                     else -> Text(replyInline(block.text), style = MaterialTheme.typography.bodyLarge)
+                }
+                }
                 }
             }
         }
@@ -417,7 +413,7 @@ private fun MessageTable(block: MessageBlock) {
 /** Compose 1.8 SelectionContainer writes its selected visible text through LocalClipboard.
  * Match that text against the same rendered token stream, never against an unrelated answer. */
 @Composable
-private fun MessageSelectionContainer(blocks: List<MessageBlock>, content: @Composable () -> Unit) {
+private fun MessageSelectionContainer(blocks: List<PreparedReplyBlock>, content: @Composable () -> Unit) {
     val platform = LocalClipboard.current
     val context = LocalContext.current
     val latest = rememberUpdatedState(blocks)
@@ -427,7 +423,7 @@ private fun MessageSelectionContainer(blocks: List<MessageBlock>, content: @Comp
                 val visible = clipEntry?.clipData?.takeIf { it.itemCount == 1 }?.getItemAt(0)?.text?.toString()
                 if (visible.isNullOrEmpty()) { platform.setClipEntry(clipEntry); return }
                 val snapshot = latest.value
-                val selection = withContext(Dispatchers.Default) { MessageSelectionCopy.resolve(snapshot, visible) }
+                val selection = withContext(Dispatchers.Default) { MessageSelectionCopy.resolvePrepared(snapshot, visible) }
                 // When repeated visible text has incompatible original formatting, retain the actual
                 // platform selection rather than guess which source location the user selected.
                 if (selection == null) platform.setClipEntry(clipEntry)

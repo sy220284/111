@@ -32,18 +32,22 @@ internal object MessageSelectionCopy {
         }
     }
 
-    fun resolve(blocks: List<MessageBlock>, selected: String): Pair<String, CopyContentFormat>? {
+    fun resolve(blocks: List<MessageBlock>, selected: String): Pair<String, CopyContentFormat>? =
+        resolvePrepared(blocks.map(PreparedReplyBlock::prepare), selected)
+
+    fun resolvePrepared(blocks: List<PreparedReplyBlock>, selected: String): Pair<String, CopyContentFormat>? {
         if (selected.isBlank()) return null
-        val segments = blocks.flatMap { block ->
+        val segments = blocks.flatMap { prepared ->
+            val block = prepared.block
             when (block.kind) {
                 "rule", in RichReplyContent.kinds -> emptyList()
                 "code", "stream-tail" -> listOf(Segment(listOf(MessageMarkdown.CopyPart(block.text)), block.kind))
-                "table" -> block.rows.flatten().map { Segment(MessageMarkdown.copyParts(it), "table") }
-                "heading" -> listOf(Segment(MessageMarkdown.copyParts(block.text), block.kind,
+                "table" -> block.rows.flatten().map { Segment(prepared.inline.getValue(it), "table") }
+                "heading" -> listOf(Segment(prepared.inline.getValue(block.text), block.kind,
                     "#".repeat(block.level.coerceIn(1, 6)) + " "))
                 "bullet" -> listOf(Segment(listOf(MessageMarkdown.CopyPart(block.label)) +
-                    MessageMarkdown.copyParts(block.text), block.kind))
-                else -> listOf(Segment(MessageMarkdown.copyParts(block.text), block.kind))
+                    prepared.inline.getValue(block.text), block.kind))
+                else -> listOf(Segment(prepared.inline.getValue(block.text), block.kind))
             }
         }.filter { it.visible.isNotEmpty() }
         val source = segments.joinToString("") { it.visible }

@@ -69,7 +69,7 @@ internal fun NativeRichReplyBlock(block: MessageBlock) {
                 } else if (block.kind == "math") {
                     block.rows.forEach { row ->
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                            val math = remember(row[0]) { ReplyMath.parse(row[0]) }
+                            val math = checkNotNull(LocalPreparedReplyBlock.current).math.getValue(row[0])
                             if (math != null) ReplyMathLayout(math) else Text(row[0])
                         }
                     }
