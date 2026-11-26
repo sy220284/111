@@ -5,6 +5,7 @@ The emulator runner invokes script lines independently, so all iteration and
 gallery generation must be in this single Python process.
 """
 import argparse
+import hashlib
 from html import escape
 from pathlib import Path
 import subprocess
@@ -13,6 +14,7 @@ import zlib
 import json
 import re
 
+from device_matrix import API, RELEASE
 from ui_evidence_manifest import load_evidence_manifest, required_screens, declared_screens
 
 EVIDENCE_MANIFEST = load_evidence_manifest(Path(__file__).resolve().parents[2])
@@ -20,7 +22,7 @@ REQUIRED_SCREENS = required_screens(EVIDENCE_MANIFEST)
 OPTIONAL_SCREENS = [screen for screen in declared_screens(EVIDENCE_MANIFEST) if screen not in REQUIRED_SCREENS]
 DEVICE_ROOT = "/sdcard/Android/data/io.github.sy220284.codexandroid/files"
 DESTINATION = Path("ui-screenshots")
-SCREEN_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*-android35\.png$")
+SCREEN_NAME = re.compile(r"^[a-z0-9][a-z0-9_-]*-android\.png$")
 
 
 def parse_discovered_screens(stdout: str) -> list[str]:
@@ -29,7 +31,7 @@ def parse_discovered_screens(stdout: str) -> list[str]:
     for raw in stdout.splitlines():
         name = raw.strip()
         if SCREEN_NAME.fullmatch(name):
-            discovered.add(name.removesuffix("-android35.png"))
+            discovered.add(name.removesuffix("-android.png"))
     return sorted(discovered)
 
 
@@ -77,6 +79,14 @@ def valid_png(path):
     return False
 
 
+def duplicate_content_groups(paths):
+    groups = {}
+    for path in paths:
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        groups.setdefault(digest, []).append(path.name)
+    return [sorted(names) for names in groups.values() if len(names) > 1]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--destination", type=Path, default=DESTINATION)
@@ -86,12 +96,13 @@ def main():
     for old in destination.glob("*.png"):
         old.unlink()
     present = []
+    dimensions = {}
     missing = []
     discovered = discover_device_screens()
     # Required coverage still blocks regressions; new screenshots automatically
     # enter the artifact gallery without hand-maintained names in this script.
     for screen in sorted(set(REQUIRED_SCREENS + OPTIONAL_SCREENS + discovered)):
-        name = f"{screen}-android35.png"
+        name = f"{screen}-android.png"
         result = subprocess.run(
             ["adb", "pull", f"{DEVICE_ROOT}/{name}", str(destination / name)],
             capture_output=True, text=True, check=False,
@@ -99,15 +110,24 @@ def main():
         output = destination / name
         if result.returncode == 0 and valid_png(output):
             present.append(screen)
+            with output.open('rb') as png:
+                png.seek(16)
+                width, height = struct.unpack('>II', png.read(8))
+            dimensions[screen] = {'width_px': width, 'height_px': height}
             print(f"SCREENSHOT_OK {screen}", flush=True)
         elif screen in REQUIRED_SCREENS:
             missing.append(screen)
             print(f"SCREENSHOT_MISSING {screen}: {result.stderr.strip()}", flush=True)
     (destination / "missing.txt").write_text(
         "\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
+    duplicates = duplicate_content_groups(
+        destination / f"{screen}-android.png" for screen in present
+    )
+    for group in duplicates:
+        print("SCREENSHOT_DUPLICATE " + ", ".join(group), flush=True)
     (destination / "manifest.json").write_text(
         json.dumps({"required": REQUIRED_SCREENS, "discovered": discovered,
-                    "present": present, "missing": missing},
+                    "present": present, "missing": missing, "screenshot_dimensions": dimensions, "duplicate_content": duplicates},
                    ensure_ascii=False, indent=2),
         encoding="utf-8",
     )
@@ -129,7 +149,7 @@ def main():
         'border:1px solid #d8dee1;border-radius:12px;padding:10px}'
         'img{width:100%;height:350px;object-fit:contain;display:block}'
         'span{display:block;font-size:12px;word-break:break-all;margin-top:9px}</style>'
-        '<h1>Android 35 · 逐页截图</h1><small>本次实测捕获 ' + str(len(pngs)) +
+        f'<h1>Android {RELEASE} (API {API}) · 逐页截图</h1><small>本次实测捕获 ' + str(len(pngs)) +
         ' 张，必检 ' + str(len(REQUIRED_SCREENS)) + ' 张，缺少 ' +
         str(len(missing)) + ' 张。</small><div class="grid">' + cells + '</div></html>'
     )

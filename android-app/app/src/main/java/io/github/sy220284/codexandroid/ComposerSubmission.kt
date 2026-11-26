@@ -62,6 +62,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                 it.requireTextOnly(draft.images, draft.references)
                 ensureRemoteThread(thread, it, running = true, expectedSession = epoch)
             }
+            AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(draft.images, LocalImageAttachments.directory(getApplication())) }
             ComposerInputPolicy.validate(draft.images, draft.references, LocalImageAttachments.directory(getApplication()), File(workspace))
             LocalImageAttachments.preserveForHistory(getApplication(), draft.images)
             if (queue) {

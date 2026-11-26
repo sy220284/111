@@ -33,6 +33,8 @@ internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisContr
         if (state.result != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("媒体分析结果已就绪", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                if (state.checkpoint?.complete == false && state.source != null && state.mode != null)
+                    CodexTextAction(onClick = { onChoose(state.source, state.mode) }, enabled = enabled) { Text("继续剩余") }
                 CodexTextAction(onClick = onReview) { Text("查看") }
                 CodexTextAction(onClick = onDismiss) { Text("清除") }
             }
@@ -56,7 +58,9 @@ internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisContr
 internal fun MediaAnalysisReview(state: MediaAnalysisController.State, onDismiss: () -> Unit, onApply: (Boolean) -> Unit) {
     var textOnly by androidx.compose.runtime.remember(state.source) { androidx.compose.runtime.mutableStateOf(false) }
     if (textOnly) CodexConfirmDialog(title = "仅使用分析文字",
-        message = "从本次草稿移除该媒体附件，但原始文件与派生资料将保留。适合不支持图片或音频的模型。",
+        message = if (state.checkpoint?.complete == false)
+            "仅加入已完成的分析文字，保留附件供继续分析剩余部分。全部完成后可移除草稿附件。"
+            else "从本次草稿移除该媒体附件，原始文件与派生资料继续保留。适合仅使用文字的模型。",
         detail = state.result.orEmpty(), confirmLabel = "保留原文件并加入文字",
         onConfirm = { onApply(true) }, onDismiss = { textOnly = false })
     else CodexDialogFrame(onDismissRequest = onDismiss,
@@ -68,6 +72,7 @@ internal fun MediaAnalysisReview(state: MediaAnalysisController.State, onDismiss
                 SelectionContainer { Text(state.result.orEmpty()) }
             }
         },
-        confirmButton = { CodexPrimaryButton(onClick = { onApply(false) }) { Text("保留附件") } },
+        confirmButton = { CodexPrimaryButton(enabled = state.checkpoint?.let { it.applied < it.parts.size } != false,
+            onClick = { onApply(false) }) { Text("保留附件") } },
         dismissButton = { CodexTextAction(onClick = { textOnly = true }) { Text("仅使用文字") } })
 }

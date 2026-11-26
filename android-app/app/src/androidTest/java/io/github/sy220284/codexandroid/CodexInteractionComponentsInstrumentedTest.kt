@@ -433,7 +433,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithContentDescription("上一个匹配").performClick()
         rule.onNodeWithText("第 2 / 2 处").assertExists()
-        captureComponentEvidence("audit-full-text-match-android35.png")
+        captureComponentEvidence("audit-full-text-match-android.png")
         rule.onNodeWithContentDescription("下一个匹配").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithText("清除查找条件").performClick()
@@ -540,7 +540,30 @@ class CodexInteractionComponentsInstrumentedTest {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val first = java.io.File.createTempFile("preview-first", ".png", context.cacheDir)
         val second = java.io.File.createTempFile("preview-second", ".png", context.cacheDir)
-        val bitmap = android.graphics.Bitmap.createBitmap(64, 64, android.graphics.Bitmap.Config.ARGB_8888)
+        val bitmap = android.graphics.Bitmap.createBitmap(640, 480, android.graphics.Bitmap.Config.ARGB_8888)
+        fun writePreviewFixture(file: java.io.File, marker: Int, label: String) {
+            val canvas = android.graphics.Canvas(bitmap)
+            val paint = android.graphics.Paint()
+            canvas.drawColor(android.graphics.Color.rgb(237, 242, 239))
+            paint.color = android.graphics.Color.rgb(182, 207, 194)
+            canvas.drawRect(0f, 270f, 640f, 480f, paint)
+            paint.color = android.graphics.Color.rgb(246, 195, 95)
+            canvas.drawCircle(510f, 105f, 50f, paint)
+            paint.color = android.graphics.Color.rgb(44, 76, 61)
+            val landscape = android.graphics.Path().apply {
+                moveTo(0f, 380f); lineTo(170f, 145f); lineTo(360f, 380f)
+                lineTo(490f, 200f); lineTo(640f, 380f); lineTo(640f, 480f)
+                lineTo(0f, 480f); close()
+            }
+            canvas.drawPath(landscape, paint)
+            paint.color = android.graphics.Color.rgb(38, 49, 57)
+            paint.textSize = 26f
+            canvas.drawText(label, 24f, 44f, paint)
+            // 中央色标保留精确像素断言；四角、横纵边界和细节供预览/缩放验收。
+            paint.color = marker
+            canvas.drawRect(296f, 216f, 344f, 264f, paint)
+            file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+        }
         var removedPath: String? = null
         fun assertDisplayedImage(position: Int, color: Int) {
             rule.onNodeWithTag("attachment-preview-position")
@@ -555,10 +578,8 @@ class CodexInteractionComponentsInstrumentedTest {
                 color, actual[actual.width / 2, actual.height / 2].toArgb())
         }
         try {
-            bitmap.eraseColor(android.graphics.Color.RED)
-            first.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
-            bitmap.eraseColor(android.graphics.Color.BLUE)
-            second.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
+            writePreviewFixture(first, android.graphics.Color.RED, "Preview 01 · 640 × 480")
+            writePreviewFixture(second, android.graphics.Color.BLUE, "Preview 02 · 640 × 480")
             rule.setContent {
                 var paths by remember { mutableStateOf(listOf(first.absolutePath, second.absolutePath)) }
                 CodexTheme {
@@ -576,9 +597,9 @@ class CodexInteractionComponentsInstrumentedTest {
             }
             rule.onNodeWithContentDescription("预览附件图片 1").performTouchInput { click() }
             assertDisplayedImage(1, android.graphics.Color.RED)
+            captureComponentEvidence("audit-attachment-preview-android.png")
             rule.onNodeWithTag("attachment-zoom-in").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("150%")
-            captureComponentEvidence("audit-attachment-preview-android35.png")
             rule.onNodeWithTag("attachment-preview-reset").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("100%")
             rule.onNodeWithTag("attachment-previous").assertIsNotEnabled()
@@ -691,7 +712,7 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.onNodeWithTag("workspace-editor-content").performTextReplacement("修改内容")
             rule.onNodeWithContentDescription("返回文件列表").performClick()
             rule.onNodeWithText("保留草稿并返回？").assertExists()
-            captureComponentEvidence("audit-file-editor-android35.png")
+            captureComponentEvidence("audit-file-editor-android.png")
             rule.onNodeWithText("取消").performClick()
             rule.onNodeWithTag("workspace-editor-content").assertExists()
             rule.onNodeWithTag("workspace-editor-save").assertIsEnabled()
@@ -748,7 +769,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Retry, action) }
         rule.onNodeWithTag("timeline-header-long-press").performTouchInput { longClick() }
         rule.onNodeWithTag("message-fork-long-press").assertIsEnabled()
-        captureComponentEvidence("audit-message-menu-android35.png")
+        captureComponentEvidence("audit-message-menu-android.png")
         rule.onNodeWithTag("message-fork-long-press").performClick()
         rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Fork, action) }
         rule.onNodeWithTag("timeline-header-long-press").performClick()
@@ -769,7 +790,7 @@ class CodexInteractionComponentsInstrumentedTest {
             }
         }
         rule.onNodeWithText("47%").assertExists()
-        captureComponentEvidence("audit-update-progress-android35.png")
+        captureComponentEvidence("audit-update-progress-android.png")
         rule.onNodeWithText("模拟真实失败状态").performClick()
         rule.onNodeWithText("47%").assertDoesNotExist()
         rule.onNodeWithText("校验失败").assertExists()
@@ -827,14 +848,7 @@ class CodexInteractionComponentsInstrumentedTest {
 
     private fun captureComponentEvidence(name: String) {
         rule.waitForIdle()
-        val instrumentation = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation()
-        val directory = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
-        val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
-        try {
-            java.io.File(directory, name).outputStream().use { output ->
-                check(screenshot.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, output))
-            }
-        } finally { screenshot.recycle() }
+        captureVerifiedDisplayScreenshot(name)
     }
 
 

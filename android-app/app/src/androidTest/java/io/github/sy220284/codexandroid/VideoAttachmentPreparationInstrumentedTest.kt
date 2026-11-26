@@ -23,8 +23,11 @@ class VideoAttachmentPreparationInstrumentedTest {
             }
             assertEquals("4e4ed97b4bf73b0d23818873698ce32d29fee6d66a16a1ca169a8b5e01741ec1", java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) })
             val source = File(directory, "source.mp4").apply { writeBytes(bytes) }
-            val prepared = VideoAttachmentPreparation.prepare(source)
-            assertTrue(prepared.name.endsWith(".av.mp4"))
+            val imported = VideoAttachmentPreparation.inspect(source)
+            assertFalse(File(VideoTimeline.manifest(imported.path)).exists())
+            assertTrue(LocalMediaAttachmentPolicy.hasAudio(imported.path))
+            val prepared = VideoAttachmentPreparation.prepare(imported)
+            assertEquals(source.path, prepared.path)
             assertArrayEquals(bytes, prepared.readBytes())
             val bitmap = BitmapFactory.decodeFile(LocalMediaAttachmentPolicy.frames(prepared.path))
             assertNotNull(bitmap)
@@ -41,6 +44,14 @@ class VideoAttachmentPreparationInstrumentedTest {
                 assertEquals(1, audio.trackCount)
                 assertEquals(MediaFormat.MIMETYPE_AUDIO_AAC, audio.getTrackFormat(0).getString(MediaFormat.KEY_MIME))
             } finally { audio.release() }
+            val wavs = AudioPcmPreparation.clips(File(VideoTimeline.audio(prepared.path, 0)), directory) {}
+            assertEquals(1, wavs.size)
+            val wav = wavs.single().readBytes()
+            assertEquals("RIFF", String(wav.copyOfRange(0, 4)))
+            assertEquals("WAVE", String(wav.copyOfRange(8, 12)))
+            assertTrue(wav.size > 44 && wav.size < QwenMediaWire.MAX_SOURCE_BYTES)
+            val roundTrip = DraftPersistence.encode(mapOf("video" to ComposerDraft(images = listOf(prepared.path))))
+            assertEquals(listOf(prepared.name), DraftPersistence.decode(roundTrip).getValue("video").images)
             val input = TurnRequestContract.input("", listOf(prepared.path))
             assertEquals("localImage", input.getJSONObject(2).getString("type"))
             assertEquals("localAudio", input.getJSONObject(3).getString("type"))

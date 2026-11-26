@@ -79,8 +79,8 @@ object LocalImageAttachments {
             // the provider's MIME label. Unsupported/corrupt files stay local.
             when (kind) {
                 "video" -> {
-                    val jobContext = currentCoroutineContext()
-                    VideoAttachmentPreparation.prepare(output) { jobContext.ensureActive() }.canonicalPath
+                    currentCoroutineContext().ensureActive()
+                    VideoAttachmentPreparation.inspect(output).canonicalPath
                 }
                 "audio" -> {
                     val extractor = android.media.MediaExtractor()
@@ -157,7 +157,7 @@ fun LocalImageAttachmentStrip(
                         Row(Modifier.padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 Modifier.size(48.dp).clip(RoundedCornerShape(9.dp))
-                                    .clickable(enabled = kind != "audio") { previewPath = preview }
+                                    .clickable(enabled = kind != "audio" && thumbnail != null) { previewPath = preview }
                                     .semantics { contentDescription = if (kind == "image") "预览附件图片 ${idx + 1}" else "媒体附件 ${idx + 1}" },
                                 contentAlignment = Alignment.Center
                             ) {

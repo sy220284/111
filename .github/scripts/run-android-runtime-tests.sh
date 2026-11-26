@@ -12,6 +12,11 @@ adb wait-for-device
 adb shell getprop ro.product.cpu.abi | tr -d '\r' | tee "$OUT/abi.txt"
 test "$(cat "$OUT/abi.txt")" = "$ABI"
 adb shell getprop ro.build.version.sdk | tr -d '\r' > "$OUT/api.txt"
+EXPECTED_API="$(python3 -c 'import json; print(json.load(open("android-app/tools/device-matrix.json"))["api"])')"
+EXPECTED_PAGE="$(python3 -c 'import json; print(json.load(open("android-app/tools/device-matrix.json"))["page_size"])')"
+test "$(cat "$OUT/api.txt")" = "$EXPECTED_API"
+adb shell getconf PAGESIZE | tr -d '\r' > "$OUT/page-size.txt"
+test "$(cat "$OUT/page-size.txt")" = "$EXPECTED_PAGE"
 sha256sum "$APP" "$TEST" > "$OUT/apks.sha256"
 # Avoid replacing a user's installed app, whose data/credentials could be exposed to tests.
 if adb shell pm path "$PKG" | grep -q '^package:'; then
@@ -37,7 +42,7 @@ adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
 run_suite RuntimeOwnershipInstrumentedTest "$OUT/ownership.log"
 cat "$OUT/core.log" "$OUT/ownership.log" > "$OUT/instrumentation.log"
-for NAME in bundledDeveloperToolsActuallyExecute bundledDeveloperPackagesAndHttpsUseRealCore bundledCoreReportsAndroidCodeModeDefault bundledCoreInitializesAndAnswersAccountRead nativeCoreDiscoversAndCallsAndroidPreviewMcp realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange androidPtySupportsInteractiveInputAndResize terminalLongRunningProcessCanBeStoppedByProcessId foregroundServiceReportsReadyOnlyAfterAndroidPromotion; do
+for NAME in bundledDeveloperToolsActuallyExecute bundledDeveloperPackagesAndHttpsUseRealCore realNetworkFailureAndTimeoutRecoverOnSameCore bundledCoreReportsAndroidCodeModeDefault bundledCoreInitializesAndAnswersAccountRead nativeCoreDiscoversAndCallsAndroidPreviewMcp realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange androidPtySupportsInteractiveInputAndResize terminalLongRunningProcessCanBeStoppedByProcessId foregroundServiceReportsReadyOnlyAfterAndroidPromotion; do
   grep -Fq "test=$NAME" "$OUT/instrumentation.log"
 done
 echo "真实 Android 内核、故障恢复、终端和前台服务回执通过" | tee "$OUT/result.txt"

@@ -8,12 +8,79 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Text
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 
 /** Verifies a real Material 3 overlay, including explicit dismiss without side effects. */
 class CodexOverlayInstrumentedTest {
     @get:Rule val rule = createComposeRule()
+
+    @Test fun clipboardOverlayIsDetectedEvenWhenAppRetainsFocus() {
+        val app = "mCurrentFocus=Window{abc u0 io.github.sy220284.codexandroid/.MainActivity}\n" +
+            "  Window #1 Window{abc u0 io.github.sy220284.codexandroid/.MainActivity}:\n"
+        assertFalse(hasClipboardOverlayWindow(app))
+        assertTrue(hasClipboardOverlayWindow(app + "  Window #2 Window{def u0 ClipboardOverlay}:\n"))
+        assertFalse(hasClipboardOverlayWindow(app + "  Window #2 Window{def u0 InputMethod}:\n"))
+    }
+
+    @Test fun longDetailContextScrollsWithoutDisplacingFooterOrClose() {
+        var accepted = 0
+        var closed by mutableStateOf(false)
+        val title = "带有较长名称的服务来源与安装权限详情".repeat(4)
+        rule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, 1.5f)) {
+                CodexTheme {
+                    if (!closed) CodexDetailSheet(title, onDismiss = { closed = true },
+                        subtitle = "安装前请核对服务身份、来源与实际权限范围。\n".repeat(25),
+                        footer = {
+                            CodexPrimaryButton(onClick = { accepted++ },
+                                modifier = Modifier.fillMaxWidth().testTag("long-detail-confirm")) { Text("确认选择") }
+                        }) { Text("正文最后一项") }
+                }
+            }
+        }
+        rule.onNodeWithTag("codex-detail-close").assertIsDisplayed()
+        rule.onNodeWithTag("long-detail-confirm").assertIsDisplayed().performClick()
+        rule.onNodeWithText("正文最后一项").performScrollTo().assertIsDisplayed()
+        rule.onNodeWithTag("long-detail-confirm").assertIsDisplayed()
+        rule.onNodeWithTag("codex-detail-close").assertIsDisplayed()
+        captureVerifiedDisplayScreenshot("audit-detail-long-context-android.png")
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+        rule.runOnIdle { assertEquals(1, accepted) }
+    }
+
+    @Test fun sidebarFilterPanelKeepsQueryAndSelectionWhenReopened() {
+        val state = SidebarUiState().apply { search = "登录" }
+        rule.setContent { CodexTheme { SidebarQueryFilters(state) } }
+        rule.onNodeWithText("全文搜索").assertDoesNotExist()
+        rule.onNodeWithTag("sidebar-query-filters").performClick()
+        rule.onNodeWithTag("sidebar-filter-query-full").performScrollTo().performClick()
+        rule.onNodeWithTag("sidebar-filter-status-archived").performScrollTo().performClick()
+        rule.onNodeWithTag("sidebar-filter-project-project").performScrollTo().performClick()
+        rule.onNodeWithTag("sidebar-filters-done").assertIsDisplayed().performClick()
+        rule.onNodeWithTag("sidebar-query-filters").assertTextContains("全文 · 已归档 · 当前项目")
+        rule.onNodeWithTag("sidebar-query-filters").performClick()
+        rule.onNodeWithTag("sidebar-filter-query-full").performScrollTo().assertIsSelected()
+        rule.onNodeWithTag("sidebar-filter-status-archived").performScrollTo().assertIsSelected()
+        rule.onNodeWithTag("sidebar-filter-project-project").performScrollTo().assertIsSelected()
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.runOnIdle { assertEquals("登录", state.search) }
+    }
 
     @Test
     fun dataArchiveExclusiveDialogAppearsAndClearsWithoutLosingPage() {
@@ -106,7 +173,7 @@ class CodexOverlayInstrumentedTest {
         }
         rule.onNodeWithText("命令执行 · 执行依据").assertExists()
         rule.waitForIdle()
-        captureVerifiedDisplayScreenshot("evidence-sheet-android35.png")
+        captureVerifiedDisplayScreenshot("evidence-sheet-android.png")
         rule.onNodeWithText("执行成功").assertExists()
         rule.onNodeWithText("done").assertExists()
         rule.onNodeWithText("exitCode", substring = true).assertDoesNotExist()

@@ -16,7 +16,7 @@ internal object DraftPersistence {
     private const val STORE = "codex-unsent-drafts"
     private const val KEY = "drafts"
     private val IMAGE_NAME = Regex(
-        "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\\.(jpg|png|webp)$"
+        "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\\.(jpg|png|webp|wav|mp3|m4a|ogg|webm|mp4|av\\.mp4|silent\\.mp4)$"
     )
 
     /** Accept pre-upgrade text-only records without migrating user content. */

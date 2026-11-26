@@ -23,8 +23,25 @@ internal object VideoAttachmentPreparation {
     private const val LABEL_HEIGHT = 32
     private val codecLock = Any()
 
+    fun inspect(source: File): File {
+        val retriever = MediaMetadataRetriever()
+        try {
+            retriever.setDataSource(source.path)
+            require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes") { "文件不含可读取的视频轨" }
+            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+            require(duration != null && duration > 0) { "无法读取视频时长" }
+            File(source.path + ".metadata.json").writeText(org.json.JSONObject().put("durationMs", duration)
+                .put("audio", retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_AUDIO) == "yes").toString())
+            return source
+        } finally { retriever.release() }
+    }
+
     // Only one heavy media decoder at a time; photo/audio imports may still proceed in parallel.
     fun prepare(source: File, checkActive: () -> Unit = {}): File = synchronized(codecLock) {
+        if (File(VideoTimeline.manifest(source.path)).isFile) {
+            require(LocalMediaAttachmentPolicy.ownedPaths(source.path).all { File(it).isFile && File(it).length() > 0 }) { "视频解析资料已失效，请重新导入" }
+            return@synchronized source
+        }
         val retriever = MediaMetadataRetriever()
         val extractor = MediaExtractor()
         val generated = mutableListOf<File>()
@@ -44,8 +61,7 @@ internal object VideoAttachmentPreparation {
             if (track != null) require(extractor.getTrackFormat(track).getString(MediaFormat.KEY_MIME) == MediaFormat.MIMETYPE_AUDIO_AAC) {
                 "视频音轨须为 AAC；请先转为 AAC 编码的 MP4 或分别上传音频和无声视频"
             }
-            val output = File(source.parentFile, source.nameWithoutExtension + (if (track == null) ".silent.mp4" else ".av.mp4"))
-            require(!output.exists()) { "视频附件已存在" }
+            val output = source
 
             var previous: IntArray? = null
             val probes = VideoSamplingPlan.probeTimes(duration).map { time ->
@@ -75,7 +91,6 @@ internal object VideoAttachmentPreparation {
             val manifest = File(VideoTimeline.manifest(output.path)).also(generated::add)
             manifest.writeText(timeline.encode())
             checkActive()
-            check(source.renameTo(output)) { "无法保存原始视频" }
             output
         } catch (failure: Throwable) {
             for (file in generated) if (file.exists() && !file.delete())

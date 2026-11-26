@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import unittest
 from unittest.mock import patch
-from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens, prepare_display_change
+from run_ui_device_checks import SUITE, parse_instrumentation, assert_device, clear_device_screens, prepare_display_change, completed_test_ids
 
 
 class DeviceEvidenceTest(unittest.TestCase):
+    def test_real_video_decoder_is_in_the_executed_device_suite(self):
+        self.assertIn("VideoAttachmentPreparationInstrumentedTest", SUITE)
+
     def test_display_preparation_foregrounds_app_and_stops_only_the_known_home_process(self):
         with patch("run_ui_device_checks.adb", side_effect=["com.android.launcher3/.Launcher", "Status: ok\nComplete", "", "USER PID NAME\nu0_a10 123 other.app"]) as adb:
             prepare_display_change()
@@ -20,6 +23,7 @@ class DeviceEvidenceTest(unittest.TestCase):
         with patch("run_ui_device_checks.adb", side_effect=["com.android.launcher3/.Launcher", "Status: ok", "", "u0_a10 123 com.android.launcher3"]):
             with self.assertRaises(RuntimeError):
                 prepare_display_change()
+
 
     def test_success_requires_positive_count_and_successful_process(self):
         self.assertEqual("passed", parse_instrumentation("OK (142 tests)\n", 0)["status"])
@@ -46,19 +50,36 @@ class DeviceEvidenceTest(unittest.TestCase):
         self.assertEqual("failed", parse_instrumentation("test message OK (1 test)\n", 0)["status"])
         self.assertEqual("failed", parse_instrumentation("OK (1 test)\nOK (1 test)\n", 0)["status"])
 
+    def test_completed_test_ids_count_only_real_success_records(self):
+        log = ("INSTRUMENTATION_STATUS: class=example.Test\n"
+               "INSTRUMENTATION_STATUS: test=first\nINSTRUMENTATION_STATUS_CODE: 1\n"
+               "INSTRUMENTATION_STATUS: class=example.Test\n"
+               "INSTRUMENTATION_STATUS: test=first\nINSTRUMENTATION_STATUS_CODE: 0\n"
+               "INSTRUMENTATION_STATUS: class=example.Test\n"
+               "INSTRUMENTATION_STATUS: test=second\nINSTRUMENTATION_STATUS_CODE: 1\n")
+        self.assertEqual(["example.Test#first"], completed_test_ids(log))
+        with self.assertRaises(ValueError):
+            completed_test_ids("INSTRUMENTATION_STATUS_CODE: 0\n")
+
     def test_actual_device_parameters_are_required(self):
-        with patch("run_ui_device_checks.adb", side_effect=["Physical size: 1080x1920\nOverride size: 393x800", "Physical density: 160", "1.0"]):
-            self.assertEqual(1.0, assert_device(393, 800, 1.0))
-        with patch("run_ui_device_checks.adb", side_effect=["Physical size: 360x800", "Physical density: 160"]):
-            with self.assertRaises(RuntimeError):
-                assert_device(393, 800)
+        from device_matrix import dimensions, CONFIG
+        spec = dimensions("compact", "baseline")
+        replies = ["Physical size: 1080x2340", "Physical density: 440", str(CONFIG["api"]), str(CONFIG["android_release"]), str(CONFIG["page_size"]), "test/android17/fingerprint", "1.0"]
+        with patch("run_ui_device_checks.adb", side_effect=replies):
+            evidence = assert_device(spec, spec)
+            self.assertEqual(392.73, evidence["width_dp"])
+            self.assertEqual(CONFIG["api"], evidence["android_api"])
+        for index, bad in [(0, "Physical size: 360x800\nOverride size: 1080x2340"), (1, "Physical density: 160\nOverride density: 440"), (2, "35"), (3, "15"), (4, "4096"), (5, ""), (6, "1.5")]:
+            wrong = replies.copy()
+            wrong[index] = bad
+            with patch("run_ui_device_checks.adb", side_effect=wrong), self.assertRaises(RuntimeError):
+                assert_device(spec, spec)
 
     def test_stale_screens_must_be_removed(self):
-        with patch("run_ui_device_checks.adb", side_effect=["home-android35.png", "", "home-android35.png"]):
+        with patch("run_ui_device_checks.adb", side_effect=["home-android.png", "", "home-android.png"]):
             with self.assertRaises(RuntimeError):
                 clear_device_screens()
 
 
 if __name__ == "__main__":
     unittest.main()
-

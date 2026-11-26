@@ -3,13 +3,27 @@
 import sys
 import tempfile
 import unittest
+import re
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from collect_ui_screenshots import parse_discovered_screens, REQUIRED_SCREENS, valid_png, required_screens
+from collect_ui_screenshots import parse_discovered_screens, REQUIRED_SCREENS, valid_png, required_screens, duplicate_content_groups
 
 
 class ScreenshotDiscoveryTest(unittest.TestCase):
+    def test_full_display_evidence_cannot_bypass_shared_capture(self):
+        source = Path(__file__).resolve().parents[1] / "app/src/androidTest/java"
+        files = list(source.rglob("*.kt"))
+        self.assertTrue(files, "必须检查实际设备测试源码")
+        bypasses = []
+        for path in files:
+            code = path.read_text(encoding="utf-8")
+            if path.name != "VerifiedScreenshotCapture.kt" and re.search(r"\.takeScreenshot\s*\(", code):
+                bypasses.append(str(path.relative_to(source)))
+            if re.search(r"\.onRoot\s*\([^)]*\)\s*\.captureToImage\s*\(", code):
+                bypasses.append(str(path.relative_to(source)))
+        self.assertEqual([], bypasses, "整屏证据统一校验窗口归属与系统浮层；图片像素断言仍可使用组件采样")
+
     def test_every_route_must_register_distinct_device_evidence(self):
         manifest = {"routes": [{"route": "chat", "screens": ["chat"]}],
                     "requiredStateScreens": ["keyboard"], "optionalStateScreens": []}
@@ -40,16 +54,23 @@ class ScreenshotDiscoveryTest(unittest.TestCase):
             path.write_bytes(valid[:35] + bytes([valid[35] ^ 1]) + valid[36:])
             self.assertFalse(valid_png(path))
 
+    def test_duplicate_content_is_reported_across_distinct_names(self):
+        with tempfile.TemporaryDirectory() as folder:
+            files = [Path(folder) / name for name in ("a.png", "b.png", "c.png")]
+            for path, content in zip(files, (b"same", b"other", b"same")):
+                path.write_bytes(content)
+            self.assertEqual([["a.png", "c.png"]], duplicate_content_groups(files))
+
     def test_discovers_current_and_future_ui_screenshots(self):
-        output = "home-android35.png\r\naudit-rtl-200font-bulk-android35.png\nnew-component-android35.png\n"
+        output = "home-android.png\r\naudit-rtl-200font-bulk-android.png\nnew-component-android.png\n"
         self.assertEqual(
             ["audit-rtl-200font-bulk", "home", "new-component"],
             parse_discovered_screens(output),
         )
 
     def test_rejects_traversals_other_extensions_and_noise(self):
-        output = "../outside-android35.png\nmalicious/side-android35.png\n"
-        output += "foo.txt\nalert.png\naudit-rtl-200font-bulk-android35.png\n"
+        output = "../outside-android.png\nmalicious/side-android.png\n"
+        output += "foo.txt\nalert.png\naudit-rtl-200font-bulk-android.png\n"
         self.assertEqual(
             ["audit-rtl-200font-bulk"], parse_discovered_screens(output)
         )

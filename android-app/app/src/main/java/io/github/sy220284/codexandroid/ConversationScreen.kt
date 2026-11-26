@@ -156,13 +156,19 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         ActivityResultContracts.PickMultipleVisualMedia(2)
     ) { selected -> vm.importPickedImages(selected) }
     val sharing by screenShareSession.state.collectAsState()
-    val mediaAnalysis by vm.composerContent.mediaAnalysis.state.collectAsState()
+    val activeMediaAnalysis by vm.composerContent.mediaAnalysis.state.collectAsState()
+    val mediaResults by vm.composerContent.mediaAnalysis.results.collectAsState()
+    val mediaAnalysis = mediaResults[draftOwner]?.takeIf { it.revision == previewAccountRevision } ?: MediaAnalysisController.State()
     var mediaChoice by remember(draftOwner) { mutableStateOf<Pair<String, QwenMediaWire.Mode>?>(null) }
     var reviewMedia by remember(draftOwner) { mutableStateOf(false) }
     val qwenProvider = records(scopedCatalog["providers"]).firstOrNull { provider ->
         provider.optString("id") == providerId &&
             provider.optJSONObject("settings")?.optJSONObject("auth")?.optString("envKey") == "CODEX_ANDROID_DOMESTIC_QWEN_KEY" &&
             provider.optString("baseUrl").contains(".cn-beijing.maas.aliyuncs.com/compatible-mode/v1")
+    }
+    LaunchedEffect(draftOwner, qwenProvider?.optString("baseUrl"), previewAccountRevision) {
+        vm.composerContent.mediaAnalysis.restore(draftOwner, qwenProvider?.optString("baseUrl"))
+        vm.composerContent.liveScreenAnalysis.restore(draftOwner, qwenProvider?.optString("baseUrl"))
     }
     val screenConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         vm.composerContent.finishScreenShare(if (result.resultCode == android.app.Activity.RESULT_OK) result.data else null)
@@ -359,7 +365,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexNotice(sharing.message, NoticeTone.Warning)
             }
             LiveScreenAnalysisPanel(vm, draftOwner, qwenProvider?.optString("id"), draft,
-                sharing, previewAccountRevision, enabled = !busy && !attachmentBusy && !mediaAnalysis.busy && remote == null)
+                sharing, previewAccountRevision, enabled = !busy && !attachmentBusy && !activeMediaAnalysis.busy && remote == null)
             if (documentBusy) AtlasOperationProgress("正在导入本机文件")
             errors["composerDocuments"]?.let { ErrorText(it) }
             if (attachmentError.isNotBlank()) {
@@ -647,7 +653,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             detail = when (mode) {
                 QwenMediaWire.Mode.NativeVideo -> "完整原视频（最大7 MB），不经过公开图床或临时 OSS。"
                 QwenMediaWire.Mode.SegmentedVideo -> "逐段独立请求，最多10段，保留各段时间轴。"
-                QwenMediaWire.Mode.Transcription -> "每段独立转录，单段最大5分钟、7 MB；提供分段时间范围。"
+                QwenMediaWire.Mode.Transcription -> "先在本机转换为16 kHz单声道WAV，每3分钟分段，最多12次独立转录；仅补做未完成部分，失败请求的计费状态需核对。"
             },
             confirmLabel = "确认分析",
             onConfirm = {

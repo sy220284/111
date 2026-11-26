@@ -432,6 +432,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         bridge.request(method, params, expectedSession = epoch)
                     } else ensureRemoteThread(submittedThread, chosenRemote, expectedSession = epoch)
                 }
+                AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(images, LocalImageAttachments.directory(getApplication())) }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
                 val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace), expectedSession = epoch)
                 val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))

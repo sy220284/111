@@ -16,6 +16,7 @@ class ProtocolDocumentSyncTests(unittest.TestCase):
         result = render_document(self.policy)
         self.assertIn("总数 3：直接 1、上下文 0、高级 1、后台 1、平台不适用 0", result)
         self.assertIn("item/tool/call", result)
+        self.assertIn("设备矩阵的紧凑、主流、高分辨率三档与 360dp 窄屏压力场景", result)
         self.assertIn("| 后台内部 | Host | 否 |", result)
         self.assertEqual(result, render_document(self.policy))
 

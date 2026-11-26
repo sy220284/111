@@ -93,13 +93,16 @@ internal class QwenMediaAnalysis(private val endpoint: String, private val secre
     }
 
     fun analyze(mode: QwenMediaWire.Mode, file: File, question: String,
-                progress: (Int, Int) -> Unit): String = when (mode) {
+                completed: List<String> = emptyList(), onCompleted: (Int, String) -> Unit = { _, _ -> },
+                progress: (Int, Int) -> Unit): String { return when (mode) {
         QwenMediaWire.Mode.NativeVideo -> {
-            progress(0, 1)
+            progress(completed.size, 1)
+            if (completed.isNotEmpty()) return completed.single()
             val part = QwenMediaWire.videoPart(uri(file, "video/mp4"))
             val result = call(QwenMediaWire.omni(listOf(part), question)) { reader ->
                 QwenMediaWire.parseOmni(reader.lineSequence(), ::checkActive)
             }
+            onCompleted(0, result)
             progress(1, 1)
             result
         }
@@ -113,8 +116,11 @@ internal class QwenMediaAnalysis(private val endpoint: String, private val secre
                     "存在缺失或超过7 MB的分段，请重新导入或压缩视频"
                 }
             }
-            val results = mutableListOf<String>()
+            val results = completed.toMutableList()
+            require(results.size <= timeline.segments.size)
+            progress(results.size, timeline.segments.size)
             for ((index, segment) in timeline.segments.withIndex()) {
+                if (index < completed.size) continue
                 checkActive()
                 progress(index, timeline.segments.size)
                 val parts = mutableListOf(QwenMediaWire.imagePart(uri(File(VideoTimeline.sheet(file.path, index)), "image/jpeg")))
@@ -131,6 +137,7 @@ internal class QwenMediaAnalysis(private val endpoint: String, private val secre
                     QwenMediaWire.parseOmni(reader.lineSequence(), ::checkActive)
                 }
                 results += "[$range]\n$answer"
+                onCompleted(index, results.last())
                 require(results.sumOf { it.length } <= 100_000) { "分段结果超过本地草稿预算" }
                 progress(index + 1, timeline.segments.size)
             }
@@ -152,26 +159,42 @@ internal class QwenMediaAnalysis(private val endpoint: String, private val secre
                 }
                 audioMime(clip)
             }
-            val results = mutableListOf<String>()
-            clips.forEachIndexed { index, (clip, label) ->
-                progress(index, clips.size)
-                val transcript = call(QwenMediaWire.asr(uri(clip, audioMime(clip).first))) { reader ->
-                    val text = StringBuilder()
-                    val chars = CharArray(4096)
-                    while (true) {
-                        checkActive()
-                        val n = reader.read(chars)
-                        if (n < 0) break
-                        text.append(chars, 0, n)
-                        require(text.length <= 256_000) { "转录响应过大" }
-                    }
-                    QwenMediaWire.transcript(JSONObject(text.toString()))
-                }
-                results += "$label\n${transcript.ifBlank { "接口未识别到语音" }}"
-                require(results.sumOf { it.length } <= 100_000) { "转录结果超过本地草稿预算" }
-                progress(index + 1, clips.size)
+            val temporary = File.createTempFile("asr-job-", ".dir", file.parentFile).also {
+                check(it.delete() && it.mkdir()) { "无法建立转录准备目录" }
             }
-            results.joinToString("\n\n")
+            try {
+                val prepared = clips.flatMap { (clip, label) ->
+                    checkActive()
+                    AudioPcmPreparation.clips(clip, temporary, ::checkActive).mapIndexed { part, wav ->
+                        wav to "$label · 转录分段 ${part + 1}"
+                    }
+                }
+                require(prepared.size <= 12 && completed.size <= prepared.size) { "转录段数超过本次预算" }
+                val results = completed.toMutableList()
+                progress(results.size, prepared.size)
+                prepared.forEachIndexed { index, (clip, label) ->
+                    if (index < completed.size) return@forEachIndexed
+                    progress(index, prepared.size)
+                    val transcript = call(QwenMediaWire.asr(uri(clip, "audio/wav"))) { reader ->
+                        val text = StringBuilder()
+                        val chars = CharArray(4096)
+                        while (true) {
+                            checkActive()
+                            val n = reader.read(chars)
+                            if (n < 0) break
+                            text.append(chars, 0, n)
+                            require(text.length <= 256_000) { "转录响应过大" }
+                        }
+                        QwenMediaWire.transcript(JSONObject(text.toString()))
+                    }
+                    results += "$label\n${transcript.ifBlank { "接口未识别到语音" }}"
+                    onCompleted(index, results.last())
+                    require(results.sumOf { it.length } <= 100_000) { "转录结果超过本地草稿预算" }
+                    progress(index + 1, prepared.size)
+                }
+                results.joinToString("\n\n")
+            } finally { check(temporary.deleteRecursively()) { "无法清理转录临时文件" } }
         }
+    }
     }
 }

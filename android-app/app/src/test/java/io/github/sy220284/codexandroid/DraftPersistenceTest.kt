@@ -55,6 +55,19 @@ class DraftPersistenceTest {
         }
     }
 
+    @Test fun audioAndDeferredVideoDraftsRestoreWithPortableOwnership() {
+        val root = Files.createTempDirectory("codex-media-recovery").toFile()
+        try {
+            val paths = listOf("m4a", "mp4", "av.mp4").map { extension ->
+                File(root, "a180f2d5-5899-4444-bbb1-7e334ab798e4.$extension").apply { writeText("source") }.path
+            }
+            val drafts = mapOf("A" to ComposerDraft("媒体草稿", paths))
+            val restored = DraftPersistence.resolveStoredImages(root, DraftPersistence.decode(DraftPersistence.encode(drafts)))
+            assertEquals(0, restored.missingImages)
+            assertEquals(paths, restored.drafts.getValue("A").images)
+        } finally { root.deleteRecursively() }
+    }
+
     @Test fun unmanagedPathsCannotEnterSavedDrafts() {
         try {
             DraftPersistence.encode(mapOf("A" to ComposerDraft(images = listOf("/etc/passwd"))))

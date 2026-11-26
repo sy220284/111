@@ -62,6 +62,12 @@ class RetentionTests(unittest.TestCase):
                    artifact(3, 1, "360dp"), artifact(4, 1, "411dp")]
         self.assertEqual([1], [a["id"] for a in plan(entries, runs, set(), set(), False)])
 
+    def test_failed_main_cannot_remove_last_successful_visual_baseline(self):
+        runs = {1: dict(run(1), conclusion="success"), 2: dict(run(2), conclusion="success"),
+                3: dict(run(3), conclusion="failure")}
+        items = [artifact(i,i,"codex-android-ui-visual-api37-compact-baseline") for i in runs]
+        self.assertEqual([1], [a["id"] for a in plan(items,runs,set(),set(),False)])
+
     def test_rerun_duplicate_retains_newest_artifact(self):
         runs = {1: run(1)}
         self.assertEqual([1], [a["id"] for a in plan(

@@ -13,11 +13,13 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider
                                      question: String, share: ScreenShareSession.State, revision: Long,
                                      enabled: Boolean) {
     val controller = vm.composerContent.liveScreenAnalysis
-    val live by controller.state.collectAsState()
+    val active by controller.state.collectAsState()
+    val all by controller.resultsByOwner.collectAsState()
+    val live = all[owner] ?: LiveScreenAnalysisController.State()
     var confirm by remember(owner) { mutableStateOf(false) }
     var review by remember(owner, revision) { mutableStateOf<ScreenAnalysisResults?>(null) }
     val mine = live.owner == owner && live.revision == revision
-    if (provider != null && share.owner == owner && share.capturing && share.revision == revision && !live.running && live.observations.isEmpty()) {
+    if (provider != null && share.owner == owner && share.capturing && share.revision == revision && !active.running && live.observations.isEmpty()) {
         CodexTextAction(onClick = { confirm = true }, enabled = enabled) { Text("开启持续分析") }
     }
     if (mine && (live.running || live.observations.isNotEmpty() || live.message.isNotBlank())) {
@@ -30,7 +32,7 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider
             if (live.running) CodexTextAction(onClick = { controller.stop() }) { Text("停止分析") }
             else CodexTextAction(onClick = { controller.dismiss(owner) }) { Text("清除") }
         }
-    } else if (live.running) {
+    } else if (active.running) {
         CodexTextAction(onClick = { controller.stop() }) { Text("停止其他会话的持续分析") }
     }
     if (confirm && provider != null) CodexConfirmDialog(

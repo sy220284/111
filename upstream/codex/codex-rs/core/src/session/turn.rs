@@ -257,11 +257,16 @@ pub(crate) async fn run_turn(
         let history = sess.clone_history().await;
         for kind in [MediaInputKind::Image, MediaInputKind::Audio] {
             if sess.services.models_manager.media_input_rejected(&scope, &model_info.slug, kind)
-                && (input.iter().any(|item| turn_input_has_media(item, kind))
-                    || history.raw_items().any(|item| response_item_has_media(item, kind)))
+                && input.iter().any(|item| turn_input_has_media(item, kind))
             {
                 run_hooks_and_record_input_entries(&sess, &turn_context, &model_info, Some(&input), &[], PersistContext::TurnStart).await?;
                 return Err(CodexErr::UnsupportedOperation(media_rejected_message(kind).into()));
+            }
+            if sess.services.models_manager.media_input_rejected(&scope, &model_info.slug, kind)
+                && history.raw_items().any(|item| response_item_has_media(item, kind)) {
+                sess.send_event(&turn_context, EventMsg::Warning(WarningEvent {
+                    message: "当前模型无法读取历史中的部分媒体；原文件和会话历史已保留，本轮继续处理文字。可选择支持媒体的模型读取原附件。".into(),
+                })).await;
             }
         }
     }
@@ -2197,9 +2202,7 @@ async fn run_sampling_request(
         if let Some(scope) = media_scope.as_deref() {
             for kind in [MediaInputKind::Image, MediaInputKind::Audio] {
                 if sess.services.models_manager.media_input_rejected(scope, model_slug, kind) {
-                    if history.raw_items().any(|item| response_item_has_media(item, kind)) {
-                        return Err(CodexErr::UnsupportedOperation(media_rejected_message(kind).into()));
-                    }
+                    input_modalities.retain(|modality| *modality != kind.modality());
                 } else if input_modalities.contains(&InputModality::Text) && !input_modalities.contains(&kind.modality()) {
                     input_modalities.push(kind.modality());
                 }

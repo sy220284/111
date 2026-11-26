@@ -18,6 +18,8 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /android-app/tools/capture_dsh_onboarding.py
+            /android-app/tools/device-matrix.json
+            /android-app/tools/device_matrix.py
           sparse-checkout-cone-mode: false
       - name: 下载官方安装包并校验签名清单
         shell: bash
@@ -77,20 +79,32 @@ jobs:
         run: |
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
-      - name: 在隔离的 Android 35 模拟器安装并截图
-        uses: reactivecircus/android-emulator-runner@v2
+      - name: 读取统一测试设备规格
+        id: device
+        run: |
+          jq -r '"api=\(.api)\nimage_api=\(.system_image_api)\nsdk_platform=\(.sdk_platform)\nprofile=\(.runtime_profile)\ntarget=\(.target)\nram=\(.ram)"' android-app/tools/device-matrix.json >> "$GITHUB_OUTPUT"
+          jq -r '.profiles[] | select(.self_update) | "size=\(.width_px)x\(.height_px)\ndensity=\(.density_dpi)"' android-app/tools/device-matrix.json >> "$GITHUB_OUTPUT"
+      - name: 在统一 Android 测试系统中隔离安装并截图
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
-          api-level: 35
+          api-level: ${{ steps.device.outputs.sdk_platform }}
+          system-image-api-level: ${{ steps.device.outputs.image_api }}
           arch: x86_64
-          target: google_apis
+          target: ${{ steps.device.outputs.target }}
+          ram-size: ${{ steps.device.outputs.ram }}
+          disk-size: 8192M
+          avd-name: test
+          pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd ${{ steps.device.outputs.profile }}
           disable-animations: true
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 1200
           script: |
             mkdir -p dsh-reference
             adb shell getprop ro.product.cpu.abilist > dsh-reference/emulator-abis.txt
             adb shell getprop ro.dalvik.vm.native.bridge > dsh-reference/native-bridge.txt
-            adb shell wm size 393x800
-            adb shell wm density 160
+            adb shell getprop ro.build.version.sdk | tr -d '\r' > dsh-reference/android-api.txt
+            test "$(cat dsh-reference/android-api.txt)" = "${{ steps.device.outputs.api }}"
+            adb shell wm size ${{ steps.device.outputs.size }}
+            adb shell wm density ${{ steps.device.outputs.density }}
             adb install -r dsh-go-1.3.0-arm64.apk > dsh-reference/install.log 2>&1 || echo INSTALL_FAILED > dsh-reference/install-failed.txt
             cat dsh-reference/install.log
             # 测试机预先处理通知授权，只为观察 App 自身引导页；不作为用户真实授权结论。
