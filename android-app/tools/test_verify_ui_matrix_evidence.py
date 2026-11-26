@@ -49,6 +49,16 @@ class MatrixEvidenceTests(unittest.TestCase):
             self.write(root/"ui-proof-compact-baseline/ui-motion-performance.json",{"frames":0})
             with self.assertRaises(ValueError): validate(root,"head")
 
+    def test_reports_multiple_failed_devices_without_accepting_them(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            self.write(root/"ui-proof-compact-baseline/ui-motion-diagnosis.json", {"status":"failed"})
+            (root/"ui-proof-ultra-adaptive/ui-adaptive-diagnosis.json").unlink()
+            with self.assertRaises(ValueError) as caught:
+                validate(root,"head")
+            self.assertIn("compact/baseline", str(caught.exception))
+            self.assertIn("ultra/adaptive", str(caught.exception))
+
     def test_installer_contract_must_run_once_on_designated_device(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)

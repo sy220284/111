@@ -70,8 +70,8 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_verify_ui_matrix_evidence.py'
           python3 .github/scripts/ci_policy.py
   native:
-    needs: plan
-    if: needs.plan.outputs.run_package == 'true'
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     uses: ./.github/workflows/build-native-codex.yml
     with:
       include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}
@@ -156,8 +156,8 @@ jobs:
 
   verify-ui:
     name: Kotlin 编译、协议单元测试与 Android Lint
-    needs: plan
-    if: needs.plan.outputs.run_ui == 'true'
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -373,6 +373,7 @@ jobs:
           retention-days: 14
 
       - name: 保存供全矩阵核对的小型验收凭证
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ui-proof-${{ matrix.profile }}-${{ matrix.mode }}
@@ -388,7 +389,7 @@ jobs:
   ui-evidence:
     name: 六组 UI 用例与证据一致性验收
     needs: [plan, ui-emulator]
-    if: needs.plan.outputs.run_ui == 'true' && needs.ui-emulator.result == 'success'
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.ui-emulator.result == 'success' || needs.ui-emulator.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -403,6 +404,7 @@ jobs:
           pattern: ui-proof-*
           path: ui-proofs
       - name: 核对六个独立设备的实际用例集合与证据
+        if: always() && !cancelled()
         env:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 android-app/tools/verify_ui_matrix_evidence.py ui-proofs
@@ -640,8 +642,8 @@ jobs:
 
   release-signing-smoke:
     name: PR 内验证 Release 签名构建
-    needs: plan
-    if: needs.plan.outputs.run_sign == 'true'
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_sign == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
