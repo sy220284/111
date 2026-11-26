@@ -57,31 +57,8 @@ internal object MessageMarkdown {
             }
 
     /** Only commit complete blocks while streaming; blank lines inside code are not boundaries. */
-    fun stablePrefixLength(source: String, from: Int = 0): Int {
-        var start = from
-        var stable = from
-        var opening: String? = null
-        var mathEnding: String? = null
-        while (start < source.length) {
-            val end = source.indexOf('\n', start)
-            if (end < 0) break
-            val line = source.substring(start, end).trim()
-            val current = opening
-            if (mathEnding != null) {
-                if (line == mathEnding) mathEnding = null
-            } else if (current != null) {
-                if (line.length >= current.length && line.all { it == current.first() }) opening = null
-            } else {
-                val marker = fence.matchEntire(line)
-                if (marker != null) opening = marker.groupValues[1]
-                else if (line == "\$\$") mathEnding = "\$\$"
-                else if (line == "\\[") mathEnding = "\\]"
-                else if (line.isBlank()) stable = end + 1
-            }
-            start = end + 1
-        }
-        return stable
-    }
+    fun stablePrefixLength(source: String, from: Int = 0): Int =
+        ReplyStablePrefixScanner(from).scan(source)
 
     fun blocks(source: String): List<MessageBlock> {
         val result = mutableListOf<MessageBlock>()

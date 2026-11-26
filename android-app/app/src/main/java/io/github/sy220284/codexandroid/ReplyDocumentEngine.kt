@@ -25,13 +25,42 @@ internal data class PreparedReplyBlock(
     }
 }
 internal class ReplyDocumentEngine {
-    data class Document(val prefix: String, val blocks: PersistentSequence<PreparedReplyBlock>,
-        val stable: Boolean, val reusedBlockCount: Int = 0)
-    private var previous = Document("", PersistentSequence(), true)
+    class Document(val prefixLength: Int, val blocks: PersistentSequence<PreparedReplyBlock>,
+        val stable: Boolean, val reusedBlockCount: Int = 0, readPrefix: () -> String) {
+        val prefix: String by lazy(LazyThreadSafetyMode.PUBLICATION, readPrefix)
+    }
+    data class StreamPreparation(val document: Document, val tail: List<PreparedReplyBlock>)
+    private var previous = Document(0, PersistentSequence(), true) { "" }
+    private var lastChunks: TimelineTextChunks? = null
+    private var buffer = ReplyStreamBuffer()
+
+    /** Native text snapshots share their immutable chunk chain. The normal stream path
+     * scans only appended characters; no accumulated String is required by presentation. */
+    fun prepareChunks(chunks: TimelineTextChunks, streaming: Boolean): StreamPreparation {
+        val append = lastChunks?.let(chunks::suffixSince)
+        if (append == null) {
+            buffer = ReplyStreamBuffer()
+            previous = Document(0, PersistentSequence(), true) { "" }
+            buffer.append(requireNotNull(chunks.suffixSince(TimelineTextChunks.from(""))))
+        } else buffer.append(append)
+        lastChunks = chunks
+        val committed = buffer.commit(streaming)
+        if (committed.isNotEmpty() || !streaming && previous.stable) {
+            var blocks = previous.blocks
+            val count = blocks.size
+            if (committed.isNotEmpty()) {
+                for (block in MessageMarkdown.blocks(committed)) blocks = blocks.append(PreparedReplyBlock.prepare(block))
+            }
+            val end = previous.prefixLength + committed.length
+            previous = Document(end, blocks, streaming, count) { chunks.text.substring(0, end) }
+        }
+        return StreamPreparation(previous, buffer.tail())
+    }
 
     fun prepare(source: String, streaming: Boolean): Document {
+        if (lastChunks != null) { lastChunks = null; buffer = ReplyStreamBuffer() }
         val reusable = previous.stable && source.startsWith(previous.prefix)
-        val start = if (reusable) previous.prefix.length else 0
+        val start = if (reusable) previous.prefixLength else 0
         val end = if (streaming) MessageMarkdown.stablePrefixLength(source, start) else source.length
         if (reusable && end == start && (streaming || previous.stable)) return previous
         val prefix = source.substring(0, end)
@@ -40,6 +69,6 @@ internal class ReplyDocumentEngine {
         var blocks = if (reusable) previous.blocks else PersistentSequence()
         val reusedCount = blocks.size
         for (block in suffix) blocks = blocks.append(block)
-        return Document(prefix, blocks, streaming, reusedCount).also { previous = it }
+        return Document(end, blocks, streaming, reusedCount) { prefix }.also { previous = it }
     }
 }

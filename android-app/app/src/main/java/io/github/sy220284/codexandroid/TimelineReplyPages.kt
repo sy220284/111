@@ -30,7 +30,7 @@ internal class TimelineReplyPages {
         private var pending = mutableListOf<PreparedReplyBlock>()
         private var heading = 0
 
-        fun prepare(document: ReplyDocumentEngine.Document, tail: String): List<ReplyRenderPage> {
+        fun prepare(document: ReplyDocumentEngine.Document, tail: List<PreparedReplyBlock>): List<ReplyRenderPage> {
             if (previous !== document) {
                 val old = previous
                 val reuse = old != null && document.reusedBlockCount == old.blocks.size
@@ -54,7 +54,7 @@ internal class TimelineReplyPages {
                 previous = document
             }
             var nextHeading = heading
-            val tailPages = (pending + textChunks(tail).map(PreparedReplyBlock::tail))
+            val tailPages = (pending + tail)
                 .chunked(BLOCKS_PER_PAGE).map { group ->
                     ReplyRenderPage(group, nextHeading).also { nextHeading += it.headingCount }
                 }
@@ -67,17 +67,21 @@ internal class TimelineReplyPages {
         val result = buildList {
             for (row in rows) {
                 val item = row.group.singleOrNull()?.takeIf {
-                    !row.forceActivity && ProgressiveReplyProjection.answer(it) && it.text.isNotBlank()
+                    !row.forceActivity && ProgressiveReplyProjection.answer(it) && it.hasDisplayText
                 }
                 if (item == null) { add(TimelineDisplayRow(row)); continue }
                 val old = cache[row.key]
                 val entry = if (old?.item === item) old else {
                     val engine = old?.engine ?: ReplyDocumentEngine()
                     val live = item.status in setOf("inProgress", "in_progress", "running", "streaming", "sending")
-                    val source = item.text
-                    val document = engine.prepare(source, live)
+                    val prepared = item.displayChunks?.let { engine.prepareChunks(it, live) } ?: run {
+                        val source = item.text
+                        val document = engine.prepare(source, live)
+                        ReplyDocumentEngine.StreamPreparation(document,
+                            textChunks(source.substring(document.prefixLength)).map(PreparedReplyBlock::tail))
+                    }
                     val pagination = old?.pagination ?: PageEngine()
-                    Entry(item, engine, pagination, pagination.prepare(document, source.substring(document.prefix.length)))
+                    Entry(item, engine, pagination, pagination.prepare(prepared.document, prepared.tail))
                 }
                 next[row.key] = entry
                 if (entry.pages.isEmpty()) add(TimelineDisplayRow(row))

@@ -18,6 +18,28 @@ class ReplyDocumentEngineTest {
         assertEquals(text, final.prefix)
     }
 
+    @Test fun nativeChunkPreparationMatchesOnePassAcrossEveryBoundary() {
+        val text = "## heading\n\n**bold**\n\n```kt\nval x = 1\n\n```\n\n" +
+            "\$\$\n\\frac{1}{2}\n\n\$\$\n\n" + "字😀".repeat(5000)
+        val engine = ReplyDocumentEngine()
+        var chunks = TimelineTextChunks.from("")
+        var consumed = 0
+        for (part in text.chunked(137)) {
+            consumed += part.length
+            chunks = chunks.append(part)
+            val result = engine.prepareChunks(chunks, true)
+            val prefix = text.substring(0, consumed)
+            assertEquals(MessageMarkdown.stablePrefixLength(prefix), result.document.prefixLength)
+            assertEquals(prefix.substring(result.document.prefixLength), result.tail.joinToString("") { it.block.text })
+        }
+        val final = engine.prepareChunks(chunks, false)
+        assertEquals(MessageMarkdown.blocks(text), final.document.blocks.map { it.block })
+        assertTrue(final.tail.isEmpty())
+        val replacement = engine.prepareChunks(TimelineTextChunks.from("replacement\n\n"), true)
+        assertEquals("replacement\n\n", replacement.document.prefix)
+        assertEquals("replacement", replacement.document.blocks.single().block.text)
+    }
+
     @Test fun incompleteFenceAndFormulaAreNotCommittedAndReplacementInvalidatesPrefix() {
         val engine = ReplyDocumentEngine()
         val live = engine.prepare("intro\n\n```codex-math\n\\frac{1}{2}\n", true)

@@ -115,7 +115,7 @@ internal fun TimelineStepCard(
     var rawOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     val detail = item.hasEvidence
     val raw = remember(item) { if (assistant) null else item.metadata() }
-    val shownText = item.text.ifBlank {
+    val shownText = if (replyPage != null && assistant && !commentary) "" else item.text.ifBlank {
         when {
             active -> "正在处理…"
             item.kind == "reasoning" -> "思考已结束"
