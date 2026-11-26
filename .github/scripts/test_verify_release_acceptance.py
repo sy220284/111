@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Release barrier must not mistake green preflight-only runs for real device checks."""
 import sys
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from verify_release_acceptance import REQUIRED_JOBS, accepted, find_acceptance
+from verify_release_acceptance import REQUIRED_JOBS, accepted, find_acceptance, accepted_receipt
 
 
 class ReleaseAcceptanceTests(unittest.TestCase):
@@ -58,6 +59,22 @@ class ReleaseAcceptanceTests(unittest.TestCase):
             self.assertEqual(find_acceptance("org/repo", sha, "ci.yml", "fix/pr"), 10)
             self.assertIn("fix/pr", client.call_args_list[0].args[0])
             self.assertIn(sha, client.call_args_list[0].args[0])
+
+    def test_partial_main_must_prove_all_reused_groups(self):
+        from ci_reuse import FULL_GROUPS
+        sha="a"*40
+        names=[{"name":"111 合并验收","conclusion":"success"}]
+        receipt={"required":sorted(FULL_GROUPS)}
+        def download(args,check):
+            folder=Path(args[args.index("--dir")+1])
+            (folder/"ci-acceptance-receipt.json").write_text(json.dumps(receipt))
+        with patch("verify_release_acceptance.gh_json",return_value={"artifacts":[{"name":"ci-acceptance-receipt","expired":False}]}), \
+             patch("verify_release_acceptance.subprocess.run",side_effect=download), \
+             patch("verify_release_acceptance.validate",return_value=set()) as verify:
+            self.assertTrue(accepted_receipt("o/r",12,sha,names,"main"))
+            verify.assert_called_once()
+            receipt["required"]=[]
+            self.assertFalse(accepted_receipt("o/r",12,sha,names,"main"))
 
     def test_other_sha_is_never_validated(self):
         sha = "a" * 40

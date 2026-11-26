@@ -1,10 +1,11 @@
 """Regression tests for the APK executable and size safety gate."""
 import tempfile
+import json
 import unittest
 from pathlib import Path
 from zipfile import ZipFile
 
-from audit_apk_contents import ApkAuditError, REQUIRED_RUNTIME, audit
+from audit_apk_contents import ApkAuditError, REQUIRED_RUNTIME, audit, verify_report
 
 
 def elf(machine):
@@ -49,6 +50,16 @@ class ApkAuditTests(unittest.TestCase):
         with ZipFile(self.path, "w") as dest:
             for name, data in payload.items():
                 dest.writestr(name, data)
+
+    def test_download_verifies_same_bytes_and_rejects_modified_apk(self):
+        self.package()
+        report=self.path.with_suffix(".json")
+        report.write_text(json.dumps(audit(self.path,"arm64-v8a","full")))
+        self.assertEqual("arm64-v8a",verify_report(self.path,"arm64-v8a","full",report)["abi"])
+        with self.path.open("ab") as target:
+            target.write(b"changed")
+        with self.assertRaises(ApkAuditError):
+            verify_report(self.path,"arm64-v8a","full",report)
 
     def test_full_core_and_size_breakdown(self):
         self.package()

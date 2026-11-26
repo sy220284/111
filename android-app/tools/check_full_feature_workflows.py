@@ -12,7 +12,7 @@ import json
 import re
 from pathlib import Path
 
-from protocol_contract import parse_contracts
+from static_audit_inputs import AuditInputs
 from ui_evidence_manifest import load_evidence_manifest, declared_screens as evidence_screens
 
 ROW = re.compile(r"^\|\s*(\d{2})\s*\|\s*`([a-z]+)`\s*\|\s*(P[012])\s*\|\s*([^|]*)\|\s*([^|]*)\|\s*([^|]*)\|", re.M)
@@ -24,20 +24,20 @@ TEST_CLASS = re.compile(r'\bclass\s+([A-Za-z][A-Za-z0-9_]*Test)\b')
 SOURCE_NAME = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\.kt\b')
 
 
-def audit(repository: Path, expected: int | None = None) -> dict:
+def audit(repository: Path, expected: int | None = None, *, inputs=None) -> dict:
+    inputs = inputs or AuditInputs(repository)
+    repository=inputs.root
     source = repository / "android-app/app/src/main/java/io/github/sy220284/codexandroid"
-    document = (repository / "docs/对标应用29项界面交付核对表-20261123.md").read_text(encoding="utf-8")
-    navigation = (source / "AppNavigation.kt").read_text(encoding="utf-8")
-    feature = (source / "UiFeatureCatalog.kt").read_text(encoding="utf-8")
-    evidence_manifest = load_evidence_manifest(repository)
-    policy = json.loads((repository / "android-app/tools/ui_surface_policy.json").read_text(encoding="utf-8"))
-    contracts = parse_contracts((repository / "upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs").read_text(encoding="utf-8"))
+    document = inputs.text("docs/对标应用29项界面交付核对表-20261123.md")
+    navigation = inputs.text(source/"AppNavigation.kt")
+    feature = inputs.text(source/"UiFeatureCatalog.kt")
+    evidence_manifest = inputs.manifest
+    policy = inputs.policy
+    contracts = inputs.contracts
     method_policy = policy["methods"]
 
-    source_names = {p.name for p in source.glob("*.kt")}
-    tests = "\n".join(p.read_text(encoding="utf-8")
-                     for area in ("test", "androidTest")
-                     for p in sorted((repository / "android-app/app/src" / area).rglob("*.kt")))
+    source_names = {p.name for p in inputs.production if p.parent==source}
+    tests = "\n".join(inputs.all_tests.values())
     test_names = set(TEST_METHOD.findall(tests)) | set(TEST_CLASS.findall(tests))
     declared_screens = set(evidence_screens(evidence_manifest))
     routes = set(PAGE.findall(navigation))

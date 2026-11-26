@@ -18,6 +18,20 @@ def dimensions(profile, mode):
         "font_scale": 1.0 if mode == "baseline" else spec["font_scale"]}
 
 MODES = ("baseline", "adaptive")
+# These three exercise Android Intent/PackageManager/FileProvider, with no Compose or screenshots.
+INDEPENDENT_CLASS = "SelfUpdateInstallerIntentInstrumentedTest"
+INDEPENDENT_IDS = frozenset("io.github.sy220284.codexandroid."+INDEPENDENT_CLASS+"#"+name for name in (
+    "systemInstallerSurvivesReplacingTheCallingApplication",
+    "postInstallOpenResolvesToTheRealLauncherActivity",
+    "updateProviderSharesOnlyTheVerifiedUpdateCache",
+))
+
+def independent_device(profile,mode):
+    return bool(PROFILES[profile]["self_update"] and mode=="baseline")
+
+def minimum_tests(profile,mode):
+    return CONFIG["minimum_ui_tests"]-(0 if independent_device(profile,mode) else len(INDEPENDENT_IDS))
+
 
 def matrix():
     return {"include": [{"profile": p["id"], "mode": mode, **dimensions(p["id"], "baseline"),

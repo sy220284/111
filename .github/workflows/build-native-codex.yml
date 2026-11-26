@@ -6,6 +6,9 @@ on:
       include_x86:
         type: boolean
         default: false
+      native_key:
+        type: string
+        default: ''
     outputs:
       arm_run_id:
         value: ${{ jobs.verified.outputs.arm_run_id }}
@@ -25,7 +28,7 @@ concurrency:
   # Keep independent branches from blocking each other; supersede stale PR builds.
   # Native V8 compilation takes hours; keep builds of distinct revisions alive
   # so fixing one ABI does not discard another ABI's expensive progress.
-  group: android-native-codex-${{ github.event.pull_request.number || github.ref_name }}-${{ github.sha }}
+  group: android-native-codex-${{ inputs.native_key || github.sha }}
   cancel-in-progress: false
 
 jobs:

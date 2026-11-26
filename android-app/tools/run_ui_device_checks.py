@@ -9,14 +9,13 @@ import time
 import uuid
 from collect_ui_screenshots import parse_discovered_screens
 from pathlib import Path
-from device_matrix import CONFIG, PROFILES, dimensions
+from device_matrix import CONFIG, PROFILES, dimensions, INDEPENDENT_CLASS, independent_device, minimum_tests
 
 PACKAGE = "io.github.sy220284.codexandroid"
 RUNNER = PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner"
 SUITE = ["UiNavigationInstrumentedTest", "UiPopulatedSubpagesInstrumentedTest",
          "CodexInteractionComponentsInstrumentedTest", "CodexOverlayInstrumentedTest",
-         "EngineSettingInstrumentedTest", "SelfUpdateInstallerIntentInstrumentedTest",
-         "VideoAttachmentPreparationInstrumentedTest"]
+         "EngineSettingInstrumentedTest", "VideoAttachmentPreparationInstrumentedTest"]
 
 DEVICE_ROOT = "/sdcard/Android/data/" + PACKAGE + "/files"
 
@@ -135,10 +134,12 @@ def run_fresh_suite(profile, mode, log, destination):
     clear_device_screens()
     run_id = uuid.uuid4().hex
     started = time.time()
-    result = execute_instrumentation(SUITE, log, arguments={
+    classes=SUITE+[INDEPENDENT_CLASS] if independent_device(profile,mode) else SUITE
+    result = execute_instrumentation(classes, log, arguments={
         "expectedWidthPx": measured["width_px"], "expectedDensityDpi": measured["density_dpi"]})
-    if result['tests'] < CONFIG['minimum_ui_tests']:
-        result.update(status='failed', evidence_category='ui_test_count_below_floor', minimum_ui_tests=CONFIG['minimum_ui_tests'])
+    floor=minimum_tests(profile,mode)
+    if result['tests'] < floor:
+        result.update(status='failed', evidence_category='ui_test_count_below_floor', minimum_ui_tests=floor)
     missing, code = collect_screens(destination)
     manifest = Path(destination) / "manifest.json"
     if manifest.is_file():
@@ -175,17 +176,6 @@ def prepare_display_change():
     if any(line.split() and line.split()[-1].split(":", 1)[0] == package for line in processes.splitlines()):
         raise RuntimeError("Background HOME process still running before display change")
     print("DISPLAY_PREPARATION " + json.dumps({"foreground": PACKAGE, "stopped_home": package}), flush=True)
-
-
-
-
-
-
-
-
-
-
-
 
 
 def baseline(profile):

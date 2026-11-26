@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from device_matrix import CONFIG, MODES, PROFILES, dimensions
+from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device
 from verify_ui_matrix_evidence import validate
 
 class MatrixEvidenceTests(unittest.TestCase):
@@ -12,7 +12,8 @@ class MatrixEvidenceTests(unittest.TestCase):
                 folder = root/f"ui-proof-{profile}-{mode}"
                 folder.mkdir()
                 (folder/"ui-visual-evidence").mkdir()
-                ids = [f"Example#test{i}" for i in range(CONFIG["minimum_ui_tests"])]
+                ids = [f"Example#test{i}" for i in range(CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))]
+                if independent_device(profile,mode): ids+=sorted(INDEPENDENT_IDS)
                 self.write(folder/f"ui-{mode}-diagnosis.json", dict(dimensions(profile,mode),
                     status="passed", commit="head", profile=profile, mode=mode,
                     android_api=CONFIG["api"], page_size=CONFIG["page_size"], build_fingerprint="android",
@@ -29,7 +30,7 @@ class MatrixEvidenceTests(unittest.TestCase):
     def test_complete_six_mode_matrix(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
-            self.assertEqual(CONFIG["minimum_ui_tests"]*6,validate(root,"head")["executions"])
+            self.assertEqual((CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))*6+len(INDEPENDENT_IDS),validate(root,"head")["executions"])
     def test_wrong_test_set_same_count_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
@@ -46,4 +47,11 @@ class MatrixEvidenceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
             self.write(root/"ui-proof-compact-baseline/ui-motion-performance.json",{"frames":0})
+            with self.assertRaises(ValueError): validate(root,"head")
+
+    def test_installer_contract_must_run_once_on_designated_device(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            path=root/"ui-proof-mainstream-baseline/ui-baseline-diagnosis.json"
+            data=json.loads(path.read_text()); data["test_ids"][-1]="Example#fake"; self.write(path,data)
             with self.assertRaises(ValueError): validate(root,"head")

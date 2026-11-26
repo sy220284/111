@@ -49,7 +49,7 @@ class FullFeatureWorkflowGateTests(TestCase):
         return source, docs, test
 
     def run_audit(self, root: Path):
-        with patch("check_full_feature_workflows.parse_contracts",
+        with patch("static_audit_inputs.parse_contracts",
                    return_value={"thread/list": SimpleNamespace(direction="client_request")}):
             return audit(root, expected=1)
 
@@ -105,7 +105,7 @@ class FullFeatureWorkflowGateTests(TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_repo(root)
-            with patch("check_full_feature_workflows.parse_contracts",
+            with patch("static_audit_inputs.parse_contracts",
                        return_value={"thread/list": SimpleNamespace(direction="host_request")}):
                 errors = audit(root, expected=1)["issues"]
             self.assertTrue(any("Host" in error for error in errors))

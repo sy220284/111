@@ -115,6 +115,19 @@ def render_kotlin(policy: dict) -> str:
 
 
 
+def stale_artifacts(artifacts, read):
+    stale=[]
+    for path, content in artifacts.items():
+        old=read(path)
+        if old==content:
+            continue
+        stale.append(path)
+        diff=difflib.unified_diff(old.splitlines(),content.splitlines(),
+                                  fromfile=str(path),tofile="统一策略生成",lineterm="")
+        print("\n".join(list(diff)[:80]),file=sys.stderr)
+    return stale
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--policy", type=Path, default=Path("android-app/tools/ui_surface_policy.json"))
@@ -142,15 +155,7 @@ def main() -> int:
                 path.write_text(content, encoding="utf-8")
                 print("已同步 " + str(path))
             return 0
-        stale = []
-        for path, content in artifacts.items():
-            old = path.read_text(encoding="utf-8")
-            if old == content:
-                continue
-            stale.append(path)
-            diff = difflib.unified_diff(old.splitlines(), content.splitlines(),
-                                        fromfile=str(path), tofile="统一策略生成", lineterm="")
-            print("\n".join(list(diff)[:80]), file=sys.stderr)
+        stale = stale_artifacts(artifacts,lambda path:path.read_text(encoding="utf-8"))
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print("协议资产核验失败：" + str(exc), file=sys.stderr)
         return 1
