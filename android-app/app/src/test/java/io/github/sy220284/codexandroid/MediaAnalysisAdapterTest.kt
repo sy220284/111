@@ -6,7 +6,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class MediaAnalysisAdapterTest {
-    private val target = MediaAnalysisTarget("thread", "provider", "model", "a".repeat(64), "turn", 1)
+    private val target = MediaAnalysisTarget("thread", "provider", "model", "a".repeat(64), "turn", 1, setOf("text", "image", "audio"))
     @Test fun nativeMediaRequestBindsModelAndCredential() {
         val media = JSONArray().put(MediaAnalysisPlan.local("image", "/private/image.jpg"))
             .put(MediaAnalysisPlan.local("audio", "/private/audio.wav"))
@@ -57,5 +57,16 @@ class MediaAnalysisAdapterTest {
         assertEquals(original, restored)
         assertTrue(restored.complete)
         assertEquals(1, restored.applied)
+    }
+    @Test fun preflightRejectsWholeVideoBeforeAnyUnsupportedAudioSegment() {
+        val visual = target.copy(inputModalities = setOf("text", "image"))
+        val whole = MediaAnalysisPlan.requiredModalities("video", true, MediaAnalysisMode.Understand)
+        assertEquals(setOf("image", "audio"), whole)
+        assertThrows(IllegalArgumentException::class.java) { visual.requireModalities(whole) }
+        visual.requireModalities(MediaAnalysisPlan.requiredModalities("video", true, MediaAnalysisMode.VisualOnly))
+        assertThrows(IllegalArgumentException::class.java) {
+            visual.requireModalities(MediaAnalysisPlan.requiredModalities("video", true, MediaAnalysisMode.Transcription))
+        }
+        assertEquals(setOf("image"), MediaAnalysisPlan.requiredModalities("video", false, MediaAnalysisMode.Understand))
     }
 }

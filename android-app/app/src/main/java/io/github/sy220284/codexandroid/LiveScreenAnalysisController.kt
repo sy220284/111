@@ -100,6 +100,7 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel, priv
             }
             try {
                 val target = adapter.bind(owner, model, epoch, identityValid)
+                target.requireModalities(setOf("image"))
                 check(storeRecordAbsent(owner, target.checkpointScope)) { "请先审阅或清除该会话的旧屏幕分析结果" }
                 updateState { it.copy(scope = target.checkpointScope, model = target.model, sourceTurn = target.sourceTurn) }
                 save(state.value)

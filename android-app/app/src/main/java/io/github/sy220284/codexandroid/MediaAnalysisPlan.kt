@@ -26,11 +26,18 @@ internal object MediaAnalysisPlan {
         "image" -> "localImage"; "audio" -> "localAudio"; else -> error("无原生媒体输入")
     }).put("path", path)
 
-    fun modalities(parts: List<Part>): Set<String> = parts.flatMap { part ->
-        (0 until part.input.length()).mapNotNull { index -> when (part.input.getJSONObject(index).getString("type")) {
-            "localImage" -> "image"; "localAudio" -> "audio"; else -> null
-        } }
-    }.toSet()
+    fun modalities(parts: List<Part>): Set<String> = parts.flatMap { MediaSampleWire.modalities(it.input) }.toSet()
+
+    fun requiredModalities(kind: String, hasAudio: Boolean, mode: MediaAnalysisMode): Set<String> = when (kind) {
+        "image" -> setOf("image")
+        "audio" -> setOf("audio")
+        "video" -> when (mode) {
+            MediaAnalysisMode.VisualOnly -> setOf("image")
+            MediaAnalysisMode.Transcription -> setOf("audio")
+            MediaAnalysisMode.Understand -> if (hasAudio) setOf("image", "audio") else setOf("image")
+        }
+        else -> error("未知媒体类型")
+    }
 
     /** Native file input accepts the original audio; video derivatives already have
      * a deterministic cached manifest. Transcription uses the same local audio wire. */

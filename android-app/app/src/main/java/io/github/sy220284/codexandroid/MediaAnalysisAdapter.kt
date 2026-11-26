@@ -12,9 +12,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** The Android layer never obtains provider credentials or calls a model HTTP endpoint. */
 internal data class MediaAnalysisTarget(
     val owner: String, val provider: String, val model: String, val credentialScope: String,
-    val sourceTurn: String, val epoch: Long
+    val sourceTurn: String, val epoch: Long, val inputModalities: Set<String>
 ) {
     val checkpointScope get() = AnalysisCheckpoint.digest("$provider\n$model\n$credentialScope")
+    fun requireModalities(required: Set<String>) {
+        val missing = required - inputModalities
+        require(missing.isEmpty()) { "当前模型不接收" + missing.sorted().joinToString("、") {
+            when (it) { "image" -> "图片"; "audio" -> "音频"; else -> it }
+        } + "，请调整媒体处理方式或选择支持该能力的模型；原附件已保留" }
+    }
 }
 
 /** Independent, read-only inference adapter. Ordinary task sends still use turn/start. */
@@ -24,6 +30,11 @@ internal interface MediaAnalysisAdapter {
 }
 
 internal object MediaSampleWire {
+    fun modalities(media: JSONArray): Set<String> = (0 until media.length()).mapNotNull { index ->
+        when (media.getJSONObject(index).getString("type")) {
+            "localImage" -> "image"; "localAudio" -> "audio"; else -> null
+        }
+    }.toSet()
     fun request(target: MediaAnalysisTarget, question: String, media: JSONArray): JSONObject {
         require(question.isNotBlank() && question.length <= 32_000) { "分析问题过长或为空" }
         require(media.length() in 1..32)
@@ -53,6 +64,10 @@ internal class NativeMediaAnalysisAdapter(private val vm: CodexViewModel) : Medi
         val provider = identity.getString("modelProvider")
         val selected = identity.getString("model")
         val scope = identity.getString("scope")
+        val kinds = identity.getJSONArray("inputModalities").let { array ->
+            (0 until array.length()).map(array::getString).toSet()
+        }
+        require(kinds.all { it in setOf("text", "image", "audio") }) { "核心返回了未知的媒体能力" }
         require(provider.isNotBlank() && selected.isNotBlank() && scope.matches(Regex("[0-9a-f]{64}")))
         require(model.isBlank() || model == selected) { "所选模型已变化" }
         val page = vm.bridge.request("thread/turns/list", JSONObject().put("threadId", owner)
@@ -61,11 +76,12 @@ internal class NativeMediaAnalysisAdapter(private val vm: CodexViewModel) : Medi
         val turnId = turn.getString("id")
         require(turn.optString("status") in setOf("completed", "failed", "interrupted")) { "请等待当前任务结束" }
         check(permit()) { "分析所属会话或账号已变化" }
-        return MediaAnalysisTarget(owner, provider, selected, scope, turnId, epoch)
+        return MediaAnalysisTarget(owner, provider, selected, scope, turnId, epoch, kinds)
     }
 
     override suspend fun sample(target: MediaAnalysisTarget, question: String, media: JSONArray, permit: () -> Boolean): String {
         currentCoroutineContext().ensureActive()
+        target.requireModalities(MediaSampleWire.modalities(media))
         val revoked = AtomicBoolean(false)
         var requestId: Long? = null
         try {

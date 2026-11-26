@@ -91,7 +91,14 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
                     }
                     require(saved == null || saved.sourceTurn == target.sourceTurn) { "会话上下文已变化，请先审阅或清除原分析记录" }
                     val prompt = saved?.question ?: question.ifBlank { "按时间顺序描述关键画面、声音及其关联。" }
+                    // Resolve known incompatibility before expensive decoding or any model request.
+                    val required = withContext(Dispatchers.IO) {
+                        MediaAnalysisPlan.requiredModalities(LocalMediaAttachmentPolicy.kind(source),
+                            LocalMediaAttachmentPolicy.hasAudio(source), mode)
+                    }
+                    target.requireModalities(required)
                     val parts = MediaAnalysisPlan.prepare(source, LocalImageAttachments.directory(app), mode, prompt)
+                    target.requireModalities(MediaAnalysisPlan.modalities(parts))
                     require(saved == null || (saved.total == parts.size && saved.parts.size <= parts.size)) { "媒体分段已变化，请核对原记录" }
                     var checkpoint = saved ?: AnalysisCheckpoint(owner, target.checkpointScope, source, mode.name, prompt,
                         total = parts.size, sourceTurn = target.sourceTurn)

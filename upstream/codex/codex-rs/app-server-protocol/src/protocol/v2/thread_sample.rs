@@ -92,4 +92,6 @@ pub struct ThreadSampleScopeResponse {
     pub scope: String,
     pub model: String,
     pub model_provider: String,
+    /// Effective native model modalities, including learned rejection evidence.
+    pub input_modalities: Vec<codex_protocol::openai_models::InputModality>,
 }

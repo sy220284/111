@@ -730,7 +730,12 @@ impl ThreadRequestProcessor {
         }
         let model = params.model.filter(|model| !model.trim().is_empty()).unwrap_or(snapshot.model);
         let scope = parent.media_analysis_scope().await.map_err(|error| invalid_request(error.to_string()))?;
-        Ok(codex_app_server_protocol::ThreadSampleScopeResponse { scope, model, model_provider: snapshot.model_provider_id })
+        let config = parent.config().await;
+        let model_info = parent.model_info(&model, &config.to_models_manager_config()).await;
+        Ok(codex_app_server_protocol::ThreadSampleScopeResponse {
+            scope, model, model_provider: snapshot.model_provider_id,
+            input_modalities: model_info.input_modalities.clone(),
+        })
     }
 
     pub(crate) async fn thread_sample(
