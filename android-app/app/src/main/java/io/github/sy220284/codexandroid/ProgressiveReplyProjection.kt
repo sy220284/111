@@ -9,7 +9,8 @@ internal object ProgressiveReplyProjection {
         val actionItem: TimelineItem? = null,
         val forceActivity: Boolean = false,
         val note: String? = null,
-        val liveProcess: Boolean = false
+        val liveProcess: Boolean = false,
+        val partialCopy: Boolean = false
     )
 
     private val assistantKinds = setOf("agent", "agentMessage")
@@ -85,6 +86,10 @@ internal object ProgressiveReplyProjection {
                 val single = group.singleOrNull()
                 val formal = single?.let(::answer) == true
                 val allow = !formal || (!open && !clipped && single?.phase != "partial_answer")
+                if (open && group.size > 12 && group.all { it.kind in activityKinds }) {
+                    group.chunked(12).forEach { chunk -> add(Row(chunk.first().id, chunk, liveProcess = true)) }
+                    return@forEach
+                }
                 add(Row(group.first().id, group, showActions = allow,
                     actionItem = single?.takeIf { formal && clipped && !open },
                     note = when {
@@ -93,7 +98,8 @@ internal object ProgressiveReplyProjection {
                         formal && !open && single != null && incomplete(single) -> "任务未成功完成，已保留收到的回答"
                         else -> null
                     },
-                    liveProcess = open && group.all { it.kind in activityKinds }))
+                    liveProcess = open && group.all { it.kind in activityKinds },
+                    partialCopy = open && formal && single?.phase == "partial_answer" && single.status == "completed"))
             }
             return@buildList
         }
@@ -148,7 +154,7 @@ internal object ProgressiveReplyProjection {
     private const val baseInstruction = "长任务采用渐进式回复：开始工作时简短说明计划；获得可靠且可独立使用的结果后，及时输出正式答案片段并继续执行；过程更新与正式答案分开，最终回答补齐剩余结果，避免重复已交付内容。只有任务完成或需要用户决策时结束当前回合。"
     private const val richInstruction = "移动端正式回答在有真实数据时可使用 codex-metrics Markdown 代码围栏，每行标签|数值|可选说明；线性步骤可使用 codex-flow 围栏，每行一个步骤，最多12项。只在确实有助阅读时使用，普通段落、表格及代码仍用标准 Markdown。"
     private const val progressInstruction = "复杂任务在首次工具调用前简述目标和步骤；执行过程中仅在有新发现、重要决策或阻碍时提供一两句有用进度，长时间工作也应持续告知用户已确认的进展。阶段性正式内容须有可靠依据；最终总结明确已完成、实际验证、失败或未完成事项。避免重复计划、逐条播报工具及把中间进度当成最终结果。"
-    private const val visualInstruction = "需要图表时可使用 codex-bar、codex-line、codex-pie，每行标签|有限数值；分支关系使用 codex-graph，每行起点|关系|终点；任务清单使用 codex-checklist，每行 done/todo/doing|任务；公式可使用 codex-math 或独立 TeX 公式。仅按实际数据使用，图表不超过24行。"
+    private const val visualInstruction = "需要图表时可使用 codex-bar、codex-line、codex-pie，每行标签|有限数值；分支关系使用 codex-graph，每行起点|关系|终点；任务清单使用 codex-checklist，每行 done/todo/doing|任务；公式可使用 codex-math 或独立 TeX 公式；文件交付可使用 codex-file，每行显示名称|工作区实际文件路径。仅按实际数据使用，图表不超过24行。"
     const val instruction = baseInstruction + "\n\n" + richInstruction + "\n\n" + progressInstruction + "\n\n" + visualInstruction
 
     fun appendInstruction(current: String): String {

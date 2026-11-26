@@ -61,6 +61,9 @@ internal object MessageSelectionCopy {
                         } == true) {
                         val label = segment.parts.first().visible
                         label + " " + value.drop(label.length)
+                    } else if (segment.kind == "bullet" && a == position && value.length > 1 &&
+                        (value.startsWith("☐") || value.startsWith("☑"))) {
+                        (if (value.startsWith("☑")) "- [x] " else "- [ ] ") + value.drop(1)
                     } else value
                     values += segment to restored
                     styled = styled || rich || restored != value

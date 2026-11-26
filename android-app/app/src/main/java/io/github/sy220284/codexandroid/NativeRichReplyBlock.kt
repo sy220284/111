@@ -55,6 +55,14 @@ internal fun NativeRichReplyBlock(block: MessageBlock) {
                             Text(row[1], style = MaterialTheme.typography.bodyMedium)
                         }
                     }
+                } else if (block.kind == "file") {
+                    val open = LocalReplyFileOpen.current
+                    block.rows.forEach { row ->
+                        Text(row[0], fontWeight = FontWeight.SemiBold)
+                        Text(row[1], style = MaterialTheme.typography.bodySmall, color = Ink.muted)
+                        if (open != null) CodexSecondaryButton(onClick = { open(row[1]) },
+                            modifier = Modifier.heightIn(min = 48.dp)) { Text("查看文件") }
+                    }
                 } else if (block.kind == "math") {
                     block.rows.forEach { row ->
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {

@@ -3,7 +3,7 @@ package io.github.sy220284.codexandroid
 /** Bounded, declarative components; all data is validated before entering Compose. */
 internal data class RichReplyContent(val kind: String, val rows: List<List<String>>) {
     companion object {
-        val kinds = setOf("metrics", "flow", "bar", "line", "pie", "graph", "checklist", "math")
+        val kinds = setOf("metrics", "flow", "bar", "line", "pie", "graph", "checklist", "math", "file")
         private val chartKinds = setOf("bar", "line", "pie")
         fun parse(language: String, source: String): RichReplyContent? {
             val kind = language.removePrefix("codex-")
@@ -28,6 +28,7 @@ internal data class RichReplyContent(val kind: String, val rows: List<List<Strin
                 "graph" -> fields.takeIf { valid(it, 3..3) && it.distinct().size == it.size &&
                     it.all { row -> row[0] != row[2] } && it.flatMap { row -> listOf(row[0], row[2]) }.distinct().size <= 16 }
                 "checklist" -> fields.takeIf { valid(it, 2..2) && it.all { row -> row[0] in setOf("done", "todo", "doing") } }
+                "file" -> fields.takeIf { valid(it, 2..2) && it.all { row -> row[1].none(Char::isISOControl) } }
                 "math" -> lines.map { listOf(it) }.takeIf { valid(it, 1..1) && it.all { row -> ReplyMath.parse(row[0]) != null } }
                 else -> null
             } ?: return null

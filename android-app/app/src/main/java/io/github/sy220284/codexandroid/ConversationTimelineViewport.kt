@@ -50,6 +50,11 @@ internal fun ConversationTimelineViewport(
     var unreadSteps by remember { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf<String?>(null) }
     var turnAction by remember(thread) { mutableStateOf<Pair<TimelineItem, MessageTurnAction>?>(null) }
+    var outlineOpen by remember(thread) { mutableStateOf(false) }
+    var headingTarget by remember(thread) { mutableStateOf<ReplyHeadingEntry?>(null) }
+    var filePreview by remember(thread) { mutableStateOf<ModelPreviewRequest?>(null) }
+    var anchorKey by remember(thread) { mutableStateOf<String?>(null) }
+    var anchorOffset by remember(thread) { mutableIntStateOf(0) }
     val mutatingHistory by vm.loading.collectProjection {
         "threadFork:$thread" in it || "threadRevert:$thread" in it
     }
@@ -59,7 +64,8 @@ internal fun ConversationTimelineViewport(
     val restarting by vm.connectionRestarter.busy.collectAsState()
     val steering by vm.steerBusy.collectAsState()
     val queueBusy by vm.loading.collectProjection { "queueWrite" in it || "interrupt" in it }
-    val queue by vm.data.collectProjection { thread?.let { id -> it["queue:$id"] } }
+    val queueData by vm.data.collectEntries("queue:$thread")
+    val queue = queueData["queue:$thread"]
     val answeredQuestions = remember(items, queue) { AsyncReplyContract.answeredFromTimeline(items) + AsyncReplyContract.answeredFromQueue(queue) }
     val canSwitchVersion = connected && !busy && !contextLoading && thread != null && !loadingEarlier &&
         !firstThreadStarting && !mutatingHistory && !savingPermissions && !restarting
@@ -91,7 +97,25 @@ internal fun ConversationTimelineViewport(
     }
     val hasOlderPage by rememberUpdatedState(olderPageVisible)
     val currentGroupCount by rememberUpdatedState(visibleGroups)
-    val currentTail by rememberUpdatedState(items.lastOrNull())
+    val currentTail by rememberUpdatedState(items.lastOrNull { it.kind != "turnOutcome" })
+    LaunchedEffect(scroll, thread) {
+        snapshotFlow { Triple(scroll.isScrollInProgress, scroll.layoutInfo.visibleItemsInfo.firstOrNull()?.key,
+            scroll.firstVisibleItemScrollOffset) }.collect { (scrolling, key, offset) ->
+            if (!scrolling && !followTail && key is String && key != "timeline-older-pages") {
+                anchorKey = key; anchorOffset = offset
+            }
+        }
+    }
+    LaunchedEffect(rows, followTail) {
+        val anchor = anchorKey
+        if (!followTail && !scroll.isScrollInProgress && anchor != null && rows.none { it.key == anchor }) {
+            val replacement = ReplyReadingNavigation.replacementIndex(rows, anchor)
+            if (replacement >= 0) {
+                scroll.scrollToItem(replacement + if (olderPageVisible) 1 else 0, anchorOffset.coerceAtLeast(0))
+                anchorKey = rows[replacement].key
+            }
+        }
+    }
     var previousViewportHeight by remember { mutableIntStateOf(0) }
     var previousOlderPage by remember { mutableStateOf(false) }
     LaunchedEffect(scroll, thread, contextLoading) {
@@ -184,12 +208,23 @@ internal fun ConversationTimelineViewport(
                     row.showActions && ProgressiveReplyProjection.answer(it)
                 }
                 val version = message?.let { item -> thread?.let { answerVersions.choice(it, item.turnId) } }
+                val heading = headingTarget?.takeIf { it.rowKey == row.key }
+                val openFile: ((String) -> Unit)? = if (thread != null && frame.remote == null && connected) { path ->
+                    val epoch = vm.bridge.connectedSession.value
+                    if (epoch != null && vm.activeThread.value == thread) {
+                        filePreview = ModelPreviewRequest("reply-file:" + row.key, thread, epoch,
+                            vm.catalogWarmup.accountRevision.value, frame.workspace, path, null)
+                    }
+                } else null
+                CompositionLocalProvider(LocalReplyHeadingNavigation provides heading?.let { entry ->
+                    ReplyHeadingNavigation(entry.heading) { headingTarget = null }
+                }, LocalReplyFileOpen provides openFile) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 TimelineActivityGroup(row.group, workspaceRoot = vm.workingDirectory,
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
                     version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null,
                     showMessageActions = row.showActions, actionItem = row.actionItem,
-                    forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess)
+                    forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess, partialCopy = row.partialCopy)
                 if (thread != null) {
                     NativeReplyMetadata(vm, thread, row.group, canSwitchVersion)
                     row.group.flatMap(AsyncReplyContract::questions).distinctBy { it.id }.forEach { question ->
@@ -203,11 +238,16 @@ internal fun ConversationTimelineViewport(
                     }
                 }
                 }
+                }
             }
             if (fallbackVersion != null) item(key = "answer-version-recovery") {
                 Column { Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     AnswerVersionSwitcher(fallbackVersion, if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null, "recovery") }
             }
+        }
+        if (!contextLoading && !frame.running && rows.any { it.group.singleOrNull()?.let(ProgressiveReplyProjection::answer) == true }) {
+            CodexSecondaryButton(onClick = { outlineOpen = true }, modifier = Modifier.align(Alignment.TopEnd)
+                .padding(4.dp).heightIn(min = 48.dp).testTag("reply-outline")) { Text("目录") }
         }
         if (!contextLoading && latestIndex >= 0 && (!followTail || unreadSteps > 0)) {
             Surface(
@@ -241,6 +281,23 @@ internal fun ConversationTimelineViewport(
             }
         }
     }
+    if (outlineOpen) {
+        val outline = remember(rows) { ReplyReadingNavigation.outline(rows) }
+        AlertDialog(onDismissRequest = { outlineOpen = false }, title = { Text("回答目录") },
+            text = { LazyColumn(Modifier.heightIn(max = 440.dp)) {
+                if (outline.isEmpty()) item { Text("当前回答没有标题") }
+                items(outline) { entry ->
+                    TextButton(onClick = {
+                        outlineOpen = false; followTail = false; headingTarget = entry
+                        val index = rows.indexOfFirst { it.key == entry.rowKey }
+                        if (index >= 0) scope.launch { scroll.scrollToItem(index + if (olderPageVisible) 1 else 0) }
+                    }, modifier = Modifier.fillMaxWidth().padding(start = ((entry.level - 1).coerceIn(0, 3) * 8).dp)) {
+                        Text(entry.title, Modifier.fillMaxWidth())
+                    }
+                }
+            } }, confirmButton = { TextButton(onClick = { outlineOpen = false }) { Text("关闭") } })
+    }
+    filePreview?.let { preview -> ModelDocumentDialog(preview, java.io.File(vm.workingDirectory)) { filePreview = null } }
     turnAction?.let { (item, action) ->
         val clientId = items.firstOrNull { it.turnId == item.turnId && it.kind in setOf("user", "userMessage") }
             ?.metadata()?.optString("clientId")

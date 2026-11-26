@@ -31,17 +31,19 @@ internal fun TimelineActivityGroup(
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
     version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null,
-    forceActivity: Boolean = false, note: String? = null, liveProcess: Boolean = false
+    forceActivity: Boolean = false, note: String? = null, liveProcess: Boolean = false,
+    partialCopy: Boolean = false
 ) {
     if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "userMessage", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity", "hookRun")) {
         TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion,
-            showMessageActions, actionItem, note)
+            showMessageActions, actionItem, note, partialCopy = partialCopy)
         return
     }
     val active = group.any { it.active() }
     val failed = group.count { it.failed() }
     var expanded by rememberSaveable(group.first().id, liveProcess) { mutableStateOf(liveProcess) }
+    var visibleCount by rememberSaveable(group.first().id) { mutableIntStateOf(20) }
     val summary = group.groupingBy { if (ProgressiveReplyProjection.commentary(it)) "过程回复" else PresentationPolicy.timelineKind(it.kind) }.eachCount()
         .entries.joinToString(" · ") { (kind, count) -> if (count == 1) kind else "$kind $count 项" }
     Column(Modifier.fillMaxWidth().testTag("chat-activity-group")
@@ -65,8 +67,10 @@ internal fun TimelineActivityGroup(
             color = Ink.muted, style = MaterialTheme.typography.labelSmall) }
         CodexReveal(visible = expanded) {
             Column(Modifier.fillMaxWidth().padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                group.forEach { item -> key(item.id) { TimelineStepCard(item, workspaceRoot, onTurnAction,
+                group.take(if (liveProcess) group.size else visibleCount).forEach { item -> key(item.id) { TimelineStepCard(item, workspaceRoot, onTurnAction,
                     compactActivity = true) } }
+                if (!liveProcess && visibleCount < group.size) CodexSecondaryButton(onClick = { visibleCount += 20 },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("继续展开执行记录") }
             }
         }
     }
@@ -79,7 +83,7 @@ internal fun TimelineStepCard(
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
     version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null, note: String? = null,
-    compactActivity: Boolean = false
+    compactActivity: Boolean = false, partialCopy: Boolean = false
 ) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
@@ -132,6 +136,9 @@ internal fun TimelineStepCard(
                 }
                 note?.let { Text(it, color = Ink.muted, style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(vertical = 4.dp)) }
+                if (partialCopy && item.text.isNotBlank()) CodexSecondaryButton(onClick = {
+                    copy(item.text, CopyContentFormat.Markdown)
+                }, modifier = Modifier.heightIn(min = 48.dp).testTag("partial-reply-copy")) { Text("复制此阶段") }
                 if (!active && showMessageActions && (user || item.phase != "commentary")) {
                     if (!user && version != null) FlowRow(Modifier.fillMaxWidth()) {
                         AnswerVersionSwitcher(version, onVersion, actionMessage.id)
