@@ -27,11 +27,15 @@
       ".github/scripts/prepare-android-patcher.sh",
       ".github/scripts/prepare-release-assets.sh",
       ".github/scripts/verify_git_corresponding_source.py",
-      ".github/release-version"
+      ".github/release-version",
+      "android-app/gradlew",
+      "android-app/gradlew.bat",
+      "android-app/app/gradle.lockfile"
     ],
     "prefixes": [
       "android-app/app/src/main/",
-      "android-app/app/src/release/"
+      "android-app/app/src/release/",
+      "android-app/gradle/"
     ]
   },
   "acceptance": {

@@ -99,6 +99,10 @@ jobs:
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: "8.11.1"
+      - name: 校验固定 Gradle Wrapper
+        shell: bash
+        run: |
+          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证 CI 触发范围与原生产物复用不变量
         run: |
           python3 -m unittest discover -s .github/scripts -p 'test_ci_scope.py'
@@ -190,7 +194,7 @@ jobs:
       - name: 验证自更新证据判定与安装完成条件
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
       - name: 验证 Compose、协议测试与静态检查
-        run: gradle -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
@@ -238,6 +242,25 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+
+      - name: 生成待核验的 Gradle 依赖基线
+        id: dependency-baseline
+        if: ${{ hashFiles('android-app/app/gradle.lockfile') == '' || hashFiles('android-app/gradle/verification-metadata.xml') == '' }}
+        run: |
+          set -euo pipefail
+          ./android-app/gradlew -p android-app :app:resolveDependencyBaseline --write-locks --write-verification-metadata sha256 --no-daemon --stacktrace
+          test -s android-app/app/gradle.lockfile
+          test -s android-app/gradle/verification-metadata.xml
+      - name: 上传待审查依赖基线
+        if: steps.dependency-baseline.outcome == 'success'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: gradle-dependency-baseline-candidate
+          path: |
+            android-app/app/gradle.lockfile
+            android-app/gradle/verification-metadata.xml
+          if-no-files-found: error
+          retention-days: 14
 
   ui-emulator:
     name: Android 35 · ${{ matrix.width_dp }}dp UI 交互与截图验收
@@ -361,6 +384,10 @@ jobs:
         uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: "8.11.1"
+      - name: 校验固定 Gradle Wrapper
+        shell: bash
+        run: |
+          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 取回 ARM64 原生核心
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -382,7 +409,7 @@ jobs:
         shell: bash
         run: bash .github/scripts/create-android-update-fixture.sh
       - name: 编译 Android APK 和设备测试包（单元测试由独立 UI 工作流执行）
-        run: gradle -p android-app :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
       - name: 验证 ARM64 APK 的原生功能组件和 ABI
         shell: bash
         run: |
@@ -452,6 +479,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: "8.11.1"
+      - name: 校验固定 Gradle Wrapper
+        shell: bash
+        run: |
+          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-native-x86_64
@@ -467,7 +498,7 @@ jobs:
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
-          gradle -p android-app :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          ./android-app/gradlew -p android-app :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
           python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
       - name: 允许模拟器硬件加速
         run: |
@@ -592,6 +623,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
         with:
           gradle-version: '8.11.1'
+      - name: 校验固定 Gradle Wrapper
+        shell: bash
+        run: |
+          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 配置 Android API 35
         shell: bash
         run: |
@@ -617,7 +652,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p android-app :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 \

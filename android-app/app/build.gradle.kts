@@ -135,3 +135,20 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     systemProperty("codex.domesticCatalog", domesticCatalog.absolutePath)
     outputs.file(fixtureOutput)
 }
+
+// Lock resolved dependency graphs; baseline creation is an explicit review operation.
+dependencyLocking {
+    lockAllConfigurations()
+}
+
+tasks.register("resolveDependencyBaseline") {
+    notCompatibleWithConfigurationCache("Resolves dependency configurations for baseline review")
+    doFirst {
+        require(gradle.startParameter.isWriteDependencyLocks) {
+            "生成依赖基线必须显式传入 --write-locks"
+        }
+    }
+    doLast {
+        configurations.filter { it.isCanBeResolved }.forEach { it.resolve() }
+    }
+}

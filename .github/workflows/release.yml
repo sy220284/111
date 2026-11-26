@@ -180,6 +180,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
         with:
           gradle-version: '8.11.1'
+      - name: 校验固定 Gradle Wrapper
+        shell: bash
+        run: |
+          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 安装 Android API 35 与 NDK
         shell: bash
         run: |
@@ -253,7 +257,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p android-app :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName="${{ needs.check-release.outputs.version }}" \
