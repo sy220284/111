@@ -8,9 +8,8 @@ import pathlib
 import re
 import subprocess
 import tempfile
-from host_components import api, download_artifact, install, environment, timestamp, require, JOB_NAMES, ANDROID, RUST
+from host_components import api, download_artifact, install, environment, timestamp, require, JOB_NAMES, GROUPS
 
-GROUPS = {"android":ANDROID, "rust":RUST}
 WORKFLOWS = {".github/workflows/dev-toolchain.yml", ".github/workflows/ci.yml",
              ".github/workflows/build-native-codex.yml", ".github/workflows/release.yml"}
 RECIPE = (".github/workflows/prepare-host-toolchain.yml", ".github/actions/install-host-toolchain",
@@ -27,9 +26,17 @@ def key(group, source="HEAD"):
     paths = [*RECIPE]
     if group == "android":
         paths += ["android-app"]
+    elif group == "rust":
+        paths += ["upstream/codex/codex-rs", ".github/workflows/build-native-codex.yml", "android-app/tools/prepare_android_mxc.py"]
     else:
-        paths += ["upstream/codex/codex-rs", ".github/workflows/build-native-codex.yml",
-                  "android-app/tools/prepare_android_mxc.py"]
+        paths += [".github/workflows/prepare-aux-toolchain.yml", "tools/dev/auxiliary.py", "tools/dev/run-emulator.sh", "tools/dev/requirements-host.lock"]
+        if group in ("wheelhouse","uv"):
+            paths += ["android-app/tools/requirements-ui-visual.txt","upstream/codex"]
+        if group=="pnpm": paths += ["upstream/codex"]
+        if group=="bazel": paths += ["upstream/codex"]
+        if group=="emulator": paths += ["android-app/tools/device-matrix.json","android-app/tools/device_matrix.py"]
+        if group=="patcher": paths += [".github/scripts/prepare-android-patcher.sh",".github/scripts/create-android-update-fixture.sh"]
+        if group=="llvm": paths += ["android-app/tools/prepare_android_v8.sh"]
     raw=subprocess.check_output(["git","ls-tree","-r","-z",source,"--",*paths])
     result=[]
     for row in raw.split(b"\0"):
@@ -42,7 +49,11 @@ def key(group, source="HEAD"):
             name in ("gradle.properties","gradle.lockfile","settings.gradle.kts","libs.versions.toml","gradlew") or "/buildSrc/" in path)
         rust=group=="rust" and (name in ("Cargo.toml","Cargo.lock","rust-toolchain","rust-toolchain.toml") or
             "/.cargo/" in path or path.endswith("prepare_android_mxc.py"))
-        if common or android or rust:
+        aux=group not in ("android","rust") and (path.startswith("android-app/tools/") or
+            (group in ("wheelhouse","uv") and (name in ("uv.lock","pyproject.toml","requirements.txt","requirements-uv.txt") or path.endswith("setup-python-release-tools/action.yml"))) or
+            (group=="pnpm" and name in ("pnpm-lock.yaml","pnpm-workspace.yaml","package.json",".nvmrc",".npmrc")) or
+            (group=="bazel" and (name in ("MODULE.bazel","MODULE.bazel.lock","BUILD.bazel",".bazelrc",".bazelversion","Cargo.toml","Cargo.lock","uv.lock") or name.endswith((".bzl",".patch")))))
+        if common and not path.startswith("upstream/codex/") or android or rust or aux:
             result.append([path,meta])
     require(result,"no fingerprint inputs")
     return hashlib.sha256(json.dumps([group,"linux-x86_64-ubuntu-24.04",sorted(result)],separators=(",",":")).encode()).hexdigest()

@@ -12,6 +12,11 @@ on:
       - '.github/workflows/dev-toolchain.yml'
       - '.github/workflows/prepare-developer-runtime.yml'
       - '.github/workflows/prepare-host-toolchain.yml'
+      - '.github/workflows/prepare-aux-toolchain.yml'
+      - 'upstream/codex/**/uv.lock'
+      - 'upstream/codex/**/pyproject.toml'
+      - 'upstream/codex/pnpm-lock.yaml'
+      - 'upstream/codex/MODULE.bazel.lock'
       - '.github/actions/install-host-toolchain/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/release.yml'
@@ -55,7 +60,7 @@ jobs:
           "$LINT/actionlint" .github/workflows/dev-toolchain.yml .github/workflows/prepare-developer-runtime.yml .github/workflows/ci.yml .github/workflows/release.yml
           # GitHub 已实际运行 queue: max，777 固定 actionlint 尚未认识该新字段。
           # 仅在原生工作流过滤此已确认的解析差异；不屏蔽其它错误。
-          "$LINT/actionlint" -ignore 'unexpected key "queue" for "concurrency" section' .github/workflows/build-native-codex.yml .github/workflows/prepare-host-toolchain.yml
+          "$LINT/actionlint" -ignore 'unexpected key "queue" for "concurrency" section' .github/workflows/build-native-codex.yml .github/workflows/prepare-host-toolchain.yml .github/workflows/prepare-aux-toolchain.yml
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
           python3 -m unittest discover -s .github/scripts -p 'test_audit_apk_contents.py'
 
@@ -81,4 +86,46 @@ jobs:
     uses: ./.github/workflows/prepare-host-toolchain.yml
     with:
       group: rust
+      source_sha: ${{ github.sha }}
+
+  wheelhouse:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: wheelhouse
+      source_sha: ${{ github.sha }}
+
+  uv:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: uv
+      source_sha: ${{ github.sha }}
+
+  pnpm:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: pnpm
+      source_sha: ${{ github.sha }}
+
+  bazel:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: bazel
+      source_sha: ${{ github.sha }}
+
+  emulator:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: emulator
+      source_sha: ${{ github.sha }}
+
+  llvm:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: llvm
+      source_sha: ${{ github.sha }}
+
+  patcher:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: patcher
       source_sha: ${{ github.sha }}

@@ -17,9 +17,12 @@ bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
 ANDROID = ("jdk", "android-sdk", "gradle")
 RUST = ("rust", "cargo")
-HOST = ANDROID + RUST
+AUX = ("wheelhouse","uv","pnpm","bazel","emulator","llvm","patcher")
+GROUPS = {"android":ANDROID,"rust":RUST,**{name:(name,) for name in AUX}}
+HOST = ANDROID + RUST + AUX
 REPOSITORY = "sy220284/111"
-JOB_NAMES = {"android":"111 专用 JDK、Android SDK、Gradle 离线依赖", "rust":"Rust 1.99.1 双 ABI 工具及 Cargo 离线依赖"}
+JOB_NAMES = {"android":"111 专用 JDK、Android SDK、Gradle 离线依赖", "rust":"Rust 1.99.1 双 ABI 工具及 Cargo 离线依赖", **{name:"111 辅助组件 · "+name for name in AUX}}
+MUTABLE = {"gradle","cargo","uv","pnpm","bazel"}
 
 def require(value, message):
     if not value:
@@ -50,7 +53,7 @@ def install(root, directory, pins, head, names, repair=False):
             folder = directory/("111-toolchain-"+name)
         pin_file = pins/(name+".sha256")
         if not pin_file.is_file():
-            group = "android" if name in ANDROID else "rust"
+            group = group_for(name)
             pin_file = pins/("111-toolchain-"+group+"-manifest-pins")/(name+".sha256")
         pin = pin_file.read_text().strip()
         require(re.fullmatch(r"[0-9a-f]{64}",pin), "invalid component digest")
@@ -61,7 +64,7 @@ def install(root, directory, pins, head, names, repair=False):
         dest = path_for(root,name,item)
         # Gradle and Cargo intentionally update their caches. Exact original
         # archive validation and native strict/locked dependency checks remain.
-        if not (name in ("gradle","cargo") and not repair and selection.get(name)==item and dest.is_dir() and not dest.is_symlink()):
+        if not (name in MUTABLE and not repair and selection.get(name)==item and dest.is_dir() and not dest.is_symlink()):
             require(bundle.install(name,folder,root/"host",item["pin"])==dest, "unexpected install path")
         receipt = root/"host-manifests"/name/(item["pin"]+".json")
         receipt.parent.mkdir(parents=True,exist_ok=True)
@@ -82,7 +85,8 @@ def install(root, directory, pins, head, names, repair=False):
 def environment(root,names):
     selection = selected(root)
     require(set(names)<=selection.keys(), "missing 111 components: "+", ".join(sorted(set(names)-selection.keys())))
-    require(len({selection[n]["head"] for n in names})==1, "do not mix producer commits")
+    for group, members in GROUPS.items():
+        require(len({selection[n]["head"] for n in names if n in members})<=1, "do not mix producer commits within "+group)
     paths={n:path_for(root,n,selection[n]) for n in names}
     require(all(p.is_dir() and not p.is_symlink() for p in paths.values()), "component directory missing")
     p=LOCK["project"]
@@ -119,6 +123,44 @@ def environment(root,names):
         cargo=paths["cargo"]
         require((cargo/"git/db").is_dir() and (cargo/"registry").is_dir(),"Cargo cache incomplete")
         env.update(CARGO_HOME=str(cargo),CARGO_NET_OFFLINE="true")
+    if "wheelhouse" in paths:
+        wheel=paths["wheelhouse"]
+        require((wheel/"requirements.lock").is_file() and any(wheel.glob("*.whl")), "wheelhouse incomplete")
+        env["CODEX_WHEELHOUSE"]=str(wheel)
+    if "uv" in paths:
+        uv=paths["uv"]
+        require(subprocess.check_output([str(uv/"bin/uv"),"--version"],text=True).split()[1]==p["uv"], "uv version drift")
+        require((uv/"cache").is_dir(), "uv cache missing")
+        env.update(UV_CACHE_DIR=str(uv/"cache"), UV_OFFLINE="true", UV_PYTHON_DOWNLOADS="never", UV_LINK_MODE="copy")
+        search.append(str(uv/"bin"))
+    if "pnpm" in paths:
+        pnpm=paths["pnpm"]
+        package=json.loads((pnpm/"package/package.json").read_text())
+        require(package["version"]==p["pnpm"] and (pnpm/"store").is_dir(),"pnpm bundle version/cache drift")
+        env.update(npm_config_store_dir=str(pnpm/"store"), npm_config_offline="true", CODEX_PNPM_HOME=str(pnpm))
+        search.append(str(pnpm/"bin"))
+    if "bazel" in paths:
+        bazel=paths["bazel"]
+        require(subprocess.check_output([str(bazel/"bin/bazel"),"--version"],text=True).strip()=="bazel "+p["bazel"],"Bazel version drift")
+        env["CODEX_BAZEL_HOME"]=str(bazel)
+        search.append(str(bazel/"bin"))
+    if "emulator" in paths:
+        sdk=paths["emulator"]
+        image=sdk/"system-images"/("android-"+p["deviceImage"])/p["deviceTarget"]/"x86_64"
+        require((image/"package.xml").is_file() and (image/"system.img").is_file() and (sdk/"emulator/emulator").is_file() and (sdk/"platform-tools/adb").is_file(),"emulator image incomplete")
+        require("system-images;android-"+p["deviceImage"]+";"+p["deviceTarget"]+";x86_64" in (image/"package.xml").read_text(),"system image identity drift")
+        env["CODEX_EMULATOR_SDK"]=str(sdk)
+    if "llvm" in paths:
+        llvm=paths["llvm"]
+        require((llvm/"bin/clang").is_file() and (llvm/"lib/libclang.so").is_file(),"LLVM bundle incomplete")
+        env.update(LLVM_HOME=str(llvm),LIBCLANG_PATH=str(llvm/"lib"),LD_LIBRARY_PATH=str(llvm/"lib")+os.pathsep+os.environ.get("LD_LIBRARY_PATH",""))
+        search.append(str(llvm/"bin"))
+    if "patcher" in paths:
+        patcher=paths["patcher"]
+        for file, digest in (("hdiffpatch_v"+p["hdiffpatch"]+"_sdk_android_hpatchz.zip",p["hdiffpatchAndroidSha256"]),
+                             ("hdiffpatch_v"+p["hdiffpatch"]+"_bin_linux64.zip",p["hdiffpatchLinuxSha256"])):
+            require(bundle.digest(patcher/file)==digest,"HDiffPatch archive digest mismatch")
+        env["CODEX_PATCHER_HOME"]=str(patcher)
     env["PATH"]=os.pathsep.join(search+[os.environ.get("PATH","")])
     return env
 
@@ -129,7 +171,7 @@ def timestamp(value):
     return datetime.fromisoformat(value.replace("Z","+00:00"))
 
 def group_for(name):
-    return "android" if name in ANDROID else "rust"
+    return next(group for group,components in GROUPS.items() if name in components)
 
 def reviewed_artifacts(run_id, names):
     require(type(run_id) is int and run_id>0,"invalid producer run ID")
@@ -197,7 +239,7 @@ def reusable(root,name,head,pin):
     dest=path_for(root,name,item)
     if not manifest.is_file() or bundle.digest(manifest)!=pin or not dest.is_dir() or dest.is_symlink():
         return False
-    if name in ("gradle","cargo"):
+    if name in MUTABLE:
         return True
     return bundle.manifest_digest(bundle.inventory(dest))==json.loads(manifest.read_text())["treeSha256"]
 
