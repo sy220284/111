@@ -117,6 +117,7 @@ class UiMotionPerformanceInstrumentedTest {
         }
         val originalMotion = UiPreferences.reducedMotion.value
         var refreshRate = 60f
+        var rendererPipelines = emptyList<String>()
         var attached = false
         val intent = android.content.Intent(instrumentation.targetContext, MainActivity::class.java)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
@@ -128,6 +129,12 @@ class UiMotionPerformanceInstrumentedTest {
             }
             waitForLabel("打开侧边导航", clickable = true)
             Thread.sleep(700)
+            val rendererDump = instrumentation.uiAutomation.executeShellCommand(
+                "dumpsys gfxinfo " + instrumentation.targetContext.packageName)
+            rendererPipelines = android.os.ParcelFileDescriptor.AutoCloseInputStream(rendererDump)
+                .bufferedReader().use { reader ->
+                    reader.readLines().map { it.trim() }.filter { it.startsWith("Pipeline=") }.distinct()
+                }
             scenario.onActivity {
                 it.window.addOnFrameMetricsAvailableListener(listener, Handler(thread.looper))
                 attached = true
@@ -163,6 +170,7 @@ class UiMotionPerformanceInstrumentedTest {
         val verySlow = values.count { it > 100_000_000L }
         val report = JSONObject().put("scenario", "drawer_settings_back_4_rounds")
             .put("refresh_hz", refreshRate.toDouble()).put("frames", values.size)
+            .put("renderer_pipelines", JSONArray(rendererPipelines))
             .put("deadline_misses", missed).put("very_slow_frames", verySlow)
             .put("listener_dropped", lost.get())
             .put("p95_ms", if (p95.isFinite()) p95 else JSONObject.NULL)
@@ -191,6 +199,9 @@ class UiMotionPerformanceInstrumentedTest {
         report.put("navigation_stage_metrics", stageReport)
         val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
         File(folder, "ui-motion-performance.json").writeText(report.toString(2))
+        InstrumentationRegistry.getArguments().getString("expectedRenderer")?.let { expected ->
+            assertTrue("Unexpected actual renderer: $report", expected in rendererPipelines)
+        }
         assertTrue("Insufficient rendered frame evidence: $report", values.size >= 12 && lost.get() == 0)
         assertTrue("Severe emulator rendering regression: $report", p95 <= 120.0 &&
             verySlow.toDouble() / values.size <= .15)

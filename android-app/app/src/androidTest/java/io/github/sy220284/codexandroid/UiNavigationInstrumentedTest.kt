@@ -167,7 +167,11 @@ class UiNavigationInstrumentedTest {
 
     private fun openComposerShortcut(command: String) {
         val input = rule.onNodeWithTag("composer-input")
-        input.performClick()
+        // A visible underlying Activity does not yet own input while a
+        // dismissing native Dialog still owns the platform window focus.
+        rule.waitUntil(10_000L) { rule.activity.window.decorView.hasWindowFocus() }
+        stableClick("composer-input")
+        input.assertIsFocused()
         assertRealSoftKeyboardOpen()
         input.performTextReplacement("/$command")
         stableClick("composer-shortcut-$command")
