@@ -11,20 +11,26 @@ import java.nio.charset.StandardCharsets
 internal object ReplyLinkPolicy {
     fun web(value: String) = value.startsWith("https://", true) || value.startsWith("http://", true)
 
+    private fun escapedByte(value: String, index: Int): Int? {
+        if (index + 2 >= value.length || value[index] != '%') return null
+        val pair = value.substring(index + 1, index + 3)
+        if (pair.any { it !in "0123456789abcdefABCDEF" }) return null
+        return pair.toInt(16)
+    }
+
     private fun decodePath(value: String): String {
         // Decode once, including UTF-8 escapes. '+' is an ordinary filename character.
         // A literal '%' that is not part of an escape must also survive.
         val result = StringBuilder()
         var index = 0
         while (index < value.length) {
-            if (value[index] != '%' || index + 2 >= value.length || value.substring(index + 1, index + 3).toIntOrNull(16) == null) {
+            if (escapedByte(value, index) == null) {
                 result.append(value[index++])
                 continue
             }
             val bytes = ByteArrayOutputStream()
-            while (index + 2 < value.length && value[index] == '%') {
-                val next = value.substring(index + 1, index + 3).toIntOrNull(16) ?: break
-                require(next in 0..255 && value[index + 1].isLetterOrDigit() && value[index + 2].isLetterOrDigit())
+            while (index < value.length) {
+                val next = escapedByte(value, index) ?: break
                 bytes.write(next)
                 index += 3
             }
@@ -36,7 +42,10 @@ internal object ReplyLinkPolicy {
         return result.toString()
     }
 
-    fun file(value: String): String? {
+    // Markdown link destinations use URI escaping; declarative file cards contain native paths.
+    fun fileCard(value: String): String? = file(value, decodeBare = false)
+    fun file(value: String): String? = file(value, decodeBare = true)
+    private fun file(value: String, decodeBare: Boolean): String? {
         if (value.isBlank() || value.length > 4096 || value.any(Char::isISOControl) || value.startsWith("//")) return null
         val path = try {
             val windows = Regex("^[A-Za-z]:[/\\\\].*").matches(value)
@@ -50,7 +59,8 @@ internal object ReplyLinkPolicy {
                 if (Regex("^/[A-Za-z]:/.*").matches(decoded)) decoded.removePrefix("/") else decoded
             } else {
                 // Bare paths can legally contain '#' and '?' on POSIX; never treat them as URI delimiters.
-                decodePath(value.replace('\\', '/'))
+                val bare = value.replace('\\', '/')
+                if (decodeBare) decodePath(bare) else bare
             }
         } catch (_: IllegalArgumentException) { return null }
           catch (_: java.net.URISyntaxException) { return null }

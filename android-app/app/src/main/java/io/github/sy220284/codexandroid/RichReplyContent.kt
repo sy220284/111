@@ -31,7 +31,7 @@ internal data class RichReplyContent(val kind: String, val rows: List<List<Strin
                 "graph" -> fields.takeIf { valid(it, 3..3) && it.distinct().size == it.size &&
                     it.all { row -> row[0] != row[2] } && it.flatMap { row -> listOf(row[0], row[2]) }.distinct().size <= 16 }
                 "checklist" -> fields.takeIf { valid(it, 2..2) && it.all { row -> row[0] in setOf("done", "todo", "doing") } }
-                "file" -> fields.takeIf { valid(it, 2..2) && it.all { row -> ReplyLinkPolicy.file(row[1]) != null } }
+                "file" -> fields.takeIf { valid(it, 2..2) && it.all { row -> ReplyLinkPolicy.fileCard(row[1]) != null } }
                 else -> null
             } ?: return null
             return RichReplyContent(kind, rows)

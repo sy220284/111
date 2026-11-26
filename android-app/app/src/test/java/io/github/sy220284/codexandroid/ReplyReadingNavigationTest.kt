@@ -32,6 +32,11 @@ class ReplyReadingNavigationTest {
         assertNull(ReplyLinkPolicy.file("reports/%FF.txt"))
         assertNull(ReplyLinkPolicy.file("file:///workspace/%FF.txt"))
         assertEquals("报告.txt", ReplyLinkPolicy.file("%E6%8A%A5%E5%91%8A.txt"))
+        assertEquals("a%+1.txt", ReplyLinkPolicy.file("a%+1.txt"))
+        assertEquals("reports/a%20.txt", ReplyLinkPolicy.fileCard("reports/a%20.txt"))
+        assertEquals("reports/a b.txt", ReplyLinkPolicy.file("reports/a%20b.txt"))
+        assertEquals("/workspace/a b.txt", ReplyLinkPolicy.fileCard("file:///workspace/a%20b.txt"))
+        assertNull(ReplyLinkPolicy.fileCard("../secret"))
     }
     @Test fun completionKeepsEachFragmentsKeyAndTextOrigin() {
         val first = TimelineItem("p", "agentMessage", "第一章\n".repeat(100), "completed", turnId = "t", phase = "partial_answer")

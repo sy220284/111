@@ -63,7 +63,7 @@ internal fun NativeRichReplyBlock(block: MessageBlock) {
                     block.rows.forEach { row ->
                         Text(row[0], fontWeight = FontWeight.SemiBold)
                         Text(row[1], style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                        if (open != null) CodexSecondaryButton(onClick = { open(requireNotNull(ReplyLinkPolicy.file(row[1]))) },
+                        if (open != null) CodexSecondaryButton(onClick = { open(requireNotNull(ReplyLinkPolicy.fileCard(row[1]))) },
                             modifier = Modifier.heightIn(min = 48.dp)) { Text("查看文件") }
                     }
                 } else if (block.kind == "math") {

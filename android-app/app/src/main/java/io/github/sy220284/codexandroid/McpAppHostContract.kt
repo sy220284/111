@@ -48,7 +48,8 @@ internal class McpAppHostContract(private val call: JSONObject, private val orig
     fun catalogRequest(thread: String) = JSONObject().put("threadId", thread).put("serverName", server)
         .put("detail", "full").put("limit", 20).apply { environment?.let { put("environmentId", it) } }
     suspend fun readRegistration(thread: String, read: suspend (JSONObject) -> JSONObject): JSONObject {
-        val values = JSONArray()
+        var found: JSONObject? = null
+        var count = 0
         val seen = mutableSetOf<String>()
         var cursor: String? = null
         repeat(32) {
@@ -56,10 +57,14 @@ internal class McpAppHostContract(private val call: JSONObject, private val orig
             val result = read(request)
             val page = result.getJSONArray("data")
             for (index in 0 until page.length()) {
-                require(values.length() < 640) { "应用服务目录超过宿主容量" }
-                values.put(page.getJSONObject(index))
+                require(++count <= 640) { "应用服务目录超过宿主容量" }
+                val item = page.getJSONObject(index)
+                if (matches(item)) {
+                    require(found == null) { "工具服务归属重复" }
+                    found = item
+                }
             }
-            if (result.isNull("nextCursor")) return registration(JSONObject().put("data", values))
+            if (result.isNull("nextCursor")) return requireNotNull(found) { "工具服务归属无法确认" }
             cursor = result.opt("nextCursor") as? String ?: error("服务目录分页回执无效")
             require(!cursor.isNullOrBlank() && seen.add(requireNotNull(cursor))) { "服务目录分页回执重复或无效" }
         }
@@ -67,13 +72,12 @@ internal class McpAppHostContract(private val call: JSONObject, private val orig
     }
     fun registration(result: JSONObject): JSONObject {
         val values = result.getJSONArray("data")
-        val matches = (0 until values.length()).map { values.getJSONObject(it) }.filter {
-            it.optString("name") == server &&
-                it.optString("environmentId").takeUnless { _ -> it.isNull("environmentId") } == environment
-        }
+        val matches = (0 until values.length()).map { values.getJSONObject(it) }.filter(::matches)
         require(matches.size == 1) { "工具服务归属无法确认" }
         return matches.single()
     }
+    private fun matches(item: JSONObject): Boolean = item.optString("name") == server &&
+        item.optString("environmentId").takeUnless { item.isNull("environmentId") } == environment
     fun allowedTool(registration: JSONObject, name: String): Boolean {
         if (!scopedTools || name.isBlank()) return false
         val tool = registration.optJSONObject("tools")?.optJSONObject(name) ?: return false

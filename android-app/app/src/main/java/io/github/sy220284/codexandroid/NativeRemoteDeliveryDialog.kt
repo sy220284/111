@@ -34,7 +34,11 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
     fun owns() = vm.activeThread.value == request.thread && vm.bridge.connectedSession.value == request.epoch &&
         vm.catalogWarmup.accountRevision.value == request.revision && !vm.threadSwitching.value &&
         vm.remoteBindings.forThread(request.thread) == request.binding
-    LaunchedEffect(session, revision) { if (!owns()) onDismiss() }
+    val activeThread by vm.activeThread.collectAsState()
+    val switching by vm.threadSwitching.collectAsState()
+    LaunchedEffect(session, revision, activeThread, switching) {
+        if (!owns()) { operation?.cancel(); onDismiss() }
+    }
     val create = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         val payload = data
         if (uri != null && payload != null && owns()) {
