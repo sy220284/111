@@ -7,22 +7,6 @@
   "page_size": 16384,
   "profiles": [
     {
-      "id": "compact",
-      "label": "紧凑旗舰",
-      "reference": "Galaxy S26",
-      "inches": 6.3,
-      "width_px": 1080,
-      "height_px": 2340,
-      "density_dpi": 440,
-      "adaptive": {
-        "width_px": 1080,
-        "height_px": 2160,
-        "density_dpi": 480,
-        "font_scale": 1.3
-      },
-      "self_update": false
-    },
-    {
       "id": "mainstream",
       "label": "主流大屏",
       "reference": "OnePlus 15",

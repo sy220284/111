@@ -10,13 +10,10 @@ import time
 import uuid
 from collect_ui_screenshots import parse_discovered_screens
 from pathlib import Path
-from device_matrix import CONFIG, PROFILES, dimensions, INDEPENDENT_CLASS, independent_device, minimum_tests
+from device_matrix import CONFIG, PROFILES, dimensions, SHARDS, shard_classes
 
 PACKAGE = "io.github.sy220284.codexandroid"
 RUNNER = PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner"
-SUITE = ["UiNavigationInstrumentedTest", "UiPopulatedSubpagesInstrumentedTest",
-         "CodexInteractionComponentsInstrumentedTest", "CodexOverlayInstrumentedTest",
-         "EngineSettingInstrumentedTest", "VideoAttachmentPreparationInstrumentedTest"]
 
 DEVICE_ROOT = "/sdcard/Android/data/" + PACKAGE + "/files"
 
@@ -135,19 +132,19 @@ def assert_device(spec, physical_spec):
                 width_dp=round(width * 160 / dpi, 2), height_dp=round(height * 160 / dpi, 2))
 
 
-def run_fresh_suite(profile, mode, log, destination):
+def run_fresh_suite(profile, mode, log, destination, shard):
     measured = assert_device(dimensions(profile, mode), dimensions(profile, 'baseline'))
-    measured.update(profile=profile, mode=mode)
+    measured.update(profile=profile, mode=mode, shard=shard)
     adb("shell", "am", "force-stop", PACKAGE)
     clear_device_screens()
     run_id = uuid.uuid4().hex
     started = time.time()
-    classes=SUITE+[INDEPENDENT_CLASS] if independent_device(profile,mode) else SUITE
+    classes = shard_classes(profile, mode, shard)
     result = execute_instrumentation(classes, log, arguments={
         "expectedWidthPx": measured["width_px"], "expectedDensityDpi": measured["density_dpi"]})
-    floor=minimum_tests(profile,mode)
-    if result['tests'] < floor:
-        result.update(status='failed', evidence_category='ui_test_count_below_floor', minimum_ui_tests=floor)
+    observed = {test.split('#', 1)[0] for test in result['test_ids']}
+    if observed != {PACKAGE + '.' + name for name in classes}:
+        result.update(status='failed', evidence_category='missing_or_unexpected_test_classes')
     missing, code = collect_screens(destination)
     manifest = Path(destination) / "manifest.json"
     if manifest.is_file():
@@ -163,7 +160,7 @@ def run_fresh_suite(profile, mode, log, destination):
 
 def collect_screens(destination):
     collected = subprocess.run(["python3", "android-app/tools/collect_ui_screenshots.py",
-                                "--destination", destination], check=False)
+                                "--destination", destination, "--partial"], check=False)
     manifest = Path(destination) / "manifest.json"
     missing = json.loads(manifest.read_text(encoding="utf-8"))["missing"] if manifest.is_file() else ["screenshot_manifest"]
     return missing, collected.returncode
@@ -187,11 +184,11 @@ def prepare_display_change():
         time.sleep(.25)
 
 
-def baseline(profile):
-    return run_fresh_suite(profile, "baseline", "ui-instrument-result.log", "ui-screenshots")
+def baseline(profile, shard):
+    return run_fresh_suite(profile, "baseline", "ui-instrument-result.log", "ui-screenshots", shard)
 
 
-def adaptive(profile):
+def adaptive(profile, shard):
     # Each configuration owns a disposable AVD. Apply its display override
     # once; do not stop HOME or resize after capturing the test evidence.
     spec = dimensions(profile, "adaptive")
@@ -199,17 +196,18 @@ def adaptive(profile):
     adb("shell", "wm", "size", f"{spec['width_px']}x{spec['height_px']}")
     adb("shell", "wm", "density", str(spec["density_dpi"]))
     adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
-    return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive")
+    return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", shard)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=sorted(PROFILES), required=True)
     parser.add_argument("--mode", choices=["baseline", "adaptive"], required=True)
+    parser.add_argument("--shard", choices=sorted(SHARDS), required=True)
     args = parser.parse_args()
     report = Path("ui-" + args.mode + "-diagnosis.json")
     try:
-        result = baseline(args.profile) if args.mode == "baseline" else adaptive(args.profile)
+        result = baseline(args.profile, args.shard) if args.mode == "baseline" else adaptive(args.profile, args.shard)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         result = {"status": "failed", "category": "runner_or_device", "error": str(error), "profile": args.profile}
     report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device
+from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, SHARDS
 from verify_ui_matrix_evidence import validate
 
 class MatrixEvidenceTests(unittest.TestCase):
@@ -17,7 +17,7 @@ class MatrixEvidenceTests(unittest.TestCase):
                 self.write(folder/f"ui-{mode}-diagnosis.json", dict(dimensions(profile,mode),
                     status="passed", commit="head", profile=profile, mode=mode,
                     android_api=CONFIG["api"], page_size=CONFIG["page_size"], build_fingerprint="android",
-                    missing_screens=[], screenshot_collection_exit=0, run_id=profile+mode,
+                    missing_screens=[], screenshot_collection_exit=0, run_id=profile+mode, shard_run_ids={s:profile+mode+s for s in SHARDS},
                     tests=len(ids), test_ids=ids))
                 self.write(folder/"ui-visual-evidence/report.json", {"status":"baseline_pending","structural_errors":[]})
                 if mode=="baseline":
@@ -27,36 +27,36 @@ class MatrixEvidenceTests(unittest.TestCase):
                         self.write(folder/"self-update-open.json",{"status":"passed"})
     def write(self,path,obj):
         path.write_text(json.dumps(obj))
-    def test_complete_six_mode_matrix(self):
+    def test_complete_four_mode_matrix(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
-            self.assertEqual((CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))*6+len(INDEPENDENT_IDS),validate(root,"head")["executions"])
+            self.assertEqual((CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))*4+len(INDEPENDENT_IDS),validate(root,"head")["executions"])
     def test_wrong_test_set_same_count_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
-            path=root/"ui-proof-compact-adaptive/ui-adaptive-diagnosis.json"
+            path=root/"ui-proof-mainstream-adaptive/ui-adaptive-diagnosis.json"
             data=json.loads(path.read_text()); data["test_ids"][-1]="Different#test"; self.write(path,data)
             with self.assertRaises(ValueError): validate(root,"head")
     def test_missing_and_stale_proof_are_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
             with self.assertRaises(ValueError): validate(root,"different")
-            (root/"ui-proof-compact-adaptive").rename(root/"unexpected")
+            (root/"ui-proof-mainstream-adaptive").rename(root/"unexpected")
             with self.assertRaises(ValueError): validate(root,"head")
     def test_visual_and_motion_failures_block(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
-            self.write(root/"ui-proof-compact-baseline/ui-motion-performance.json",{"frames":0})
+            self.write(root/"ui-proof-mainstream-baseline/ui-motion-performance.json",{"frames":0})
             with self.assertRaises(ValueError): validate(root,"head")
 
     def test_reports_multiple_failed_devices_without_accepting_them(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
-            self.write(root/"ui-proof-compact-baseline/ui-motion-diagnosis.json", {"status":"failed"})
+            self.write(root/"ui-proof-mainstream-baseline/ui-motion-diagnosis.json", {"status":"failed"})
             (root/"ui-proof-ultra-adaptive/ui-adaptive-diagnosis.json").unlink()
             with self.assertRaises(ValueError) as caught:
                 validate(root,"head")
-            self.assertIn("compact/baseline", str(caught.exception))
+            self.assertIn("mainstream/baseline", str(caught.exception))
             self.assertIn("ultra/adaptive", str(caught.exception))
 
     def test_installer_contract_must_run_once_on_designated_device(self):
@@ -65,3 +65,17 @@ class MatrixEvidenceTests(unittest.TestCase):
             path=root/"ui-proof-mainstream-baseline/ui-baseline-diagnosis.json"
             data=json.loads(path.read_text()); data["test_ids"][-1]="Example#fake"; self.write(path,data)
             with self.assertRaises(ValueError): validate(root,"head")
+
+    def test_shard_ids_cannot_be_reused_across_configurations(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            path=root/"ui-proof-ultra-baseline/ui-baseline-diagnosis.json"
+            data=json.loads(path.read_text()); data["shard_run_ids"]["navigation"]="mainstreamadaptivenavigation"; self.write(path,data)
+            with self.assertRaises(ValueError): validate(root,"head")
+
+    def test_removed_compact_profile_cannot_supply_evidence(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            (root/"ui-proof-compact-baseline").mkdir()
+            with self.assertRaisesRegex(ValueError, "unexpected"):
+                validate(root,"head")

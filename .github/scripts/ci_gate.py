@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 from ci_reuse import GROUPS, required_groups, actual_jobs, check_shape, validate
 
-FULL = {"native", "static-ui", "verify-ui", "ui-emulator", "ui-evidence", "build", "verify-apk", "preflight", "compatibility"}
+FULL = {"native", "static-ui", "verify-ui", "ui-emulator", "ui-collect", "ui-evidence", "build", "verify-apk", "preflight", "compatibility"}
 ALL = FULL | {"release-signing-smoke", "runtime-test", "plan"}
 
 def verify(jobs, event, ref):

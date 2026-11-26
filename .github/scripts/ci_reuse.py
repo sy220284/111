@@ -9,11 +9,11 @@ from pathlib import Path
 import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "android-app/tools"))
-from device_matrix import API, RELEASE, MODES, PROFILES, job_name
+from device_matrix import API, RELEASE, MODES, PROFILES, SHARDS, shard_job_name, collect_job_name
 
 GROUPS = {
     "static": {"static-ui"},
-    "ui": {"verify-ui", "ui-emulator", "ui-evidence"},
+    "ui": {"verify-ui", "ui-emulator", "ui-collect", "ui-evidence"},
     "package": {"native", "build", "verify-apk"},
     "preflight": {"preflight"},
     "compat": {"compatibility"},
@@ -23,8 +23,9 @@ GROUPS = {
 FULL_GROUPS = set(GROUPS) - {"runtime", "sign"}
 JOB_NAMES = {
     "static": {"协议、视觉规范与静态覆盖检查"},
-    "ui": {"Kotlin 编译、协议单元测试与 Android Lint", "六组 UI 用例与证据一致性验收",
-           *(job_name(p,m) for p in PROFILES for m in MODES)},
+    "ui": {"Kotlin 编译、协议单元测试与 Android Lint", "四组 UI 用例与证据一致性验收",
+           *(shard_job_name(p,m,s) for p in PROFILES for m in MODES for s in SHARDS),
+           *(collect_job_name(p,m) for p in PROFILES for m in MODES)},
     "package": {"原生核心统一验收", "build", "ARM64 手机安装包二次核验"},
     "preflight": {"发布脚本回归检查"},
     "compat": {"MXC 和 Code Mode Host 源码适配预演"},
@@ -35,6 +36,7 @@ ARTIFACTS = {
     "static": {"codex-android-ui-static-reports"},
     "ui": {"codex-android-ui-check-reports", "codex-android-ui-apks",
            *(f"ui-proof-{p}-{m}" for p in PROFILES for m in MODES),
+           *(f"ui-shard-{p}-{m}-{s}" for p in PROFILES for m in MODES for s in SHARDS),
            *(f"codex-android-ui-visual-api{API}-{p}-{m}" for p in PROFILES for m in MODES),
            *(f"codex-android-ui-device-evidence-api{API}-{p}-{m}" for p in PROFILES for m in MODES)},
     "package": {"codex-android-arm64-apk", "codex-android-arm64-git-corresponding-source",
@@ -57,7 +59,7 @@ RELEASE_ONLY = {
 UI_TEST_TOOLS = {
     "collect_ui_screenshots.py", "ui_evidence_manifest.py", "ui_visual_audit.py",
     "run_ui_device_checks.py", "run_ui_motion_checks.py", "verify_ui_matrix_evidence.py",
-    "verify_self_update_open.py", "requirements-ui-visual.txt",
+    "verify_self_update_open.py", "requirements-ui-visual.txt", "merge_ui_shards.py",
 }
 SAFE_DOCS = {"README.md", "AGENTS.md", "docs/CI统一交付流程.md"}
 
