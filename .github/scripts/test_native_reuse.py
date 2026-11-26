@@ -157,6 +157,13 @@ class NativeReuseTests(unittest.TestCase):
         new = old.replace("          sparse-checkout: |", "          ref: ${{ github.event.pull_request.head.sha || github.sha }}\n          fetch-depth: 0\n          sparse-checkout: |\n            .github/scripts\n            .github/ci")
         self.assertEqual(native_recipe(old), native_recipe(new))
 
+    def test_host_contract_gate_does_not_invalidate_binary(self):
+        edited = COMPILER_JOB.replace(
+            "needs: reuse", "needs: [reuse, provider-contract]"
+        ).replace("if: needs.reuse.outputs.use != 'true'",
+                  "if: needs.provider-contract.result == 'success'")
+        self.assertEqual(native_recipe(COMPILER_JOB), native_recipe(edited))
+
     def test_compiler_change_invalidates_binary(self):
         edited = COMPILER_JOB.replace("cargo build --locked", "cargo build --release")
         self.assertNotEqual(native_recipe(COMPILER_JOB), native_recipe(edited))

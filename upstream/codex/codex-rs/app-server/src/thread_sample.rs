@@ -138,7 +138,7 @@ impl SampleTask {
             if parent.media_analysis_scope().await.map_err(|e| invalid_request(e.to_string()))? != scope {
                 return Err(invalid_request("media sample credential scope changed"));
             }
-            parent.checkpoint_preparation().await.map_err(|e| internal_error(e.to_string()))?;
+            parent.materialize_rollout_for_sampling().await.map_err(|e| internal_error(e.to_string()))?;
         }
         parent
             .flush_rollout()

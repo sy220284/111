@@ -26,6 +26,19 @@ class SourceCallsiteClassificationTest(unittest.TestCase):
                              "thread/read", "thread/goal/set", "thread/list"
                          }))
 
+    def test_task_owner_calls_use_method_after_view_model(self):
+        code = '''
+        owner.request(vm, "command/exec/resize", params)
+        lease.request(vm, "turn/start", params)
+        owner.request(this@CodexViewModel, "review/start", params)
+        owner.request("thread/delete", "thread/archive", params)
+        val method = "thread/compact/start"
+        '''
+        methods = {"command/exec/resize", "turn/start", "review/start",
+                   "thread/delete", "thread/archive", "thread/compact/start"}
+        self.assertEqual({"command/exec/resize", "turn/start", "review/start"},
+                         find_rpc_calls(code, methods))
+
     def test_capability_requests_count_only_the_method_argument(self):
         source = 'vm.capabilityRequest("memory/status", JSONObject().put("action", "memory/reset"))'
         self.assertEqual({"memory/status"}, find_rpc_calls(source, {"memory/status", "memory/reset"}))

@@ -1706,12 +1706,23 @@ async fn media_sample_native_empty_source_no_dummy_turn() -> Result<()> {
     let picture = home.path().join("sample.png");
     std::fs::write(&picture, base64::engine::general_purpose::STANDARD.decode("iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAKUlEQVR4nO3NMQEAAAjDsIF/z2ACvlRAU8nks369AwAAAAAAAAAAgMMWocYBP7wfsd0AAAAASUVORK5CYII=")?)?;
     let request = json!({"threadId":thread_id,"expectedTurnId":"","model":SAMPLE_MODEL,"prompt":"Fresh media analysis only", "media":[{"type":"localImage","path":picture}],"mediaScope":scope.scope,"disableMcp":true});
+    let mut unauthorized = request.clone();
+    unauthorized["mediaScope"] = json!("0".repeat(64));
+    let rejected = client.send_raw_request("thread/sample", Some(unauthorized)).await?;
+    let error = timeout(WAIT, client.read_stream_until_error_message(RequestId::Integer(rejected))).await??;
+    assert!(error.error.message.contains("credential scope"));
+    assert!(mock.requests().is_empty());
     let id = client.send_raw_request("thread/sample", Some(request.clone())).await?;
     let result: ThreadSampleResponse = timeout(WAIT, client.read_response(id)).await??;
     assert_eq!(result.source_turn_id, "");
     assert_eq!(result.text.as_deref(), Some("Verified response."));
     assert_eq!(mock.requests().len(), 1);
     assert!(mock.requests()[0].body_json().to_string().contains("input_image"));
+    // The explicit sample materializes the source, but does not add a visible turn.
+    let list = client.send_raw_request("thread/turns/list", Some(json!({"threadId":thread_id,"limit":1}))).await?;
+    let turns: serde_json::Value = timeout(WAIT, client.read_response(list)).await??;
+    assert_eq!(turns["data"], json!([]));
+    assert_eq!(mock.requests().len(), 1);
     client.start_turn_and_wait_for_completion(TurnStartParams { thread_id, input: input("Follow-up"), ..Default::default() }).await?;
     let invalid = client.send_raw_request("thread/sample", Some(request)).await?;
     let error = timeout(WAIT, client.read_stream_until_error_message(RequestId::Integer(invalid))).await??;

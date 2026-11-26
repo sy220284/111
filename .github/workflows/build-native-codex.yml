@@ -100,8 +100,10 @@ jobs:
 
   native:
     name: 编译 ${{ matrix.abi }} 核心
-    needs: reuse
-    if: needs.reuse.outputs.reuse != 'true'
+    # Do not spend hours compiling Android binaries for a source revision that
+    # has already failed the native host contract. A verified receipt also qualifies.
+    needs: [reuse, provider-contract]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
     runs-on: ubuntu-latest
     timeout-minutes: 360
     strategy:

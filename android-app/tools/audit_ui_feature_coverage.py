@@ -30,7 +30,7 @@ OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"\s*\{')
 
 # 静态调用证据与方法名称引用分开计数。解析参数括号，避免漏掉拼接 key。
 RPC_CALL_HEAD = re.compile(
-    r'\b(?P<callee>(?:(?:vm\.)?bridge\.)?request(?:ForSession)?|(?:vm\.)?capabilityRequest|(?:vm\.)?(?:rpc|refresh|ensureCatalog))\s*\('
+    r'\b(?P<callee>(?:owner|lease)\.request|(?:(?:vm\.)?bridge\.)?request(?:ForSession)?|(?:vm\.)?capabilityRequest|(?:vm\.)?(?:rpc|refresh|ensureCatalog))\s*\('
 )
 DYNAMIC_METHOD = re.compile(
     r'\bval\s+(?P<variable>[A-Za-z_]\w*)\s*=\s*if\s*\([^)]*\)\s*'
@@ -248,7 +248,15 @@ def find_rpc_calls(code: str, official: set[str], resolvers: dict[str, set[str]]
             candidates[match.group(1)] = resolvers[match.group(2)]
     for match in RPC_CALL_HEAD.finditer(code):
         args = _call_arguments(code, match.end())
-        index = 0 if match.group("callee").rsplit(".", 1)[-1] in {"request", "requestForSession", "capabilityRequest"} else 1
+        callee = match.group("callee")
+        if callee in {"owner.request", "lease.request"}:
+            # TaskRequestOwner.request(vm, method, params) checks the captured
+            # connection/account before forwarding the actual method to bridge.
+            if not args or not re.fullmatch(r"vm|this(?:@\w+)?", args[0]):
+                continue
+            index = 1
+        else:
+            index = 0 if callee.rsplit(".", 1)[-1] in {"request", "requestForSession", "capabilityRequest"} else 1
         if len(args) <= index:
             continue
         expression = args[index]
