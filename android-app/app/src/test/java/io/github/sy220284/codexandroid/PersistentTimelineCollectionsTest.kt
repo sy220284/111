@@ -62,6 +62,20 @@ class PersistentTimelineCollectionsTest {
         try { iterator.next(); fail("Expected exhausted iterator") } catch (_: NoSuchElementException) { }
     }
 
+    @Test fun turnIndexHandlesPendingReplacementAndLateTurnItems() {
+        val one = TimelineItem("one", "agentMessage", "one", turnId = "turn-a")
+        val two = TimelineItem("pending-client", "user", "two", turnId = "turn-a")
+        val three = TimelineItem("three", "agentMessage", "three", turnId = "turn-b")
+        val before = IndexedTimeline.from(listOf(one, two, three))
+        val after = before.put(two.copy(id = "native", turnId = "turn-b"), "client")
+        assertEquals(listOf(one, two), before.inTurn("turn-a").toList())
+        assertEquals(listOf(one), after.inTurn("turn-a").toList())
+        assertEquals(listOf("native", "three"), after.inTurn("turn-b").map { it.id }.toList())
+        assertEquals(0, after.lastIndexOfTurn("turn-a"))
+        assertEquals(2, after.lastIndexOfTurn("turn-b"))
+        assertEquals(-1, after.positionOf("pending-client"))
+    }
+
     @Test fun largeActivityUpdateRetainsOtherGroupsAndIds() {
         val prefix = TimelineItem("old", "user", "previous", turnId = "history")
         val items = listOf(prefix) + (0 until 5000).map { i ->

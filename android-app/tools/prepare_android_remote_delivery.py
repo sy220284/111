@@ -116,7 +116,7 @@ PROCESSOR = r'''    async fn android_delivery_target(
         if response.data_base64.len() > (((MAX_BYTES + 2) / 3) * 4) as usize {
             return Err(invalid_request("remote file exceeds 8 MiB"));
         }
-        let bytes = base64::engine::general_purpose::STANDARD.decode(response.data_base64)
+        let bytes = base64::engine::general_purpose::STANDARD.decode(&response.data_base64)
             .map_err(|e| internal_error(e.to_string()))?;
         if bytes.len() as u64 > MAX_BYTES {
             return Err(invalid_request("remote file exceeds 8 MiB"));
@@ -124,7 +124,7 @@ PROCESSOR = r'''    async fn android_delivery_target(
         Ok(Some(codex_app_server_protocol::AndroidRemoteFileReadResponse {
             environment_id: id,
             path_uri: target,
-            data_base64: base64::engine::general_purpose::STANDARD.encode(bytes),
+            data_base64: response.data_base64,
         }.into()))
     }
 

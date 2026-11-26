@@ -13,6 +13,18 @@ internal class RemoteTransferCheckpoint(private val directory: File) {
         const val MAX_BYTES = 512L * 1024 * 1024
         fun isDigest(value: String) = value.length == 64 && value.all { it in '0'..'9' || it in 'a'..'f' }
         fun hex(bytes: ByteArray) = bytes.joinToString("") { "%02x".format(it.toInt() and 255) }
+        /** Strict standard Base64, including canonical padding bits, without re-encoding the payload. */
+        fun decodeChunk(encoded: String, expected: Long): ByteArray {
+            require(expected in 0..CHUNK_BYTES.toLong() &&
+                encoded.length.toLong() == ((expected + 2) / 3) * 4) { "远端分块大小不一致" }
+            when (expected % 3) {
+                1L -> require(encoded.endsWith("==") && encoded[encoded.length - 3] in "AQgw") { "无效远端分块编码" }
+                2L -> require(encoded.endsWith("=") && encoded[encoded.length - 2] in "AEIMQUYcgkosw048") { "无效远端分块编码" }
+            }
+            return java.util.Base64.getDecoder().decode(encoded).also {
+                require(it.size.toLong() == expected) { "无效远端分块编码" }
+            }
+        }
         fun digest(file: File, permit: () -> Unit = {}): String {
             val md = MessageDigest.getInstance("SHA-256")
             file.inputStream().use { input ->

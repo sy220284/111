@@ -96,9 +96,13 @@ internal object TimelineEventReducer {
     }
 
     fun outcomeId(turnId: String) = "turn-completed:$turnId"
-    fun terminalOutcome(items: List<TimelineItem>, turnId: String): String? = items.lastOrNull {
-        it.id == outcomeId(turnId) || it.id == "turn-error:$turnId"
-    }?.status
+    fun terminalOutcome(items: List<TimelineItem>, turnId: String): String? {
+        if (items is IndexedTimeline) {
+            val index = maxOf(items.positionOf(outcomeId(turnId)), items.positionOf("turn-error:$turnId"))
+            return items.getOrNull(index)?.status
+        }
+        return items.lastOrNull { it.id == outcomeId(turnId) || it.id == "turn-error:$turnId" }?.status
+    }
 
     fun reduce(method: String, params: JSONObject, current: List<TimelineItem>,
         deltaText: String? = null): List<TimelineItem> {
@@ -115,7 +119,7 @@ internal object TimelineEventReducer {
             val clientId = if (next.kind == "user" && next.evidence.isNotBlank())
                 JSONObject(next.evidence).string("clientId") else ""
             val boundary = if (prior == null && clientId.isBlank() && next.turnId.isNotBlank())
-                items.indexOfLast { it.turnId == next.turnId } else -1
+                items.lastIndexOfTurn(next.turnId) else -1
             val marker = items.getOrNull(boundary)
             val beforeMarker = marker?.kind == "turnOutcome" || marker?.id == "turn-error:" + next.turnId
             if (boundary >= 0 && (boundary < items.lastIndex || beforeMarker && next.kind !in setOf("turnOutcome", "error"))) {
@@ -129,7 +133,7 @@ internal object TimelineEventReducer {
                 val marker = "safety-buffer:$turnId"
                 if (!closed && params.opt("showBufferingUi") == true)
                     put(TimelineItem(marker, "safetyBuffer", "正在等待安全审核", "inProgress", turnId = turnId))
-                else items = IndexedTimeline.from(items.filterNot { it.id == marker })
+                else if (items.byId(marker) != null) items = IndexedTimeline.from(items.filterNot { it.id == marker })
             } else {
                 val parsed = params.optJSONObject("metadata")?.let(SafetyRecourseContract::parse) ?: return current
                 val failed = items.byId("turn-error:$turnId")
@@ -184,14 +188,23 @@ internal object TimelineEventReducer {
                 }, status, evidence = SafetyRecourseContract.errorDomain(turn.optJSONObject("error"))
                     ?.let { JSONObject().put("safetyDomain", it).toString() }.orEmpty(), turnId = id))
             val safetyDomain = if (status == "failed") SafetyRecourseContract.errorDomain(turn.optJSONObject("error")) else null
-            return IndexedTimeline.from(items.filterNot { it.id == "safety-buffer:$id" ||
-                (it.id == "safety-recourse:$id" && (safetyDomain == null || it.metadata()?.optString("domain") != safetyDomain)) ||
-                it.id == "turn-unverified:$id" ||
-                (status == "completed" && it.id == "turn-error:$id") ||
-                (status != "completed" && it.id == outcomeId(id)) }.map {
-                if (it.turnId == id && (it.status in runningStates || it.status == "unverified"))
-                    it.withStatus(if (it.kind == "user") "completed" else status) else it
-            })
+            val obsolete = buildSet {
+                add("safety-buffer:$id")
+                add("turn-unverified:$id")
+                add(if (status == "completed") "turn-error:$id" else outcomeId(id))
+                val recourse = items.byId("safety-recourse:$id")
+                if (recourse != null && (safetyDomain == null || recourse.metadata()?.optString("domain") != safetyDomain))
+                    add(recourse.id)
+            }
+            // Only structural removals require a new positional index. Ordinary
+            // completion touches the completed turn and shares all other branches.
+            if (obsolete.any { items.byId(it) != null })
+                items = IndexedTimeline.from(items.filterNot { it.id in obsolete })
+            for (item in items.inTurn(id)) {
+                if (item.status in runningStates || item.status == "unverified")
+                    items = items.put(item.withStatus(if (item.kind == "user") "completed" else status))
+            }
+            return items
         }
         if (method == "turn/plan/updated") {
             if (closed) return current
@@ -272,9 +285,10 @@ internal object TimelineEventReducer {
     /** Losing the connection establishes neither a successful nor a failed native turn. */
     fun connectionLost(current: List<TimelineItem>, turnId: String): List<TimelineItem> {
         if (turnId.isBlank()) return current
-        val items = IndexedTimeline.from(current.map {
-            if (it.turnId == turnId && it.status in runningStates) it.withStatus("unverified") else it
-        })
+        var items = IndexedTimeline.from(current)
+        for (item in items.inTurn(turnId)) {
+            if (item.status in runningStates) items = items.put(item.withStatus("unverified"))
+        }
         return items.put(TimelineItem("turn-unverified:$turnId", "error",
             "运行核心已断开，任务结果待核实。已保留收到的内容，请重新连接后查看。",
             "unverified", turnId = turnId))

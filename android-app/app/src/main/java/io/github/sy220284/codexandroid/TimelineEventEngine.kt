@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.update
 
 /**
  * One serial protocol consumer prepares immutable timeline snapshots on Default.
@@ -9,8 +10,11 @@ import kotlinx.coroutines.withContext
  * and snapshot identity. Selected and offscreen tasks use the same engine.
  */
 internal object TimelineEventEngine {
-    suspend fun applyDelta(vm: CodexViewModel, event: CoreNotification): Boolean {
+    suspend fun applyEvent(vm: CodexViewModel, event: CoreNotification, completedTurn: String? = null): Boolean {
         val thread = event.params.getString("threadId")
+        fun canFinish(state: ActiveConversationContext) = completedTurn != null &&
+            state.threadId == thread && (state.turnId.isNullOrBlank() || state.turnId == completedTurn) &&
+            vm.threadExecutions.value[thread] == null
         fun visible() = vm.activeThread.value == thread && vm.hydratingThread != thread
         while (vm.bridge.isCurrentEvent(event.wire)) {
             val selected = visible()
@@ -24,10 +28,20 @@ internal object TimelineEventEngine {
             if (selected) {
                 if (vm.timelineEpoch != epoch || vm.timeline.value !== before) continue
                 // No suspension between ownership validation and publication.
-                if (next !== before) vm.timeline.value = next
+                vm.conversationState.update { state ->
+                    if (canFinish(state)) state.copy(timeline = next, running = false, turnId = null)
+                    else if (next !== before) state.copy(timeline = next) else state
+                }
                 return true
             }
-            if (vm.liveTimelines.publish(thread, before, next, vm.threadExecutions.value.keys)) return false
+            if (vm.liveTimelines.publish(thread, before, next, vm.threadExecutions.value.keys)) {
+                // Hydration will merge the event into the selected history. Its header
+                // may still belong to this turn, but a newer turn must remain running.
+                vm.conversationState.update { state ->
+                    if (canFinish(state)) state.copy(running = false, turnId = null) else state
+                }
+                return false
+            }
         }
         return false
     }

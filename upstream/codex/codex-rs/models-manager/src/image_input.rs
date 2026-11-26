@@ -1,6 +1,6 @@
 //! Optimistic media admission with bounded, account-scoped rejection evidence.
 //! A catalog's missing or stale modality declaration is not runtime evidence.
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
 
@@ -72,10 +72,9 @@ impl MediaInputEvidence {
             .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))
     }
 
-    fn merge(&self, disk: Vec<Rejection>) -> Vec<Rejection> {
+    fn merge(records: &mut HashMap<(String, String, MediaInputKind), Rejection>, disk: Vec<Rejection>) {
         let now = Utc::now();
         let version = crate::client_version_to_whole();
-        let mut records = self.memory.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         for record in disk {
             let key = (record.scope.clone(), record.model.clone(), record.kind);
             if record.active(now, &version)
@@ -85,18 +84,17 @@ impl MediaInputEvidence {
             }
         }
         records.retain(|_, record| record.active(now, &version));
-        let mut ordered: Vec<_> = records.values().cloned().collect();
-        ordered.sort_by_key(|record| std::cmp::Reverse(record.rejected_at));
-        ordered.truncate(MAX_RECORDS);
         if records.len() > MAX_RECORDS {
+            let mut ordered: Vec<_> = records.values().cloned().collect();
+            ordered.sort_by_key(|record| std::cmp::Reverse(record.rejected_at));
+            ordered.truncate(MAX_RECORDS);
             records.clear();
-            records.extend(ordered.iter().cloned().map(|record|
+            records.extend(ordered.into_iter().map(|record|
                 ((record.scope.clone(), record.model.clone(), record.kind), record)));
         }
-        ordered
     }
 
-    fn snapshot(&self) -> Vec<Rejection> {
+    fn with_records<T>(&self, read: impl FnOnce(&HashMap<(String, String, MediaInputKind), Rejection>) -> T) -> T {
         let _guard = FILE_LOCK.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
         let disk = match self.load() {
             Ok(records) => records,
@@ -105,22 +103,26 @@ impl MediaInputEvidence {
                 Vec::new()
             }
         };
-        self.merge(disk)
+        let mut records = self.memory.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        Self::merge(&mut records, disk);
+        read(&records)
     }
 
     pub(crate) fn rejected(&self, scope: &str, model: &str, kind: MediaInputKind) -> bool {
-        self.snapshot().iter().any(|entry| entry.scope == scope && entry.model == model && entry.kind == kind)
+        self.with_records(|records| records.contains_key(&(scope.to_owned(), model.to_owned(), kind)))
     }
 
     pub(crate) fn apply(&self, scope: &str, models: &mut [ModelInfo]) {
-        let records = self.snapshot();
+        self.with_records(|records| {
+        let rejected_models: HashSet<_> = records.values().filter(|entry| entry.scope == scope)
+            .map(|entry| (entry.model.as_str(), entry.kind)).collect();
         for model in models {
             // Do not change model admission or tool privileges.
             if !model.input_modalities.contains(&InputModality::Text) {
                 continue;
             }
             for kind in [MediaInputKind::Image, MediaInputKind::Audio] {
-                let rejected = records.iter().any(|entry| entry.scope == scope && entry.model == model.slug && entry.kind == kind);
+                let rejected = rejected_models.contains(&(model.slug.as_str(), kind));
                 let modality = kind.modality();
                 model.input_modalities.retain(|value| *value != modality);
                 if !rejected { model.input_modalities.push(modality); }
@@ -128,6 +130,7 @@ impl MediaInputEvidence {
             // Original-detail is a separate wire capability, not implied by vision.
             model.supports_image_detail_original = false;
         }
+        });
     }
 
     pub(crate) fn record(&self, scope: &str, model: &str, kind: MediaInputKind) -> std::io::Result<()> {
@@ -139,12 +142,14 @@ impl MediaInputEvidence {
             version: crate::client_version_to_whole(),
             rejected_at: Utc::now(),
         };
-        self.memory.lock().unwrap_or_else(std::sync::PoisonError::into_inner)
-            .insert((scope.to_owned(), model.to_owned(), kind), record);
+        let mut records = self.memory.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        records.insert((scope.to_owned(), model.to_owned(), kind), record);
         let disk = self.load()?;
-        let records = self.merge(disk);
+        Self::merge(&mut records, disk);
         if let Some(path) = &self.path {
-            let bytes = serde_json::to_vec(&records)
+            let mut ordered: Vec<_> = records.values().collect();
+            ordered.sort_by_key(|record| std::cmp::Reverse(record.rejected_at));
+            let bytes = serde_json::to_vec(&ordered)
                 .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))?;
             // Private CODEX_HOME, same-directory atomic rename; never alter models_cache.json.
             let temporary = path.with_extension(format!("{}.tmp", std::process::id()));
@@ -248,6 +253,9 @@ mod tests {
         reopened.apply("account-b", std::slice::from_mut(&mut model));
         assert!(model.input_modalities.contains(&InputModality::Image));
         assert!(!reopened.rejected("account-a", "different-model", MediaInputKind::Image));
+        // Another already-open manager must observe a newly persisted rejection.
+        assert!(store.rejected("account-a", "new-model", MediaInputKind::Audio));
+        assert!(!store.rejected("account-b", "new-model", MediaInputKind::Audio));
     }
 
     #[test]

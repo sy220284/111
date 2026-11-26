@@ -5,6 +5,7 @@ package io.github.sy220284.codexandroid
 internal class IndexedTimeline private constructor(
     private val segments: PersistentSequence<List<TimelineItem>>,
     private val positions: PersistentIndex<String, Int>,
+    private val turns: PersistentIndex<String, PersistentSequence<Int>>,
     override val size: Int,
     internal val grouping: TimelineGrouping
 ) : AbstractList<TimelineItem>() {
@@ -25,22 +26,28 @@ internal class IndexedTimeline private constructor(
         }
     }
     fun byId(id: String): TimelineItem? = positions[id]?.let(::get)
+    fun positionOf(id: String): Int = positions[id] ?: -1
+    fun lastIndexOfTurn(turnId: String): Int = turns[turnId]?.lastOrNull() ?: -1
+    fun inTurn(turnId: String): Sequence<TimelineItem> = turns[turnId]?.asSequence()?.map(::get) ?: emptySequence()
     fun put(item: TimelineItem, clientId: String = ""): IndexedTimeline {
         val index = positions[item.id] ?: if (item.kind == "user" && clientId.isNotBlank())
             positions["pending-$clientId"]?.takeIf { get(it).kind == "user" } else null
         if (index == null) {
             val next = if (size % SEGMENT == 0) segments.append(listOf(item))
                 else segments.replace(segments.lastIndex, segments.last() + item)
-            return IndexedTimeline(next, positions.put(item.id, size), size + 1, grouping.append(item))
+            val turnPositions = (turns[item.turnId] ?: PersistentSequence()).append(size)
+            return IndexedTimeline(next, positions.put(item.id, size), turns.put(item.turnId, turnPositions), size + 1, grouping.append(item))
         }
         val old = get(index)
         if (old == item) return this
         val segment = index / SEGMENT
         val next = segments.replace(segment, segments[segment].toMutableList().apply { set(index % SEGMENT, item) })
         val ids = if (old.id == item.id) positions else positions.remove(old.id).put(item.id, index)
-        val nextGrouping = if (old.kind == item.kind && old.turnId == item.turnId) grouping.replace(index, item)
+        // A changed turn assignment is rare and changes both the turn index and grouping.
+        if (old.turnId != item.turnId) return from(next.flatten())
+        val nextGrouping = if (old.kind == item.kind) grouping.replace(index, item)
             else TimelineGrouping.from(next.flatten())
-        return IndexedTimeline(next, ids, size, nextGrouping)
+        return IndexedTimeline(next, ids, turns, size, nextGrouping)
     }
     override fun equals(other: Any?): Boolean = this === other || if (other is IndexedTimeline)
         size == other.size && segments == other.segments else super.equals(other)
@@ -51,8 +58,12 @@ internal class IndexedTimeline private constructor(
         fun from(items: List<TimelineItem>): IndexedTimeline {
             if (items is IndexedTimeline) return items
             var positions = PersistentIndex<String, Int>()
-            items.forEachIndexed { index, item -> positions = positions.put(item.id, index) }
-            return IndexedTimeline(PersistentSequence.from(items.chunked(SEGMENT)), positions,
+            var turns = PersistentIndex<String, PersistentSequence<Int>>()
+            items.forEachIndexed { index, item ->
+                positions = positions.put(item.id, index)
+                turns = turns.put(item.turnId, (turns[item.turnId] ?: PersistentSequence()).append(index))
+            }
+            return IndexedTimeline(PersistentSequence.from(items.chunked(SEGMENT)), positions, turns,
                 items.size, TimelineGrouping.from(items))
         }
     }

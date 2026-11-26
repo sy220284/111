@@ -27,6 +27,18 @@ class RemoteTransferCheckpointTest {
             assertTrue(runCatching { store.verify(entry) }.isFailure)
         } finally { dir.deleteRecursively() }
     }
+    @Test fun strictChunkDecodingWithoutReencoding() {
+        val random = kotlin.random.Random(116)
+        for (size in 0..2048) {
+            val bytes = random.nextBytes(size)
+            val encoded = java.util.Base64.getEncoder().encodeToString(bytes)
+            assertArrayEquals(bytes, RemoteTransferCheckpoint.decodeChunk(encoded, size.toLong()))
+        }
+        for ((encoded, size) in listOf("AB==" to 1L, "AAB=" to 2L, "AA=A" to 1L, "A A=" to 2L,
+            "AAAA" to 1L, "AA==" to 2L, "AA" to 1L, "____" to 3L)) {
+            assertTrue(encoded, runCatching { RemoteTransferCheckpoint.decodeChunk(encoded, size) }.isFailure)
+        }
+    }
     @Test fun rejectsCorruptionAndSupportsEmptyFile() {
         val dir = kotlin.io.path.createTempDirectory().toFile()
         try {

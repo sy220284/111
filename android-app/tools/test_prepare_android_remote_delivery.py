@@ -25,6 +25,7 @@ class RemoteDeliveryAdapterTest(unittest.TestCase):
                      "follow_symlinks: false", "8 * 1024 * 1024"):
             self.assertIn(text, adapted)
         self.assertNotIn("fs.read_file(", PROCESSOR)
+        self.assertNotIn("STANDARD.encode(bytes)", PROCESSOR)
 
     def test_chunked_delivery_uses_distinct_rpc_and_validates_receipt(self):
         adapted = "\n".join(new for _, _, new in EXEC_CHANGES)

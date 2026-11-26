@@ -2,7 +2,6 @@ package io.github.sy220284.codexandroid
 
 import android.content.ContentResolver
 import android.net.Uri
-import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.ensureActive
@@ -66,16 +65,8 @@ internal object RemoteFileDelivery {
                 result.getLong("offset") == offset) { "远端分块回执归属不一致" }
             return result
         }
-        fun decode(result: JSONObject, expected: Long): ByteArray {
-            val encoded = result.getString("dataBase64")
-            require(expected in 0..RemoteTransferCheckpoint.CHUNK_BYTES.toLong() &&
-                encoded.length.toLong() == ((expected + 2) / 3) * 4) { "远端分块大小不一致" }
-            return Base64.decode(encoded, Base64.NO_WRAP).also {
-                require(it.size.toLong() == expected && Base64.encodeToString(it, Base64.NO_WRAP) == encoded) {
-                    "无效远端分块编码"
-                }
-            }
-        }
+        fun decode(result: JSONObject, expected: Long): ByteArray =
+            RemoteTransferCheckpoint.decodeChunk(result.getString("dataBase64"), expected)
         val first = chunk(0, null)
         val size = first.getLong("size")
         val sha = first.getString("sha256")

@@ -152,9 +152,7 @@ internal object CodexNotificationDispatcher {
                 completedId.isNullOrBlank() || execution?.turnId == completedId
             if (!validCompletion) {
                 // An older terminal event may enrich history but must never finish a newer active turn.
-                if (threadId == activeThread.value && threadId != hydratingThread)
-                    timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
-                else liveTimelines.event(threadId, method, params, threadExecutions.value.keys)
+                TimelineEventEngine.applyEvent(vm, notification)
                 return
             }
             threadExecutions.value = ThreadExecutionPolicy.finish(
@@ -174,11 +172,9 @@ internal object CodexNotificationDispatcher {
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, threadId,
                 if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
-            if (threadId == activeThread.value) {
-                // Publish terminal text, phase and running state in one snapshot.
-                conversationState.update { state -> state.copy(running = false, turnId = null,
-                    timeline = TimelineEventReducer.reduce(method, params, state.timeline)) }
-            }
+            // Publish the prepared terminal text and running state atomically.
+            TimelineEventEngine.applyEvent(vm, notification, completedId)
+            if (!bridge.isCurrentEvent(message)) return
             sessions.refreshChanged(threadId)
             accountMetrics.refresh()
             val finishedImages = execution?.images.orEmpty()
@@ -223,21 +219,12 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
-        if (notification.mergedDelta == null && threadId.isNotBlank() &&
-            (threadId == hydratingThread || threadId != activeThread.value) &&
-            method in TimelineEventReducer.methods) {
-            liveTimelines.event(threadId, method, params, threadExecutions.value.keys, notification.mergedDelta)
-            return
-        }
-        if (notification.mergedDelta == null && threadId.isNotBlank() && threadId != activeThread.value) return
-        when (method) {
-            in TimelineEventReducer.methods - "turn/completed" -> {
-                if (notification.mergedDelta != null) {
-                    if (!TimelineEventEngine.applyDelta(vm, notification)) return
-                } else timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
+        when {
+            method in TimelineEventReducer.methods && method != "turn/completed" -> {
+                if (threadId.isBlank() || !TimelineEventEngine.applyEvent(vm, notification)) return
             }
-            "turn/diff/updated" -> latestDiff.value = params.optString("diff")
-            "turn/completed" -> Unit // Applied atomically above, or buffered for the hydrating/offscreen thread.
+            threadId.isNotBlank() && (threadId != activeThread.value || threadId == hydratingThread) -> return
+            method == "turn/diff/updated" -> latestDiff.value = params.optString("diff")
         }
         if (!threadSwitching.value && !running.value && !loadingEarlier.value && !timelineCompacting && method in TimelineEventReducer.methods && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
             val epoch = timelineEpoch
