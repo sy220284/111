@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Require actual identical, unique successful test sets across all four configurations and eight independent shards."""
 import json
+import math
 import os
 import sys
 from pathlib import Path
@@ -8,6 +9,22 @@ from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, 
 
 def read(path):
     return json.loads(path.read_text(encoding="utf-8"))
+
+def validate_motion(frames):
+    values = frames["frame_ns"]
+    deadlines = frames["deadline_ns"]
+    n = frames["frames"]
+    if (type(n) is not int or n < 12 or len(values) != n or len(deadlines) != n
+        or frames["listener_dropped"] != 0
+        or "Pipeline=Skia (OpenGL)" not in frames["renderer_pipelines"]
+        or any(type(x) is not int or x <= 0 for x in values)
+        or any(type(x) is not int for x in deadlines)):
+        raise ValueError("Invalid raw motion samples or actual renderer")
+    p95 = sorted(values)[math.ceil(n * .95) - 1] / 1_000_000
+    slow = sum(x > 100_000_000 for x in values)
+    if (not math.isclose(frames["p95_ms"], p95, rel_tol=1e-9, abs_tol=1e-9)
+        or frames["very_slow_frames"] != slow or p95 > 120 or slow / n > .15):
+        raise ValueError("Raw motion samples exceed budget or disagree with reported metrics")
 
 def validate(root, source):
     expected = {(profile, mode) for profile in PROFILES for mode in MODES}
@@ -59,6 +76,7 @@ def validate(root, source):
                 frames = read(directory/"ui-motion-performance.json")
                 if motion.get("status") != "passed" or motion.get("tests") != 1 or frames.get("frames",0) < 12:
                     raise ValueError(f"{profile}: motion proof missing or failed")
+                validate_motion(frames)
                 if PROFILES[profile]["self_update"]:
                     update = read(directory/"self-update-open.json")
                     if update.get("status") != "passed":

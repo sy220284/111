@@ -22,7 +22,10 @@ class MatrixEvidenceTests(unittest.TestCase):
                 self.write(folder/"ui-visual-evidence/report.json", {"status":"baseline_pending","structural_errors":[]})
                 if mode=="baseline":
                     self.write(folder/"ui-motion-diagnosis.json",{"status":"passed","tests":1})
-                    self.write(folder/"ui-motion-performance.json",{"frames":12})
+                    self.write(folder/"ui-motion-performance.json",{"frames":12,
+                        "frame_ns":[20_000_000]*12,"deadline_ns":[16_666_667]*12,
+                        "listener_dropped":0,"renderer_pipelines":["Pipeline=Skia (OpenGL)"],
+                        "p95_ms":20.0,"very_slow_frames":0})
                     if PROFILES[profile]["self_update"]:
                         self.write(folder/"self-update-open.json",{"status":"passed"})
     def write(self,path,obj):
@@ -79,3 +82,19 @@ class MatrixEvidenceTests(unittest.TestCase):
             (root/"ui-proof-compact-baseline").mkdir()
             with self.assertRaisesRegex(ValueError, "unexpected"):
                 validate(root,"head")
+
+    def test_raw_motion_evidence_rejects_wrong_renderer_drops_and_false_summary(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            path=root/"ui-proof-mainstream-baseline/ui-motion-performance.json"
+            valid=json.loads(path.read_text())
+            for changes in ({"renderer_pipelines":["Pipeline=Skia (Vulkan)"]},
+                            {"listener_dropped":1},
+                            {"frame_ns":[200_000_000]*12},
+                            {"p95_ms":121.0},
+                            {"very_slow_frames":3}):
+                with self.subTest(changes=changes):
+                    self.write(path,dict(valid,**changes))
+                    with self.assertRaises(ValueError): validate(root,"head")
+            self.write(path,valid)
+            self.assertEqual(4,validate(root,"head")["device_configurations"])
