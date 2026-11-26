@@ -68,7 +68,13 @@
       ".github/scripts/run-android-runtime-tests.sh",
       "android-app/app/build.gradle.kts",
       "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/CoreStartupInstrumentedTest.kt",
-      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/RuntimeOwnershipInstrumentedTest.kt"
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/RuntimeOwnershipInstrumentedTest.kt",
+      "android-app/gradlew",
+      "android-app/gradlew.bat",
+      "android-app/gradle/wrapper/gradle-wrapper.jar",
+      "android-app/gradle/wrapper/gradle-wrapper.properties",
+      ".github/workflows/build-native-codex.yml",
+      ".github/scripts/audit_apk_contents.py"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
