@@ -15,10 +15,15 @@ internal object SessionListPolicy {
     fun title(row: JSONObject) = PresentationPolicy.threadTitle(row.optString("name"), row.optString("preview"))
     fun recency(row: JSONObject) = sequenceOf("recencyAt", "updatedAt", "createdAt")
         .map { row.optLong(it, 0) }.firstOrNull { it > 0 } ?: 0
-    fun ordered(rows: List<JSONObject>, pinned: Set<String>, sort: SessionSort = SessionSort.Recent) = rows
-        .filter { id(it).isNotBlank() }.distinctBy(::id)
-        .sortedWith(compareByDescending<JSONObject> { id(it) in pinned }
-            .thenByDescending { sort.timestamp(it) }.thenByDescending(::id))
+    private data class SortKey(val row: JSONObject, val id: String, val pinned: Boolean, val timestamp: Long)
+    fun ordered(rows: List<JSONObject>, pinned: Set<String>, sort: SessionSort = SessionSort.Recent): List<JSONObject> {
+        val seen = hashSetOf<String>()
+        return rows.mapNotNull { row ->
+            val id = id(row)
+            if (id.isBlank() || !seen.add(id)) null else SortKey(row, id, id in pinned, sort.timestamp(row))
+        }.sortedWith(compareByDescending<SortKey> { it.pinned }.thenByDescending { it.timestamp }
+            .thenByDescending { it.id }).map { it.row }
+    }
     fun titleMatches(row: JSONObject, query: String) =
         query.isBlank() || title(row).contains(query.trim(), ignoreCase = true)
     fun unread(receipt: JSONObject?) = receipt?.optJSONObject("firstUnread") != null

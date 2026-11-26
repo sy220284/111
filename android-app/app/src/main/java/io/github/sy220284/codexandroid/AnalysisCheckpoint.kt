@@ -19,7 +19,9 @@ internal data class AnalysisCheckpoint(
         require(parts.size <= MAX_PARTS && parts.all { it.length <= MAX_PART_CHARS } &&
             parts.sumOf { it.length } <= MAX_PARTS * MAX_PART_CHARS)
     }
-    val identity get() = digest(JSONArray(listOf(source, mode, question, sourceTurn)).toString())
+    val identity: String by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        digest(JSONArray(listOf(source, mode, question, sourceTurn)).toString())
+    }
     val text get() = parts.joinToString("\n\n")
     val complete get() = total > 0 && parts.size == total
     fun storageName(screen: Boolean) = storageBase(owner, scope, screen) +
@@ -47,13 +49,36 @@ internal data class AnalysisCheckpoint(
     }
 }
 
+/** Compact catalog entries intentionally contain no provider response bodies. */
+internal data class AnalysisRecordHeader(val identity: String, val source: String, val mode: String,
+    val question: String, val completed: Int, val total: Int) {
+    companion object {
+        fun from(record: AnalysisCheckpoint) = AnalysisRecordHeader(record.identity, record.source, record.mode,
+            record.question.take(36), record.parts.size, record.total)
+    }
+}
+internal data class AnalysisMediaCatalog(val latest: AnalysisCheckpoint?, val headers: List<AnalysisRecordHeader>)
+
 /** Call on IO, inside the existing local mutation lease. Accounts and conversations have separate files. */
 internal class AnalysisCheckpointStore(private val directory: File) {
     // Controllers and restore readers may hold separate store objects for the same directory.
     // The read/merge/atomic-replace transaction must share one lock across those objects.
     private val lock = locks.computeIfAbsent(directory.canonicalPath) { Any() }
+    private data class FileRevision(val key: Any, val modified: java.nio.file.attribute.FileTime,
+        val created: java.nio.file.attribute.FileTime, val size: Long)
+    private data class HeaderEntry(val revision: FileRevision, val header: AnalysisRecordHeader)
     private companion object {
         val locks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+        val headers = object : LinkedHashMap<String, HeaderEntry>(64, .75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, HeaderEntry>?) = size > 512
+        }
+    }
+    private fun revision(target: File): FileRevision? {
+        val attrs = Files.readAttributes(target.toPath(), java.nio.file.attribute.BasicFileAttributes::class.java)
+        require(attrs.isRegularFile && attrs.size() in 1..AnalysisCheckpoint.MAX_RECORD_BYTES) { "分析记录损坏，原文件已保留" }
+        // Some filesystems expose no file identity. Those records are always read.
+        val key = attrs.fileKey() ?: return null
+        return FileRevision(key, attrs.lastModifiedTime(), attrs.creationTime(), attrs.size())
     }
     private fun file(owner: String, scope: String, screen: Boolean) = File(directory,
         AnalysisCheckpoint.storageBase(owner, scope, screen) + ".json")
@@ -68,15 +93,44 @@ internal class AnalysisCheckpointStore(private val directory: File) {
         require(identity.matches(Regex("[0-9a-f]{64}"))) { "分析记录标识无效" }
         return File(directory, file(owner, scope, false).nameWithoutExtension + "-" + identity + ".json")
     }
-    /** Old single-record files remain readable; successful writes migrate only that same record. */
-    fun listMedia(owner: String, scope: String): List<AnalysisCheckpoint> = synchronized(lock) {
-        if (!directory.exists()) return@synchronized emptyList()
+    private fun mediaFiles(owner: String, scope: String): List<File> {
+        if (!directory.exists()) return emptyList()
         val legacy = file(owner, scope, false)
         val prefix = legacy.nameWithoutExtension + "-"
-        val files = requireNotNull(directory.listFiles()) { "无法读取媒体分析记录" }
+        return requireNotNull(directory.listFiles()) { "无法读取媒体分析记录" }
             .filter { it.name == legacy.name || (it.name.startsWith(prefix) && it.name.endsWith(".json")) }
             .sortedWith(compareByDescending<File> { it.lastModified() }.thenBy { it.name })
-        files.mapNotNull { target -> readFile(target, owner, scope)?.also { record ->
+    }
+    /** Catalog scans retain only verified compact headers; the selected record
+     * is always read from disk. Atomic replacement changes file identity. */
+    fun catalog(owner: String, scope: String): AnalysisMediaCatalog = synchronized(lock) {
+        val legacy = file(owner, scope, false)
+        var latest: AnalysisCheckpoint? = null
+        val seen = hashSetOf<String>()
+        val result = buildList {
+            for (target in mediaFiles(owner, scope)) {
+                val before = revision(target)
+                val key = target.absolutePath
+                val cached = if (latest == null || before == null) null else synchronized(headers) {
+                    headers[key]?.takeIf { it.revision == before }?.header
+                }
+                val header = cached ?: run {
+                    val record = requireNotNull(readFile(target, owner, scope)) { "分析记录在读取时变化，请重试" }
+                    require(target == legacy || target == mediaFile(owner, scope, record.identity)) { "分析记录标识不匹配" }
+                    val value = AnalysisRecordHeader.from(record)
+                    if (latest == null) latest = record
+                    if (before != null && before == revision(target)) synchronized(headers) { headers[key] = HeaderEntry(before, value) }
+                    value
+                }
+                if (seen.add(header.identity)) add(header)
+            }
+        }
+        AnalysisMediaCatalog(latest, result)
+    }
+    /** Old single-record files remain readable; successful writes migrate only that same record. */
+    fun listMedia(owner: String, scope: String): List<AnalysisCheckpoint> = synchronized(lock) {
+        val legacy = file(owner, scope, false)
+        mediaFiles(owner, scope).mapNotNull { target -> readFile(target, owner, scope)?.also { record ->
             require(target == legacy || target == mediaFile(owner, scope, record.identity)) { "分析记录标识不匹配" }
         } }.distinctBy { it.identity }
     }
@@ -86,7 +140,7 @@ internal class AnalysisCheckpointStore(private val directory: File) {
         } ?: readFile(file(owner, scope, false), owner, scope)?.takeIf { it.identity == identity }
     }
     fun read(owner: String, scope: String, screen: Boolean): AnalysisCheckpoint? = synchronized(lock) {
-        if (screen) readFile(file(owner, scope, true), owner, scope) else listMedia(owner, scope).firstOrNull()
+        if (screen) readFile(file(owner, scope, true), owner, scope) else catalog(owner, scope).latest
     }
     fun save(record: AnalysisCheckpoint, screen: Boolean): Unit = synchronized(lock) {
         check(directory.isDirectory || directory.mkdirs()) { "无法建立分析记录目录" }

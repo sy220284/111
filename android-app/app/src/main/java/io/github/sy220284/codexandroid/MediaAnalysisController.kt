@@ -16,10 +16,11 @@ import java.io.File
 /** Independent durable records, keyed by attachment, processing intention, question and source turn. */
 internal class MediaAnalysisController(private val vm: CodexViewModel, private val adapter: MediaAnalysisAdapter) {
     data class RecordSummary(val identity: String, val label: String)
-    private fun summary(record: AnalysisCheckpoint) = RecordSummary(record.identity,
+    private fun summary(record: AnalysisCheckpoint) = summary(AnalysisRecordHeader.from(record))
+    private fun summary(record: AnalysisRecordHeader) = RecordSummary(record.identity,
         (MediaAnalysisMode.entries.firstOrNull { it.name == record.mode }?.label ?: record.mode) +
             " · " + File(record.source).extension.uppercase(java.util.Locale.ROOT) + " · " +
-            record.parts.size + "/" + record.total + " · " + record.question.take(36))
+            record.completed + "/" + record.total + " · " + record.question)
     data class State(val owner: String? = null, val revision: Long = 0, val source: String? = null,
                      val mode: MediaAnalysisMode? = null, val completed: Int = 0, val total: Int = 0,
                      val busy: Boolean = false, val result: String? = null, val error: String? = null,
@@ -63,10 +64,10 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
         try {
             val target = adapter.bind(owner, model, epoch, permit)
             scope = target.checkpointScope
-            val records = withContext(Dispatchers.IO) { store.listMedia(owner, target.checkpointScope) }
+            val records = withContext(Dispatchers.IO) { store.catalog(owner, target.checkpointScope) }
             if (!permit() || state.value.busy) return
-            val record = records.firstOrNull()
-            results.update { if (record == null) it - owner else it + (owner to restored(record, revision, target.model, epoch, selected).copy(history = records.map(::summary))) }
+            val record = records.latest
+            results.update { if (record == null) it - owner else it + (owner to restored(record, revision, target.model, epoch, selected).copy(history = records.headers.map(::summary))) }
         } catch (cancel: CancellationException) { throw cancel }
         catch (failure: Exception) {
             if (scope != null && permit() && !state.value.busy) results.update { it + (owner to State(owner = owner,
@@ -190,11 +191,11 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
                 AppDataTransfer.mutateLocal {
                     if (record != null) store.removeMedia(record) else store.removeDamagedMedia(owner, scope)
                 }
-                val remaining = withContext(Dispatchers.IO) { store.listMedia(owner, scope) }
+                val remaining = withContext(Dispatchers.IO) { store.catalog(owner, scope) }
                 results.update { it - owner }; state.value = State()
-                if (owns(current, owner) && remaining.isNotEmpty())
-                    publish(restored(remaining.first(), current.revision, current.model, requireNotNull(current.epoch), current.selection)
-                        .copy(history = remaining.map(::summary)))
+                if (owns(current, owner) && remaining.latest != null)
+                    publish(restored(remaining.latest, current.revision, current.model, requireNotNull(current.epoch), current.selection)
+                        .copy(history = remaining.headers.map(::summary)))
             } catch (cancel: CancellationException) { publish(current); throw cancel }
             catch (failure: Exception) { publish(current.copy(error = failure.message ?: "分析记录清除失败")) }
         }

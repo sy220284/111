@@ -6,6 +6,26 @@ import org.junit.Test
 
 class AnalysisCheckpointTest {
     private val scope = AnalysisCheckpoint.identity("https://workspace", "secret")
+    @Test fun catalogReturnsOnlyHeadersAndObservesAtomicReplacement() {
+        val directory = Files.createTempDirectory("analysis-catalog").toFile()
+        try {
+            val store = AnalysisCheckpointStore(directory)
+            val base = AnalysisCheckpoint("A", scope, "/media.mp4", "Understand", "one", listOf("a".repeat(64000)), 2)
+            val other = base.copy(question = "two")
+            store.save(base, false)
+            store.save(other, false)
+            val first = store.catalog("A", scope)
+            assertEquals(2, first.headers.size)
+            assertEquals(store.listMedia("A", scope).first(), first.latest)
+            assertEquals(first.headers, store.catalog("A", scope).headers)
+            AnalysisCheckpointStore(directory).save(base.copy(parts = listOf(base.parts.single(), "b")), false)
+            assertEquals(2, store.catalog("A", scope).headers.single { it.identity == base.identity }.completed)
+            assertNull(store.catalog("B", scope).latest)
+            val file = directory.resolve(other.storageName(false))
+            file.writeText("invalid")
+            assertThrows(Exception::class.java) { store.catalog("A", scope) }
+        } finally { directory.deleteRecursively() }
+    }
     @Test fun completedSegmentsSurviveRestartAndStayWithTheirConversationAndCredential() {
         val directory = Files.createTempDirectory("analysis-results").toFile()
         try {

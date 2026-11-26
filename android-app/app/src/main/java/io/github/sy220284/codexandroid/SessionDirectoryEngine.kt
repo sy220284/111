@@ -24,32 +24,71 @@ internal data class SessionDirectoryInput(
 internal data class SessionDirectoryPresentation(val rows: List<JSONObject>, val pinned: Set<String>)
 
 internal object SessionDirectoryEngine {
-    fun project(input: SessionDirectoryInput, binding: (String) -> RemoteExecutionBinding?): SessionDirectoryPresentation {
-        val scope = input.scope
-        val raw = if (scope.sectionId == null || scope.fullText) records(input.response) else input.sectionRows.orEmpty()
-        val matching = if (scope.fullText && scope.query.isNotBlank())
-            input.searchResult?.takeIf { it.first == (scope.archived to scope.query.trim()) }?.second.orEmpty()
-        else if (scope.fullText) emptyList() else {
-            val roots = raw.filter { SessionListPolicy.titleMatches(it, scope.query) }
-                .mapTo(hashSetOf()) { input.versions.root(SessionListPolicy.id(it)) }
-            raw.filter { input.versions.root(SessionListPolicy.id(it)) in roots }
-        }
-        val rows = input.versions.rows(raw, matching).filter { row ->
-            if (!scope.projectOnly) true else {
-                val bound = binding(SessionListPolicy.id(row))
+    fun project(input: SessionDirectoryInput, binding: (String) -> RemoteExecutionBinding?): SessionDirectoryPresentation =
+        Cache().project(input, binding)
+
+    /** A title edit only selects logical families from a preordered snapshot.
+     * Source/version/pin changes invalidate the index; project ownership is
+     * checked on every request, including when the title index is reused. */
+    class Cache {
+        private data class Title(val root: String, val title: String)
+        private data class Entry(val row: JSONObject, val id: String, val root: String)
+        private data class Index(val input: SessionDirectoryInput, val titles: List<Title>, val entries: List<Entry>)
+        private var index: Index? = null
+
+        @Synchronized
+        fun project(input: SessionDirectoryInput, binding: (String) -> RemoteExecutionBinding?): SessionDirectoryPresentation {
+            val scope = input.scope
+            val entries = if (!scope.fullText) {
+                val cached = index?.takeIf {
+                    val old = it.input
+                    old.scope.session == scope.session && old.scope.account == scope.account &&
+                        old.scope.sectionId == scope.sectionId && old.scope.archived == scope.archived &&
+                        old.response === input.response && old.sectionRows === input.sectionRows &&
+                        old.versions == input.versions && old.pins == input.pins
+                } ?: run {
+                    val raw = if (scope.sectionId == null) records(input.response) else input.sectionRows.orEmpty()
+                    val titles = raw.map { Title(input.versions.root(SessionListPolicy.id(it)), SessionListPolicy.title(it)) }
+                    Index(input, titles, ordered(input, input.versions.rows(raw))).also { index = it }
+                }
+                val query = scope.query.trim()
+                if (query.isEmpty()) cached.entries else {
+                    val roots = cached.titles.asSequence().filter { it.title.contains(query, ignoreCase = true) }
+                        .mapTo(hashSetOf()) { it.root }
+                    cached.entries.filter { it.root in roots }
+                }
+            } else {
+                val raw = records(input.response)
+                val matching = if (scope.query.isNotBlank())
+                    input.searchResult?.takeIf { it.first == (scope.archived to scope.query.trim()) }?.second.orEmpty()
+                else emptyList()
+                ordered(input, input.versions.rows(raw, matching))
+            }
+            val rows = if (!scope.projectOnly) entries else entries.filter { entry ->
+                val bound = binding(entry.id)
                 val remote = scope.remote
                 if (remote != null) bound != null && bound.id == remote.id && bound.cwd == remote.cwd
-                else bound == null && row.optString("cwd") == scope.workspace
+                else bound == null && entry.row.optString("cwd") == scope.workspace
+            }
+            return SessionDirectoryPresentation(rows.map { it.row },
+                rows.filter { it.root in input.pins }.mapTo(hashSetOf()) { it.id })
+        }
+
+        private fun ordered(input: SessionDirectoryInput, rows: List<JSONObject>): List<Entry> {
+            val pins = rows.map(SessionListPolicy::id).filter { input.versions.root(it) in input.pins }.toSet()
+            return SessionListPolicy.ordered(rows, pins).map { row ->
+                val id = SessionListPolicy.id(row)
+                Entry(row, id, input.versions.root(id))
             }
         }
-        val pins = rows.map(SessionListPolicy::id).filter { input.versions.root(it) in input.pins }.toSet()
-        return SessionDirectoryPresentation(SessionListPolicy.ordered(rows, pins), pins)
     }
 }
 
 @Composable
 internal fun collectSessionDirectory(vm: CodexViewModel, input: SessionDirectoryInput): State<Result<SessionDirectoryPresentation>?> {
     val latest by rememberUpdatedState(input)
+    val engine = remember(vm, input.scope.session, input.scope.account, input.scope.sectionId,
+        input.scope.archived, input.scope.fullText) { SessionDirectoryEngine.Cache() }
     return produceCodexUiState<Result<SessionDirectoryPresentation>?>(null, vm, input.scope) {
         snapshotFlow { latest }.collectLatest { request ->
             if (!request.available) value = null
@@ -57,7 +96,7 @@ internal fun collectSessionDirectory(vm: CodexViewModel, input: SessionDirectory
                 val prepared = codexLoadResult {
                     // Project-only rows consult persistent remote ownership, so that work belongs on IO.
                     withContext(if (request.scope.projectOnly) Dispatchers.IO else Dispatchers.Default) {
-                        SessionDirectoryEngine.project(request, vm.remoteBindings::forThread)
+                        engine.project(request, vm.remoteBindings::forThread)
                     }
                 }
                 if (latest == request) value = prepared

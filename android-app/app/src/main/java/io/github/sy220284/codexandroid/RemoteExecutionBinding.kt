@@ -69,8 +69,19 @@ data class RemoteExecutionBinding(val id: String, val endpoint: String, val cwd:
 /** Per-thread durable binding survives native-process restart; no implicit local fallback. */
 internal class RemoteExecutionBindings(private val preferences: SharedPreferences) {
     private val protocol = RemoteEnvironmentProtocol()
+    private data class Decoded(val source: String, val binding: RemoteExecutionBinding)
+    private val decoded = object : LinkedHashMap<String, Decoded>(64, .75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Decoded>?) = size > 512
+    }
     fun forThread(threadId: String?): RemoteExecutionBinding? = threadId?.let {
-        preferences.getString("thread:$it", null)?.let { value -> RemoteExecutionBinding.read(JSONObject(value)) }
+        // Read the current persisted value every time; a restore or replacement
+        // invalidates the decoded object without trusting an obsolete owner.
+        val source = preferences.getString("thread:$it", null)
+        synchronized(decoded) {
+            if (source == null) { decoded.remove(it); null }
+            else decoded[it]?.takeIf { entry -> entry.source == source }?.binding
+                ?: RemoteExecutionBinding.read(JSONObject(source)).also { binding -> decoded[it] = Decoded(source, binding) }
+        }
     }
 
     fun savedDevices(): List<Pair<String, String>> = preferences.all.entries
