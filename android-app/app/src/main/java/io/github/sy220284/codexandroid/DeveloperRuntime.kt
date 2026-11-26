@@ -30,15 +30,15 @@ internal object DeveloperRuntime {
         env["SHELL"] = "/system/bin/sh"
         env["GIT_EXEC_PATH"] = tools.absolutePath
         GitWorkspaceTrust.configure(WorkspaceStorage.root(context), env)
-        env["LD_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir + ":" + File(root, "git/lib").absolutePath
+        env["LD_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir
+        env["CODEX_DEVELOPER_RUNTIME_ROOT"] = root.absolutePath
         if (File(root, "git/lib").isDirectory) {
-            env["GIT_TEMPLATE_DIR"] = File(root, "git/templates").absolutePath
+            env["GIT_TEMPLATE_DIR"] = File(root, "git/home/share/git-core/templates").absolutePath
             env["GIT_CONFIG_SYSTEM"] = File(root, "git/gitconfig").absolutePath
         }
-        env["PYTHONHOME"] = root.absolutePath
+        env["PYTHONHOME"] = File(root, "python/home").absolutePath
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["PYTHONUSERBASE"] = python.absolutePath
-        env["ANDROIDDSH_NPM_ENTRY"] = File(root, "npm/bin/npm-cli.js").absolutePath
         env["PIP_ONLY_BINARY"] = ":all:"
         env["npm_config_prefix"] = node.absolutePath
         env["npm_config_script_shell"] = "/system/bin/sh"
@@ -56,9 +56,9 @@ internal object DeveloperRuntime {
         check(!java.nio.file.Files.isSymbolicLink(parent.toPath())) { "开发环境目录不能是符号链接" }
         check(parent.isDirectory || parent.mkdirs())
         val target = File(parent, digest)
-        fun valid(dir: File) = File(dir, "lib/python3.13/encodings/__init__.py").isFile &&
-            File(dir, "lib/python3.13/site-packages/pip/__init__.py").isFile &&
-            File(dir, "npm/bin/npm-cli.js").isFile
+        fun valid(dir: File) = File(dir, "python/home/lib/python3.14/encodings/__init__.py").isFile &&
+            File(dir, "python/home/lib/python3.14/site-packages/pip/__init__.py").isFile &&
+            File(dir, "node/npm/package/bin/npm-cli.js").isFile
         if (target.isDirectory && valid(target) &&
             context.assets.open("$ASSET.zip").use { RuntimePayloadIntegrity.matches(target, it) }) {
             RuntimePayloadIntegrity.sealReadOnly(target)

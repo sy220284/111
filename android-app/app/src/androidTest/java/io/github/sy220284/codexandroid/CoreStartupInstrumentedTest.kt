@@ -288,7 +288,7 @@ class CoreStartupInstrumentedTest {
             "rg --no-config --line-number codex-rg-native-confirmation rg-native-integration.txt")
             .directory(workspace)
             .redirectErrorStream(true)
-            .apply { environment()["PATH"] = "${bin.absolutePath}:/system/bin" }
+            .apply { DeveloperRuntime.configure(app, bin, environment()) }
             .start()
         try {
             val finished = process.waitFor(30, TimeUnit.SECONDS)
@@ -580,12 +580,18 @@ class CoreStartupInstrumentedTest {
             case ":${'$'}PATH:" in *":${'$'}npm_config_prefix/bin:"*) ;; *) exit 92 ;; esac
             test -d "${'$'}PYTHONUSERBASE/bin"
             test -d "${'$'}npm_config_prefix/bin"
-            git --version
-            curl --version
+            git --version | grep -F 2.56.1
+            curl --version | grep -F 8.23.0
+            jq -n '1+1' | grep -x 2
+            jq --version | grep -F 1.8.2
+            rg --version | grep -F 15.2.0
+            python3 --version | grep -F 3.14.10
             python3 -c 'import ssl, sqlite3, json; assert json.loads("42") == 42'
-            python3 -m pip --version
+            python3 -m pip --version | grep -F 26.3
+            pip --version | grep -F 26.3
+            node --version | grep -F 26.13.1
             node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
-            npm --version
+            npm --version | grep -x 11.6.2
             printf developer-runtime-ok
         """.trimIndent()
         val process = ProcessBuilder("/system/bin/sh", "-c", command)
@@ -635,7 +641,7 @@ class CoreStartupInstrumentedTest {
                 PYTHONPATH="${'$'}PWD/python" python3 -c 'import packaging; from packaging.version import Version; assert packaging.__version__ == "26.3" and Version("2.0") > Version("1.0")'
                 (cd node && npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/ --cache="${'$'}PWD/.npm-cache")
                 node -e 'if (!require("./node/node_modules/is-number")(42) || require("./node/node_modules/is-number")("abc")) process.exit(1)'
-                ${if (arm64) "GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code https://github.com/octocat/Hello-World.git HEAD" else "printf 'x86_64 Git HTTPS not provided\\n'"}
+                GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code https://github.com/octocat/Hello-World.git HEAD
                 printf developer-network-packages-ok
             """.trimIndent()
             withTimeout(240_000L) {

@@ -85,9 +85,11 @@ android {
             keepDebugSymbols += "**/libcodex_git.so"
             keepDebugSymbols += "**/libcodex_git_remote_http.so"
             keepDebugSymbols += "**/libcodex_curl.so"
-            keepDebugSymbols += "**/libnode.so"
-            keepDebugSymbols += "**/libpython3.so"
-            keepDebugSymbols += "**/libnpm.so"
+            keepDebugSymbols += "**/libcodex_node.so"
+            keepDebugSymbols += "**/libcodex_python.so"
+            keepDebugSymbols += "**/libcodex_jq.so"
+            keepDebugSymbols += "**/libcodex_tool_launcher.so"
+            keepDebugSymbols += "**/libcodex_git_helper_*.so"
         }
     }
     // Enabled only in the native APK pipeline. Standalone UI verification keeps

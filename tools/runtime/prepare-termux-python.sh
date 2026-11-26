@@ -465,7 +465,7 @@ prepare_arch() {
       chmod 0644 "$home_dir/etc/tls/openssl.cnf"
     fi
 
-    if [ "$apt_arch" = "aarch64" ] && [ -f "$prefix/share/doc/$pkg/copyright" ]; then
+    if [ -f "$prefix/share/doc/$pkg/copyright" ]; then
       cp "$prefix/share/doc/$pkg/copyright" "$OUT_ROOT/assets/runtime/python/notices/$pkg.txt"
     fi
     printf '%s\t%s\t%s\t%s\n' "$pkg" "$version" "$filename" "$digest" >> "$manifest"

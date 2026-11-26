@@ -32,11 +32,10 @@ class ApkAuditTests(unittest.TestCase):
         }
         if core:
             payload["assets/domestic-providers.json"] = b"[]"
-            for ext in ("zip", "sha256", "version", "provenance.json"):
+            for ext in ("zip", "sha256", "version", "provenance.json", "commands.tsv"):
                 payload["assets/development-runtime/development-runtime." + ext] = b"fixture"
-            extra = ("libnode.so", "libnpm.so", "libpython3.so", "libcodex_curl.so")
-            if abi == "arm64-v8a":
-                extra += ("libcodex_git_remote_http.so",)
+            extra = ("libcodex_node.so", "libcodex_python.so", "libcodex_curl.so", "libcodex_jq.so",
+                     "libcodex_tool_launcher.so", "libcodex_git_remote_http.so")
             for component in REQUIRED_RUNTIME + extra:
                 if component == missing_component:
                     continue

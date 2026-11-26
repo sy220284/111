@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Select immutable precompiled Android release payloads, never build external tools."""
+"""Assemble the exact 777 signed precompiled runtime and 111's own small command adapter."""
 import argparse
 import hashlib
 import json
-import lzma
 import pathlib
 import re
 import shutil
@@ -12,30 +11,20 @@ import tarfile
 import tempfile
 import zipfile
 
-DSH = {
-    "arm64-v8a": ("AndroidDSH-0.2.0-arm64-v8a.apk", "1b58d871de59da6ddac5dde78107c778a5926dd46748ac55f9953cc4e8a8dcbd"),
-    "x86_64": ("AndroidDSH-0.2.0-x86_64.apk", "8489da96aa6b22e2cac53b1ace1bcea8c2219db5050602ff94b9f85be616adcf"),
-}
-CURL = ("https://github.com/vvb2060/curl-android/releases/download/v8.18.0/tool-release.apk.xz",
-        "0aa32165eb4a9cb8a56e13053cd3bc80cccb0c761b4daf9688c3e3667522bb4b")
-GIT = ("https://github.com/rmyndharis/VSCodroid/releases/download/v1.11.0/app-release.apk",
-       "4f83ff6fd8a70f19ee04ad93861d68522a2936c203f6ec941e9c12c4527051a3")
-GIT_MANIFEST = ("https://github.com/rmyndharis/VSCodroid/releases/download/v1.11.0/build-manifest.txt",
-                "b5209f3349833aba6bb4824a37cddc8f29b5c9e5709b68e7a26536dbfa75dd3e")
 GIT_VERSION = "2.56.1"
 GIT_DEB = ("https://packages.termux.dev/apt/termux-main/pool/main/g/git/git_2.56.1_aarch64.deb",
            "3343f56fc99e2f0631a553a39789769495435cb07b6ffb3c71a7fcb7bd561e95")
 GIT_SOURCE = ("https://mirrors.kernel.org/pub/software/scm/git/git-2.56.1.tar.xz",
               "f0b0bf89264b9bd2e1c640363e7529643989da76281600473c50745cd34a607f")
 TERMUX_RECIPE_COMMIT = "8a9e362e0083070452d9d1b1ed84651a57607a1c"
-VSCODROID_COMMIT = "a8bee507535845a3a6ab89265b455b24cab7e878"
-PIP = "26.3"
-# PyPI publishes a different digest for the source tarball. Pin the exact wheel.
-PIP_WHEEL = ("https://files.pythonhosted.org/packages/07/25/ee8c38ae72d66b844ce8eb9711ba905dba21ca1a8a0c960057c41cd23337/pip-26.3-py3-none-any.whl",
-             "f3b60b20ffaadd4415ed7957212a38ac63fa4c5fa375bd0f4a797777940fad13")
 SYSTEM = {"libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so", "libandroid.so",
           "libatomic.so", "libaaudio.so", "libOpenSLES.so", "libmediandk.so",
           "libjnigraphics.so", "libEGL.so", "libGLESv2.so", "libvulkan.so"}
+
+
+ROOT = pathlib.Path(__file__).resolve().parents[2]
+LOCK = json.loads((ROOT / "tools/dev/toolchain-lock.json").read_text())
+VERSIONS = LOCK["runtime777"]
 
 def digest(path):
     with path.open("rb") as stream:
@@ -63,42 +52,6 @@ def fetch(url, sha, directory):
         partial.unlink(missing_ok=True)
     return path
 
-def relative(name):
-    path = pathlib.PurePosixPath(name)
-    if path.is_absolute() or not path.parts or ".." in path.parts or "\\" in name:
-        raise ValueError(f"Unsafe archive path: {name}")
-    return path
-
-def copy_zip(archive, name, dest):
-    dest.parent.mkdir(parents=True, exist_ok=True)
-    with archive.open(name) as source, dest.open("wb") as output:
-        shutil.copyfileobj(source, output)
-
-def copy_tar_tree(archive, prefix, dest):
-    prefix = prefix.rstrip("/") + "/"
-    selected = set()
-    for member in archive.getmembers():
-        name = member.name.removeprefix("./")
-        if not name.startswith(prefix) or name == prefix:
-            continue
-        target = dest.joinpath(*relative(name[len(prefix):]).parts)
-        if target in selected:
-            raise ValueError(f"Duplicate archive path: {name}")
-        selected.add(target)
-        if member.isdir():
-            target.mkdir(parents=True, exist_ok=True)
-            continue
-        if member.islnk():
-            if not member.linkname.removeprefix("./").startswith(prefix):
-                raise ValueError(f"External hardlink: {name}")
-        elif not member.isfile():
-            raise ValueError(f"Unexpected archive entry: {name}")
-        target.parent.mkdir(parents=True, exist_ok=True)
-        with archive.extractfile(member) as source, target.open("wb") as output:
-            shutil.copyfileobj(source, output)
-    if not selected:
-        raise ValueError(f"Missing archive tree: {prefix}")
-
 def needed(path, abi, executable=False):
     def read(*args):
         return subprocess.check_output(["readelf", *args, str(path)], text=True)
@@ -114,50 +67,12 @@ def needed(path, abi, executable=False):
         raise ValueError(f"Not an Android executable: {path}")
     return set(re.findall(r"Shared library: \[([^]]+)\]", read("-Wd")))
 
-def verified_git_manifest(manifest):
-    lines = manifest.read_text(encoding="utf-8").splitlines()
-    if [line for line in lines if line.startswith("termux\tgit\t")] != [
-            f"termux\tgit\t{GIT_VERSION}\t{GIT_DEB[1]}"]:
-        raise ValueError("Git package differs from pinned distributor manifest")
-    if [line for line in lines if line.startswith("app-commit\t")] != [
-            f"app-commit\t{VSCODROID_COMMIT}"]:
-        raise ValueError("Distributor commit differs from pinned provenance")
-    if any(line.startswith("# NOTE git was resolved twice") for line in lines):
-        raise ValueError("Ambiguous Git resolution in distributor manifest")
-
-
 def patch_git_shell(binary):
     original = b"/data/data/com.termux/files/usr/bin/sh\0"
     replacement = b"/system/bin/sh".ljust(len(original), b"\0")
     if binary.count(original) != 1:
         raise ValueError("Unexpected compiled Git shell path")
     return binary.replace(original, replacement)
-
-
-def git_binaries(native, work, manifest):
-    verified_git_manifest(manifest)
-    deb = fetch(*GIT_DEB, work)
-    extracted = work / "git-deb"
-    subprocess.run(["dpkg-deb", "--extract", str(deb), str(extracted)], check=True)
-    prefix = extracted / "data/data/com.termux/files/usr"
-    sources = {"libcodex_git.so": "bin/git",
-               "libcodex_git_remote_http.so": "libexec/git-core/git-remote-https"}
-    result = {}
-    for name, relative_path in sources.items():
-        # The package may contain an absolute Termux symlink. Resolve it
-        # against the extracted package, never against the CI host.
-        source = prefix / relative_path
-        if source.is_symlink():
-            link = source.readlink()
-            if link.is_absolute():
-                source = extracted / str(link).lstrip("/")
-        source = source.resolve(strict=True)
-        if not source.is_relative_to(prefix.resolve()) or not source.is_file():
-            raise ValueError(f"Git package executable escaped package: {source}")
-        target = native / name
-        target.write_bytes(patch_git_shell(source.read_bytes()))
-        result[name] = digest(target)
-    return result
 
 
 def git_corresponding_source(work, manifest, output):
@@ -182,125 +97,219 @@ def git_corresponding_source(work, manifest, output):
     with tarfile.open(temporary, "w:xz") as archive:
         archive.add(source, arcname=source.name)
         archive.add(recipe_archive, arcname=recipe_archive.name)
-        archive.add(manifest, arcname="VSCodroid-build-manifest.txt")
+        archive.add(manifest, arcname="termux-git-packages.tsv")
         archive.add(pathlib.Path(__file__).resolve(), arcname="prepare_prebuilt_developer_runtime.py")
+        root = pathlib.Path(__file__).resolve().parents[2]
+        for script in sorted((root / "tools/runtime").glob("*.sh")):
+            archive.add(script, arcname="tools/runtime/" + script.name)
     temporary.replace(output)
     return digest(output)
 
 
-def git_payload(apk, abi, native, data):
-    names = set(apk.namelist())
-    libroot = data / "git/lib"
-    libroot.mkdir(parents=True, exist_ok=True)
-    queue = [native / "libcodex_git.so", native / "libcodex_git_remote_http.so"]
-    seen = set()
-    while queue:
-        path = queue.pop()
-        if path in seen:
-            continue
-        seen.add(path)
-        for dep in sorted(needed(path, abi, path.parent == native)):
-            if dep in SYSTEM or (native / dep).is_file():
-                continue
-            if not re.fullmatch(r"lib[A-Za-z0-9_+.-]+\.so(?:\.[A-Za-z0-9.]+)?", dep):
-                raise ValueError(f"Invalid dependency name: {dep}")
-            source = "assets/usr/lib/" + dep
-            if source not in names:
-                raise ValueError(f"Missing Git dependency: {dep}")
-            target = libroot / dep
-            if not target.exists():
-                copy_zip(apk, source, target)
-            queue.append(target)
-    prefix = "assets/usr/share/git-core/templates/"
-    for name in sorted(names):
-        if name.startswith(prefix) and not name.endswith("/"):
-            copy_zip(apk, name, (data / "git/templates").joinpath(*relative(name[len(prefix):]).parts))
-        if name.startswith("assets/usr/share/doc/") and not name.endswith("/"):
-            if re.match(r"(?i)^(copyright|copying|licen[cs]e|notice)", name.rsplit("/", 1)[-1]):
-                copy_zip(apk, name, (data / "licenses/git-distribution").joinpath(
-                    *relative(name[len("assets/usr/share/doc/"):]).parts))
-    if not (data / "git/templates").is_dir():
-        raise ValueError("Git templates missing")
-    if not any((data / "licenses/git-distribution/git").glob("*")):
-        raise ValueError("Git upstream notice missing")
 
-def prepare(abi, native, assets, work, git_source_output=None):
-    data = work / "data"
-    data.mkdir()
+def asset_root(prepared, group):
+    return prepared / group / "assets/runtime" / group
+
+def package_records(prepared, group, abi):
+    manifest = asset_root(prepared, group) / abi / "packages.tsv"
+    rows = [line.split("\t") for line in manifest.read_text().splitlines()]
+    if not rows or any(len(row) != 4 or not re.fullmatch(r"[0-9a-f]{64}", row[3]) for row in rows):
+        raise ValueError("invalid signed package manifest: " + group)
+    result = {row[0]: {"version":row[1], "filename":row[2], "sha256":row[3]} for row in rows}
+    if len(result) != len(rows):
+        raise ValueError("duplicate signed package manifest")
+    return result
+
+def verify_versions(prepared, abi):
+    records = {group: package_records(prepared, group, abi) for group in ("git","node","python")}
+    for group, package, key in (("git","git","git"),("git","curl","curl"),("git","jq","jq"),
+                                ("git","ripgrep","ripgrep"),("node","nodejs","node"),
+                                ("python","python","python"),("python","python-pip","pip")):
+        if records[group][package]["version"] != VERSIONS[key]:
+            raise ValueError("777 runtime version drift: " + package)
+    if abi == "arm64-v8a" and records["git"]["git"]["sha256"] != GIT_DEB[1]:
+        raise ValueError("ARM64 Git package SHA-256 drift")
+    npm = asset_root(prepared,"node") / "npm/package/package.json"
+    if json.loads(npm.read_text())["version"] != VERSIONS["npm"]:
+        raise ValueError("npm version drift")
+    return records
+
+def verify_source(prepared, abi, source):
+    manifest = asset_root(prepared,"git") / abi / "packages.tsv"
+    with tarfile.open(source, "r:xz") as archive:
+        names = archive.getnames()
+        if len(names) != len(set(names)):
+            raise ValueError("duplicate Git source archive entries")
+        for name in (GIT_SOURCE[0].rsplit("/",1)[-1], "termux-packages.tar.gz", "termux-git-packages.tsv"):
+            member = archive.getmember(name)
+            if not member.isfile():
+                raise ValueError("invalid Git corresponding source entry: " + name)
+        with archive.extractfile(GIT_SOURCE[0].rsplit("/",1)[-1]) as stream:
+            if hashlib.file_digest(stream,"sha256").hexdigest() != GIT_SOURCE[1]:
+                raise ValueError("Git upstream source digest mismatch")
+        with archive.extractfile("termux-git-packages.tsv") as stream:
+            if stream.read() != manifest.read_bytes():
+                raise ValueError("Git corresponding source package manifest mismatch")
+        with archive.extractfile("termux-packages.tar.gz") as stream, tarfile.open(fileobj=stream, mode="r:gz") as recipe:
+            text = recipe.extractfile("termux-packages/packages/git/build.sh").read().decode()
+            if f'TERMUX_PKG_VERSION="{GIT_VERSION}"' not in text.splitlines() or f"TERMUX_PKG_SHA256={GIT_SOURCE[1]}" not in text.splitlines():
+                raise ValueError("Git corresponding source recipe mismatch")
+    return digest(source)
+
+def prepare_source(prepared, abi, output):
+    verify_versions(prepared, abi)
+    with tempfile.TemporaryDirectory(prefix="git-source-") as directory:
+        git_corresponding_source(pathlib.Path(directory), asset_root(prepared,"git") / abi / "packages.tsv", output)
+    verify_source(prepared, abi, output)
+
+def copy_regular_tree(source, target):
+    if not source.is_dir() or source.is_symlink():
+        raise ValueError("runtime tree missing: " + str(source))
+    for path in source.rglob("*"):
+        if path.is_symlink() or not (path.is_file() or path.is_dir()):
+            raise ValueError("unexpected runtime entry: " + str(path))
+    shutil.copytree(source,target)
+
+def prepare(abi, native, assets, prepared, clang, git_source_output):
+    records = verify_versions(prepared, abi)
+    source = prepared / "git-corresponding-source.tar.xz"
+    source_digest = verify_source(prepared, abi, source)
+    native.mkdir(parents=True, exist_ok=True)
     assets.mkdir(parents=True, exist_ok=True)
-    filename, sha = DSH[abi]
-    dsh_url = "https://github.com/Windmill12/dsh-for-android/releases/download/v0.2.0/" + filename
-    with zipfile.ZipFile(fetch(dsh_url, sha, work)) as apk:
-        # The prebuilt npm launcher locates its sibling libnode.so.
-        for name in ("libnode.so", "libnpm.so", "libpython3.so"):
-            copy_zip(apk, f"lib/{abi}/{name}", native / name)
-        if not (native / "libc++_shared.so").is_file():
-            copy_zip(apk, f"lib/{abi}/libc++_shared.so", native / "libc++_shared.so")
-        with apk.open("assets/python-runtime.pkg") as raw, tarfile.open(fileobj=raw, mode="r:gz") as tar:
-            copy_tar_tree(tar, f"{abi}/lib/python3.13", data / "lib/python3.13")
-        with apk.open("assets/dsh-runtime.pkg") as raw, tarfile.open(fileobj=raw, mode="r:gz") as tar:
-            copy_tar_tree(tar, "node_modules/npm", data / "npm")
-    wheel = fetch(*PIP_WHEEL, work)
-    if wheel.name != f"pip-{PIP}-py3-none-any.whl":
-        raise ValueError("pip wheel filename/version mismatch")
-    with zipfile.ZipFile(wheel) as archive:
-        for info in archive.infolist():
-            if not info.is_dir():
-                copy_zip(archive, info.filename, (data / "lib/python3.13/site-packages").joinpath(*relative(info.filename).parts))
-    curl_apk = work / "curl.apk"
-    with lzma.open(fetch(*CURL, work)) as source, curl_apk.open("wb") as output:
-        shutil.copyfileobj(source, output)
-    with zipfile.ZipFile(curl_apk) as apk:
-        copy_zip(apk, f"lib/{abi}/libcurl.so", native / "libcodex_curl.so")
-    provenance = {"abi": abi, "dsh": {"url": dsh_url, "sha256": sha},
-                  "curl": {"url": CURL[0], "sha256": CURL[1]},
-                  "pip": {"version": PIP, "url": PIP_WHEEL[0], "sha256": PIP_WHEEL[1]},
-                  "gitHttps": abi == "arm64-v8a"}
-    if abi == "arm64-v8a":
-        if git_source_output is None:
-            raise ValueError("ARM64 Git corresponding source output is required")
-        manifest = fetch(*GIT_MANIFEST, work)
-        binaries = git_binaries(native, work, manifest)
-        with zipfile.ZipFile(fetch(*GIT, work)) as apk:
-            git_payload(apk, abi, native, data)
-        shutil.copyfile(manifest, data / "git-distributor-manifest.txt")
-        source_archive_sha = git_corresponding_source(work, manifest, git_source_output)
-        provenance["git"] = {
-            "version": GIT_VERSION, "packageUrl": GIT_DEB[0], "packageSha256": GIT_DEB[1],
-            "url": GIT[0], "sha256": GIT[1], "manifest": GIT_MANIFEST[1],
-            "termuxRecipeCommit": TERMUX_RECIPE_COMMIT, "upstreamSourceSha256": GIT_SOURCE[1],
-            "sourceArchiveSha256": source_archive_sha, "binaries": binaries,
-        }
-        provenance["gitCorrespondingSourceVerified"] = True
-    for path in [native / x for x in ("libnode.so", "libnpm.so", "libpython3.so", "libcodex_curl.so")]:
-        for dep in needed(path, abi, True) - SYSTEM:
-            if not (native / dep).is_file():
-                raise ValueError(f"Unresolved runtime dependency {dep}: {path}")
-    for path in (data / "lib/python3.13").rglob("*.so"):
-        for dep in needed(path, abi) - SYSTEM:
-            if not (native / dep).is_file():
-                raise ValueError(f"Unresolved Python extension dependency {dep}: {path}")
-    for path in ("lib/python3.13/encodings/__init__.py",
-                 "lib/python3.13/site-packages/pip/__main__.py", "npm/bin/npm-cli.js"):
-        if not (data / path).is_file():
-            raise ValueError(f"Incomplete precompiled runtime: {path}")
-    out = assets / "development-runtime.zip"
-    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
-        for path in sorted(data.rglob("*")):
-            if path.is_file():
-                archive.write(path, path.relative_to(data).as_posix())
-    (assets / "development-runtime.sha256").write_text(digest(out) + "\n")
-    (assets / "development-runtime.version").write_text(f"AndroidDSH 0.2.0 / curl 8.18.0 / pip {PIP}\n")
-    (assets / "development-runtime.provenance.json").write_text(json.dumps(provenance, indent=2) + "\n")
-    print(json.dumps(provenance, indent=2))
-    print(f"Runtime data archive: {out.stat().st_size} bytes")
+    with tempfile.TemporaryDirectory(prefix="111-runtime-") as directory:
+        work = pathlib.Path(directory)
+        data = work / "data"
+        data.mkdir()
+        commands = {}
+        binaries = {}
+        def add(alias, group, original, target, mode="direct", git_shell=False):
+            if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._+-]*",alias) or alias in commands:
+                raise ValueError("invalid or duplicate command alias: " + alias)
+            if not re.fullmatch(r"libcodex_[a-zA-Z0-9_]+\.so",target):
+                raise ValueError("invalid native target: " + target)
+            src = prepared / group / "jniLibs" / abi / original
+            if not src.is_file() or src.is_symlink():
+                raise ValueError("prebuilt command missing: " + str(src))
+            blob = src.read_bytes()
+            needle = b"/data/data/com.termux/files/usr/bin/sh\0"
+            if git_shell or (group=="git" and alias.startswith("git-") and needle in blob):
+                blob = patch_git_shell(blob)
+            dst = native / target
+            h = hashlib.sha256(blob).hexdigest()
+            if target in binaries:
+                if binaries[target] != h:
+                    raise ValueError("conflicting command binaries")
+            else:
+                dst.write_bytes(blob)
+                dst.chmod(0o755)
+                binaries[target] = h
+            commands[alias] = (target,group,mode)
+        for group in ("git","node","python"):
+            base = asset_root(prepared,group)
+            target = data/group
+            target.mkdir()
+            copy_regular_tree(base/abi/"lib", target/"lib")
+            if group in ("git","python"):
+                copy_regular_tree(base/abi/"home", target/"home")
+            if group=="node":
+                copy_regular_tree(base/"npm",target/"npm")
+            copy_regular_tree(base/"notices",target/"notices")
+            if not any((target/"notices").iterdir()):
+                raise ValueError("third-party license notices missing: " + group)
+            shutil.copyfile(base/abi/"packages.tsv",target/"packages.tsv")
+        add("git","git","libdsh_git.so","libcodex_git.so",git_shell=True)
+        for alias in ("curl","jq","rg"):
+            add(alias,"git",f"libdsh_{alias}.so",f"libcodex_{alias}.so")
+        add("node","node","libdsh_node.so","libcodex_node.so")
+        add("npm","node","libdsh_node.so","libcodex_node.so","npm")
+        add("python","python","libdsh_python.so","libcodex_python.so")
+        add("python3","python","libdsh_python.so","libcodex_python.so")
+        add("pip","python","libdsh_python.so","libcodex_python.so","pip")
+        add("pip3","python","libdsh_python.so","libcodex_python.so","pip")
+        helpers = {}
+        for line in (asset_root(prepared,"git")/abi/"helpers.tsv").read_text().splitlines():
+            alias, original = line.split("\t")
+            if not re.fullmatch(r"libdsh_git(?:_helper_[0-9a-f]{20})?\.so",original) or alias in helpers:
+                raise ValueError("invalid Git helper manifest")
+            helpers[alias] = original
+        remote = helpers["git-remote-http"]
+        if helpers["git-remote-https"] != remote:
+            raise ValueError("Git HTTP/HTTPS helper differs")
+        for alias, original in sorted(helpers.items()):
+            if original=="libdsh_git.so":
+                target="libcodex_git.so"
+            elif original==remote:
+                target="libcodex_git_remote_http.so"
+            else:
+                target=original.replace("libdsh_", "libcodex_",1)
+            add(alias,"git",original,target,git_shell=original in ("libdsh_git.so",remote))
+        # Check the complete loader closure separately for each CLI group.
+        for group in ("git","node","python"):
+            libdir=data/group/"lib"
+            queue=[(native/target,True) for target,g,_ in set(commands.values()) if g==group]
+            if group=="python":
+                queue.extend((p,False) for p in (data/"python/home/lib/python3.14").rglob("*.so"))
+            seen=set()
+            while queue:
+                path, executable=queue.pop()
+                if path in seen:
+                    continue
+                seen.add(path)
+                for dep in sorted(needed(path,abi,executable)-SYSTEM):
+                    if not re.fullmatch(r"lib[A-Za-z0-9_+.-]+\.so(?:\.[A-Za-z0-9.]+)?",dep):
+                        raise ValueError("invalid runtime dependency: "+dep)
+                    resolved=libdir/dep
+                    if not resolved.is_file():
+                        raise ValueError(f"{group}: unresolved runtime dependency {dep} ({path.name})")
+                    queue.append((resolved,False))
+        for relative in ("git/home/share/git-core/templates","node/npm/package/bin/npm-cli.js",
+                         "python/home/lib/python3.14/encodings/__init__.py",
+                         "python/home/lib/python3.14/site-packages/pip/__main__.py"):
+            if not (data/relative).exists():
+                raise ValueError("incomplete runtime data: "+relative)
+        header=work/"developer_tool_commands.h"
+        header.write_text("static const struct command commands[] = {\n" +
+            "".join("    {"+",".join(json.dumps(x) for x in (alias,*row))+"},\n" for alias,row in sorted(commands.items()))+"};\n")
+        launcher=native/"libcodex_tool_launcher.so"
+        subprocess.run([str(clang),"-std=c11","-O2","-Wall","-Wextra","-Werror","-fPIE","-pie",
+                        "-Wl,-z,max-page-size=16384","-Wl,-z,common-page-size=16384",
+                        "-I"+str(work),str(ROOT/"android-app/tools/developer_tool_launcher.c"),"-o",str(launcher)],check=True)
+        if needed(launcher,abi,True)-SYSTEM:
+            raise ValueError("command launcher requires non-system libraries")
+        launcher.chmod(0o755)
+        binaries[launcher.name]=digest(launcher)
+        (assets/"development-runtime.commands.tsv").write_text("".join(alias+"\t"+row[0]+"\n" for alias,row in sorted(commands.items())))
+        out=assets/"development-runtime.zip"
+        with zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
+            for path in sorted(data.rglob("*")):
+                if path.is_file():
+                    archive.write(path,path.relative_to(data).as_posix())
+        (assets/"development-runtime.sha256").write_text(digest(out)+"\n")
+        versions={key:VERSIONS[key] for key in ("git","curl","jq","ripgrep","python","pip","node","npm")}
+        (assets/"development-runtime.version").write_text(json.dumps(versions,sort_keys=True)+"\n")
+        provenance={"abi":abi,"source777":LOCK["source"],"versions":versions,"packages":records,"binaries":binaries,
+                    "gitHttps":True,"gitCorrespondingSourceVerified":True,
+                    "git":{"version":GIT_VERSION,"packageSha256":records["git"]["git"]["sha256"],
+                           "termuxRecipeCommit":TERMUX_RECIPE_COMMIT,"upstreamSourceSha256":GIT_SOURCE[1],
+                           "sourceArchiveSha256":source_digest,"binaries":{k:binaries[k] for k in ("libcodex_git.so","libcodex_git_remote_http.so")}}}
+        (assets/"development-runtime.provenance.json").write_text(json.dumps(provenance,indent=2)+"\n")
+        git_source_output.parent.mkdir(parents=True,exist_ok=True)
+        shutil.copyfile(source,git_source_output)
+        print(json.dumps(provenance,indent=2))
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("abi", choices=sorted(DSH))
-    parser.add_argument("native", type=pathlib.Path)
-    parser.add_argument("assets", type=pathlib.Path)
-    parser.add_argument("--git-source-output", type=pathlib.Path)
-    args = parser.parse_args()
-    with tempfile.TemporaryDirectory(prefix="prebuilt-developer-") as tmp:
-        prepare(args.abi, args.native, args.assets, pathlib.Path(tmp), args.git_source_output)
+if __name__=="__main__":
+    p=argparse.ArgumentParser(description=__doc__)
+    p.add_argument("abi",choices=("arm64-v8a","x86_64"))
+    p.add_argument("--prepared-dir",type=pathlib.Path,required=True)
+    p.add_argument("--prepare-source",action="store_true")
+    p.add_argument("--native",type=pathlib.Path)
+    p.add_argument("--assets",type=pathlib.Path)
+    p.add_argument("--clang",type=pathlib.Path)
+    p.add_argument("--git-source-output",type=pathlib.Path,required=True)
+    a=p.parse_args()
+    if a.prepare_source:
+        prepare_source(a.prepared_dir,a.abi,a.git_source_output)
+    else:
+        if not all((a.native,a.assets,a.clang)):
+            p.error("APK assembly requires native, assets and clang")
+        prepare(a.abi,a.native,a.assets,a.prepared_dir,a.clang,a.git_source_output)
