@@ -340,6 +340,10 @@ private fun MessageTable(block: MessageBlock) {
     val rows = block.rows
     val count = checkNotNull(LocalPreparedReplyBlock.current).tableColumns
     if (count == 0) return
+    var columnPage by remember(block) { mutableIntStateOf(0) }
+    val firstColumn = columnPage * 12
+    val endColumn = minOf(count, firstColumn + 12)
+    val visibleColumns = endColumn - firstColumn
     val copy = rememberConversationCopy()
     var selecting by remember(block) { mutableStateOf(false) }
     var first by remember(block) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -353,7 +357,7 @@ private fun MessageTable(block: MessageBlock) {
             column in minOf(a.second, b.second)..maxOf(a.second, b.second)
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val cellWidth = maxOf(maxWidth / count, (82 * codexEffectiveFontScale()).dp)
+        val cellWidth = maxOf(maxWidth / visibleColumns, (82 * codexEffectiveFontScale()).dp)
         Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
             color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
         Column {
@@ -379,10 +383,20 @@ private fun MessageTable(block: MessageBlock) {
                 }
             }
             }
+            if (count > 12) DisableSelection {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CodexTextAction(onClick = { columnPage-- }, enabled = columnPage > 0,
+                        modifier = Modifier.testTag("message-table-previous-columns")) { Text("上一组列") }
+                    Text("${firstColumn + 1}–$endColumn / $count", Modifier.weight(1f), color = Ink.muted,
+                        style = MaterialTheme.typography.labelSmall)
+                    CodexTextAction(onClick = { columnPage++ }, enabled = endColumn < count,
+                        modifier = Modifier.testTag("message-table-next-columns")) { Text("下一组列") }
+                }
+            }
             HorizontalDivider(color = Ink.border)
             val renderRow: @Composable (Int, List<String>) -> Unit = { index, row ->
                     Row(Modifier.background(if (index == 0) Ink.recessed else Ink.canvas)) {
-                        repeat(count) { column ->
+                        for (column in firstColumn until endColumn) {
                             val cell = Modifier.width(cellWidth).then(if (selecting)
                                 Modifier.background(if (selected(index, column)) Ink.border else
                                     if (index == 0) Ink.recessed else Ink.canvas)
@@ -404,16 +418,17 @@ private fun MessageTable(block: MessageBlock) {
                     }
                     if (index != rows.lastIndex) HorizontalDivider(color = Ink.border)
             }
+            val horizontal = rememberScrollState()
+            LaunchedEffect(columnPage) { horizontal.scrollTo(0) }
             if (rows.size <= 24) {
-                Column(Modifier.horizontalScroll(rememberScrollState())) {
+                Column(Modifier.horizontalScroll(horizontal)) {
                     rows.forEachIndexed { index, row -> renderRow(index, row) }
                 }
             } else {
                 Text("长表格 · 区域内滚动 · 支持跨行选取", Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
-                val horizontal = rememberScrollState()
                 // A fixed cross-axis width preserves the same column alignment across all lazy rows.
-                Column(Modifier.horizontalScroll(horizontal).width(cellWidth * count)) {
+                Column(Modifier.horizontalScroll(horizontal).width(cellWidth * visibleColumns)) {
                     renderRow(0, rows.first())
                     LazyColumn(Modifier.fillMaxWidth().height(360.dp).testTag("message-table-virtual")) {
                         items(rows.size - 1, key = { it + 1 }) { index ->

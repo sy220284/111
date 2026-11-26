@@ -65,7 +65,7 @@ internal class AnalysisCheckpointStore(private val directory: File) {
     // The read/merge/atomic-replace transaction must share one lock across those objects.
     private val lock = locks.computeIfAbsent(directory.canonicalPath) { Any() }
     private data class FileRevision(val key: Any, val modified: java.nio.file.attribute.FileTime,
-        val created: java.nio.file.attribute.FileTime, val size: Long)
+        val changed: java.nio.file.attribute.FileTime, val size: Long)
     private data class HeaderEntry(val revision: FileRevision, val header: AnalysisRecordHeader)
     private companion object {
         val locks = java.util.concurrent.ConcurrentHashMap<String, Any>()
@@ -74,17 +74,21 @@ internal class AnalysisCheckpointStore(private val directory: File) {
         }
     }
     private fun revision(target: File): FileRevision? {
-        val attrs = Files.readAttributes(target.toPath(), java.nio.file.attribute.BasicFileAttributes::class.java)
+        val path = target.toPath()
+        val attrs = Files.readAttributes(path, java.nio.file.attribute.BasicFileAttributes::class.java, java.nio.file.LinkOption.NOFOLLOW_LINKS)
         require(attrs.isRegularFile && attrs.size() in 1..AnalysisCheckpoint.MAX_RECORD_BYTES) { "分析记录损坏，原文件已保留" }
-        // Some filesystems expose no file identity. Those records are always read.
         val key = attrs.fileKey() ?: return null
-        return FileRevision(key, attrs.lastModifiedTime(), attrs.creationTime(), attrs.size())
+        // A preserved mtime cannot authenticate an in-place edit. Without ctime, reread.
+        if ("unix" !in path.fileSystem.supportedFileAttributeViews()) return null
+        val changed = Files.getAttribute(path, "unix:ctime", java.nio.file.LinkOption.NOFOLLOW_LINKS)
+            as? java.nio.file.attribute.FileTime ?: return null
+        return FileRevision(key, attrs.lastModifiedTime(), changed, attrs.size())
     }
     private fun file(owner: String, scope: String, screen: Boolean) = File(directory,
         AnalysisCheckpoint.storageBase(owner, scope, screen) + ".json")
     private fun readFile(target: File, owner: String, scope: String): AnalysisCheckpoint? {
         if (!target.exists()) return null
-        require(target.length() in 1..AnalysisCheckpoint.MAX_RECORD_BYTES) { "分析记录损坏，原文件已保留" }
+        require(Files.isRegularFile(target.toPath(), java.nio.file.LinkOption.NOFOLLOW_LINKS) && target.length() in 1..AnalysisCheckpoint.MAX_RECORD_BYTES) { "分析记录损坏，原文件已保留" }
         return AnalysisCheckpoint.decode(target.readText()).also {
             require(it.owner == owner && it.scope == scope) { "分析记录归属不匹配" }
         }
@@ -119,7 +123,10 @@ internal class AnalysisCheckpointStore(private val directory: File) {
                     require(target == legacy || target == mediaFile(owner, scope, record.identity)) { "分析记录标识不匹配" }
                     val value = AnalysisRecordHeader.from(record)
                     if (latest == null) latest = record
-                    if (before != null && before == revision(target)) synchronized(headers) { headers[key] = HeaderEntry(before, value) }
+                    if (before != null) {
+                        require(before == revision(target)) { "分析记录在读取时变化，请重试" }
+                        synchronized(headers) { headers[key] = HeaderEntry(before, value) }
+                    }
                     value
                 }
                 if (seen.add(header.identity)) add(header)

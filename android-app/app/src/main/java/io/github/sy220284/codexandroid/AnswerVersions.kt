@@ -61,8 +61,7 @@ internal data class AnswerVersionState(
                 ?: hits.firstOrNull { SessionListPolicy.id(it) == root } ?: hits.maxByOrNull(SessionListPolicy::recency)!!
             // Directory records are immutable snapshots. Copy the top-level object
             // before applying a family title; no JSON stringify/parse round trip.
-            JSONObject().apply {
-                representative.keys().forEach { key -> put(key, representative.get(key)) }
+            JSONObject(representative.toString()).apply {
                 byId[root]?.optString("name")?.takeIf { it.isNotBlank() && it != "null" }?.let { put("name", it) }
             }
         }
