@@ -23,7 +23,11 @@ internal fun CodexViewModel.loadEarlierHistory() {
                 val response = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                     .put("sortDirection", "desc").put("limit", 120).put("cursor", cursor))
                 if (activeThread.value != id || threadSwitching.value || timelineEpoch != epoch) return@launch
-                older = readHistoryPage(response)
+                val reader = historyTurnOutcomes ?: HistoryTurnOutcomes(id) { method, params ->
+                    bridge.request(method, params)
+                }.also { historyTurnOutcomes = it }
+                older = reader.reconcile(readHistoryPage(response))
+                if (activeThread.value != id || threadSwitching.value || timelineEpoch != epoch) return@launch
                 olderServerCursor.value = historyCursor(response)
             }
             if (activeThread.value == id && timelineEpoch == epoch && !threadSwitching.value && older.isNotEmpty()) {

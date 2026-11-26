@@ -473,3 +473,5 @@
 ## 官方渐进式回复协议复核（2026-11-26）
 - 公开 Responses API 的 commentary/final_answer 与锁定 Codex 核心的 partial_answer 扩展分开记录；只信任原生助手 phase，用户消息不携带 phase，缺失阶段不推断为已确认终稿。原生 item ID 用于增量、生命周期、恢复归并；结束快照仍须接收后补 phase。核心管理模型历史，Android 展示投影不得回写或重构模型上下文。
 - turn/completed 只接受核心 completed、failed、interrupted 终态；可见回合的正文与执行状态原子更新，失败/中断保留已收到文本并标明未成功。历史 item 分页仅提供 item 生命周期，无法从时间戳推断回合成功。过程说明突出新发现、决策和障碍，最终报告区分实际验证与未完成事项。沿用配置确认保存机制。
+
+- 历史打开及向前分页使用会话专属 HistoryTurnOutcomes 游标，按 thread/turns/list 的 notLoaded 模式获取真实回合终态，复用已读元数据，不下载全量工具输出；对失败/中断回合恢复实际终态提示，不把 item 时间戳当作回合完成证据。未知回合沿用实际收到的条目与后续实时事件，不伪造成功。

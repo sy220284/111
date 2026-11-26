@@ -51,6 +51,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val timelineWindow = TimelineWindowStore(File(application.cacheDir, "codex-timeline-window.jsonl"))
     val olderTimelineCount get() = timelineWindow.olderCount
     internal val olderServerCursor = MutableStateFlow<String?>(null)
+    internal var historyTurnOutcomes: HistoryTurnOutcomes? = null
     internal val loadingEarlier = MutableStateFlow(false)
     internal var hydratingThread: String? = null
     internal var timelineEpoch = 0L

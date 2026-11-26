@@ -46,7 +46,11 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
             val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                 .put("sortDirection", "desc").put("limit", 120), expectedSession = session)
             check(bridge.connectedSession.value == session && catalogWarmup.accountRevision.value == accountRevision) { "会话连接已变化，请重新打开" }
-            val restored = readHistoryPage(page)
+            val outcomeReader = HistoryTurnOutcomes(id) { method, params ->
+                bridge.request(method, params, expectedSession = session)
+            }
+            val restored = outcomeReader.reconcile(readHistoryPage(page))
+            check(bridge.connectedSession.value == session && catalogWarmup.accountRevision.value == accountRevision) { "会话连接已变化，请重新打开" }
             val turns = TimelineEventReducer.historyTurns(restored)
             val newest = timelineWindow.replace(id, restored, ++timelineEpoch)
             workspacePreferences.edit()
@@ -58,6 +62,7 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
                 errors.value = errors.value + ("conversation" to reason)
             }
             olderServerCursor.value = historyCursor(page)
+            historyTurnOutcomes = outcomeReader
             conversationState.value = ActiveConversationContext(threadDirectory.absolutePath,
                 history.getJSONObject("thread").optString("projectId").takeIf { it.isNotBlank() },
                 id, execution?.turnId, execution != null,

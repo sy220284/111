@@ -163,7 +163,7 @@ internal object CodexNotificationDispatcher {
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, threadId,
                 if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
-            if (threadId == activeThread.value && threadId != hydratingThread) {
+            if (threadId == activeThread.value) {
                 // Publish terminal text, phase and running state in one snapshot.
                 conversationState.update { state -> state.copy(running = false, turnId = null,
                     timeline = TimelineEventReducer.reduce(method, params, state.timeline)) }

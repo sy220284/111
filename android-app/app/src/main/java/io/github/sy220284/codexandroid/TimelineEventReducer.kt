@@ -169,6 +169,8 @@ internal object TimelineEventReducer {
             val old = items.byId(id)
             val complete = method == "item/completed"
             val next = project(raw, turnId, if (complete) "completed" else "inProgress")
+            val failedTurn = items.byId("turn-error:$turnId") != null
+            if (failedTurn && old == null) return current
             if (old?.status in terminalStates && !complete && next.kind != "agentMessage") return current
             if (!complete && old != null && old.status != "sending") {
                 // A resumed subscription may have received text before its lifecycle metadata.
@@ -190,14 +192,15 @@ internal object TimelineEventReducer {
                     if (evidence.isNull(key) && !prior.isNull(key)) evidence.put(key, prior.get(key))
                 }
             }
-            put(next.copy(evidence = evidence.toString()))
+            val terminal = if (failedTurn && old != null && old.status in terminalStates) old.status else next.status
+            put(next.copy(status = terminal, evidence = evidence.toString()))
             return items
         }
         val id = params.string("itemId")
         if (id.isBlank()) return current
         val kind = method.substringAfter("item/").substringBefore("/")
         val old = items.byId(id)
-        if (old != null && old.status in terminalStates) return current
+        if (items.byId("turn-error:$turnId") != null || (old != null && old.status in terminalStates)) return current
         val delta = params.string("delta")
         val field = when (method) {
             "item/agentMessage/delta", "item/plan/delta" -> "text"
