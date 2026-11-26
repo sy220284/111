@@ -423,6 +423,8 @@ jobs:
             tools/dev
             .github/ci
             upstream/codex
+            android-app/tools/prepare_android_remote_delivery.py
+            android-app/tools/test_prepare_android_remote_delivery.py
       - name: 安装已断网验收的 Rust 工具组件
         uses: ./.github/actions/install-host-toolchain
         with:
@@ -439,9 +441,28 @@ jobs:
           bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-model-provider-info --lib domestic_workspace_tests
           bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-api --lib body_model_reporting
           bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-app-server --test all media_sample_native_
+      - name: 验证工作站真实文件安全读取并构建 Linux 执行器
+        working-directory: upstream/codex/codex-rs
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_remote_delivery.py
+          python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_remote_delivery.py" --exec-only .
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-exec-server --lib local_file_system_read::tests::android_delivery_
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline -p codex-exec-server-cli --bin codex-exec-server
+          mkdir -p "$RUNNER_TEMP/android-delivery-executor"
+          install -m 0755 target/debug/codex-exec-server "$RUNNER_TEMP/android-delivery-executor/codex-exec-server"
+          "$RUNNER_TEMP/android-delivery-executor/codex-exec-server" --help
+          git rev-parse HEAD > "$RUNNER_TEMP/android-delivery-executor/SOURCE_COMMIT"
+          (cd "$RUNNER_TEMP/android-delivery-executor" && sha256sum codex-exec-server SOURCE_COMMIT > SHA256SUMS && sha256sum -c SHA256SUMS)
       - name: 生成 Rust 回归凭证
         id: provider-index
         run: python3 .github/scripts/native_index.py provider --out "$RUNNER_TEMP/provider-index.json" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-delivery-executor-linux-x86_64-${{ steps.provider-index.outputs.fingerprint }}
+          path: ${{ runner.temp }}/android-delivery-executor/
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: provider-index-${{ steps.provider-index.outputs.fingerprint }}

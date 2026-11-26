@@ -212,6 +212,23 @@ async fn android_delivery_enforces_the_actual_read_limit() -> anyhow::Result<()>
 }
 
 #[cfg(unix)]
+#[tokio::test]
+async fn android_delivery_rejects_leaf_and_parent_links() -> anyhow::Result<()> {
+    let directory = TempDir::new()?;
+    let root = directory.path().canonicalize()?;
+    std::fs::create_dir(root.join("real"))?;
+    std::fs::write(root.join("real/file"), b"private")?;
+    std::os::unix::fs::symlink(root.join("real"), root.join("linked-dir"))?;
+    std::os::unix::fs::symlink(root.join("real/file"), root.join("linked-file"))?;
+    for path in [root.join("linked-dir/file"), root.join("linked-file")] {
+        let uri = PathUri::from_host_native_path(&path)?;
+        assert!(super::read_file_limited(uri.to_abs_path()?,
+            ReadFileOptions { follow_symlinks: false }, 8 * 1024 * 1024).await.is_err());
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
 #[test]
 fn cancellation_stops_a_reader_after_its_first_chunk"""),
 )

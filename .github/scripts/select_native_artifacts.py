@@ -163,7 +163,12 @@ class ArtifactSelector:
         upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex/codex-rs"])
         parent_cargo = self.run(["git", "ls-tree", sha, "--", "upstream/codex/.cargo"])
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, parent_cargo, provider_recipe(workflow))
+        # The workstation executor is produced by the same verified host job.
+        # Its adapter and tests are part of the proof, even when the upstream tree is unchanged.
+        delivery = self.run(["git", "ls-tree", sha, "--",
+                             "android-app/tools/prepare_android_remote_delivery.py",
+                             "android-app/tools/test_prepare_android_remote_delivery.py"])
+        return (upstream, parent_cargo, provider_recipe(workflow), delivery)
 
     def is_ancestor(self, old, new):
         try:

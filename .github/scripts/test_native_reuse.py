@@ -41,7 +41,7 @@ class FakeRunner:
                  run_conclusion='success', failed_job=False,
                  changed_code_mode_adapter=False,
                  legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False, changed_git_builder=False,
-                 changed_parent_cargo=False, changed_producer=False, changed_privacy=False):
+                 changed_parent_cargo=False, changed_producer=False, changed_privacy=False, changed_delivery=False):
         self.run_conclusion = run_conclusion
         self.failed_job = failed_job
         self.failed_provider = False
@@ -58,6 +58,7 @@ class FakeRunner:
         self.changed_parent_cargo = changed_parent_cargo
         self.changed_producer = changed_producer
         self.changed_privacy = changed_privacy
+        self.changed_delivery = changed_delivery
         self.git_queries = []
         self.called_api = 0
         self.last_workflow_query = []
@@ -80,6 +81,8 @@ class FakeRunner:
             return "different producer" if self.changed_producer and args[3] in ("old","older") else "same producer"
         if args[:2] == ["git", "ls-tree"]:
             sha = args[2]
+            if args[-1] in ("android-app/tools/prepare_android_remote_delivery.py", "android-app/tools/test_prepare_android_remote_delivery.py"):
+                return "old delivery" if self.changed_delivery and sha.startswith(("old", "older")) else "same delivery"
             if args[-1] == "android-app/tools/prepare_android_realtime_privacy.py":
                 return "old privacy" if self.changed_privacy and sha.startswith(("old","older")) else "same privacy" if self.changed_privacy else ""
             if args[-1] == "upstream/codex/.cargo":
@@ -271,6 +274,12 @@ jobs:
         runner = FakeRunner(missing_abi=True, run_conclusion="cancelled")
         self.assertEqual(ArtifactSelector(runner).find(
             "owner/repo", "HEAD", ["arm64-v8a"]), "21")
+
+    def test_remote_delivery_adapter_invalidates_both_rust_proofs(self):
+        runner = FakeRunner(changed_delivery=True)
+        selector = ArtifactSelector(runner)
+        self.assertNotEqual(selector.test_signature("HEAD"), selector.test_signature("old"))
+        self.assertNotEqual(selector.signature("HEAD", "arm64-v8a"), selector.signature("old", "arm64-v8a"))
 
     def test_failed_provider_contract_cannot_reuse_artifact(self):
         runner = FakeRunner(missing_abi=True)
