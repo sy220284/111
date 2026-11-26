@@ -113,7 +113,10 @@ class UiNavigationInstrumentedTest {
     /** Send Back to the focused Android window so Dialog/ModalBottomSheet receives it. */
     private fun pressSystemBack() {
         rule.waitForIdle()
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.waitForIdleSync()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        instrumentation.waitForIdleSync()
         rule.waitForIdle()
     }
 
@@ -160,10 +163,25 @@ class UiNavigationInstrumentedTest {
         input.performTextReplacement("/$command")
         rule.onNodeWithTag("composer-shortcut-$command").assertHasClickAction().performClick()
         rule.onNodeWithTag("composer-shortcuts").assertDoesNotExist()
-        // Route entry requests IME dismissal; wait for the real window to acknowledge it.
+        // Insets may briefly report hidden before a queued IME show is dispatched.
+        // Require a stable platform acknowledgement before sending the next Back.
+        var hiddenSince = 0L
         rule.waitUntil(5_000L) {
-            androidx.core.view.ViewCompat.getRootWindowInsets(rule.activity.window.decorView)
-                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) != true
+            val hidden = androidx.core.view.ViewCompat.getRootWindowInsets(rule.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == false
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (!hidden) hiddenSince = 0L else if (hiddenSince == 0L) hiddenSince = now
+            hidden && now - hiddenSince >= 300L
+        }
+    }
+
+    private fun waitForConversationAfterSystemBack() {
+        try {
+            rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
+        } catch (failure: Throwable) {
+            val ime = androidx.core.view.ViewCompat.getRootWindowInsets(rule.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())
+            throw AssertionError("系统返回未回到会话；IME=$ime；" + rule.onRoot(useUnmergedTree = true).printToString(), failure)
         }
     }
 
@@ -646,7 +664,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("终端")
         rule.onNodeWithTag("terminal-console").assertExists()
         pressSystemBack()
-        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertExists()
         openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
@@ -697,13 +715,13 @@ class UiNavigationInstrumentedTest {
         openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         pressSystemBack()
-        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("terminal")
         rule.onNodeWithTag("screen-title").assertTextEquals("终端")
         rule.onNodeWithTag("terminal-console").assertExists()
         pressSystemBack()
-        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
     }
 
@@ -1236,7 +1254,7 @@ class UiNavigationInstrumentedTest {
             rule.onAllNodesWithText("Codex 内核尚未连接").fetchSemanticsNodes().size <= 1)
         captureOverlay("audit-queue-android.png")
         pressSystemBack()
-        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertExists()
     }
 
@@ -1409,7 +1427,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         captureOverlay("audit-security-profiles-android.png")
         pressSystemBack()
-        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertExists()
 
         openSettingRoute("about")
