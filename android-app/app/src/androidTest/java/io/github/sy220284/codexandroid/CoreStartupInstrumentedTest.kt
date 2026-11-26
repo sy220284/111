@@ -137,6 +137,9 @@ class CoreStartupInstrumentedTest {
         val home = File(root, "home").apply { check(mkdir()) }
         val expected = ByteArray(4096) { (it % 251).toByte() }
         File(workspace, "receipt.bin").writeBytes(expected)
+        val large = ByteArray(9 * 1024 * 1024 + 7) { (it % 239).toByte() }
+        val largeFile = File(workspace, "large.bin").apply { writeBytes(large) }
+        File(workspace, "empty.bin").createNewFile()
         val secret = File(root, "outside.bin").apply { writeText("outside workspace") }
         android.system.Os.symlink(secret.absolutePath, File(workspace, "escape.bin").absolutePath)
         val port = ServerSocket(0).use { it.localPort }
@@ -175,6 +178,48 @@ class CoreStartupInstrumentedTest {
                 for (path in listOf("../outside.bin", "escape.bin", "/outside.bin")) {
                     org.junit.Assert.assertTrue("真实核心接受了不允许的路径：$path", runCatching { read(path) }.isFailure)
                 }
+                suspend fun chunk(path: String, offset: Long = 0, version: String? = null) =
+                    bridge.request("android/remoteFile/readChunk", JSONObject().put("environmentId", id)
+                        .put("workspaceUri", cwd).put("relativePath", path).put("offset", offset)
+                        .put("version", version ?: JSONObject.NULL))
+                val first = chunk("large.bin")
+                val version = first.getString("version")
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                val expectedSha = RemoteTransferCheckpoint.hex(digest.digest(large))
+                assertEquals(expectedSha, first.getString("sha256"))
+                assertEquals(large.size.toLong(), first.getLong("size"))
+                assertEquals(0L, first.getLong("offset"))
+                val store = RemoteTransferCheckpoint(File(root, "staging"))
+                val source = RemoteTransferCheckpoint.Source("test-thread", large.size.toLong(), expectedSha)
+                val partial = store.begin(source)
+                fun bytes(receipt: JSONObject) = android.util.Base64.decode(receipt.getString("dataBase64"), android.util.Base64.NO_WRAP)
+                store.append(partial, 0, bytes(first))
+                val restarted = chunk("large.bin")
+                assertEquals(expectedSha, restarted.getString("sha256"))
+                val resumed = store.begin(source)
+                assertEquals(1024 * 1024L, resumed.offset)
+                while (resumed.offset < source.size) {
+                    val offset = resumed.offset
+                    val receipt = chunk("large.bin", offset, restarted.getString("version"))
+                    assertEquals(offset, receipt.getLong("offset"))
+                    assertEquals(source.size, receipt.getLong("size"))
+                    assertEquals(version, receipt.getString("version"))
+                    org.junit.Assert.assertTrue(receipt.isNull("sha256"))
+                    store.append(resumed, offset, bytes(receipt))
+                }
+                store.verify(resumed)
+                org.junit.Assert.assertArrayEquals(large, resumed.file.readBytes())
+                val empty = chunk("empty.bin")
+                assertEquals(0L, empty.getLong("size"))
+                assertEquals(RemoteTransferCheckpoint.hex(digest.digest(byteArrayOf())), empty.getString("sha256"))
+                assertEquals("", empty.getString("dataBase64"))
+                for (bad in listOf("../outside.bin", "escape.bin", "/outside.bin")) {
+                    org.junit.Assert.assertTrue("分块读取接受了不允许的路径：$bad", runCatching { chunk(bad) }.isFailure)
+                }
+                org.junit.Assert.assertTrue(runCatching { chunk("large.bin", 1) }.isFailure)
+                largeFile.appendBytes(byteArrayOf(1))
+                org.junit.Assert.assertTrue("源文件变化后仍接受旧断点", runCatching { chunk("large.bin", 1024 * 1024L, version) }.isFailure)
+
             }
         } finally {
             bridge.close()
