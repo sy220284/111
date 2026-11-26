@@ -321,7 +321,9 @@ jobs:
   device-ready:
     name: ARM64 专用设备基础设施检查
     needs: [check-release, release]
-    if: needs.release.result == 'success'
+    # Automatic runs deliberately skip manual preflight. Use an explicit status
+    # function so that skipped transitive ancestors cannot skip this required gate.
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true' && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: 检查设备已正式配置
@@ -336,7 +338,7 @@ jobs:
   device:
     name: 最终签名 APK ARM64 真机验收
     needs: [check-release, release, device-ready]
-    if: needs.device-ready.result == 'success'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.device-ready.result == 'success' }}
     environment: arm64-release
     runs-on: [self-hosted, linux, 111-release-device]
     timeout-minutes: 45
@@ -369,7 +371,7 @@ jobs:
   publish:
     name: 远端回读后正式公开
     needs: [check-release, release, device]
-    if: needs.device.result == 'success'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.device.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -415,9 +417,32 @@ jobs:
           SHA: ${{ needs.check-release.outputs.release_sha }}
         run: bash .github/scripts/publish-verified-release.sh
 
+  release-result:
+    name: 正式发布闭环验收
+    needs: [check-release, release, device-ready, device, publish]
+    # A selected candidate must never produce a green run without publication.
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 核对所有正式发布门禁
+        env:
+          SIGNED: ${{ needs.release.result }}
+          DEVICE_READY: ${{ needs.device-ready.result }}
+          DEVICE: ${{ needs.device.result }}
+          PUBLISHED: ${{ needs.publish.result }}
+        run: |
+          set -eu
+          for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$PUBLISHED"; do
+            if [ "$status" != success ]; then
+              echo "::error::正式候选未完成完整发布链：签名=$SIGNED 设备就绪=$DEVICE_READY 真机=$DEVICE 公开=$PUBLISHED"
+              exit 1
+            fi
+          done
+
   cleanup:
-    needs: publish
-    if: needs.publish.result == 'success'
+    needs: [publish, release-result]
+    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.release-result.result == 'success' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest

@@ -11,6 +11,33 @@ from verify_release_acceptance import REQUIRED_JOBS, accepted, find_acceptance, 
 
 
 class ReleaseAcceptanceTests(unittest.TestCase):
+    def test_automatic_release_cannot_skip_device_chain_or_report_false_success(self):
+        # workflow_run intentionally skips manual preflight. Every downstream
+        # required job must override the default transitive success() check.
+        import re
+        workflow = (Path(__file__).resolve().parents[1] / "workflows" / "release.yml").read_text(encoding="utf-8")
+        jobs = dict(re.findall(r"^  ([a-z][a-z-]*):\n(.*?)(?=^  [a-z][a-z-]*:\n|\Z)", workflow, re.M | re.S))
+        requirements = {
+            "device-ready": ("release", "check-release"),
+            "device": ("release", "check-release", "device-ready"),
+            "publish": ("release", "check-release", "device"),
+            "cleanup": ("publish", "release-result"),
+        }
+        for name, upstream in requirements.items():
+            with self.subTest(job=name):
+                condition = re.search(r"^    if: (.+)$", jobs[name], re.M).group(1)
+                self.assertIn("!cancelled()", condition)
+                for dependency in upstream:
+                    self.assertIn("needs." + dependency + ".result == 'success'", condition)
+        terminal = jobs["release-result"]
+        self.assertIn("needs: [check-release, release, device-ready, device, publish]", terminal)
+        self.assertIn("!cancelled()", terminal)
+        self.assertIn("needs.check-release.outputs.should_release == 'true'", terminal)
+        for name in ("release", "device-ready", "device", "publish"):
+            self.assertIn("needs." + name + ".result", terminal)
+        self.assertIn('for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$PUBLISHED"', terminal)
+        self.assertIn('exit 1', terminal)
+
     def test_all_real_android_jobs_are_required(self):
         for workflow, names in REQUIRED_JOBS.items():
             good = [{"name": name, "conclusion": "success"} for name in names]
