@@ -39,6 +39,22 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.runOnIdle { assertEquals("新名称", applied) }
     }
 
+    @Test fun unreadableMediaRecordOffersExplicitClearWithoutAnotherProviderCall() {
+        var cleared = false
+        var providerCalls = 0
+        rule.setContent {
+            CodexTheme {
+                MediaAnalysisActions(emptyList(), MediaAnalysisController.State(owner = "thread",
+                    scope = "a".repeat(64), error = "分析记录无法读取，原记录已保留"),
+                    owner = "thread", enabled = false, onChoose = { _, _ -> providerCalls++ },
+                    onCancel = {}, onReview = {}, onDismiss = { cleared = true })
+            }
+        }
+        rule.onNodeWithText("分析记录无法读取，原记录已保留").assertIsDisplayed()
+        rule.onNodeWithText("清除记录").assertIsDisplayed().performClick()
+        rule.runOnIdle { assertEquals(true, cleared); assertEquals(0, providerCalls) }
+    }
+
     @get:Rule val rule = createComposeRule()
 
     @Test fun adaptiveActionsKeepLabelsAndCallbacksAtDoubleFontScale() {

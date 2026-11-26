@@ -30,6 +30,15 @@ internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisContr
             return
         }
         state.error?.let { ErrorText(it) }
+        if (state.result == null && (state.checkpoint != null || state.scope != null)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("保留的分析记录", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                if (state.checkpoint != null && state.source != null && state.mode != null)
+                    CodexTextAction(onClick = { onChoose(state.source, state.mode) }, enabled = enabled) { Text("继续剩余") }
+                CodexTextAction(onClick = onDismiss) { Text("清除记录") }
+            }
+            return
+        }
         if (state.result != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("媒体分析结果已就绪", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
