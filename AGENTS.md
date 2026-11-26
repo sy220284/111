@@ -477,3 +477,11 @@
 - 历史打开及向前分页使用会话专属 HistoryTurnOutcomes 游标，按 thread/turns/list 的 notLoaded 模式获取真实回合终态，复用已读元数据，不下载全量工具输出；对失败/中断回合恢复实际终态提示，不把 item 时间戳当作回合完成证据。未知回合沿用实际收到的条目与后续实时事件，不伪造成功。
 
 - 核心失联属于结果待核实：保留收到的文本和明确 phase，将当前流式条目结束为本地 unverified 展示状态；只有真实 turn/completed 或恢复后的原生回合记录才能确认终态。迟到旧快照不能覆盖较新已完成阶段，纯过程回复结束后明确提示缺少正式回答。
+
+
+## 统一回复内容与原生异步提问（2026-11-26）
+- 原生助手属性 moderation、delivery、questions、memoryCitation、phase 随 item ID、片段及历史恢复完整保留；可见文本、复制、导出共用 AgentReplyContract 的限制判定。回合终态由核心确认，内部终态标记不显示；迟到事件不得重开已终结回合。
+- 富内容统一由 RichReplyContent 验证，支持 metrics、flow、bar、line、pie、graph、checklist、math、file。无效或超界内容保持原文；仅声明式绘制，不执行模型代码、不自动请求网络。公式为有界 TeX 子集，复杂公式和 Mermaid 原文保留，不冒充完整渲染器。文件仅经用户点击及现有工作区文件边界验证后预览。
+- 异步提问优先 Jetpack Compose 原生组件。遵循锁定核心 questionItemId 及 send_user_message_question_reply 封装，以真实 turn/steer 或 thread/queue/add 回执确认提交；按会话和问题 ID 保存独立草稿，未知结果保留待核实标记，不自动重试。核心选项按单项选择或自由文本处理，不凭空增加多选协议。
+- 引用使用原生 memoryCitation；MCP 资源只在用户点击后按原调用范围读取，当前提供只读文本预览，不等同完整交互式 MCP App UI。安全限制的完整官方替代 UI、真实宿主及远端文件交付另行核实。
+- 长回答目录异步解析并按章节定位；流式回复保留阅读锚点、阶段性复制和分批展开，使用共享主题和交互控件。只有真实设备运行及门禁通过才登记视觉、动效与功能验收通过。
