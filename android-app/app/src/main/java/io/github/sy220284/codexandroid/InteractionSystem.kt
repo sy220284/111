@@ -30,7 +30,6 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
@@ -68,19 +67,19 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         derivedStateOf { !reducedMotion && progress.value < 1f }
     }
     val canvas = Ink.canvas
-    // Blend the canvas once, outside the translated content layer. Do not
-    // modulate all descendant draw operations or invalidate their layer cache.
-    val fade = if (moving) Modifier.drawWithContent {
-        drawContent()
-        val veil = .06f * (1f - progress.value)
-        if (veil > 0f) drawRect(canvas, alpha = veil)
-    } else Modifier
     val entrance = if (moving) Modifier.graphicsLayer {
         translationY = 6.dp.toPx() * (1f - progress.value)
     } else Modifier
-    // Release both animated modifiers at rest, including reduced-motion mode.
-    Box(Modifier.fillMaxSize().clipToBounds().then(fade)) {
+    // The veil is an independent, non-interactive sibling. Changing its opacity
+    // must not invalidate the parent draw node that owns the entire page.
+    // Both moving layers are released at rest and in reduced-motion mode.
+    Box(Modifier.fillMaxSize().clipToBounds()) {
         Box(Modifier.fillMaxSize().then(entrance)) { content() }
+        if (moving) {
+            Box(Modifier.matchParentSize().graphicsLayer {
+                alpha = .06f * (1f - progress.value)
+            }.background(canvas))
+        }
     }
 }
 

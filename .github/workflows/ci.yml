@@ -283,6 +283,10 @@ jobs:
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         env:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # The hosted runner has four logical CPUs; keep Mesa software rendering
+          # workers within the remaining CPU budget of the two-vCPU guest.
+          # SwiftShader does not use this Mesa-specific setting.
+          LP_NUM_THREADS: "2"
         with:
           api-level: ${{ needs.plan.outputs.device_sdk_platform }}
           system-image-api-level: ${{ needs.plan.outputs.device_image_api }}
