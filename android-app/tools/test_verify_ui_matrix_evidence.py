@@ -65,3 +65,10 @@ class MatrixEvidenceTests(unittest.TestCase):
             path=root/"ui-proof-mainstream-baseline/ui-baseline-diagnosis.json"
             data=json.loads(path.read_text()); data["test_ids"][-1]="Example#fake"; self.write(path,data)
             with self.assertRaises(ValueError): validate(root,"head")
+
+    def test_shard_ids_cannot_be_reused_across_configurations(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            path=root/"ui-proof-ultra-baseline/ui-baseline-diagnosis.json"
+            data=json.loads(path.read_text()); data["shard_run_ids"]["navigation"]="compactadaptivenavigation"; self.write(path,data)
+            with self.assertRaises(ValueError): validate(root,"head")

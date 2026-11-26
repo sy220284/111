@@ -30,7 +30,7 @@ class ShardMergeTests(unittest.TestCase):
             ids = [PACKAGE + "." + c + f"#test{i}" for c in shard_classes("compact","adaptive",shard) for i in range(40)]
             common = dimensions("compact","adaptive") | dict(profile="compact",mode="adaptive",shard=shard,commit="head",android_api=CONFIG["api"],page_size=CONFIG["page_size"],build_fingerprint="fingerprint",android_release="17",physical_size="1080x2340",physical_density_dpi=440,width_dp=360,height_dp=720,run_id=shard)
             report = common | dict(status="passed",tests=len(ids),test_ids=ids,missing_screens=[],screenshot_collection_exit=0)
-            manifest = common | dict(present=[shard],discovered=[shard],missing=[],screenshot_dimensions={shard:{"width_px":1,"height_px":1}})
+            manifest = common | dict(present=[shard],required=[shard],discovered=[shard],missing=[],screenshot_dimensions={shard:{"width_px":1,"height_px":1}})
             (directory/"ui-adaptive-diagnosis.json").write_text(json.dumps(report))
             (screens/"manifest.json").write_text(json.dumps(manifest))
 
@@ -67,5 +67,15 @@ class ShardMergeTests(unittest.TestCase):
             folder=root/"ui-shard-compact-adaptive-components"
             for path in (folder/"ui-adaptive-diagnosis.json",folder/"ui-screenshots-adaptive/manifest.json"):
                 data=json.loads(path.read_text()); data["run_id"]="navigation"; path.write_text(json.dumps(data))
+        with self.assertRaises(ValueError):
+            self.run_case(change)
+
+    def test_duplicate_screenshot_is_rejected(self):
+        def change(root):
+            folder=root/"ui-shard-compact-adaptive-components/ui-screenshots-adaptive"
+            (folder/"components-android.png").rename(folder/"navigation-android.png")
+            path=folder/"manifest.json"; data=json.loads(path.read_text())
+            data.update(present=["navigation"],required=["navigation"],discovered=["navigation"],screenshot_dimensions={"navigation":{"width_px":1,"height_px":1}})
+            path.write_text(json.dumps(data))
         with self.assertRaises(ValueError):
             self.run_case(change)
