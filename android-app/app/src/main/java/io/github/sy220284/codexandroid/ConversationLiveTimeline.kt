@@ -15,14 +15,25 @@ internal class ConversationLiveTimeline {
 
     fun event(threadId: String, method: String, params: JSONObject, activeThreads: Set<String>,
         deltaText: String? = null) {
-        val updated = TimelineEventReducer.reduce(method, params, sessions.remove(threadId).orEmpty(), deltaText)
-        sessions[threadId] = updated
-        val inactive = sessions.keys.filter { it !in activeThreads }
-        inactive.dropLast(8).forEach { sessions.remove(it) }
+        val before = snapshot(threadId)
+        val updated = TimelineEventReducer.reduce(method, params, before.orEmpty(), deltaText)
+        check(publish(threadId, before, updated, activeThreads))
     }
 
     fun restore(threadId: String, saved: List<TimelineItem>): List<TimelineItem> =
         merge(saved, sessions.remove(threadId).orEmpty())
+
+    fun snapshot(threadId: String): List<TimelineItem>? = sessions[threadId]
+
+    fun publish(threadId: String, before: List<TimelineItem>?, next: List<TimelineItem>,
+        activeThreads: Set<String>): Boolean {
+        if (sessions[threadId] !== before) return false
+        sessions.remove(threadId)
+        sessions[threadId] = next
+        val inactive = sessions.keys.filter { it !in activeThreads }
+        inactive.dropLast(8).forEach { sessions.remove(it) }
+        return true
+    }
 
     fun remove(threadId: String) { sessions.remove(threadId) }
 

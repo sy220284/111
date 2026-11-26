@@ -27,18 +27,15 @@ internal fun ConversationTimelineViewport(
     firstThreadStarting: Boolean, compactWorkArea: Boolean, setupHint: ChatSetupHint?,
     navigate: (String) -> Unit, modifier: Modifier = Modifier
 ) {
-    val frame by vm.conversationState.collectFrameState(thread)
-    val contextLoading = switching || frame.threadId != thread
-    val items = if (contextLoading) emptyList() else frame.timeline
     val olderTimelineCount by vm.olderTimelineCount.collectAsState()
     val olderCursor by vm.olderServerCursor.collectAsState()
     val loadingEarlier by vm.loadingEarlier.collectAsState()
-    val groups = remember(items) { TimelineEventReducer.groups(items) }
     val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
-    val replyProjection = remember(thread) { ProgressiveReplyProjection.Cache() }
-    val rows = remember(groups, frame.running, frame.turnId, olderPageVisible, replyProjection) {
-        replyProjection.rows(groups, frame.running, frame.turnId, olderPageVisible)
-    }
+    val projection by collectTimelinePresentation(vm, thread, olderPageVisible)
+    val frame = projection?.frame ?: vm.conversationState.value
+    val contextLoading = switching || projection == null || frame.threadId != thread
+    val items = if (contextLoading) emptyList() else frame.timeline
+    val rows = if (contextLoading) emptyList() else projection?.rows.orEmpty()
     val answerVersions by vm.answerVersions.state.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val scroll = rememberLazyListState()
@@ -67,7 +64,10 @@ internal fun ConversationTimelineViewport(
     val queueBusy by vm.loading.collectProjection { "queueWrite" in it || "interrupt" in it }
     val queueData by vm.data.collectEntries("queue:$thread")
     val queue = queueData["queue:$thread"]
-    val answeredQuestions = remember(items, queue) { AsyncReplyContract.answeredFromTimeline(items) + AsyncReplyContract.answeredFromQueue(queue) }
+    val answeredQuestions = remember(projection?.answeredQuestions, queue, contextLoading) {
+        (if (contextLoading) emptySet() else projection?.answeredQuestions.orEmpty()) +
+            AsyncReplyContract.answeredFromQueue(queue)
+    }
     val canSwitchVersion = connected && !busy && !contextLoading && thread != null && !loadingEarlier &&
         !firstThreadStarting && !mutatingHistory && !savingPermissions && !restarting
     val canChangeTurn = canSwitchVersion && !familyBusy
@@ -230,7 +230,8 @@ internal fun ConversationTimelineViewport(
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
                     version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null,
                     showMessageActions = row.showActions, actionItem = row.actionItem,
-                    forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess, partialCopy = row.partialCopy)
+                    forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess,
+                    partialCopy = row.partialCopy, liveVisibleIds = row.liveVisibleIds)
                 if (thread != null) {
                     NativeReplyMetadata(vm, thread, row.group, canSwitchVersion)
                     row.group.flatMap(AsyncReplyContract::questions).distinctBy { it.id }.forEach { question ->

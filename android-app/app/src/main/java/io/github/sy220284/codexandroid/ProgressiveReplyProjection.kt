@@ -10,7 +10,8 @@ internal object ProgressiveReplyProjection {
         val forceActivity: Boolean = false,
         val note: String? = null,
         val liveProcess: Boolean = false,
-        val partialCopy: Boolean = false
+        val partialCopy: Boolean = false,
+        val liveVisibleIds: Set<String>? = null
     )
 
     private val assistantKinds = setOf("agent", "agentMessage")
@@ -82,12 +83,21 @@ internal object ProgressiveReplyProjection {
         val clipped = hasEarlier && turn.isNotBlank() && explicit
         val incompleteNote = "加载更早记录后可使用完整回答操作"
         if (turn.isBlank() || open || (!progressive && items.none(::commentary))) {
+            val liveIds = if (open) {
+                val activities = items.filter { it.kind in activityKinds }
+                (activities.filter { it.status in runningStates } +
+                    activities.filterNot { it.status in runningStates }.takeLast(5)).mapTo(hashSetOf()) { it.id }
+            } else emptySet()
+            fun visibleIds(group: List<TimelineItem>) = group.mapNotNullTo(hashSetOf()) { item ->
+                item.id.takeIf { it in liveIds }
+            }
             visibleSection.forEach { group ->
                 val single = group.singleOrNull()
                 val formal = single?.let(::answer) == true
                 val allow = !formal || (!open && !clipped && single?.phase != "partial_answer")
                 if (open && group.size > 12 && group.all { it.kind in activityKinds }) {
-                    group.chunked(12).forEach { chunk -> add(Row(chunk.first().id, chunk, liveProcess = true)) }
+                    group.chunked(12).forEach { chunk -> add(Row(chunk.first().id, chunk, liveProcess = true,
+                        liveVisibleIds = visibleIds(chunk))) }
                     return@forEach
                 }
                 add(Row(group.first().id, group, showActions = allow,
@@ -99,7 +109,8 @@ internal object ProgressiveReplyProjection {
                         else -> null
                     },
                     liveProcess = open && group.all { it.kind in activityKinds },
-                    partialCopy = open && formal && single?.phase == "partial_answer" && single?.status == "completed"))
+                    partialCopy = open && formal && single?.phase == "partial_answer" && single?.status == "completed",
+                    liveVisibleIds = if (open && group.all { it.kind in activityKinds }) visibleIds(group) else null))
             }
             return@buildList
         }

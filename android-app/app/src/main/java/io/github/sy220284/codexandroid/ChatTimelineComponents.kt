@@ -32,7 +32,7 @@ internal fun TimelineActivityGroup(
     version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null,
     forceActivity: Boolean = false, note: String? = null, liveProcess: Boolean = false,
-    partialCopy: Boolean = false
+    partialCopy: Boolean = false, liveVisibleIds: Set<String>? = null
 ) {
     if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "userMessage", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity", "hookRun")) {
@@ -42,14 +42,17 @@ internal fun TimelineActivityGroup(
     }
     val active = group.any { it.active() }
     val failed = group.count { it.failed() }
-    var expanded by rememberSaveable(group.first().id, liveProcess) { mutableStateOf(liveProcess) }
+    var expandedOverride by rememberSaveable(group.first().id, liveProcess) { mutableStateOf<Boolean?>(null) }
+    val expanded = expandedOverride ?: (liveProcess && (liveVisibleIds == null || liveVisibleIds.isNotEmpty()))
     var visibleCount by rememberSaveable(group.first().id) { mutableIntStateOf(20) }
+    val displayed = if (liveProcess && expandedOverride != true && liveVisibleIds != null)
+        group.filter { it.id in liveVisibleIds } else group.take(visibleCount)
     val summary = group.groupingBy { if (ProgressiveReplyProjection.commentary(it)) "过程回复" else PresentationPolicy.timelineKind(it.kind) }.eachCount()
         .entries.joinToString(" · ") { (kind, count) -> if (count == 1) kind else "$kind $count 项" }
     Column(Modifier.fillMaxWidth().testTag("chat-activity-group")
         .padding(vertical = 2.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
-            .clickable { expanded = !expanded }.padding(horizontal = 4.dp, vertical = 6.dp),
+            .clickable { expandedOverride = !expanded }.padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CodexIcon(if (failed > 0) CodexGlyph.TaskError else if (active) CodexGlyph.TaskRunning else CodexGlyph.AutoAwesome,
                 null, tint = if (failed > 0) Ink.red else Ink.muted, modifier = Modifier.size(18.dp))
@@ -67,10 +70,17 @@ internal fun TimelineActivityGroup(
             color = Ink.muted, style = MaterialTheme.typography.labelSmall) }
         CodexReveal(visible = expanded) {
             Column(Modifier.fillMaxWidth().padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                group.take(if (liveProcess) group.size else visibleCount).forEach { item -> key(item.id) { TimelineStepCard(item, workspaceRoot, onTurnAction,
+                if (displayed.size < group.size && liveProcess && expandedOverride != true) {
+                    CodexTextAction(onClick = { expandedOverride = true },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                        Text("查看其余 ${group.size - displayed.size} 项活动")
+                    }
+                }
+                displayed.forEach { item -> key(item.id) { TimelineStepCard(item, workspaceRoot, onTurnAction,
                     compactActivity = true) } }
-                if (!liveProcess && visibleCount < group.size) CodexSecondaryButton(onClick = { visibleCount += 20 },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("继续展开执行记录") }
+                if ((!liveProcess || expandedOverride == true) && visibleCount < group.size)
+                    CodexSecondaryButton(onClick = { visibleCount += 20 },
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("继续展开执行记录") }
             }
         }
     }

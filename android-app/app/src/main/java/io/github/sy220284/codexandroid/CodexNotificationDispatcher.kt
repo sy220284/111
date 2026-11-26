@@ -223,16 +223,17 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
-        if (threadId.isNotBlank() && (threadId == hydratingThread || threadId != activeThread.value) &&
+        if (notification.mergedDelta == null && threadId.isNotBlank() &&
+            (threadId == hydratingThread || threadId != activeThread.value) &&
             method in TimelineEventReducer.methods) {
             liveTimelines.event(threadId, method, params, threadExecutions.value.keys, notification.mergedDelta)
             return
         }
-        if (threadId.isNotBlank() && threadId != activeThread.value) return
+        if (notification.mergedDelta == null && threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
             in TimelineEventReducer.methods - "turn/completed" -> {
                 if (notification.mergedDelta != null) {
-                    if (!TimelineEventEngine.applyVisibleDelta(vm, notification)) return
+                    if (!TimelineEventEngine.applyDelta(vm, notification)) return
                 } else timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
             }
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
