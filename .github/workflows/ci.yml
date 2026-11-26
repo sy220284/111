@@ -17,8 +17,9 @@ permissions:
   actions: read
 
 concurrency:
-  # Active native compilations survive subsequent PR revisions.
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.sha }}
+  # Each PR keeps its running acceptance (including native work) and only the
+  # newest pending revision. A commit-specific group would queue every edit.
+  group: ci-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
 jobs:
