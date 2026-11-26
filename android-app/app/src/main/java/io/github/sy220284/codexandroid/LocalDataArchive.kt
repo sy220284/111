@@ -23,7 +23,8 @@ import kotlinx.coroutines.flow.first
 
 /** Portable, on-device backup; never accesses a server or contacts a third party. */
 internal object LocalDataArchive {
-    private const val ARCHIVE_MARKER = "111-local-backup-version:3"
+    private const val ARCHIVE_MARKER = "111-local-backup-version:4"
+    private const val MEDIA_ARCHIVE_MARKER = "111-local-backup-version:3"
     private const val PREVIOUS_ARCHIVE_MARKER = "111-local-backup-version:2"
     private const val LEGACY_ARCHIVE_MARKER = "111-local-backup-version:1"
     private val PROJECTS_PREFIX = File("files", "projects").invariantSeparatorsPath
@@ -60,6 +61,18 @@ internal object LocalDataArchive {
             .edit().putString(RESULT_KEY, message).commit()) { "恢复结果无法保存" }
     }
 
+    private fun stagedFiles(root: File): List<Pair<String, File>> =
+        Files.walk(root.toPath()).use { paths ->
+            paths.map { path ->
+                require(!Files.isSymbolicLink(path)) { "暂存备份包含符号链接" }
+                path.toFile()
+            }.filter { it.isFile && it != File(root, BackupIntegrity.STAGED_ENTRY) }
+                .map { file -> file.relativeTo(root).invariantSeparatorsPath to file }
+                .collect(java.util.stream.Collectors.toList())
+        }.also { files -> require(files.size in 1..MAX_FILES && files.all { validatePath(it.first) }) {
+            "暂存备份文件不属于允许迁移的数据"
+        } }
+
     /** Streams the selected user data directly into the system document provider. */
     fun export(context: Context, output: OutputStream, workspaceRoot: File = WorkspaceStorage.root(context)): Int {
         val privateRoot = context.filesDir.canonicalFile
@@ -68,6 +81,7 @@ internal object LocalDataArchive {
         val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs").canonicalFile
         var count = 0
         var total = 0L
+        val records = linkedMapOf<String, BackupIntegrity.Record>()
         ZipOutputStream(BufferedOutputStream(output)).use { archive ->
             archive.putNextEntry(ZipEntry("manifest.txt"))
             archive.write(ARCHIVE_MARKER.toByteArray(Charsets.UTF_8))
@@ -90,6 +104,8 @@ internal object LocalDataArchive {
                         total + file.length() > MAX_TOTAL_BYTES) {
                         throw IOException("数据量超出 1 GiB 备份上限，请整理工作区后重试")
                     }
+                    require(name.length <= 4096 && name.none(Char::isISOControl) && name !in records) { "备份路径无效或重复" }
+                    val integrity = BackupIntegrity.Accumulator()
                     archive.putNextEntry(ZipEntry(name))
                     file.inputStream().buffered().use { input ->
                         val bytes = ByteArray(65536)
@@ -101,12 +117,17 @@ internal object LocalDataArchive {
                             total += n
                             if (fileSize > MAX_FILE_BYTES || total > MAX_TOTAL_BYTES)
                                 throw IOException("文件在导出期间超过备份上限")
+                            integrity.update(bytes, n)
                             archive.write(bytes, 0, n)
                         }
                     }
                     archive.closeEntry()
+                    records[name] = integrity.finish()
                 }
             }
+            archive.putNextEntry(ZipEntry(BackupIntegrity.ENTRY))
+            BackupIntegrity.write(archive, records)
+            archive.closeEntry()
         }
         return count
     }
@@ -121,6 +142,7 @@ internal object LocalDataArchive {
         var total = 0L
         val visited = HashSet<String>()
         var excluded = 0
+        val records = linkedMapOf<String, BackupIntegrity.Record>()
         try {
             ZipInputStream(BufferedInputStream(input)).use { archive ->
                 val marker = archive.nextEntry
@@ -133,12 +155,21 @@ internal object LocalDataArchive {
                     size += count
                 }
                 val format = String(bytes, 0, size, Charsets.UTF_8)
-                require(size == ARCHIVE_MARKER.length && format in setOf(ARCHIVE_MARKER, PREVIOUS_ARCHIVE_MARKER, LEGACY_ARCHIVE_MARKER) &&
+                require(size == ARCHIVE_MARKER.length && format in setOf(ARCHIVE_MARKER, MEDIA_ARCHIVE_MARKER, PREVIOUS_ARCHIVE_MARKER, LEGACY_ARCHIVE_MARKER) &&
                     archive.read() == -1) { "备份格式或版本不受支持" }
                 val legacy = format == LEGACY_ARCHIVE_MARKER
+                val checksummed = format == ARCHIVE_MARKER
+                var verified = false
                 archive.closeEntry()
                 while (true) {
                     val entry = archive.nextEntry ?: break
+                    require(!verified) { "完整性清单必须是最后一个备份条目" }
+                    if (checksummed && entry.name == BackupIntegrity.ENTRY && !entry.isDirectory) {
+                        BackupIntegrity.verify(archive, records)
+                        verified = true
+                        archive.closeEntry()
+                        continue
+                    }
                     if (entry.isDirectory || !BackupDataPolicy.safeSyntax(entry.name) ||
                         !visited.add(entry.name)) {
                         throw IOException("备份包含无效或重复的文件路径：" + entry.name)
@@ -153,6 +184,7 @@ internal object LocalDataArchive {
                             throw IOException("无法创建备份文件目录")
                         count++
                     } else excluded++
+                    val integrity = if (checksummed) BackupIntegrity.Accumulator() else null
                     target?.outputStream()?.buffered().use { out ->
                         val bytes = ByteArray(65536)
                         var fileSize = 0L
@@ -163,21 +195,30 @@ internal object LocalDataArchive {
                             total += n
                             if (fileSize > MAX_FILE_BYTES || total > MAX_TOTAL_BYTES)
                                 throw IOException("备份内容超出安全大小上限")
+                            integrity?.update(bytes, n)
                             out?.write(bytes, 0, n)
                         }
                     }
+                    integrity?.let { records[entry.name] = it.finish() }
                     archive.closeEntry()
                 }
+                require(!checksummed || verified) { "备份缺少完整性清单" }
             }
             if (count == 0) throw IOException("备份中没有可恢复的数据")
             BackupCheckpointValidation.verify(incoming)
             PortableMediaArchive.relocate(File(incoming, "files"), context.filesDir)
+            // Relocation legitimately changes some portable references. Seal the
+            // resulting private staged files independently before publishing readiness.
+            val stagedRecords = BackupIntegrity.snapshot(stagedFiles(incoming))
+            File(incoming, BackupIntegrity.STAGED_ENTRY).outputStream().use {
+                BackupIntegrity.write(it, stagedRecords)
+            }
             val staged = File(context.filesDir, STAGED)
             if (staged.exists() && !staged.deleteRecursively())
                 throw IOException("无法更换已有的恢复数据")
             if (!incoming.renameTo(staged)) throw IOException("无法保存经验证的恢复数据")
             val marker = File(context.filesDir, READY)
-            if (!marker.writeText("pending").let { marker.isFile }) {
+            if (!marker.writeText("pending-verified").let { marker.isFile }) {
                 throw IOException("恢复标记创建失败")
             }
             saveResult(context, "备份已验证（$count 项）；" +
@@ -195,7 +236,7 @@ internal object LocalDataArchive {
     /** Only cancel a staged import before any restore has begun in this process. */
     fun cancelStaged(context: Context) {
         val marker = File(context.filesDir, READY)
-        check(marker.isFile && marker.readText() == "pending") { "没有可取消的待恢复备份" }
+        check(marker.isFile && marker.readText() in setOf("pending", "pending-verified")) { "没有可取消的待恢复备份" }
         check(marker.delete()) { "无法取消恢复标记，请重试" }
         check(File(context.filesDir, STAGED).deleteRecursively()) { "恢复已取消，暂存目录清理失败" }
         saveResult(context, "已取消待恢复备份，当前数据保持不变。")
@@ -219,7 +260,7 @@ internal object LocalDataArchive {
                 paths.map { path ->
                     require(!Files.isSymbolicLink(path)) { "暂存备份包含符号链接" }
                     path.toFile()
-                }.filter { it.isFile }.collect(java.util.stream.Collectors.toList())
+                }.filter { it.isFile && it != File(staged, BackupIntegrity.STAGED_ENTRY) }.collect(java.util.stream.Collectors.toList())
             }
             require(files.isNotEmpty() && files.size <= MAX_FILES) { "恢复数据不完整" }
             val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs")
@@ -256,6 +297,15 @@ internal object LocalDataArchive {
             }
             targets = checkedTargets
             if (!transaction.hasJournal()) {
+                val markerValue = marker.readText()
+                require(markerValue in setOf("pending", "pending-verified")) { "未知恢复标记" }
+                val seal = File(staged, BackupIntegrity.STAGED_ENTRY)
+                if (markerValue == "pending-verified") {
+                    require(seal.isFile && !Files.isSymbolicLink(seal.toPath())) { "暂存完整性清单缺失" }
+                    seal.inputStream().buffered().use {
+                        BackupIntegrity.verify(it, BackupIntegrity.snapshot(stagedFiles(staged)))
+                    }
+                }
                 BackupCheckpointValidation.verify(staged)
                 PortableMediaArchive.verify(File(staged, "files"), File(context.filesDir, PortableMediaFormat.ATTACHMENTS))
             }

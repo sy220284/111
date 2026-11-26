@@ -78,7 +78,7 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
                 if ("失败" in message || "未完成" in message) NoticeTone.Error
                 else if (message.startsWith("已导出") || message.startsWith("已验证")) NoticeTone.Success
                 else NoticeTone.Info)
-            Text("备份保存在你选定的位置，可能包含私密文件；导入经完整验证后在下次启动时恢复。",
+            Text("备份保存在你选定的位置，可能包含私密文件。新版逐文件校验摘要，导入后在下次启动时再次核对再恢复。",
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         }
     }

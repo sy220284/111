@@ -205,7 +205,7 @@ async fn android_delivery_enforces_the_actual_read_limit() -> anyhow::Result<()>
         PathUri::from_host_native_path(&path).unwrap().to_abs_path().unwrap(),
         ReadFileOptions { follow_symlinks: false }, limit,
     );
-    assert_eq!(read().await?, b"hello");
+    assert_eq!(read().await?, b"hello".to_vec());
     std::fs::File::create(&path)?.set_len(limit + 1)?;
     assert_eq!(read().await.unwrap_err().kind(), std::io::ErrorKind::InvalidInput);
     Ok(())
