@@ -5,12 +5,12 @@ import org.junit.Test
 
 class UiProtocolMatrixTest {
     @Test fun everyProtocolMethodHasExactlyOneUiExposure() {
-        assertEquals(198, UiProtocolMatrix.all.size)
-        assertEquals(198, UiProtocolMatrix.byMethod.size)
+        assertEquals(199, UiProtocolMatrix.all.size)
+        assertEquals(199, UiProtocolMatrix.byMethod.size)
         assertEquals(37, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Direct })
         assertEquals(47, UiProtocolMatrix.all.count { it.exposure == ApiExposure.Contextual })
         assertEquals(52, UiProtocolMatrix.advanced.size)
-        assertEquals(62, UiProtocolMatrix.systemOnly.size)
+        assertEquals(63, UiProtocolMatrix.systemOnly.size)
     }
 
     @Test fun newlyExposedConversationOperationsAreContextual() {
