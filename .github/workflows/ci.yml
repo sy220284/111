@@ -33,6 +33,8 @@ jobs:
       receipt: ${{ steps.plan.outputs.receipt }}
       native_key: ${{ steps.plan.outputs.native_key }}
       run_static: ${{ steps.plan.outputs.run_static }}
+      run_compile: ${{ steps.plan.outputs.run_compile }}
+      compile_run_id: ${{ steps.plan.outputs.compile_run_id }}
       run_ui: ${{ steps.plan.outputs.run_ui }}
       run_package: ${{ steps.plan.outputs.run_package }}
       run_preflight: ${{ steps.plan.outputs.run_preflight }}
@@ -163,7 +165,7 @@ jobs:
   verify-ui:
     name: Kotlin 编译、协议单元测试与 Android Lint
     needs: [plan, static-ui, preflight]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -250,9 +252,22 @@ jobs:
           retention-days: 14
 
 
+      - name: 生成 UI 测试安装包字节凭证
+        run: |
+          cd android-app/app/build/outputs/apk
+          sha256sum debug/app-debug.apk androidTest/debug/app-debug-androidTest.apk > "$RUNNER_TEMP/ui-apk-sha256.txt"
+      - name: 保存 UI 测试安装包字节凭证
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ui-apk-integrity
+          path: ${{ runner.temp }}/ui-apk-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+
   ui-emulator:
     name: Android ${{ matrix.android_release }} (API ${{ matrix.api }}) · ${{ matrix.profile }} ${{ matrix.mode }} UI 交互与截图验收 · ${{ matrix.shard }}
     needs: [plan, verify-ui]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.verify-ui.result == 'success' || (needs.verify-ui.result == 'skipped' && needs.plan.outputs.run_compile == 'false'))
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.device_shards) }}
@@ -281,6 +296,20 @@ jobs:
         with:
           name: codex-android-ui-apks
           path: apks
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.plan.outputs.compile_run_id }}
+      - name: 取回 UI 安装包字节凭证
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ui-apk-integrity
+          path: apk-integrity
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.plan.outputs.compile_run_id }}
+      - name: 校验安装包完整性后启动模拟器
+        run: |
+          set -euo pipefail
+          cd apks
+          sha256sum -c ../apk-integrity/ui-apk-sha256.txt
       - name: 允许模拟器硬件加速
         run: |
           sudo adduser "$USER" kvm || true

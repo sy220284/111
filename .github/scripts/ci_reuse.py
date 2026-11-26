@@ -13,7 +13,8 @@ from device_matrix import API, RELEASE, MODES, PROFILES, SHARDS, shard_job_name,
 
 GROUPS = {
     "static": {"static-ui"},
-    "ui": {"verify-ui", "ui-emulator", "ui-collect", "ui-evidence"},
+    "compile": {"verify-ui"},
+    "ui": {"ui-emulator", "ui-collect", "ui-evidence"},
     "package": {"native", "build", "verify-apk"},
     "preflight": {"preflight"},
     "compat": {"compatibility"},
@@ -23,7 +24,8 @@ GROUPS = {
 FULL_GROUPS = set(GROUPS) - {"sign"}
 JOB_NAMES = {
     "static": {"协议、视觉规范与静态覆盖检查"},
-    "ui": {"Kotlin 编译、协议单元测试与 Android Lint", "四组 UI 用例与证据一致性验收",
+    "compile": {"Kotlin 编译、协议单元测试与 Android Lint"},
+    "ui": {"四组 UI 用例与证据一致性验收",
            *(shard_job_name(p,m,s) for p in PROFILES for m in MODES for s in SHARDS),
            *(collect_job_name(p,m) for p in PROFILES for m in MODES)},
     "package": {"原生核心统一验收", "build", "ARM64 手机安装包二次核验"},
@@ -34,7 +36,8 @@ JOB_NAMES = {
 }
 ARTIFACTS = {
     "static": {"codex-android-ui-static-reports"},
-    "ui": {"codex-android-ui-check-reports", "codex-android-ui-apks",
+    "compile": {"codex-android-ui-check-reports", "codex-android-ui-apks", "ui-apk-integrity"},
+    "ui": {
            *(f"ui-proof-{p}-{m}" for p in PROFILES for m in MODES),
            *(f"ui-shard-{p}-{m}-{s}" for p in PROFILES for m in MODES for s in SHARDS),
            *(f"codex-android-ui-visual-api{API}-{p}-{m}" for p in PROFILES for m in MODES),
@@ -43,7 +46,7 @@ ARTIFACTS = {
                 "codex-android-instrumentation-apk", "codex-android-arm64-apk-audit"},
     "runtime": {"codex-android-real-runtime-evidence"},
 }
-SCHEMA = 1
+SCHEMA = 2
 MAX_AGE = timedelta(days=2)
 # Unknown paths or changed recipes invalidate all groups. The exceptions
 # below are limited to known unrelated consumers of a changed file.
@@ -69,7 +72,7 @@ def affected(path):
     if path in RELEASE_ONLY or (path.startswith(".github/scripts/test_") and path.endswith(".py")):
         return {"preflight"}
     if path.startswith("android-app/app/src/test/"):
-        return {"static", "ui", "preflight"}
+        return {"static", "compile", "ui", "preflight"}
     if path.startswith("android-app/app/src/androidTest/"):
         return set(GROUPS) - {"compat", "sign"}
     if path.startswith("android-app/app/src/main/") or path.startswith("android-app/app/src/release/"):
@@ -116,23 +119,41 @@ def api(repo, endpoint):
 def successful_names(jobs):
     return {x["name"].rsplit(" / ",1)[-1] for x in jobs if x.get("conclusion") == "success"}
 
-def run_names(repo, run_id):
-    return successful_names(api(repo, f"actions/runs/{run_id}/jobs?per_page=100")["jobs"])
+def run_names(repo, run_id, attempt):
+    rows = api(repo, f"actions/runs/{run_id}/attempts/{attempt}/jobs?per_page=100")
+    if rows["total_count"] > len(rows["jobs"]):
+        raise ValueError("Incomplete CI job index")
+    return successful_names([j for j in rows["jobs"] if j.get("run_attempt") == attempt])
 
-def artifact_index(repo, run_id):
-    rows = api(repo, f"actions/runs/{run_id}/artifacts?per_page=100")["artifacts"]
-    return {a["name"]: {"id": a["id"], "digest": a["digest"]}
-            for a in rows if not a["expired"] and a.get("size_in_bytes",0)>0
-            and re.fullmatch(r"sha256:[0-9a-f]{64}", a.get("digest") or "")}
+def artifact_index(repo, run_id, started, finished):
+    response = api(repo, f"actions/runs/{run_id}/artifacts?per_page=100")
+    rows = response["artifacts"]
+    if response["total_count"] > len(rows):
+        raise ValueError("Incomplete CI artifact index")
+    result = {}
+    for a in rows:
+        if (a["expired"] or a.get("size_in_bytes",0) <= 0
+            or not re.fullmatch(r"sha256:[0-9a-f]{64}", a.get("digest") or "")
+            or not started <= datetime.fromisoformat(a["created_at"].replace("Z","+00:00")) <= finished):
+            continue
+        if a["name"] in result:
+            raise ValueError("Ambiguous CI artifact identity")
+        result[a["name"]] = {"id": a["id"], "digest": a["digest"]}
+    return result
 
 def candidate(repo, run, target, now):
     old = run.get("head_sha","")
-    if (run.get("conclusion") != "success" or run.get("status") != "completed"
+    if (run.get("conclusion") not in {"success", "failure", "cancelled"} or run.get("status") != "completed"
         or (run.get("head_repository") or {}).get("full_name") != repo
         or run.get("path","").split("@",1)[0] != ".github/workflows/ci.yml"
         or run.get("event") not in {"pull_request","push","workflow_dispatch"}
         or not re.fullmatch("[0-9a-f]{40}", old)):
         return None
+    attempt = run.get("run_attempt")
+    if type(attempt) is not int or attempt < 1 or not run.get("run_started_at") or not run.get("updated_at"):
+        return None
+    started = datetime.fromisoformat(run["run_started_at"].replace("Z","+00:00"))
+    finished = datetime.fromisoformat(run["updated_at"].replace("Z","+00:00"))
     age = now - datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
     if not timedelta(0) <= age <= MAX_AGE or not ancestor(old,target):
         return None
@@ -140,22 +161,22 @@ def candidate(repo, run, target, now):
     touched = set().union(*(affected(p) for p in changes))
     if touched == set(GROUPS):
         return {}
-    names = run_names(repo, run["id"])
-    if "111 合并验收" not in names:
+    names = run_names(repo, run["id"], attempt)
+    if "统一变更分类" not in names:
         return None
-    artifacts = artifact_index(repo, run["id"])
+    artifacts = artifact_index(repo, run["id"], started, finished)
     result = {}
     for group, expected in JOB_NAMES.items():
         required = ARTIFACTS.get(group,set())
         if group not in touched and expected <= names and required <= artifacts.keys():
-            result[group] = {"run_id":run["id"], "source":old, "tree":tree(old),
+            result[group] = {"run_id":run["id"], "attempt":attempt, "source":old, "tree":tree(old),
                              "artifacts":{name:artifacts[name] for name in sorted(required)}}
     return result
 
 def make_plan(repo, source, required, force=False):
     reused = {}
     if required and not force:
-        runs = api(repo, "actions/workflows/ci.yml/runs?status=success&per_page=50")["workflow_runs"]
+        runs = api(repo, "actions/workflows/ci.yml/runs?status=completed&per_page=100")["workflow_runs"]
         now = datetime.now(timezone.utc)
         for run in runs:
             if run["id"] == int(os.environ.get("GITHUB_RUN_ID","0")):
@@ -181,6 +202,8 @@ def check_shape(record, source, required):
     execute, reused = set(record["execute"]), set(record["reused"])
     if len(record["execute"]) != len(execute) or execute & reused or execute | reused != required:
         raise ValueError("CI receipt groups missing, duplicated or unexpected")
+    if "ui" in execute and "compile" not in required:
+        raise ValueError("UI device acceptance requires an authenticated compiled APK")
     if "runtime" in execute and "package" not in execute:
         raise ValueError("Actual runtime requires actual native preparation")
 

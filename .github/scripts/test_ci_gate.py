@@ -1,6 +1,6 @@
 import unittest
 import json
-from ci_reuse import required_groups
+from ci_reuse import required_groups, SCHEMA
 from ci_gate import verify, FULL, ALL
 
 def fixture(full=True, runtime=None, pr=True):
@@ -8,7 +8,7 @@ def fixture(full=True, runtime=None, pr=True):
         runtime = full
     jobs = {k: {"result": "skipped"} for k in ALL}
     groups=required_groups(full,runtime,"pull_request" if pr else "push","refs/pull/1/merge" if pr else "refs/heads/main")
-    jobs["plan"] = {"result": "success", "outputs": {"full": str(full).lower(), "runtime": str(runtime).lower(), "receipt":json.dumps({"schema":1,"source":"head","tree":"tree","required":sorted(groups),"execute":sorted(groups),"reused":{}})}}
+    jobs["plan"] = {"result": "success", "outputs": {"full": str(full).lower(), "runtime": str(runtime).lower(), "receipt":json.dumps({"schema":SCHEMA,"source":"head","tree":"tree","required":sorted(groups),"execute":sorted(groups),"reused":{}})}}
     for k in FULL if full else ():
         jobs[k]["result"] = "success"
     if full and pr: jobs["release-signing-smoke"]["result"] = "success"
@@ -51,7 +51,7 @@ class GateTests(unittest.TestCase):
         record["execute"].remove("ui")
         record["reused"]["ui"]={"run_id":12}
         jobs["plan"]["outputs"]["receipt"]=json.dumps(record)
-        for name in ("verify-ui","ui-emulator","ui-collect","ui-evidence"):
+        for name in ("ui-emulator","ui-collect","ui-evidence"):
             jobs[name]["result"]="skipped"
         self.assertNotIn("ui-emulator",verify(jobs,"pull_request","refs/pull/1/merge"))
         record["reused"]={}
