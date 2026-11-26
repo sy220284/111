@@ -15,7 +15,7 @@ import re
 from html import escape
 from pathlib import Path
 from PIL import Image, ImageStat, ImageChops
-from device_matrix import API, dimensions
+from device_matrix import API, CONFIG, dimensions
 from ui_evidence_manifest import load_evidence_manifest, required_screens
 
 SIZE = (64, 128)
@@ -60,20 +60,26 @@ def gh(*args):
 
 def baseline(repo, profile, mode):
     name = f"codex-android-ui-visual-api{API}-{profile}-{mode}"
-    # Only nonexpired artifacts from successful main CI; never from PRs or this current run.
+    # Successful main CI, or directly tested PR commits proven to be ancestors of main.
     pages = json.loads(gh("api", "--paginate", "--slurp",
                          f"repos/{repo}/actions/artifacts?name={name}&per_page=100"))
-    artifacts = [a for p in pages for a in p["artifacts"] if not a["expired"]
-                 and a.get("workflow_run", {}).get("head_branch") == "main"]
+    artifacts = [a for p in pages for a in p["artifacts"] if not a["expired"] and a.get("workflow_run")]
     for a in sorted(artifacts, key=lambda x: x["created_at"], reverse=True):
         run_id = a["workflow_run"]["id"]
         if str(run_id) == os.environ.get("GITHUB_RUN_ID"):
             continue
         run = json.loads(gh("api", f"repos/{repo}/actions/runs/{run_id}"))
-        if (run["conclusion"] != "success" or run["head_branch"] != "main"
-            or run["event"] not in ("push", "workflow_dispatch")
+        if (run["conclusion"] != "success"
+            or (run.get("head_repository") or {}).get("full_name") != repo
             or run["path"].split("@")[0] != ".github/workflows/ci.yml"):
             continue
+        if run["head_branch"] != "main" or run["event"] not in ("push","workflow_dispatch"):
+            if run["event"] != "pull_request":
+                continue
+            ancestry=json.loads(gh("api",f"repos/{repo}/compare/{run['head_sha']}...main",
+                                  "--jq","{status: .status, ancestor: .merge_base_commit.sha}"))
+            if ancestry["status"] not in ("ahead","identical") or ancestry["ancestor"] != run["head_sha"]:
+                continue
         with tempfile.TemporaryDirectory() as folder:
             gh("run", "download", str(run_id), "--repo", repo, "--name", name, "--dir", folder)
             record = json.loads((Path(folder)/"fingerprints.json").read_text())
@@ -112,7 +118,7 @@ def audit(profile, root, mode):
                     values[screen] = signature(path/(screen+"-android.png"),manifest)
                 except (OSError,ValueError) as exc:
                     record["errors"].append(f"{mode}/{screen}: {exc}")
-            record["modes"][mode] = {"configuration": expected, "build_fingerprint":manifest["build_fingerprint"], "screens": values}
+            record["modes"][mode] = {"configuration": expected | {"emulator_options":CONFIG["emulator_options"]}, "build_fingerprint":manifest["build_fingerprint"], "screens": values}
         except (OSError, ValueError, KeyError, TypeError) as exc:
             record["errors"].append(f"{mode}: {exc}")
     return record

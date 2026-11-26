@@ -4,7 +4,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from device_matrix import CONFIG, MODES, PROFILES, dimensions
+from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, minimum_tests
 
 def read(path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -34,12 +34,17 @@ def validate(root, source):
             raise ValueError("Duplicate UI execution ID")
         run_ids.add(run_id)
         ids = report["test_ids"]
-        if len(ids) < CONFIG["minimum_ui_tests"] or len(ids) != report["tests"] or len(set(ids)) != len(ids):
+        if len(ids) < minimum_tests(profile,mode) or len(ids) != report["tests"] or len(set(ids)) != len(ids):
             raise ValueError("Missing or duplicate test completions")
+        actual=set(ids)
+        platform={i for i in actual if ".SelfUpdateInstallerIntentInstrumentedTest#" in i}
+        if platform != (INDEPENDENT_IDS if independent_device(profile,mode) else set()):
+            raise ValueError(f"{profile}/{mode}: missing or unexpected screen-independent installer cases")
+        visual_ids=actual-platform
         if reference is None:
-            reference = set(ids)
-        if set(ids) != reference:
-            raise ValueError(f"{profile}/{mode}: different test identities")
+            reference=visual_ids
+        if visual_ids != reference:
+            raise ValueError(f"{profile}/{mode}: different visual test identities")
         if visual.get("status") not in {"compared","baseline_pending"} or visual.get("structural_errors") != []:
             raise ValueError(f"{profile}/{mode}: invalid visual proof")
         if mode == "baseline":
@@ -52,7 +57,7 @@ def validate(root, source):
                 if update.get("status") != "passed":
                     raise ValueError("System installer proof did not pass")
         count += len(ids)
-    return {"device_configurations": len(expected), "unique_tests":len(reference), "executions":count}
+    return {"device_configurations": len(expected), "unique_tests":len(reference)+len(INDEPENDENT_IDS), "executions":count}
 
 if __name__ == "__main__":
     result = validate(Path(sys.argv[1]), os.environ["TEST_SOURCE_SHA"])

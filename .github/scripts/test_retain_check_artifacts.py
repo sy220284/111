@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone, timedelta
 
 from unittest.mock import patch
 from retain_check_artifacts import plan, pr_head_signature, deletion_boundary_unchanged
@@ -67,6 +68,19 @@ class RetentionTests(unittest.TestCase):
                 3: dict(run(3), conclusion="failure")}
         items = [artifact(i,i,"codex-android-ui-visual-api37-compact-baseline") for i in runs]
         self.assertEqual([1], [a["id"] for a in plan(items,runs,set(),set(),False)])
+
+    def test_receipt_sources_survive_cleanup_and_merged_visual_is_retained(self):
+        now=datetime(2026,11,26,tzinfo=timezone.utc)
+        runs={1:dict(run(1,"ci",branch="merged"),conclusion="success",created_at=(now-timedelta(days=4)).isoformat()),
+              2:dict(run(2,"ci"),conclusion="success",created_at=(now-timedelta(days=3)).isoformat()),
+              3:dict(run(3,"ci",branch="merged"),conclusion="success",created_at=(now-timedelta(hours=1)).isoformat()),
+              4:dict(run(4,"ci"),conclusion="failure",created_at=now.isoformat())}
+        name="codex-android-ui-visual-api37-compact-baseline"
+        entries=[artifact(i,i,name) for i in runs]
+        self.assertEqual([1,2],[a["id"] for a in plan(entries,runs,set(),set(),False,accepted_visual_runs={1,3},now=now)])
+        # A recent accepted receipt source is preserved even under a newer failed run.
+        entries=[artifact(3,3,"ui-proof-compact-baseline"),artifact(4,4,"ui-proof-compact-baseline")]
+        self.assertEqual([],plan(entries,runs,set(),set(),False,now=now))
 
     def test_rerun_duplicate_retains_newest_artifact(self):
         runs = {1: run(1)}

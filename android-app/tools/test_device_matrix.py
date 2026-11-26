@@ -29,6 +29,8 @@ class DeviceMatrixTests(unittest.TestCase):
         self.assertEqual(17, CONFIG["android_release"])
         self.assertEqual(16384, CONFIG["page_size"])
         self.assertEqual("google_apis_ps16k", CONFIG["target"])
+        self.assertIn("-gpu swiftshader ", CONFIG["emulator_options"])
+        self.assertNotIn("swiftshader_indirect", CONFIG["emulator_options"])
         self.assertEqual("37.2", CONFIG["system_image_api"])
         self.assertEqual("35", CONFIG["sdk_platform"])
         self.assertIn(CONFIG["runtime_profile"], PROFILES)

@@ -4,9 +4,11 @@ import argparse
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'android-app/tools'))
 from device_matrix import PROFILES, MODES, job_name
+from ci_reuse import FULL_GROUPS, JOB_NAMES, validate, successful_names
 
 REQUIRED_JOBS = {
     "ci.yml": frozenset({
@@ -30,6 +32,25 @@ def gh_json(args: list[str]):
     return json.loads(result.stdout)
 
 
+def accepted_receipt(repo, run_id, sha, jobs, branch):
+    names=successful_names(jobs)
+    if "111 合并验收" not in names:
+        return False
+    artifacts=gh_json(["api",f"repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100"])["artifacts"]
+    if not any(a["name"]=="ci-acceptance-receipt" and not a["expired"] for a in artifacts):
+        return False
+    with tempfile.TemporaryDirectory() as folder:
+        subprocess.run(["gh","run","download",str(run_id),"--repo",repo,
+                        "--name","ci-acceptance-receipt","--dir",folder],check=True)
+        receipt=json.loads((Path(folder)/"ci-acceptance-receipt.json").read_text())
+    required=set(receipt["required"])
+    if not FULL_GROUPS <= required or required-FULL_GROUPS-{"runtime","sign"}:
+        return False
+    if branch=="main" and "sign" in required:
+        return False
+    actual=validate(repo,receipt,sha,required)
+    return all(JOB_NAMES[g] <= names for g in actual)
+
 def find_acceptance(repo: str, sha: str, workflow: str, branch: str = "main") -> int | None:
     runs = gh_json([
         "run", "list", "--repo", repo, "--workflow", workflow,
@@ -43,7 +64,7 @@ def find_acceptance(repo: str, sha: str, workflow: str, branch: str = "main") ->
             continue
         run_id = run["databaseId"]
         response = gh_json(["api", f"repos/{repo}/actions/runs/{run_id}/jobs?per_page=100"])
-        if accepted(workflow, response["jobs"]):
+        if accepted(workflow, response["jobs"]) or accepted_receipt(repo,run_id,sha,response["jobs"],branch):
             return run_id
     return None
 
