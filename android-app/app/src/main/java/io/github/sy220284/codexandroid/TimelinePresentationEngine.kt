@@ -16,8 +16,11 @@ internal class TimelineJoinedList<T>(val history: List<T>, val active: List<T>) 
         return if (index < history.size) history[index] else active[index - history.size]
     }
     override fun equals(other: Any?): Boolean = this === other ||
-        if (other is TimelineJoinedList<*> && history === other.history) active == other.active
-        else super.equals(other)
+        if (other is TimelineJoinedList<*>) {
+            size == other.size && if (history.size == other.history.size)
+                (history === other.history || history == other.history) && active == other.active
+            else super.equals(other)
+        } else super.equals(other)
     override fun hashCode(): Int = super.hashCode()
 }
 

@@ -67,4 +67,61 @@ class TimelineReplyPagesTest {
         assertTrue(pages.size >= 3)
         assertEquals(text, pages.flatMap { it.blocks }.joinToString("") { it.block.text })
     }
+
+    @Test fun rawTailPagesAreCreatedOnlyOnDemand() {
+        var reads = 0
+        val raw = object : AbstractList<PreparedReplyBlock>() {
+            override val size = 80000
+            override fun get(index: Int): PreparedReplyBlock {
+                reads++
+                return PreparedReplyBlock.tail("tail-$index")
+            }
+        }
+        val head = PreparedReplyBlock.prepare(MessageBlock("heading", "title"))
+        val pending = mutableListOf(head)
+        val pages = ReplyTailPages(pending, raw, 5)
+        pending.clear()
+        assertEquals(10001, pages.size)
+        assertEquals(0, reads)
+        val first = pages.first()
+        val last = pages.last()
+        assertEquals(5, first.firstHeading)
+        assertEquals(1, first.headingCount)
+        assertSame(head, first.blocks.first())
+        assertEquals(6, last.firstHeading)
+        assertEquals("tail-79999", last.blocks.last().block.text)
+        assertTrue(reads <= 16)
+    }
+
+    @Test fun lazyTailPagesMatchEagerPagination() {
+        val random = kotlin.random.Random(111)
+        repeat(300) {
+            val pending = List(random.nextInt(8)) { i ->
+                if (random.nextBoolean()) PreparedReplyBlock.prepare(MessageBlock("heading", "h$i"))
+                else PreparedReplyBlock.tail("p$i")
+            }
+            val tail = List(random.nextInt(300)) { PreparedReplyBlock.tail("tail-$it") }
+            val start = random.nextInt(100)
+            var heading = start
+            val expected = (pending + tail).chunked(8).map {
+                ReplyRenderPage(it, heading).also { page -> heading += page.headingCount }
+            }
+            val lazy = ReplyTailPages(pending, tail, start)
+            assertEquals(expected, lazy)
+            assertEquals(lazy, expected)
+            assertEquals(expected.hashCode(), lazy.hashCode())
+            assertEquals(lazy, ReplyTailPages(pending, tail, start))
+        }
+    }
+
+    @Test fun joinedListsRemainEqualAcrossDifferentPartitions() {
+        val source = (0..100).toList()
+        for (a in listOf(0, 1, 50, 101)) for (b in listOf(0, 1, 50, 101)) {
+            val left = TimelineJoinedList(source.take(a), source.drop(a))
+            val right = TimelineJoinedList(source.take(b), source.drop(b))
+            assertEquals(left, right)
+            assertEquals(source, left)
+            assertEquals(left.hashCode(), right.hashCode())
+        }
+    }
 }

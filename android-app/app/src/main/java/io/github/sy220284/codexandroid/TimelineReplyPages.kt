@@ -53,12 +53,7 @@ internal class TimelineReplyPages {
                 }
                 previous = document
             }
-            var nextHeading = heading
-            val tailPages = (pending + tail)
-                .chunked(BLOCKS_PER_PAGE).map { group ->
-                    ReplyRenderPage(group, nextHeading).also { nextHeading += it.headingCount }
-                }
-            return TimelineJoinedList(complete, tailPages)
+            return TimelineJoinedList(complete, ReplyTailPages(pending, tail, heading))
         }
     }
     private var cache = emptyMap<String, Entry>()
@@ -117,4 +112,29 @@ internal class TimelineReplyPages {
             }
         }
     }
+}
+
+/** The committed remainder contains fewer than one page of blocks. Raw tail
+ * blocks have no headings. Retain both immutable snapshots and materialize only
+ * the requested page; a long open fence must not rebuild all prior tail pages. */
+internal class ReplyTailPages(
+    committed: List<PreparedReplyBlock>, rawTail: List<PreparedReplyBlock>,
+    private val firstHeading: Int
+) : AbstractList<ReplyRenderPage>() {
+    private val blocks = TimelineJoinedList(committed.toList(), rawTail)
+    private val nextHeading = firstHeading + committed.count { it.block.kind == "heading" }
+    private val pageSize = TimelineReplyPages.BLOCKS_PER_PAGE
+    init { require(committed.size < pageSize) }
+    override val size = if (blocks.isEmpty()) 0 else 1 + (blocks.size - 1) / pageSize
+    override fun get(index: Int): ReplyRenderPage {
+        if (index !in 0 until size) throw IndexOutOfBoundsException("Reply tail page $index")
+        val start = index * pageSize
+        val end = start + minOf(pageSize, blocks.size - start)
+        return ReplyRenderPage(blocks.subList(start, end), if (index == 0) firstHeading else nextHeading)
+    }
+    override fun equals(other: Any?): Boolean = this === other ||
+        if (other is ReplyTailPages) size == other.size &&
+            (size == 0 || firstHeading == other.firstHeading && blocks == other.blocks)
+        else super.equals(other)
+    override fun hashCode(): Int = super.hashCode()
 }
