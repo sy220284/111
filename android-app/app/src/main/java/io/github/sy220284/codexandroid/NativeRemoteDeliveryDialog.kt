@@ -13,9 +13,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 
-internal data class RemoteDeliveryRequest(val thread: String, val binding: RemoteExecutionBinding,
-    val target: String, val epoch: Long, val revision: Long)
-
 @Composable
 internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliveryRequest, onDismiss: () -> Unit) {
     val scope = rememberCoroutineScope()
@@ -32,9 +29,7 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
     var totalBytes by remember(request) { mutableLongStateOf(0L) }
     val session by vm.bridge.connectedSession.collectAsState()
     val revision by vm.catalogWarmup.accountRevision.collectAsState()
-    fun owns() = vm.activeThread.value == request.thread && vm.bridge.connectedSession.value == request.epoch &&
-        vm.catalogWarmup.accountRevision.value == request.revision && !vm.threadSwitching.value &&
-        vm.remoteBindings.forThread(request.thread) == request.binding
+    fun owns() = request.owns(vm)
     val activeThread by vm.activeThread.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     LaunchedEffect(session, revision, activeThread, switching) {
@@ -47,7 +42,7 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
             verifiedBytes = 0L; totalBytes = payload.size
             operation = scope.launch {
                 try {
-                    RemoteFileDelivery.save(context.contentResolver, uri, payload,
+                    RemoteFileDelivery.save(vm, context.contentResolver, uri, payload,
                         onVerified = { count -> verifiedBytes = count }, onWritten = { verifying = true })
                     saved = true
                 }
@@ -62,7 +57,7 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
             Column(Modifier.fillMaxWidth().testTag("remote-file-delivery"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("设备：" + request.binding.id)
                 Text("文件：" + request.target)
-                Text("只读取当前绑定的远端工作区文件，单文件上限 512 MiB。同一进程内重试同一文件可继续读取；切换文件或账号会替换旧暂存。")
+                Text("只读取当前绑定的远端工作区文件，单文件上限 512 MiB。重试时重新验证账号、工作区及源文件；具备可信账号身份时支持重启后续传，否则只在当前连接内续传。")
                 if (loading) {
                     if (verifying && totalBytes > 0L) {
                         AtlasOperationProgress(label = "正在回读校验 · $verifiedBytes / $totalBytes 字节",
@@ -76,6 +71,8 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
                 }
                 data?.let { payload ->
                     Text(payload.name + " · " + payload.size + " 字节", style = MaterialTheme.typography.bodyMedium)
+                    Text(if (payload.durableResume) "此文件已建立可重启恢复的断点" else "此账号模式仅支持当前连接内续传",
+                        color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     var details by remember(payload) { mutableStateOf(false) }
                     CodexTextAction(onClick = { details = !details }) { Text(if (details) "收起校验信息" else "查看校验信息") }
                     if (details) Text("SHA-256: " + payload.sha256, style = MaterialTheme.typography.labelSmall)
