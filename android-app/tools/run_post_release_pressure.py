@@ -6,10 +6,20 @@ import json
 import os
 import subprocess
 import uuid
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from run_ui_device_checks import adb, execute_instrumentation, PACKAGE, DEVICE_ROOT
 
 TEST_CLASS = "PostReleasePressureInstrumentedTest"
+ANDROID_NS = "{http://schemas.android.com/apk/res/android}"
+
+def require_test_package(apkanalyzer, apk):
+    manifest = ET.fromstring(subprocess.check_output([apkanalyzer, "manifest", "print", str(apk)], text=True))
+    if manifest.get("package") != PACKAGE + ".test":
+        raise ValueError("指定 APK 必须是独立 instrumentation 测试包，不能覆盖正式应用")
+    runners = manifest.findall("instrumentation")
+    if len(runners) != 1 or runners[0].get(ANDROID_NS + "targetPackage") != PACKAGE or runners[0].get(ANDROID_NS + "name") != "androidx.test.runner.AndroidJUnitRunner":
+        raise ValueError("测试 APK 的目标应用或测试入口不匹配")
 
 def digest(path):
     with Path(path).open("rb") as stream:
@@ -23,6 +33,7 @@ def main():
     parser.add_argument("--test-apk", type=Path, required=True,
                         help="Same-source instrumentation APK signed with the published app's key")
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--apkanalyzer", default="apkanalyzer", help="Android SDK apkanalyzer executable")
     parser.add_argument("--stream-seconds", type=int, default=1800)
     parser.add_argument("--stream-rate", type=int, default=100)
     args = parser.parse_args()
@@ -58,12 +69,13 @@ def main():
             local.unlink(missing_ok=True)
         # Install only the test package. Android enforces matching target signature
         # when instrumentation starts. Never install or replace the released app.
+        require_test_package(args.apkanalyzer, args.test_apk)
         subprocess.run(["adb", "install", "-r", "-t", str(args.test_apk)], check=True)
         result["status"] = "running"
         result["instrumentation"] = execute_instrumentation([TEST_CLASS], out / "instrumentation.log", {
             "postReleasePressure": "true", "pressureRunId": run_id,
             "streamSeconds": str(args.stream_seconds), "streamRate": str(args.stream_rate)})
-    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+    except (OSError, ValueError, RuntimeError, ET.ParseError, subprocess.SubprocessError) as error:
         result["errors"].append(str(error))
     finally:
         if result["status"] == "running":
@@ -73,7 +85,7 @@ def main():
                 if report.get("run_id") != run_id or report.get("release_gate") is not False:
                     raise ValueError("专项报告标识不匹配")
                 result["measurements"] = "measurements.json"
-                result["status"] = report.get("status", "partial")
+                result["status"] = "recorded" if report.get("status") == "recorded" else "partial"
                 if result.get("instrumentation", {}).get("status") != "passed":
                     result["status"] = "partial"
             except (OSError, ValueError, subprocess.SubprocessError) as error:
