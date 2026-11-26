@@ -10,7 +10,7 @@
       "route": "threads",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessions",
-      "component": "AtlasCompactChoice"
+      "component": "SidebarQueryFilters"
     },
     {
       "route": "approvals",
@@ -199,7 +199,7 @@
       "parent": "threads",
       "file": "SidebarSessions.kt",
       "owner": "SidebarSessions",
-      "component": "AtlasCompactChoice",
+      "component": "SidebarQueryFilters",
       "test": "sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection",
       "screenshot": "audit-sidebar-filtered"
     },
@@ -517,6 +517,15 @@
       "component": "EngineSettingsSection",
       "test": "settingsPreferencesAreDistributedToTheirOwners",
       "screenshot": "audit-tools"
+    },
+    {
+      "id": "sidebar-query-filters",
+      "parent": "threads",
+      "file": "SidebarQueryFilters.kt",
+      "owner": "SidebarQueryFilters",
+      "component": "CodexDetailSheet",
+      "test": "sidebarFilterPanelKeepsQueryAndSelectionWhenReopened",
+      "screenshot": "audit-sidebar-query-filters"
     }
   ]
 }

@@ -200,15 +200,7 @@ internal fun SidebarSessions(
                     historyError = ""
                 } catch (failure: Exception) { historyError = failure.message ?: "搜索记录保存失败" }
             }, onClear = { state.search = "" }, tag = "sidebar-clipboard-query")
-            AtlasCompactChoice(if (state.fullText) "full" else "title",
-                listOf("title" to "标题搜索", "full" to "全文搜索"),
-                onSelect = { state.fullText = it == "full" })
-            AtlasCompactChoice(if (state.archived) "archived" else "active",
-                listOf("active" to "会话", "archived" to "已归档"),
-                onSelect = { state.archived = it == "archived" })
-            AtlasCompactChoice(if (state.projectOnly) "project" else "all",
-                listOf("all" to "全部项目", "project" to "当前项目"),
-                onSelect = { state.projectOnly = it == "project" })
+            SidebarQueryFilters(state)
             val recent = if (state.fullText) recentFull else recentTitle
             if (recent.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -399,8 +391,9 @@ internal fun SidebarSessionRow(
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             if (selecting) CodexCheckBox(checked = checked, enabled = enabled, onCheckedChange = { onClick() })
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(SessionListPolicy.title(item), style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(SessionListPolicy.title(item),
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = if (codexEffectiveFontScale() > 1.3f) 2 else 1, overflow = TextOverflow.Ellipsis)
                 val stateLabel = when (actual) {
                     ThreadActivity.WaitingApproval -> if (pendingApprovals > 0) "等待确认 ${pendingApprovals} 项" else "等待审批"
                     ThreadActivity.WaitingAnswer -> "等待回答"

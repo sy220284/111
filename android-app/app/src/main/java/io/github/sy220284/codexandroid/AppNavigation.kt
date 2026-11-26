@@ -126,6 +126,11 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val page = pages.firstOrNull { it.id == selected } ?: pages.first { it.id == NavigationPolicy.startRoute }
+    var pageExplanation by remember(selected) { mutableStateOf<String?>(null) }
+    var showPageExplanation by remember(selected) { mutableStateOf(false) }
+    val registerPageExplanation: (String?) -> Unit = remember(selected) {
+        { explanation -> pageExplanation = explanation }
+    }
     val newThreadBlockReason = NavigationPolicy.newThreadBlockReason(
         firstThreadStarting, switching
     )
@@ -338,6 +343,11 @@ fun CodexShell(vm: CodexViewModel) {
                                         contentDescription = "返回上一页")
                                 }
                             }
+                            if (!pageExplanation.isNullOrBlank()) {
+                                CodexIconAction(onClick = { showPageExplanation = true }) {
+                                    CodexIcon(CodexGlyph.Info, "查看" + page.title + "说明", tint = Ink.muted)
+                                }
+                            }
                             if (pendingCount > 0) {
                                 BadgedBox(badge = { Badge(containerColor = Ink.canvas, contentColor = Ink.red,
                                         modifier = Modifier.border(1.dp, Ink.red, RoundedCornerShape(99.dp))) {
@@ -370,6 +380,7 @@ fun CodexShell(vm: CodexViewModel) {
                         CodexRouteEntrance(selected, reduceMotion) {
                             pageStateHolder.SaveableStateProvider(selected) {
                                 CompositionLocalProvider(LocalWorkPageTitle provides page.title,
+                                    LocalWorkPageExplanation provides registerPageExplanation,
                                     LocalCodexProtectedTop provides inset.calculateTopPadding()) {
                                     PageContent(selected, vm, move)
                                 }
@@ -415,6 +426,11 @@ fun CodexShell(vm: CodexViewModel) {
             }
         ) { content() }
 
+        if (showPageExplanation && !pageExplanation.isNullOrBlank()) {
+            CodexInfoDialog(title = page.title, onDismiss = { showPageExplanation = false }) {
+                Text(pageExplanation.orEmpty())
+            }
+        }
         if (activeSheet == "status") {
             EngineStatusSheet(vm, onDismiss = { closeSheet("status") }, navigate = move)
         }

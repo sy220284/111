@@ -5,6 +5,8 @@ val releaseTargetAbi = providers.gradleProperty("codexReleaseTargetAbi").orNull
 require(releaseTargetAbi == null || releaseTargetAbi == "arm64-v8a") {
     "正式发布目标架构只能是 arm64-v8a"
 }
+val nativeTargetAbi = providers.gradleProperty("codexTargetAbi").orNull ?: releaseTargetAbi
+require(nativeTargetAbi == null || nativeTargetAbi in setOf("arm64-v8a", "x86_64")) { "运行目标架构无效" }
 val signingKeystorePath = System.getenv("CODEX_RELEASE_KEYSTORE_PATH")
 val signingPassword = System.getenv("CODEX_RELEASE_PASSWORD")
 val signingAlias = System.getenv("CODEX_RELEASE_KEY_ALIAS") ?: "111-release"
@@ -38,6 +40,7 @@ android {
         targetSdk = 35
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersionName ?: "0.1.0"
+        nativeTargetAbi?.let { ndk { abiFilters += it } }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {

@@ -226,7 +226,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                         .width(76.dp).testTag("diff-line-numbers-$index-$lineIndex"),
                                     color = Ink.muted,
                                     fontFamily = FontFamily.Monospace,
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = MaterialTheme.typography.labelMedium,
                                     softWrap = false
                                 )
                                 SelectionContainer(Modifier.weight(1f)) {

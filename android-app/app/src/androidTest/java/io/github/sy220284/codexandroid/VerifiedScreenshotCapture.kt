@@ -2,8 +2,13 @@ package io.github.sy220284.codexandroid
 
 import android.graphics.Bitmap
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
+
+/** AOSP ClipboardOverlayWindow 的标题固定为 ClipboardOverlay，且窗口不获取焦点。 */
+internal fun hasClipboardOverlayWindow(dump: String): Boolean =
+    Regex("""(?m)^\s*Window #\d+ Window\{[^\n]*\bClipboardOverlay\b""").containsMatchIn(dump)
 
 /**
  * 所有全屏弹层截图共用这个验证入口。判据是 WindowManager 当前焦点窗口，
@@ -35,7 +40,7 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
         return accessible to dump
     }
 
-    fun checkOwner() {
+    fun checkOwner(): String {
         val (focus, dump) = focusedWindow()
         // A popup title is not an ownership proof. Resolve its exact Window
         // token in dumpsys and verify the owning app UID and package.
@@ -53,19 +58,29 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
         check(focus.contains(target.packageName) || ownedPopup) {
             "截图被其他程序或系统窗口遮挡：$fileName；当前前台=$focus"
         }
+        return dump
     }
 
-    checkOwner()
+    // 系统复制预览不夺取焦点，必须等其真实退场；不裁图、不遮盖、不发送返回键。
+    val deadline = SystemClock.elapsedRealtime() + 10_000L
+    var dump = checkOwner()
+    while (hasClipboardOverlayWindow(dump) && SystemClock.elapsedRealtime() < deadline) {
+        SystemClock.sleep(100L)
+        dump = checkOwner()
+    }
+    check(!hasClipboardOverlayWindow(dump)) { "系统剪贴板浮层仍遮挡截图：$fileName" }
     val image = requireNotNull(automation.takeScreenshot()) {
         "Android 全屏截图失败：$fileName"
     }
-    checkOwner()
-    val directory = requireNotNull(target.getExternalFilesDir(null)) {
-        "设备未提供测试截图目录"
-    }
-    File(directory, fileName).outputStream().use { output ->
-        check(image.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-            "无法写入 UI 截图：$fileName"
+    try {
+        check(!hasClipboardOverlayWindow(checkOwner())) { "截图期间出现系统剪贴板浮层：$fileName" }
+        val directory = requireNotNull(target.getExternalFilesDir(null)) {
+            "设备未提供测试截图目录"
         }
-    }
+        File(directory, fileName).outputStream().use { output ->
+            check(image.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                "无法写入 UI 截图：$fileName"
+            }
+        }
+    } finally { image.recycle() }
 }

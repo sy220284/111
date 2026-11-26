@@ -585,7 +585,7 @@ jobs:
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
-          gradle -p android-app :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          gradle -p android-app -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
           python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
       - name: 允许模拟器硬件加速
         run: |

@@ -14,7 +14,32 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+
+/** 固定标题和关闭动作；说明属于滚动正文，避免长内容挤掉实际操作。 */
+@Composable
+internal fun CodexPanelHeader(
+    title: String,
+    onDismiss: () -> Unit,
+    titleTag: String = "codex-detail-title",
+    closeTag: String = "codex-detail-close",
+    closeDescription: String = "关闭详情",
+    titleStyle: TextStyle = MaterialTheme.typography.titleLarge
+) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(title, style = titleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).testTag(titleTag).semantics { heading() })
+        CodexIconAction(onClick = LocalCodexSheetClose.current ?: onDismiss,
+            modifier = Modifier.size(48.dp).testTag(closeTag)) {
+            CodexIcon(CodexGlyph.Close, contentDescription = closeDescription)
+        }
+    }
+}
 
 /**
  * 短内容使用居中窗口，复杂任务使用全屏详情。关闭后保留调用方持有的草稿。
@@ -42,33 +67,17 @@ fun CodexDetailSheet(
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(title, style = MaterialTheme.typography.titleLarge,
-                        modifier = Modifier.testTag("codex-detail-title"))
-                    if (subtitle.isNotBlank()) {
-                        Text(subtitle, color = Ink.muted,
-                            style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                CodexIconAction(
-                    onClick = LocalCodexSheetClose.current ?: onDismiss,
-                    modifier = Modifier.size(48.dp).testTag("codex-detail-close")
-                ) {
-                    CodexIcon(CodexGlyph.Close, contentDescription = closeDescription)
-                }
-            }
+            CodexPanelHeader(title, onDismiss, closeDescription = closeDescription)
             HorizontalDivider(color = Ink.border)
             Column(
                 Modifier.fillMaxWidth().weight(1f, fill = false)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                content = content
-            )
+                    .verticalScroll(rememberScrollState()).testTag("codex-detail-body"),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                if (subtitle.isNotBlank()) Text(subtitle, color = Ink.muted,
+                    style = MaterialTheme.typography.bodySmall)
+                content()
+            }
             if (footer != null) {
                 HorizontalDivider(color = Ink.border)
                 footer()

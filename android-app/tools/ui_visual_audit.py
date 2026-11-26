@@ -6,6 +6,7 @@ Invalid, blank, mismatched or absent required screenshots fail the job.
 """
 import argparse
 import base64
+import io
 import json
 import os
 import subprocess
@@ -18,14 +19,14 @@ from device_matrix import API, dimensions
 from ui_evidence_manifest import load_evidence_manifest, required_screens
 
 SIZE = (64, 128)
-VERSION = 2
+VERSION = 3
 REQUIRED = required_screens(load_evidence_manifest(Path(__file__).resolve().parents[2]))
 
 def signature(path, metadata):
     with Image.open(path) as img:
         img.load()
         width, height = img.size
-        if width < 32 or height < 32:
+        if (width, height) != (metadata["width_px"], metadata["height_px"]):
             raise ValueError(f"Invalid screenshot size: {img.size}")
         physical = [int(v) for v in metadata["physical_size"].split("x")]
         if width > max(physical[0], metadata["width_px"]) or height > max(physical[1], metadata["height_px"]):
@@ -41,6 +42,7 @@ def signature(path, metadata):
             raise ValueError("Blank or nearly uniform screenshot")
         return {"width": width, "height": height,
                 "rgb": base64.b64encode(thumb.tobytes()).decode(),
+                "png": base64.b64encode(path.read_bytes()).decode(),
                 "color_count": len(colors), "stddev": round(deviation, 3)}
 
 def diff(old, new):
@@ -75,6 +77,8 @@ def baseline(repo, profile, mode):
         with tempfile.TemporaryDirectory() as folder:
             gh("run", "download", str(run_id), "--repo", repo, "--name", name, "--dir", folder)
             record = json.loads((Path(folder)/"fingerprints.json").read_text())
+        if record["version"] != VERSION:
+            continue
         if (record["commit"] != run["head_sha"] or record["profile"] != profile
             or record["api"] != API or record["version"] != VERSION or record["errors"]
             or set(record["modes"]) != {mode}):
@@ -143,8 +147,10 @@ def write_gallery(previous, current, report, output):
         def image(record, suffix):
             if record is None:
                 return None
-            data=base64.b64decode(record["rgb"],validate=True)
-            img=Image.frombytes("RGB",SIZE,data)
+            data=base64.b64decode(record["png"],validate=True)
+            img=Image.open(io.BytesIO(data)).convert("RGB")
+            if img.size != (record["width"], record["height"]):
+                raise ValueError("Full screenshot dimensions do not match evidence")
             img.save(folder/f"{mode}-{name}-{suffix}.png")
             return img
         a,b=image(old,"old"),image(new,"new")
@@ -159,7 +165,7 @@ def write_gallery(previous, current, report, output):
             else:
                 thumbs.append(f"<figure>{label}：无</figure>")
         cells.append(f"<section><h3>{escape(mode+'/'+name)}</h3><p>{escape(str(x))}</p><div>"+ "".join(thumbs)+"</div></section>")
-    (output/"index.html").write_text("<!doctype html><html lang='zh-CN'><meta charset='utf-8'><title>UI 视觉变化</title><style>body{font:14px system-ui;margin:24px}section{border-top:1px solid #ccc;padding:12px}section div{display:flex;gap:12px}figure{margin:0}img{width:128px;height:256px;image-rendering:pixelated}</style><h1>同配置主分支视觉差异</h1>"+ "".join(cells)+"</html>",encoding="utf-8")
+    (output/"index.html").write_text("<!doctype html><html lang='zh-CN'><meta charset='utf-8'><title>UI 视觉变化</title><style>body{font:14px system-ui;margin:24px}section{border-top:1px solid #ccc;padding:12px}section div{display:flex;gap:12px}figure{margin:0}img{max-width:30vw;height:auto}figure{overflow:auto}</style><h1>同配置主分支视觉差异</h1>"+ "".join(cells)+"</html>",encoding="utf-8")
 
 def main():
     p=argparse.ArgumentParser()

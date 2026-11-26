@@ -52,6 +52,8 @@ class VisualAuditTests(unittest.TestCase):
             write_gallery(old,new,report,root)
             self.assertTrue((root/"index.html").is_file())
             self.assertEqual(3,len(list((root/"review").glob("*.png"))))
+            for output in (root/"review").glob("*.png"):
+                with Image.open(output) as image: self.assertEqual((100,200),image.size)
 
     def test_two_color_layout_is_valid_while_near_uniform_is_not(self):
         with tempfile.TemporaryDirectory() as d:
@@ -65,3 +67,13 @@ class VisualAuditTests(unittest.TestCase):
             ImageDraw.Draw(img).rectangle((0,0,63,255),fill=(101,101,101))
             img.save(p)
             with self.assertRaises(ValueError): signature(p,metadata)
+
+    def test_cropped_and_wrong_aspect_screens_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            p=Path(d)/"s.png"
+            meta={"physical_size":"1080x2340","width_px":1080,"height_px":2340}
+            for size in [(32,32),(1080,1170),(2340,1080)]:
+                img=Image.new("RGB",size,"white")
+                ImageDraw.Draw(img).rectangle((0,0,size[0]//2,size[1]-1),fill="black")
+                img.save(p)
+                with self.assertRaises(ValueError): signature(p,meta)

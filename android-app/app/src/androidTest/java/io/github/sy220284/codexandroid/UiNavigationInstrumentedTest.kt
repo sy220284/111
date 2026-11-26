@@ -3,15 +3,12 @@ package io.github.sy220284.codexandroid
 import android.content.Context
 import org.json.JSONObject
 import org.json.JSONArray
-import android.graphics.Bitmap
 import android.view.inputmethod.InputMethodManager
 import android.view.KeyEvent
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.test.platform.app.InstrumentationRegistry
-import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -198,6 +195,15 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-" + id))
             rule.onNodeWithTag("settings-route-" + id).performClick()
         }
+    }
+
+    @Test fun duplicatePageIntroUsesTopBarExplanation() {
+        openSettingRoute("skills")
+        rule.onNodeWithTag("screen-title").assertTextEquals("技能")
+        rule.onNodeWithContentDescription("查看技能说明").assertIsDisplayed().performClick()
+        rule.onNodeWithText("从 Codex 原生目录读取技能，按技能路径单独启用或停用。").assertIsDisplayed()
+        rule.onNodeWithTag("codex-info-close").performClick()
+        rule.onNodeWithContentDescription("查看技能说明").assertIsDisplayed()
     }
 
     @Test fun drawerOpensAndNavigatesToConversation() {
@@ -823,10 +829,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("批量管理").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-global-search").performClick()
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
+        rule.onNodeWithTag("sidebar-query-filters").assertIsDisplayed().performClick()
         rule.onNodeWithText("会话", substring = false).assertExists()
-        rule.onNodeWithText("已归档", substring = false).performClick()
+        rule.onNodeWithText("已归档", substring = false).performScrollTo().performClick()
+        rule.onNodeWithText("全文搜索").performScrollTo().assertIsDisplayed()
+        captureOverlay("audit-sidebar-query-filters-android.png")
+        rule.onNodeWithTag("sidebar-filters-done").assertIsDisplayed().performClick()
         rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
-        rule.onNodeWithText("全文搜索").assertExists()
+        rule.onNodeWithTag("sidebar-query-filters").assertTextContains("已归档", substring = true)
         rule.onNodeWithTag("sidebar-new-chat").assertExists()
         rule.onNodeWithTag("thread-library-list").assertDoesNotExist()
         rule.onNodeWithTag("sidebar-management").assertDoesNotExist()
@@ -838,7 +848,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("批量管理").assertDoesNotExist()
         rule.onNodeWithText("下一页").assertDoesNotExist()
         captureOverlay("thread-library-android.png")
-        rule.onNodeWithText("全文搜索").performClick()
+        rule.onNodeWithTag("sidebar-query-filters").performClick()
+        rule.onNodeWithText("全文搜索").performScrollTo().performClick()
+        rule.onNodeWithTag("sidebar-filters-done").performClick()
         rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
         captureOverlay("thread-full-search-android.png")
     }
@@ -991,10 +1003,10 @@ class UiNavigationInstrumentedTest {
 
     @Test fun installedPluginManagementAndCatalogStayReachable() {
         openSettingRoute("plugins")
-        rule.onNodeWithTag("plugins-tab-installed").assertExists()
+        rule.onNodeWithTag("plugins-tab-installed").performClick().assertIsSelected()
+        capture("plugins-android.png")
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
         rule.onNodeWithText("插件源", substring = false).assertExists()
-        capture("plugins-android.png")
     }
 
 
@@ -1204,7 +1216,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-global-search").performClick()
         rule.onNodeWithTag("sidebar-thread-list").assertExists()
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
-        rule.onNodeWithText("全文搜索").performClick()
+        rule.onNodeWithTag("sidebar-query-filters").performClick()
+        rule.onNodeWithText("全文搜索").performScrollTo().performClick()
+        rule.onNodeWithTag("sidebar-filters-done").performClick()
         rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
         captureOverlay("thread-global-search-android.png")
         pressSystemBack()
@@ -1462,8 +1476,6 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("整理上下文").assertExists()
         captureOverlay("audit-thread-context-android.png")
         rule.onNodeWithText("历史回退").performScrollTo().performClick()
-        rule.waitForIdle()
-        captureOverlay("audit-thread-history-transition-android.png")
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithText("查看完整时间线（实验）").fetchSemanticsNodes().isNotEmpty()
         }
@@ -1495,10 +1507,11 @@ class UiNavigationInstrumentedTest {
         captureOverlay("audit-goals-sheet-android.png")
         rule.onNodeWithTag("goal-advanced-toggle").performScrollTo().performClick()
         rule.onNodeWithTag("codex-edit-dialog").assertExists()
+        captureOverlay("audit-goal-budget-editor-android.png")
         rule.onNodeWithText("取消").performClick()
         rule.onNodeWithTag("codex-edit-dialog").assertDoesNotExist()
-        rule.onNodeWithTag("goal-sticky-save").assertExists()
-        rule.onNodeWithTag("goal-advanced-toggle").assertExists()
+        rule.onNodeWithTag("goal-sticky-save").assertIsDisplayed()
+        rule.onNodeWithTag("goal-advanced-toggle").performScrollTo().assertIsDisplayed()
     }
 
     @Test fun sidebarProjectContextOpensFilesWithoutHistoryPicker() {
@@ -1574,29 +1587,9 @@ class UiNavigationInstrumentedTest {
         captureVerifiedDisplayScreenshot(fileName)
     }
 
-    private fun saveScreenshot(fileName: String, screenshot: Bitmap) {
-        val app = InstrumentationRegistry.getInstrumentation().targetContext
-        val directory = requireNotNull(app.getExternalFilesDir(null)) {
-            "Android instrumentation external files directory unavailable"
-        }
-        File(directory, fileName).outputStream().use { output ->
-            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-                "Failed to encode screen capture: $fileName"
-            }
-        }
-    }
-
     private fun capture(fileName: String) {
-        val app = InstrumentationRegistry.getInstrumentation().targetContext
-        val directory = requireNotNull(app.getExternalFilesDir(null)) {
-            "Android instrumentation external files directory unavailable"
-        }
-        val screenshot = rule.onRoot().captureToImage().asAndroidBitmap()
-        File(directory, fileName).outputStream().use { output ->
-            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-                "Failed to encode Compose screenshot: $fileName"
-            }
-        }
+        rule.waitForIdle()
+        captureVerifiedDisplayScreenshot(fileName)
     }
 }
 
