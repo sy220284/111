@@ -26,7 +26,9 @@ internal data class TimelinePresentationPart(
     val displayRows: List<TimelineDisplayRow>,
     val answeredQuestions: Set<String>,
     val formalTurns: Set<String>
-)
+) {
+    val displayIndex: Map<String, Int> = displayRows.mapIndexed { index, row -> row.key to index }.toMap()
+}
 
 /** One immutable presentation snapshot: history and live content are independent
  * projections of the same authoritative timeline. No event or record is discarded. */
@@ -41,6 +43,9 @@ internal data class TimelinePresentation(
     val displayRows: List<TimelineDisplayRow> = TimelineJoinedList(history.displayRows, active.displayRows)
     fun answered(id: String) = id in history.answeredQuestions || id in active.answeredQuestions
     fun hasFormalTurn(id: String) = id in history.formalTurns || id in active.formalTurns
+    val hasFormalReply: Boolean get() = history.formalTurns.isNotEmpty() || active.formalTurns.isNotEmpty()
+    fun displayIndex(key: String): Int = history.displayIndex[key]
+        ?: active.displayIndex[key]?.let { history.displayRows.size + it } ?: -1
     fun byId(id: String) = indexed.byId(id)
 }
 
@@ -88,7 +93,7 @@ internal class TimelinePresentationEngine {
     private fun activeBoundary(groups: List<List<TimelineItem>>, running: Boolean, turn: String?): Int {
         if (groups.isEmpty()) return 0
         val last = groups.last().first().turnId
-        if (running && !turn.isNullOrBlank() && turn != last) return 0
+        if (running && (turn == "" || (!turn.isNullOrBlank() && turn != last))) return 0
         var boundary = groups.lastIndex
         if (last.isNotBlank()) while (boundary > 0 && groups[boundary - 1].first().turnId == last) boundary--
         return boundary

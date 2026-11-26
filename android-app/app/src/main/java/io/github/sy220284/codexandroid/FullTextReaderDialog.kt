@@ -125,7 +125,7 @@ internal fun FullTextReaderDialog(title: String, text: String,
                         }, modifier = Modifier.weight(1f), color = Ink.muted,
                             style = MaterialTheme.typography.labelSmall)
                         CodexIconAction(onClick = { selected?.let { copy(it.copy(text), copyFormat) } },
-                            enabled = selected?.let { it.end > it.start && text.substring(it.start, it.end).isNotBlank() } == true,
+                            enabled = selected?.let { it.end > it.start } == true,
                             modifier = Modifier.size(48.dp).testTag("full-text-range-copy")) {
                             CodexIcon(CodexGlyph.ContentCopy, "复制跨页选区")
                         }

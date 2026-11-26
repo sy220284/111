@@ -145,13 +145,13 @@ internal fun TimelineStepCard(
                         }
                     }
                 } else {
-                    if (firstLongPage) CodexTextAction(onClick = { sourceReaderSnapshot = item.text },
-                        modifier = Modifier.heightIn(min = 48.dp).testTag("reply-cross-page-read")) {
-                        Text("阅读原文 / 跨页选取")
-                    }
                     Box(Modifier.fillMaxWidth().testTag("chat-assistant-message").padding(vertical = 4.dp)) {
                         if (replyPage != null) PreparedMarkdownPage(replyPage)
                         else NativeMessageMarkdown(shownText, streaming = active)
+                    }
+                    if (firstLongPage) CodexTextAction(onClick = { sourceReaderSnapshot = item.text },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("reply-cross-page-read")) {
+                        Text("阅读原文 / 跨页选取")
                     }
                 }
                 note?.let { Text(it, color = Ink.muted, style = MaterialTheme.typography.labelSmall,

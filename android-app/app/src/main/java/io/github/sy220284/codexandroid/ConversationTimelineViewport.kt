@@ -102,19 +102,21 @@ internal fun ConversationTimelineViewport(
     val currentGroupCount by rememberUpdatedState(visibleGroups)
     val currentTail by rememberUpdatedState(if (contextLoading) null else projection?.tail)
     val currentLogicalCount by rememberUpdatedState(logicalGroups)
-    val currentDisplayRows by rememberUpdatedState(displayRows)
+    val currentPresentation by rememberUpdatedState(if (contextLoading) null else projection)
     LaunchedEffect(scroll, thread) {
         snapshotFlow { Triple(scroll.isScrollInProgress, scroll.layoutInfo.visibleItemsInfo.firstOrNull()?.key,
             scroll.firstVisibleItemScrollOffset) }.collect { (scrolling, key, offset) ->
             if (!scrolling && !followTail && key is String && key != "timeline-older-pages") {
                 anchorKey = key; anchorOffset = offset
-                anchorRowKey = currentDisplayRows.firstOrNull { it.key == key }?.row?.key
+                val presentation = currentPresentation
+                anchorRowKey = presentation?.displayRows?.getOrNull(presentation.displayIndex(key))?.row?.key
             }
         }
     }
     LaunchedEffect(displayRows, followTail) {
         val anchor = anchorKey
-        if (!followTail && !scroll.isScrollInProgress && anchor != null && displayRows.none { it.key == anchor }) {
+        if (!followTail && !scroll.isScrollInProgress && anchor != null &&
+            projection?.displayIndex(anchor) == -1) {
             val owner = anchorRowKey ?: anchor
             val logical = ReplyReadingNavigation.replacementIndex(rows, owner)
             val replacement = if (logical >= 0) displayRows.indexOfFirst { it.row.key == rows[logical].key } else -1
@@ -263,7 +265,7 @@ internal fun ConversationTimelineViewport(
                     AnswerVersionSwitcher(fallbackVersion, if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null, "recovery") }
             }
         }
-        if (!contextLoading && !frame.running && rows.any { it.group.singleOrNull()?.let(ProgressiveReplyProjection::answer) == true }) {
+        if (!contextLoading && !frame.running && projection?.hasFormalReply == true) {
             CodexSecondaryButton(onClick = { outlineOpen = true }, modifier = Modifier.align(Alignment.TopEnd)
                 .padding(4.dp).heightIn(min = 48.dp).testTag("reply-outline")) { Text("目录") }
         }
