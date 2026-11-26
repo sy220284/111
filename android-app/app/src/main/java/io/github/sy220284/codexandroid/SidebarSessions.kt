@@ -81,22 +81,24 @@ internal fun SidebarSessions(
         activities + questions.filter { (approvals[it] ?: 0) == 0 }
             .associateWith { ThreadActivity.WaitingAnswer }
     }
+    val accountRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val session by vm.bridge.connectedSession.collectAsState()
     var section by remember { mutableStateOf<AndroidThreadSection?>(null) }
-    var sectionRows by remember { mutableStateOf<List<JSONObject>?>(null) }
-    var sectionError by remember { mutableStateOf("") }
+    var sectionRows by remember(section?.id, state.archived, session, accountRevision) { mutableStateOf<List<JSONObject>?>(null) }
+    var sectionError by remember(section?.id, state.archived, session, accountRevision) { mutableStateOf("") }
     var sectionRevision by remember { mutableIntStateOf(0) }
     var managingSections by remember { mutableStateOf(false) }
     var moving by remember { mutableStateOf<Map<String, Set<String>>?>(null) }
     val response = data[if (state.archived) "archivedThreads" else "sidebarThreads"]
-    LaunchedEffect(section, state.archived, connected, sectionRevision) {
+    LaunchedEffect(section, state.archived, connected, sectionRevision, session, accountRevision) {
         val selected = section
-        sectionRows = null
+        val archivedRequest = state.archived
         sectionError = ""
         if (selected != null && connected) {
             try {
                 sectionRows = capabilityPages { cursor ->
                     vm.capabilityRequest("thread/list",
-                        ThreadSectionContract.threadList(state.archived, "", cursor, selected.id))
+                        ThreadSectionContract.threadList(archivedRequest, "", cursor, selected.id))
                 }
             } catch (cancel: kotlinx.coroutines.CancellationException) {
                 if (cancel !is kotlinx.coroutines.TimeoutCancellationException) throw cancel
@@ -119,8 +121,6 @@ internal fun SidebarSessions(
     val archived = state.archived
     val fullText = state.fullText
     val remote by vm.conversationState.collectProjection { it.remote }
-    val accountRevision by vm.catalogWarmup.accountRevision.collectAsState()
-    val session by vm.bridge.connectedSession.collectAsState()
     val directoryInput = SessionDirectoryInput(SessionDirectoryScope(session, accountRevision, section?.id,
         fullText, archived, query, state.projectOnly, workspace, remote), response, sectionRows,
         answerVersions, searchResult, pins)

@@ -2,7 +2,9 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.*
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 
 /** One immutable presentation snapshot: the rows, metadata and running state
@@ -26,14 +28,15 @@ internal class TimelinePresentationEngine {
 @Composable
 internal fun collectTimelinePresentation(vm: CodexViewModel, thread: String?,
     hasEarlier: Boolean): State<TimelinePresentation?> {
-    val frame = vm.conversationState.collectFrameState(thread)
     val earlier by rememberUpdatedState(hasEarlier)
-    val session by vm.bridge.connectedSession.collectAsState()
-    val account by vm.catalogWarmup.accountRevision.collectAsState()
+    val session = vm.bridge.connectedSession.collectAsState().value
+    val account = vm.catalogWarmup.accountRevision.collectAsState().value
     return key(vm, thread, session, account) {
         produceCodexUiState<TimelinePresentation?>(null, vm, thread, session, account) {
             val engine = TimelinePresentationEngine()
-            snapshotFlow { frame.value to earlier }.conflate().collect { (snapshot, older) ->
+            // Conflate immutable inputs; one frame gate after preparation avoids double cadence.
+            combine(vm.conversationState, snapshotFlow { earlier }) { frame, older -> frame to older }
+                .conflate().collect { (snapshot, older) ->
                 if (snapshot.threadId != thread) value = null
                 else {
                     val epoch = vm.timelineEpoch
@@ -43,7 +46,7 @@ internal fun collectTimelinePresentation(vm: CodexViewModel, thread: String?,
                         vm.catalogWarmup.accountRevision.value == account
                     if (owns()) {
                         withFrameNanos { }
-                        if (owns()) value = prepared
+                        value = if (owns()) prepared else null
                     } else value = null
                 }
             }
