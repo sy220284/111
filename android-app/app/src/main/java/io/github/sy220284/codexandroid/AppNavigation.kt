@@ -92,23 +92,8 @@ fun CodexShell(vm: CodexViewModel) {
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
-    val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
-    val libraryResponse = libraryData["sidebarThreads"] ?: libraryData["threads"]
-    val answerVersions by vm.answerVersions.state.collectAsState()
-    val conversationTitle = remember(activeThread, libraryResponse, answerVersions) {
-        activeThread?.let { id ->
-            val rows = records(libraryResponse)
-            (rows.firstOrNull { it.optString("id") == answerVersions.root(id) }
-                ?: rows.firstOrNull { it.optString("id") == id })
-                ?.let { PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview")) }
-                ?.takeIf { it.isNotBlank() }
-        }
-    }
     val status by vm.bridge.status.collectAsState()
     val pendingCount by vm.bridge.prompts.collectProjection { it.size }
-    val otherPendingCount by vm.bridge.prompts.collectProjection { all ->
-        all.size - all.forThread(activeThread).size
-    }
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     fun openDrawer() {
         focusManager.clearFocus()
@@ -321,10 +306,10 @@ fun CodexShell(vm: CodexViewModel) {
                         it.copy(lineHeight = it.fontSize * 1.5f)
                     }
                     if (selected == NavigationPolicy.startRoute) {
-                        ChatWorkTopBar(
-                            conversationTitle = conversationTitle,
+                        ChatNavigationTopBar(
+                            vm = vm,
+                            activeThread = activeThread,
                             newThreadBlockReason = newThreadBlockReason,
-                            otherPendingCount = otherPendingCount,
                             onApprovals = { move("approvals") },
                             onMenu = { openDrawer() },
                             onNewThread = { vm.newThread(); move("chat") }
@@ -465,6 +450,42 @@ fun CodexShell(vm: CodexViewModel) {
         // Archive transfer must block all foreground pages and sheets.
         ObserveDataTransferBusyOverlay(vm)
     }
+}
+
+/** Collect chat-only title/prompt state in the chat header's own restart scope.
+ * Settings, drawer geometry and the work shell no longer observe session-list changes. */
+@Composable
+private fun ChatNavigationTopBar(
+    vm: CodexViewModel,
+    activeThread: String?,
+    newThreadBlockReason: String?,
+    onApprovals: () -> Unit,
+    onMenu: () -> Unit,
+    onNewThread: () -> Unit
+) {
+    val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
+    val libraryResponse = libraryData["sidebarThreads"] ?: libraryData["threads"]
+    val answerVersions by vm.answerVersions.state.collectAsState()
+    val conversationTitle = remember(activeThread, libraryResponse, answerVersions) {
+        activeThread?.let { id ->
+            val rows = records(libraryResponse)
+            (rows.firstOrNull { it.optString("id") == answerVersions.root(id) }
+                ?: rows.firstOrNull { it.optString("id") == id })
+                ?.let { PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview")) }
+                ?.takeIf { it.isNotBlank() }
+        }
+    }
+    val otherPendingCount by vm.bridge.prompts.collectProjection { all ->
+        all.size - all.forThread(activeThread).size
+    }
+    ChatWorkTopBar(
+        conversationTitle = conversationTitle,
+        newThreadBlockReason = newThreadBlockReason,
+        otherPendingCount = otherPendingCount,
+        onApprovals = onApprovals,
+        onMenu = onMenu,
+        onNewThread = onNewThread
+    )
 }
 
 /** 功能常驻、会话独立滚动，保持底部新会话和账号入口固定。 */
