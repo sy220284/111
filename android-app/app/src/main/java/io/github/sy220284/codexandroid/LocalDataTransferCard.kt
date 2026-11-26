@@ -47,7 +47,15 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
                 CodexIcon(CodexGlyph.SaveAlt, "本机备份", tint = Ink.copper)
                 Text("备份与恢复", style = MaterialTheme.typography.titleMedium)
             }
-            Text("更换安装签名或重装应用前，可导出项目、会话、草稿及界面偏好。账号、核心权限、模型服务地址、MCP、插件和运行组件需在新环境中重新配置；项目依赖按声明重新安装。会话正文、回答快照与草稿可迁移；仅存于运行数据库的任务元数据、记忆和队列状态暂不在此格式内。",
+            Text("换机或重装前，保存你的工作内容。", style = MaterialTheme.typography.bodyMedium)
+            Text("当前可迁移：项目、会话正文、草稿、附件、回答版本、媒体分析及界面偏好。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            CodexNotice("任务目标、队列和记忆暂未包含在备份中。", NoticeTone.Info)
+            var scopeDetails by remember { mutableStateOf(false) }
+            CodexTextAction(onClick = { scopeDetails = !scopeDetails }) {
+                Text(if (scopeDetails) "收起迁移说明" else "查看迁移范围")
+            }
+            if (scopeDetails) Text("账号、核心权限、模型服务地址、MCP、插件和运行组件需在新环境中重新配置；项目依赖按声明重新安装。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CodexSecondaryButton(

@@ -34,6 +34,24 @@ class McpAppHostContractTest {
         assertThrows(IllegalArgumentException::class.java) { host.resourceRequest("thread", "ui://other/view") }
         assertThrows(IllegalArgumentException::class.java) { McpAppHostContract(call("codex_apps")).resourceRequest("thread", "ui://local/view") }
     }
+    @Test fun paginationValidatesEntireCatalogBeforeAuthorizing() = kotlinx.coroutines.runBlocking {
+        val host = McpAppHostContract(call())
+        val local = JSONObject().put("name", "local").put("tools", JSONObject())
+        val result = host.readRegistration("thread") { request ->
+            if (request.isNull("cursor")) JSONObject().put("data", JSONArray()).put("nextCursor", "second")
+            else JSONObject().put("data", JSONArray().put(local)).put("nextCursor", JSONObject.NULL)
+        }
+        assertEquals("local", result.getString("name"))
+        assertTrue(runCatching {
+            host.readRegistration("thread") { JSONObject().put("data", JSONArray()).put("nextCursor", "loop") }
+        }.isFailure)
+        assertTrue(runCatching {
+            host.readRegistration("thread") { request ->
+                JSONObject().put("data", JSONArray().put(local)).put("nextCursor",
+                    if (request.isNull("cursor")) "second" else JSONObject.NULL)
+            }
+        }.isFailure)
+    }
     private fun call(server: String = "local") = JSONObject().put("server", server).put("tool", "start")
         .put("mcpAppUi", JSONObject().put("resourceUri", "ui://local/view"))
         .put("arguments", JSONObject().put("id", 1)).put("result", JSONObject().put("content", JSONArray()))

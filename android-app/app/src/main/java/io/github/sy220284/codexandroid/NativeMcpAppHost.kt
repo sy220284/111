@@ -126,6 +126,8 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
         require(result.toString().length <= McpAppHostContract.MAX_MESSAGE) { "工具回执超过宿主容量" }
         return result
     }
+    suspend fun registration(): JSONObject =
+        contract.readRegistration(thread) { params -> rpc("mcpServerStatus/list", params) }
     fun close() {
         if (closing) return
         closing = true
@@ -256,7 +258,7 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
                             }
                             "tools/call" -> {
                                 val name = params.getString("name")
-                                val registration = contract.registration(rpc("mcpServerStatus/list", contract.catalogRequest(thread)))
+                                val registration = registration()
                                 require(contract.allowedTool(registration, name)) { "当前应用无此工具访问权限" }
                                 rpc("mcpServer/tool/call", contract.scoped(JSONObject().put("tool", name)
                                     .put("arguments", params.optJSONObject("arguments") ?: JSONObject()), thread))
@@ -264,7 +266,7 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
                             else -> {
                                 val uri = params.getString("uri")
                                 val registration = if (contract.originResource) null else
-                                    contract.registration(rpc("mcpServerStatus/list", contract.catalogRequest(thread)))
+                                    registration()
                                 val result = rpc("mcpServer/resource/read", contract.resourceRequest(thread, uri, registration))
                                 if (contract.originResource) require(result.optString("originCallId") == originCallId) {
                                     "工具资源归属不一致"

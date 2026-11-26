@@ -80,6 +80,7 @@ internal fun ReplyDataChart(block: MessageBlock) {
 internal fun ReplyBranchGraph(rows: List<List<String>>, source: String) {
     val direction = source.lineSequence().map(String::trim).firstOrNull { it.startsWith("flowchart ") || it.startsWith("graph ") }?.substringAfter(' ')?.trim()?.removeSuffix(";") ?: "TD"
     val layout = remember(rows, direction) { ReplyGraph.layout(rows, direction) }
+    val nodeIndex = remember(layout) { layout.nodes.associateBy { it.name } }
     val nodeWidth = 148.dp
     val nodeHeight = 70.dp
     val horizontalGap = 44.dp
@@ -94,8 +95,8 @@ internal fun ReplyBranchGraph(rows: List<List<String>>, source: String) {
                 fun point(node: ReplyGraph.Node) = Offset(8.dp.toPx() + node.column * (nodeWidth + horizontalGap).toPx() + nodeWidth.toPx() / 2,
                     8.dp.toPx() + node.layer * (nodeHeight + verticalGap).toPx() + nodeHeight.toPx() / 2)
                 layout.edges.forEach { edge ->
-                    val from = layout.nodes.first { it.name == edge[0] }
-                    val to = layout.nodes.first { it.name == edge[2] }
+                    val from = nodeIndex.getValue(edge[0])
+                    val to = nodeIndex.getValue(edge[2])
                     val a = point(from); val b = point(to)
                     val delta = b - a
                     val length = delta.getDistance().coerceAtLeast(1f)

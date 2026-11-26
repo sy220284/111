@@ -47,6 +47,24 @@ internal class McpAppHostContract(private val call: JSONObject, private val orig
         .put("server", server).apply { environment?.let { put("environmentId", it) } }
     fun catalogRequest(thread: String) = JSONObject().put("threadId", thread).put("serverName", server)
         .put("detail", "full").put("limit", 20).apply { environment?.let { put("environmentId", it) } }
+    suspend fun readRegistration(thread: String, read: suspend (JSONObject) -> JSONObject): JSONObject {
+        val values = JSONArray()
+        val seen = mutableSetOf<String>()
+        var cursor: String? = null
+        repeat(32) {
+            val request = catalogRequest(thread).apply { cursor?.let { put("cursor", it) } }
+            val result = read(request)
+            val page = result.getJSONArray("data")
+            for (index in 0 until page.length()) {
+                require(values.length() < 640) { "应用服务目录超过宿主容量" }
+                values.put(page.getJSONObject(index))
+            }
+            if (result.isNull("nextCursor")) return registration(JSONObject().put("data", values))
+            cursor = result.opt("nextCursor") as? String ?: error("服务目录分页回执无效")
+            require(!cursor.isNullOrBlank() && seen.add(requireNotNull(cursor))) { "服务目录分页回执重复或无效" }
+        }
+        error("应用服务目录未完整读取，请重试")
+    }
     fun registration(result: JSONObject): JSONObject {
         val values = result.getJSONArray("data")
         val matches = (0 until values.length()).map { values.getJSONObject(it) }.filter {

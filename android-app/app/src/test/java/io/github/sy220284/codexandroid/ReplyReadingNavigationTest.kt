@@ -21,6 +21,15 @@ class ReplyReadingNavigationTest {
             assertNull(path, ReplyLinkPolicy.file(path))
         }
     }
+    @Test fun fileLinksKeepReservedCharactersWithoutOpeningAnotherFile() {
+        assertEquals("reports/报告#2.pdf", ReplyLinkPolicy.file("./reports/报告#2.pdf"))
+        assertEquals("reports/a?b+100%.txt", ReplyLinkPolicy.file("reports/a?b+100%.txt"))
+        assertEquals("/workspace/a#2.pdf", ReplyLinkPolicy.file("file:///workspace/a%232.pdf"))
+        assertEquals("reports/a%20.txt", ReplyLinkPolicy.file("reports/a%2520.txt"))
+        assertNull(ReplyLinkPolicy.file("file:///workspace/a#2.pdf"))
+        assertNull(ReplyLinkPolicy.file("file:///workspace/a?b"))
+        assertNull(ReplyLinkPolicy.file("reports/%2e%2e/secret"))
+    }
     @Test fun completionKeepsEachFragmentsKeyAndTextOrigin() {
         val first = TimelineItem("p", "agentMessage", "第一章\n".repeat(100), "completed", turnId = "t", phase = "partial_answer")
         val last = TimelineItem("f", "agentMessage", "正在阅读第二章", "streaming", turnId = "t", phase = "final_answer")

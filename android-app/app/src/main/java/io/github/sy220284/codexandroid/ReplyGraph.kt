@@ -6,17 +6,19 @@ internal object ReplyGraph {
     data class Layout(val nodes: List<Node>, val edges: List<List<String>>, val columns: Int, val layers: Int)
     fun layout(edges: List<List<String>>, direction: String = "TD"): Layout {
         val names = edges.flatMap { listOf(it[0], it[2]) }.distinct()
+        val adjacency = edges.groupBy { it[0] }
+        val destinations = edges.mapTo(hashSetOf()) { it[2] }
         val levels = linkedMapOf<String, Int>()
         val queue = ArrayDeque<String>()
         fun visit(node: String, depth: Int) {
             if (node !in levels) { levels[node] = depth; queue.addLast(node) }
         }
-        names.filter { name -> edges.none { it[2] == name } }.forEach { visit(it, 0) }
+        names.filter { it !in destinations }.forEach { visit(it, 0) }
         for (root in names) {
             if (queue.isEmpty() && root !in levels) visit(root, 0)
             while (queue.isNotEmpty()) {
                 val node = queue.removeFirst()
-                edges.filter { it[0] == node }.forEach { visit(it[2], levels.getValue(node) + 1) }
+                adjacency[node].orEmpty().forEach { visit(it[2], levels.getValue(node) + 1) }
             }
         }
         val nodes = levels.entries.groupBy { it.value }.flatMap { (level, group) ->

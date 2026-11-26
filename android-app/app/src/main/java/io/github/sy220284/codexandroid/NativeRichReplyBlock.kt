@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -66,7 +67,8 @@ internal fun NativeRichReplyBlock(block: MessageBlock) {
                 } else if (block.kind == "math") {
                     block.rows.forEach { row ->
                         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
-                            ReplyMath.parse(row[0])?.let { ReplyMathLayout(it) }
+                            val math = remember(row[0]) { ReplyMath.parse(row[0]) }
+                            if (math != null) ReplyMathLayout(math) else Text(row[0])
                         }
                     }
                 } else {

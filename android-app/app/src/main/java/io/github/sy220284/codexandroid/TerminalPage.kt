@@ -451,10 +451,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                     WhiteSwitch(checked = interactive, onCheckedChange = { interactive = it },
                         enabled = !session.running && !terminalStarting)
                 }
+                CodexNotice("本机执行 · 完整应用权限。命令可访问工作区外的应用可读写文件。", NoticeTone.Info)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("请求本次命令联网", style = MaterialTheme.typography.bodyMedium)
-                        Text("下载、依赖安装等操作按需开启；系统级联网限制尚未验证", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                        Text("关闭时向核心请求限制联网；系统隔离尚未建立。", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
                     WhiteSwitch(checked = allowNetwork, onCheckedChange = { allowNetwork = it },
                         enabled = !session.running && !terminalStarting)

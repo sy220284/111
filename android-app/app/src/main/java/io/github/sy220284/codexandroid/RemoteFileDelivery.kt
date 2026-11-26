@@ -5,6 +5,8 @@ import android.net.Uri
 import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 import org.json.JSONObject
 import java.security.MessageDigest
 
@@ -65,21 +67,31 @@ internal object RemoteFileDelivery {
             Payload(selected.filename, bytes, hash(bytes))
         }.also { check(owns()) { "远端会话已变化" } }
     }
-    suspend fun save(resolver: ContentResolver, destination: Uri, payload: Payload) = withContext(Dispatchers.IO) {
+    suspend fun save(resolver: ContentResolver, destination: Uri, payload: Payload,
+        onVerified: suspend (Long) -> Unit = {}) = withContext(Dispatchers.IO) {
         require(destination.scheme == "content") { "请选择系统文档保存位置" }
         requireNotNull(resolver.openOutputStream(destination, "wt")) { "无法打开保存位置" }.use {
-            it.write(payload.bytes); it.flush()
+            var offset = 0
+            while (offset < payload.bytes.size) {
+                coroutineContext.ensureActive()
+                val count = minOf(64 * 1024, payload.bytes.size - offset)
+                it.write(payload.bytes, offset, count)
+                offset += count
+            }
+            it.flush()
         }
         val digest = MessageDigest.getInstance("SHA-256")
         var total = 0
         requireNotNull(resolver.openInputStream(destination)) { "无法回读保存文件" }.use { stream ->
             val buffer = ByteArray(8192)
             while (true) {
+                coroutineContext.ensureActive()
                 val count = stream.read(buffer)
                 if (count < 0) break
                 total += count
                 require(total <= payload.bytes.size) { "保存结果大小不符" }
                 digest.update(buffer, 0, count)
+                withContext(Dispatchers.Main.immediate) { onVerified(total.toLong()) }
             }
         }
         check(total == payload.bytes.size && digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == payload.sha256) {
