@@ -61,6 +61,7 @@ internal fun NativeMcpResourceCard(vm: CodexViewModel, thread: String, item: Tim
     val scope = rememberCoroutineScope()
     var loading by remember(thread, item.id) { mutableStateOf(false) }
     var content by remember(thread, item.id) { mutableStateOf<String?>(null) }
+    var app by remember(thread, item.id) { mutableStateOf<Triple<String, Long, Long>?>(null) }
     var error by remember(thread, item.id) { mutableStateOf<String?>(null) }
     Column(Modifier.fillMaxWidth().testTag("reply-mcp-resource")) {
         CodexSecondaryButton(onClick = {
@@ -80,6 +81,8 @@ internal fun NativeMcpResourceCard(vm: CodexViewModel, thread: String, item: Tim
                         vm.catalogWarmup.accountRevision.value == revision) { "会话已变化" }
                     val origin = result.optString("originCallId").takeUnless { result.isNull("originCallId") }
                     check(origin == null || origin == item.id) { "工具资源归属不一致" }
+                    val html = McpAppHostContract.html(result, uri)
+                    if (html != null) { app = Triple(html, session, revision); return@launch }
                     val values = result.getJSONArray("contents")
                     val text = (0 until values.length()).joinToString("\n\n") {
                         val value = values.getJSONObject(it)
@@ -93,9 +96,10 @@ internal fun NativeMcpResourceCard(vm: CodexViewModel, thread: String, item: Tim
                 finally { loading = false }
             }
         }, enabled = enabled && !loading, modifier = Modifier.heightIn(min = 48.dp)) {
-            Text(if (loading) "正在读取资源" else "查看工具资源")
+            Text(if (loading) "正在读取资源" else "打开应用 / 工具资源")
         }
         error?.let { ErrorText(it) }
     }
+    app?.let { (html, epoch, revision) -> NativeMcpAppHost(vm, thread, raw, html, epoch, revision) { app = null } }
     content?.let { FullTextReaderDialog("工具资源（文本预览）", it) { content = null } }
 }
