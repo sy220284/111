@@ -20,6 +20,16 @@ class MediaAnalysisAdapterTest {
         assertEquals("localAudio", request.getJSONArray("media").getJSONObject(1).getString("type"))
         assertFalse(request.toString().contains("baseUrl"))
     }
+    @Test fun emptySourceMediaUsesExplicitEmptyTurnAndRejectsOtherTurnResponse() {
+        val fresh = target.copy(sourceTurn = "")
+        val request = MediaSampleWire.request(fresh, "描述媒体", JSONArray().put(MediaAnalysisPlan.local("image", "/private/image.jpg")))
+        assertEquals("", request.getString("expectedTurnId"))
+        val response = JSONObject().put("sourceTurnId", "").put("responseId", "result").put("text", "画面")
+        assertEquals("画面", MediaSampleWire.result(response, fresh))
+        assertThrows(IllegalArgumentException::class.java) {
+            MediaSampleWire.result(response.put("sourceTurnId", "turn"), fresh)
+        }
+    }
     @Test fun rejectsNonMediaPayloadsAndRemoteVideo() {
         for (kind in listOf("video_url", "skill", "image", "text")) {
             assertThrows(IllegalArgumentException::class.java) {

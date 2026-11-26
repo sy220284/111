@@ -154,13 +154,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val sharing by screenShareSession.state.collectAsState()
     val activeMediaAnalysis by vm.composerContent.mediaAnalysis.state.collectAsState()
     val mediaResults by vm.composerContent.mediaAnalysis.results.collectAsState()
-    val analysisModel = if (thread != null && remote == null) shownModel else null
+    val mediaModel = if (remote == null) shownModel else null
+    val analysisModel = if (thread != null) mediaModel else null
     val mediaAnalysis = mediaResults[draftOwner]?.takeIf {
         it.revision == previewAccountRevision && it.epoch == previewEpoch && it.selection == selectedModel &&
-            analysisModel != null && (analysisModel.isBlank() || it.model == analysisModel)
+            mediaModel != null && (mediaModel.isBlank() || it.model == mediaModel)
     } ?: MediaAnalysisController.State()
-    var mediaChoice by remember(draftOwner, analysisModel, previewAccountRevision, previewEpoch) { mutableStateOf<Triple<String, MediaAnalysisMode, Boolean>?>(null) }
-    var reviewMedia by remember(draftOwner, analysisModel, previewAccountRevision, previewEpoch) { mutableStateOf(false) }
+    var mediaChoice by remember(draftOwner, mediaModel, previewAccountRevision, previewEpoch) { mutableStateOf<Triple<String, MediaAnalysisMode, Boolean>?>(null) }
+    var reviewMedia by remember(draftOwner, mediaModel, previewAccountRevision, previewEpoch) { mutableStateOf(false) }
     LaunchedEffect(draftOwner, analysisModel, selectedModel, previewAccountRevision, previewEpoch, status, busy) {
         if (!busy && status == EngineStatus.Connected) {
             vm.composerContent.mediaAnalysis.restore(draftOwner, analysisModel)
@@ -616,9 +617,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                         Text(mediaRoute.reason, style = MaterialTheme.typography.labelSmall, color = Ink.muted)
                         if (!busy && modelOptionsEnabled) CodexTextAction(onClick = { composerMenu = "models" }) { Text("选择支持媒体的模型") }
                     }
-                    if ((analysisModel != null || mediaAnalysis.owner == draftOwner) && remote == null) MediaAnalysisActions(
+                    if ((mediaModel != null || mediaAnalysis.owner == draftOwner) && remote == null) MediaAnalysisActions(
                         paths = attachedImages, state = mediaAnalysis, owner = draftOwner,
-                        enabled = analysisModel != null && !busy && !switching && !attachmentBusy && !transferBusy && !restarting,
+                        enabled = mediaModel != null && !busy && !firstThreadStarting && !switching && !attachmentBusy && !transferBusy && !restarting,
                         onChoose = { path, mode -> mediaChoice = Triple(path, mode, false) },
                         onContinue = { path, mode -> mediaChoice = Triple(path, mode, true) },
                         onSelectRecord = { vm.composerContent.mediaAnalysis.selectRecord(draftOwner, it) },
@@ -636,7 +637,8 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         CodexConfirmDialog(
             title = mode.label,
             message = "将所选媒体及会话上下文发送给当前模型 " + shownModel.ifBlank { "（沿用会话模型）" } +
-                "，可能产生费用。结果供审阅，不自动执行任务或发送对话。",
+                "，可能产生费用。结果供审阅，不自动执行任务或发送对话。" +
+                if (thread == null) "将先建立会话，不额外发送普通任务。" else "",
             detail = when (mode) {
                 MediaAnalysisMode.Understand -> "图片和音频使用原生输入，视频复用时间轴抽帧及音轨。"
                 MediaAnalysisMode.VisualOnly -> "明确仅分析视频画面，不发送音轨。"
@@ -645,7 +647,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             confirmLabel = "确认分析",
             onConfirm = {
                 mediaChoice = null
-                analysisModel?.let { vm.composerContent.mediaAnalysis.start(draftOwner, it, path, mode, draft, resume) }
+                mediaModel?.let { vm.composerContent.mediaAnalysis.start(draftOwner, it, path, mode, draft, resume) }
             },
             onDismiss = { mediaChoice = null }
         )

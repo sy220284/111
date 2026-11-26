@@ -1700,9 +1700,7 @@ async fn media_sample_native_empty_source_no_dummy_turn() -> Result<()> {
     let home = TempDir::new()?;
     let mut client = client_with_modalities(&home, &server, true, EffortUpdates::Supported, "",
         Some(vec![InputModality::Text, InputModality::Image])).await?;
-    let start = client.send_raw_request("thread/start", Some(json!({}))).await?;
-    let started: serde_json::Value = timeout(WAIT, client.read_response(start)).await??;
-    let thread_id = started["thread"]["id"].as_str().context("thread id")?.to_string();
+    let thread_id = client.start_thread(ThreadStartParams::default()).await?.thread.id;
     let scope_id = client.send_raw_request("thread/sample/scope", Some(json!({"threadId":thread_id,"model":SAMPLE_MODEL}))).await?;
     let scope: ThreadSampleScopeResponse = timeout(WAIT, client.read_response(scope_id)).await??;
     let picture = home.path().join("sample.png");

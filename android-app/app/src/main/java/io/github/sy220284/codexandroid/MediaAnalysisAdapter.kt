@@ -26,7 +26,7 @@ internal data class MediaAnalysisTarget(
 
 /** Independent, read-only inference adapter. Ordinary task sends still use turn/start. */
 internal interface MediaAnalysisAdapter {
-    suspend fun bind(owner: String, model: String, epoch: Long, permit: () -> Boolean): MediaAnalysisTarget
+    suspend fun bind(owner: String, model: String, epoch: Long, permit: () -> Boolean, fresh: Boolean = false): MediaAnalysisTarget
     suspend fun sample(target: MediaAnalysisTarget, question: String, media: JSONArray, permit: () -> Boolean): String
 }
 
@@ -58,7 +58,7 @@ internal object MediaSampleWire {
 /** Native sampling inherits the actual thread provider, routing, model catalog and authentication.
  * The core intercepts a single model response and does not execute model-requested tools. */
 internal class NativeMediaAnalysisAdapter(private val vm: CodexViewModel) : MediaAnalysisAdapter {
-    override suspend fun bind(owner: String, model: String, epoch: Long, permit: () -> Boolean): MediaAnalysisTarget {
+    override suspend fun bind(owner: String, model: String, epoch: Long, permit: () -> Boolean, fresh: Boolean): MediaAnalysisTarget {
         check(permit()) { "分析所属会话或账号已变化" }
         val identity = vm.bridge.request("thread/sample/scope", JSONObject().put("threadId", owner)
             .apply { if (model.isNotBlank()) put("model", model) }, expectedSession = epoch, sendPermit = permit)
@@ -71,11 +71,15 @@ internal class NativeMediaAnalysisAdapter(private val vm: CodexViewModel) : Medi
         require(kinds.all { it in setOf("text", "image", "audio") }) { "核心返回了未知的媒体能力" }
         require(provider.isNotBlank() && selected.isNotBlank() && scope.matches(Regex("[0-9a-f]{64}")))
         require(model.isBlank() || model == selected) { "所选模型已变化" }
-        val page = vm.bridge.request("thread/turns/list", JSONObject().put("threadId", owner)
-            .put("limit", 1).put("sortDirection", "desc"), expectedSession = epoch, sendPermit = permit)
-        val turn = records(page).firstOrNull() ?: error("请先在此会话发送一条任务，再使用独立媒体分析")
-        val turnId = turn.getString("id")
-        require(turn.optString("status") in setOf("completed", "failed", "interrupted")) { "请等待当前任务结束" }
+        val turnId = if (fresh) "" else {
+            val page = vm.bridge.request("thread/turns/list", JSONObject().put("threadId", owner)
+                .put("limit", 1).put("sortDirection", "desc"), expectedSession = epoch, sendPermit = permit)
+            val turn = records(page).firstOrNull()
+            if (turn == null) "" else {
+                require(turn.optString("status") in setOf("completed", "failed", "interrupted")) { "请等待当前任务结束" }
+                turn.getString("id")
+            }
+        }
         check(permit()) { "分析所属会话或账号已变化" }
         return MediaAnalysisTarget(owner, provider, selected, scope, turnId, epoch, kinds)
     }

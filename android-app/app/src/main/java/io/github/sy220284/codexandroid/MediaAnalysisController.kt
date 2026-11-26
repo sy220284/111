@@ -44,7 +44,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
         error = if (record.complete) null else "分析尚未完成；已完成结果保留，可确认后继续")
 
     private fun valid(owner: String, revision: Long, epoch: Long) =
-        vm.activeThread.value == owner && !vm.running.value &&
+        vm.composerOwner(vm.activeThread.value) == owner && !vm.running.value && vm.conversationState.value.remote == null &&
             vm.catalogWarmup.accountRevision.value == revision && vm.bridge.connectedSession.value == epoch
 
     private fun owns(value: State, owner: String) = value.owner == owner &&
@@ -76,33 +76,51 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
 
     fun start(owner: String, model: String, source: String, mode: MediaAnalysisMode, question: String, resume: Boolean = false) {
         if (state.value.busy || job?.isActive == true || vm.composerContent.liveScreenAnalysis.state.value.running ||
+            vm.firstThreadStarting.value || vm.threadSwitching.value || vm.securitySaveBusy.value ||
             !vm.globalWorkSnapshot().canStartNewTask) return
-        val revision = vm.catalogWarmup.accountRevision.value
-        val epoch = vm.bridge.connectedSession.value ?: return
+        val taskOwner = vm.captureTaskOwner() ?: return
+        val revision = taskOwner.account
+        val epoch = taskOwner.epoch
         val selected = vm.modelId.value
-        val permit = { valid(owner, revision, epoch) && vm.modelId.value == selected &&
-            source in vm.composerDrafts.value[owner]?.images.orEmpty() }
+        val creating = vm.activeThread.value == null
+        var boundOwner = owner
+        val permit = { valid(boundOwner, revision, epoch) && vm.modelId.value == selected &&
+            source in vm.composerDrafts.value[boundOwner]?.images.orEmpty() }
         if (!permit()) return
         val previous = results.value[owner]?.takeIf { owns(it, owner) }
         val resumeRecord = if (resume) previous?.checkpoint else null
         if (resume && (resumeRecord == null || resumeRecord.source != source || resumeRecord.mode != mode.name)) return
+        if (creating) vm.firstThreadStarting.value = true
         publish(State(owner, revision, source, mode, busy = true, model = model, epoch = epoch, selection = selected,
             scope = previous?.scope, history = previous?.history.orEmpty()))
         job = vm.viewModelScope.launch {
-            val guard = launch {
-                combine(vm.activeThread, vm.running, vm.catalogWarmup.accountRevision, vm.bridge.connectedSession, vm.modelId) { _, _, _, _, _ -> permit() }.first { !it }
-                job?.cancel()
-            }
+            var guard: Job? = null
+            var draftGuard: Job? = null
             try {
-                val target = adapter.bind(owner, model, epoch, permit)
+                if (creating) {
+                    try {
+                        vm.createMediaAnalysisSource(owner, taskOwner) { id ->
+                            boundOwner = id
+                            results.update { it - owner }
+                            publish(state.value.copy(owner = id))
+                        }
+                    } finally { vm.firstThreadStarting.value = false }
+                }
+                check(permit()) { "分析授权已结束" }
+                guard = launch {
+                    combine(vm.activeThread, vm.running, vm.catalogWarmup.accountRevision, vm.bridge.connectedSession, vm.modelId) { _, _, _, _, _ -> permit() }.first { !it }
+                    job?.cancel()
+                }
+                draftGuard = launch { vm.composerDrafts.first { !permit() }; job?.cancel() }
+                val target = adapter.bind(boundOwner, model, epoch, permit, fresh = creating)
                 publish(state.value.copy(scope = target.checkpointScope, model = target.model))
                 AppDataTransfer.withLocalMutation {
                     val prompt = resumeRecord?.question ?: question.ifBlank { "按时间顺序描述关键画面、声音及其关联。" }
-                    val identity = AnalysisCheckpoint(owner, target.checkpointScope, source, mode.name, prompt, sourceTurn = target.sourceTurn).identity
+                    val identity = AnalysisCheckpoint(boundOwner, target.checkpointScope, source, mode.name, prompt, sourceTurn = target.sourceTurn).identity
                     if (resumeRecord != null) require(resumeRecord.identity == identity && resumeRecord.scope == target.checkpointScope) {
                         "会话上下文已变化，原记录可查看；重新分析需再次确认"
                     }
-                    val saved = withContext(Dispatchers.IO) { store.readMedia(owner, target.checkpointScope, identity) }
+                    val saved = withContext(Dispatchers.IO) { store.readMedia(boundOwner, target.checkpointScope, identity) }
                     if (saved?.complete == true) {
                         publish(restored(saved, revision, target.model, epoch, selected))
                         return@withLocalMutation
@@ -117,7 +135,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
                     val parts = MediaAnalysisPlan.prepare(source, LocalImageAttachments.directory(app), mode, prompt)
                     target.requireModalities(MediaAnalysisPlan.modalities(parts))
                     require(saved == null || (saved.total == parts.size && saved.parts.size <= parts.size)) { "媒体分段已变化，请核对原记录" }
-                    var checkpoint = saved ?: AnalysisCheckpoint(owner, target.checkpointScope, source, mode.name, prompt,
+                    var checkpoint = saved ?: AnalysisCheckpoint(boundOwner, target.checkpointScope, source, mode.name, prompt,
                         total = parts.size, sourceTurn = target.sourceTurn)
                     publish(restored(checkpoint, revision, target.model, epoch, selected).copy(busy = true, error = null))
                     withContext(Dispatchers.IO) { store.save(checkpoint, false) }
@@ -140,7 +158,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
                 publish(state.value.copy(busy = false, error = "分析已停止；已完成结果和原附件保留")); throw cancel
             } catch (failure: Exception) {
                 publish(state.value.copy(busy = false, error = failure.message ?: "媒体分析失败；未自动重试"))
-            } finally { guard.cancel() }
+            } finally { guard?.cancel(); draftGuard?.cancel() }
         }
     }
     fun cancel() { job?.cancel() }
