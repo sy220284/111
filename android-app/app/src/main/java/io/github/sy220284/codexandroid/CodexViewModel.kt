@@ -52,6 +52,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val timelineWindow = TimelineWindowStore(File(application.cacheDir, "codex-timeline-window.jsonl"))
     val olderTimelineCount get() = timelineWindow.olderCount
     internal val olderServerCursor = MutableStateFlow<String?>(null)
+    internal var historyTurnOutcomes: HistoryTurnOutcomes? = null
     internal val loadingEarlier = MutableStateFlow(false)
     internal var hydratingThread: String? = null
     internal var timelineEpoch = 0L
@@ -70,6 +71,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     // Task text is edited on Main and must be visible to Compose in the same
     // input transaction. An asynchronous Flow projection may lag the IME edit.
+    internal val asyncReplyReceipts = AsyncReplyReceipts()
     private val taskPanelDrafts = mutableStateMapOf<String, TaskPanelDraft>()
     internal fun taskPanelDraft(threadId: String?): TaskPanelDraft =
         threadId?.let { taskPanelDrafts[it] } ?: TaskPanelDraft()
@@ -234,6 +236,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         errors.value = errors.value - "conversation"
         olderServerCursor.value = null
+        historyTurnOutcomes = null
         val epoch = ++timelineEpoch
         agentDraftWorkspace.value = if (agentDraft) workspace else null
         conversationState.value = ActiveConversationContext(workspace, projectId)
@@ -480,7 +483,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * repeated taps do not send the same instruction twice.
      */
     fun steerPrompt(text: String, afterAccepted: () -> Unit) =
-        submitRunningComposer(ComposerDraft(text = text), "steer", afterAccepted)
+        submitRunningComposer(ComposerDraft(text = text), "steer", accepted = afterAccepted)
 
     fun interrupt() {
         val tid = activeThread.value ?: return
@@ -618,6 +621,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             bridge.status.collect { current ->
+                if (current is EngineStatus.Unavailable) historyTurnOutcomes = null
                 if (current is EngineStatus.Unavailable &&
                     (running.value || threadExecutions.value.isNotEmpty() || firstThreadStarting.value)) {
                     val wasVisible = running.value
@@ -628,10 +632,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     threadExecutions.value = emptyMap()
                     firstThreadStarting.value = false
                     firstTurnImages = emptyList()
-                    conversationState.update { it.copy(running = false, turnId = null) }
-                    if (wasVisible) timeline.value = timeline.value + TimelineItem(
-                        "disconnect-" + UUID.randomUUID(), "error",
-                        "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")
+                    conversationState.update { state ->
+                        val retained = when {
+                            !wasVisible -> state.timeline
+                            !state.turnId.isNullOrBlank() -> TimelineEventReducer.connectionLost(state.timeline, state.turnId)
+                            else -> state.timeline + TimelineItem("disconnect-" + UUID.randomUUID(), "error",
+                                "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")
+                        }
+                        state.copy(running = false, turnId = null, timeline = IndexedTimeline.from(retained))
+                    }
                 }
             }
         }

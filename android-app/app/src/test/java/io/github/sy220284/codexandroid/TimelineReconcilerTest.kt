@@ -128,17 +128,20 @@ class TimelineReconcilerTest {
         assertEquals(live.map { it.id }, visible.flatMap { it.group }.map { it.id })
         org.junit.Assert.assertFalse(visible.first { it.key == "p" }.showActions)
         org.junit.Assert.assertFalse(visible.first { it.key == "f" }.showActions)
+        org.junit.Assert.assertTrue(visible.first { it.key == "tool" }.liveProcess)
+        org.junit.Assert.assertFalse(visible.first { it.key == "c" }.liveProcess)
         val ended = rows(live.dropLast(1) + final.copy(status = "completed"), false)
         assertEquals(listOf("u", "c", "p"), ended.map { it.key })
         assertEquals(listOf("c", "tool"), ended[1].group.map { it.id })
         org.junit.Assert.assertTrue(ended[1].forceActivity)
+        org.junit.Assert.assertFalse(ended[1].liveProcess)
         assertEquals("第一部分\n\n第二部分", ended.last().group.single().text)
         assertEquals("第一部分\n\n第二部分", ended.last().actionItem?.text)
         assertEquals("f", ended.last().actionItem?.id)
         assertEquals("t", ended.last().actionItem?.turnId)
         val interrupted = rows(live.dropLast(1), false)
         assertEquals("第一部分\n\n", interrupted.last().actionItem?.text)
-        assertEquals("已保留阶段性回答，未收到最终回答", interrupted.last().note)
+        assertEquals("已保留阶段性回答，未收到确认的最终回答", interrupted.last().note)
         val clipped = rows(live.drop(1).dropLast(1) + final.copy(status = "completed"), false, true)
         org.junit.Assert.assertFalse(clipped.last().showActions)
         org.junit.Assert.assertNotNull(clipped.last().note)
@@ -157,6 +160,28 @@ class TimelineReconcilerTest {
         val instruction = ProgressiveReplyProjection.appendInstruction("原有指令")
         org.junit.Assert.assertTrue(instruction.startsWith("原有指令\n\n"))
         assertEquals(instruction, ProgressiveReplyProjection.appendInstruction(instruction))
+        val oldInstruction = instruction.substringBeforeLast("\n\n")
+        val migrated = ProgressiveReplyProjection.appendInstruction(oldInstruction)
+        assertEquals(instruction, migrated)
+        assertEquals(migrated, ProgressiveReplyProjection.appendInstruction(migrated))
+    }
+
+    @Test fun richReplyBlocksRequireCompleteValidatedFences() {
+        val fence = "```"
+        val metrics = fence + "codex-metrics\n文件数|11,404|已检查\n开放 PR|3\n" + fence
+        val block = MessageMarkdown.blocks(metrics).single()
+        assertEquals("metrics", block.kind)
+        assertEquals(listOf("文件数", "11,404", "已检查"), block.rows.first())
+        assertEquals(metrics, block.source)
+        val spaced = fence + " codex-metrics  \n文件数|3\n" + fence
+        assertEquals(spaced, MessageMarkdown.blocks(spaced).single().source)
+        assertEquals("code", MessageMarkdown.blocks(metrics.dropLast(3)).single().kind)
+        assertEquals("code", MessageMarkdown.blocks(fence + "codex-metrics\n错误行\n" + fence).single().kind)
+        val flow = MessageMarkdown.blocks(fence + "codex-flow\n读取源码\n执行检查\n" + fence).single()
+        assertEquals("flow", flow.kind)
+        assertEquals(listOf(listOf("读取源码"), listOf("执行检查")), flow.rows)
+        org.junit.Assert.assertNull(RichReplyContent.parse("codex-flow", List(13) { "步骤" }.joinToString("\n")))
+        org.junit.Assert.assertNull(RichReplyContent.parse("codex-metrics", "标签||说明"))
     }
 
     @Test fun streamingMarkdownNeverCommitsBlankLinesInsideOpenCode() {
@@ -194,6 +219,65 @@ class TimelineReconcilerTest {
         assertEquals(before, ProgressiveReplyProjection.rows(TimelineEventReducer.groups(saved), false, null, false))
     }
 
+    @Test fun terminalTurnPreservesLatePhaseAndNeverPromotesInterruptedText() {
+        fun message(id: String, text: String, phase: String? = null) =
+            org.json.JSONObject().put("id", id).put("type", "agentMessage").put("text", text)
+                .apply { if (phase != null) put("phase", phase) }
+        fun params(raw: org.json.JSONObject) = org.json.JSONObject().put("turnId", "t").put("item", raw)
+        fun ended(status: String, vararg raw: org.json.JSONObject) = org.json.JSONObject()
+            .put("turn", org.json.JSONObject().put("id", "t").put("status", status)
+                .put("items", org.json.JSONArray(raw.toList())))
+        val prior = TimelineEventReducer.reduce("item/completed", params(message("a", "已确认")), emptyList())
+        val phase = TimelineEventReducer.reduce("turn/completed",
+            ended("completed", message("a", "已确认", "commentary")), prior)
+        assertEquals("commentary", phase.first().phase)
+        assertEquals("已确认", phase.first().text)
+        val stream = TimelineEventReducer.reduce("item/started", params(message("f", "", "final_answer")), emptyList())
+        val delta = org.json.JSONObject().put("turnId", "t").put("itemId", "f").put("delta", "尚未完成")
+        val pending = TimelineEventReducer.reduce("item/agentMessage/delta", delta, stream)
+        val terminal = TimelineEventReducer.reduce("turn/completed",
+            ended("interrupted", message("f", "", "final_answer")), pending)
+        assertEquals("尚未完成", terminal.first().text)
+        assertEquals("interrupted", terminal.first().status)
+        assertEquals("interrupted", terminal.last().status)
+        val rows = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(terminal), false, null, false)
+        assertEquals("任务未成功完成，已保留收到的回答", rows.first().note)
+        assertEquals(terminal, TimelineEventReducer.reduce("item/agentMessage/delta", delta, terminal))
+        val late = TimelineEventReducer.reduce("item/completed", params(message("f", "", "final_answer")), terminal)
+        assertEquals("尚未完成", late.first().text)
+        assertEquals("interrupted", late.first().status)
+        assertEquals(pending, TimelineEventReducer.reduce("turn/completed", ended("inProgress"), pending))
+        val completed = TimelineEventReducer.reduce("turn/completed",
+            ended("completed", message("f", "完整正文", "final_answer")), pending)
+        assertEquals("completed", completed.first().status)
+        assertEquals("完整正文", completed.first().text)
+        assertEquals("turn-completed:t", completed.last().id)
+        assertEquals(completed, TimelineEventReducer.reduce("item/agentMessage/delta", delta.put("itemId", "late"), completed))
+        assertEquals("commentary", ConversationLiveTimeline.merge(prior, phase).first().phase)
+        val updated = ConversationLiveTimeline.merge(listOf(prior.single().copy(phase = "partial_answer")), phase)
+        assertEquals("commentary", updated.first().phase)
+    }
+
+    @Test fun disconnectRetainsTextWithoutInventingNativeTurnOutcome() {
+        val item = TimelineItem("f", "agentMessage", "收到的内容", "streaming", turnId = "t", phase = "final_answer")
+        val disconnected = TimelineEventReducer.connectionLost(listOf(item), "t")
+        assertEquals("unverified", disconnected.first().status)
+        assertEquals("收到的内容", disconnected.first().text)
+        assertEquals("turn-unverified:t", disconnected.last().id)
+        val rows = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(disconnected), false, null, false)
+        assertEquals("连接中断，任务结果待核实", rows.first().note)
+        val native = org.json.JSONObject().put("id", "t").put("status", "completed")
+        val ended = TimelineEventReducer.reduce("turn/completed", org.json.JSONObject().put("turn", native), disconnected)
+        assertEquals("completed", ended.first().status)
+        assertEquals("收到的内容", ended.first().text)
+        val commentary = item.copy(id = "c", phase = "commentary", status = "completed")
+        val onlyProcess = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(listOf(commentary)), false, null, false)
+        assertEquals("已保留过程回复，未收到正式回答", onlyProcess.single().note)
+        val saved = item.copy(status = "completed", phase = "final_answer")
+        val stale = item.copy(phase = "partial_answer")
+        assertEquals("final_answer", ConversationLiveTimeline.merge(listOf(saved), listOf(stale)).single().phase)
+    }
+
     @Test fun latePhaseAndOffscreenResumeKeepAccumulatedNativeText() {
         val delta = org.json.JSONObject().put("turnId", "t").put("itemId", "a").put("delta", "A")
         val streamed = TimelineEventReducer.reduce("item/agentMessage/delta", delta, emptyList())
@@ -213,8 +297,8 @@ class TimelineReconcilerTest {
         val turn = org.json.JSONObject().put("id", "t").put("status", "completed")
             .put("items", org.json.JSONArray().put(done))
         val backfilled = TimelineEventReducer.reduce("turn/completed", org.json.JSONObject().put("turn", turn), continued)
-        assertEquals("partial_answer", backfilled.single().phase)
-        assertEquals("AB", backfilled.single().text)
+        assertEquals("partial_answer", backfilled.first().phase)
+        assertEquals("AB", backfilled.first().text)
         val restored = ConversationLiveTimeline.merge(enriched, listOf(continued.single().copy(phase = "")))
         assertEquals("AB", restored.single().text)
         assertEquals("partial_answer", restored.single().phase)

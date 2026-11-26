@@ -16,7 +16,10 @@ internal object MessageSelectionCopy {
                     val b = minOf(to, end)
                     if (a < b) {
                         val value = part.visible.substring(a - position, b - position)
-                        if (part.prefix.isNotEmpty()) {
+                        if (part.original != null && a == position && b == end) {
+                            styled = true
+                            append(part.original)
+                        } else if (part.prefix.isNotEmpty()) {
                             styled = true
                             append(part.prefix).append(value).append(part.suffix)
                         } else append(value)
@@ -33,7 +36,7 @@ internal object MessageSelectionCopy {
         if (selected.isBlank()) return null
         val segments = blocks.flatMap { block ->
             when (block.kind) {
-                "rule" -> emptyList()
+                "rule", in RichReplyContent.kinds -> emptyList()
                 "code", "stream-tail" -> listOf(Segment(listOf(MessageMarkdown.CopyPart(block.text)), block.kind))
                 "table" -> block.rows.flatten().map { Segment(MessageMarkdown.copyParts(it), "table") }
                 "heading" -> listOf(Segment(MessageMarkdown.copyParts(block.text), block.kind,
@@ -61,6 +64,9 @@ internal object MessageSelectionCopy {
                         } == true) {
                         val label = segment.parts.first().visible
                         label + " " + value.drop(label.length)
+                    } else if (segment.kind == "bullet" && a == position && value.length > 1 &&
+                        (value.startsWith("☐") || value.startsWith("☑"))) {
+                        (if (value.startsWith("☑")) "- [x] " else "- [ ] ") + value.drop(1)
                     } else value
                     values += segment to restored
                     styled = styled || rich || restored != value

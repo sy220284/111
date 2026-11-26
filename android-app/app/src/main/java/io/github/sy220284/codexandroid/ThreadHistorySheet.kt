@@ -279,7 +279,7 @@ private fun readableTurnItems(payload: JSONObject): String {
     val items = records(payload)
     if (items.isEmpty()) return "该回合没有可阅读的文本记录。"
     return items.mapIndexed { index, record ->
-        val item = record.optJSONObject("item") ?: record
+        val item = AgentReplyContract.sanitize(record.optJSONObject("item") ?: record)
         val kind = PresentationPolicy.timelineKind(item.optString("type"))
         val text = listOf("text", "message", "command", "summary").firstNotNullOfOrNull {
             PresentationPolicy.meaningful(item.optString(it)).takeIf { value -> value.isNotEmpty() }

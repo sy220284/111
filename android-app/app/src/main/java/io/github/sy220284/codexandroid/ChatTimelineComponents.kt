@@ -23,7 +23,7 @@ import androidx.compose.ui.unit.dp
 internal enum class MessageTurnAction { Fork, Retry, Revert }
 
 private fun TimelineItem.active() = status in setOf("inProgress", "in_progress", "running", "streaming", "sending")
-private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "blocked", "declined", "interrupted", "cancelled")
+private fun TimelineItem.failed() = kind == "error" || status in setOf("failed", "blocked", "declined", "interrupted", "cancelled", "incomplete", "stopped")
 
 @Composable
 internal fun TimelineActivityGroup(
@@ -31,40 +31,46 @@ internal fun TimelineActivityGroup(
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
     version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null,
-    forceActivity: Boolean = false, note: String? = null
+    forceActivity: Boolean = false, note: String? = null, liveProcess: Boolean = false,
+    partialCopy: Boolean = false
 ) {
-    if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
+    if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "userMessage", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity", "hookRun")) {
         TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion,
-            showMessageActions, actionItem, note)
+            showMessageActions, actionItem, note, partialCopy = partialCopy)
         return
     }
     val active = group.any { it.active() }
     val failed = group.count { it.failed() }
-    var expanded by rememberSaveable(group.first().id) { mutableStateOf(false) }
+    var expanded by rememberSaveable(group.first().id, liveProcess) { mutableStateOf(liveProcess) }
+    var visibleCount by rememberSaveable(group.first().id) { mutableIntStateOf(20) }
     val summary = group.groupingBy { if (ProgressiveReplyProjection.commentary(it)) "过程回复" else PresentationPolicy.timelineKind(it.kind) }.eachCount()
         .entries.joinToString(" · ") { (kind, count) -> if (count == 1) kind else "$kind $count 项" }
     Column(Modifier.fillMaxWidth().testTag("chat-activity-group")
-        .border(1.dp, Ink.border, RoundedCornerShape(12.dp))
-        .background(Ink.canvas, RoundedCornerShape(12.dp)).padding(horizontal = 10.dp, vertical = 2.dp)) {
+        .padding(vertical = 2.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
             .clickable { expanded = !expanded }.padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             CodexIcon(if (failed > 0) CodexGlyph.TaskError else if (active) CodexGlyph.TaskRunning else CodexGlyph.AutoAwesome,
-                null, tint = if (failed > 0) Ink.red else if (active) Ink.copper else Ink.jade, modifier = Modifier.size(18.dp))
+                null, tint = if (failed > 0) Ink.red else Ink.muted, modifier = Modifier.size(18.dp))
             Column(Modifier.weight(1f)) {
-                Text((if (active) "正在处理 " else "已处理 ") + group.size + " 项活动" +
+                Text((if (active) "正在执行 · " else if (liveProcess) "执行记录 · " else "已完成执行 · ") + group.size + " 项活动" +
                     if (failed > 0) " · $failed 项未成功" else "",
                     color = if (failed > 0) Ink.red else Ink.muted, style = MaterialTheme.typography.labelLarge)
-                Text(summary, style = MaterialTheme.typography.labelSmall, color = Ink.muted,
+                if (!expanded) Text(summary, style = MaterialTheme.typography.labelSmall, color = Ink.muted,
                     maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             CodexIcon(if (expanded) CodexGlyph.ExpandMore else CodexGlyph.ChevronRight,
                 if (expanded) "收起活动" else "展开活动", tint = Ink.muted)
         }
+        note?.let { Text(it, Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            color = Ink.muted, style = MaterialTheme.typography.labelSmall) }
         CodexReveal(visible = expanded) {
-            Column(Modifier.fillMaxWidth().padding(start = 16.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                group.forEach { item -> key(item.id) { TimelineStepCard(item, workspaceRoot, onTurnAction) } }
+            Column(Modifier.fillMaxWidth().padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                group.take(if (liveProcess) group.size else visibleCount).forEach { item -> key(item.id) { TimelineStepCard(item, workspaceRoot, onTurnAction,
+                    compactActivity = true) } }
+                if (!liveProcess && visibleCount < group.size) CodexSecondaryButton(onClick = { visibleCount += 20 },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) { Text("继续展开执行记录") }
             }
         }
     }
@@ -76,7 +82,8 @@ internal fun TimelineStepCard(
     item: TimelineItem, workspaceRoot: String? = null,
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
     version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
-    showMessageActions: Boolean = true, actionItem: TimelineItem? = null, note: String? = null
+    showMessageActions: Boolean = true, actionItem: TimelineItem? = null, note: String? = null,
+    compactActivity: Boolean = false, partialCopy: Boolean = false
 ) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
@@ -104,36 +111,34 @@ internal fun TimelineStepCard(
         if (commentary) {
             Column(Modifier.fillMaxWidth().testTag("chat-commentary").padding(horizontal = 4.dp, vertical = 4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(if (active) "正在执行" else "过程回复", color = Ink.muted,
-                    style = MaterialTheme.typography.labelSmall)
-                SelectionContainer {
-                    Text(MessageMarkdown.inlineText(shownText), color = Ink.muted,
-                        style = MaterialTheme.typography.bodyMedium)
-                }
+                NativeMessageMarkdown(shownText, streaming = active)
             }
         } else if (user || assistant) {
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.Start) {
-                // Native Codex UserHistoryCell: a leading ›, hanging indent and literal text.
-                // The mobile transcript stays on the canvas, without a chat bubble or avatar.
-                Row(Modifier.fillMaxWidth()
-                    .testTag(if (user) "chat-user-message" else "chat-assistant-message")
-                    .padding(vertical = if (user) 12.dp else 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (user) Text("›", color = Ink.muted, style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.width(14.dp).testTag("chat-user-prompt-marker"))
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        if (assistant) NativeMessageMarkdown(shownText, streaming = active)
-                        else {
-                            SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge,
-                                color = Ink.parchment) }
-                            if (item.status == "sending") Text("正在发送", color = Ink.muted,
-                                style = MaterialTheme.typography.labelSmall)
-                            NativeTimelineMedia(item, raw, workspaceRoot)
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = if (user) Alignment.End else Alignment.Start) {
+                if (user) {
+                    BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+                        Surface(Modifier.widthIn(max = maxWidth * .86f).testTag("chat-user-message"),
+                            color = Ink.recessed, shape = RoundedCornerShape(18.dp)) {
+                            Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge,
+                                    color = Ink.parchment) }
+                                if (item.status == "sending") Text("正在发送", color = Ink.muted,
+                                    style = MaterialTheme.typography.labelSmall)
+                                NativeTimelineMedia(item, raw, workspaceRoot)
+                            }
                         }
+                    }
+                } else {
+                    Box(Modifier.fillMaxWidth().testTag("chat-assistant-message").padding(vertical = 4.dp)) {
+                        NativeMessageMarkdown(shownText, streaming = active)
                     }
                 }
                 note?.let { Text(it, color = Ink.muted, style = MaterialTheme.typography.labelSmall,
                     modifier = Modifier.padding(vertical = 4.dp)) }
+                if (partialCopy && item.text.isNotBlank()) CodexSecondaryButton(onClick = {
+                    copy(item.text, CopyContentFormat.Markdown)
+                }, modifier = Modifier.heightIn(min = 48.dp).testTag("partial-reply-copy")) { Text("复制此阶段") }
                 if (!active && showMessageActions && (user || item.phase != "commentary")) {
                     if (!user && version != null) FlowRow(Modifier.fillMaxWidth()) {
                         AnswerVersionSwitcher(version, onVersion, actionMessage.id)
@@ -160,7 +165,8 @@ internal fun TimelineStepCard(
                     Column(Modifier.weight(1f)) {
                         Text(if (item.kind in setOf("plan", "planProgress")) title else shownText,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (failure) Ink.red else Ink.parchment, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                            color = if (failure) Ink.red else if (compactActivity) Ink.muted else Ink.parchment,
+                            maxLines = if (compactActivity) 2 else 3, overflow = TextOverflow.Ellipsis)
                         val output = if (active) item.commandOutputTail(4096) else ""
                         val statusText = PresentationPolicy.timelineStatus(item.status)
                         val caption = listOfNotNull(title.takeUnless { it == shownText },
@@ -169,7 +175,8 @@ internal fun TimelineStepCard(
                                 "退出码 " + raw.optInt("exitCode") else null,
                             if (raw != null && !raw.isNull("durationMs"))
                                 raw.optLong("durationMs").toString() + " 毫秒" else null).joinToString(" · ")
-                        if (caption.isNotBlank()) Text(caption, style = MaterialTheme.typography.labelSmall, color = tone)
+                        if (caption.isNotBlank() && (!compactActivity || active || failure)) Text(caption,
+                            style = MaterialTheme.typography.labelSmall, color = tone)
                         if (active && output.isNotBlank() && output != "null") {
                             Text(output.lineSequence().filter(String::isNotBlank).lastOrNull().orEmpty().take(240),
                                 style = MaterialTheme.typography.labelSmall, color = Ink.muted, fontFamily = FontFamily.Monospace,

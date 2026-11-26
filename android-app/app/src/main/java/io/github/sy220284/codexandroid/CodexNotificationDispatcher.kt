@@ -142,14 +142,22 @@ internal object CodexNotificationDispatcher {
         }
         if (threadId.isNotBlank() && method == "turn/started") sessions.refreshChanged(threadId)
         if (threadId.isNotBlank() && method == "turn/completed") {
-            val completedId = params.optJSONObject("turn")?.optString("id")
+            val turn = params.optJSONObject("turn") ?: return
+            val completedId = turn.optString("id")
+            val turnStatus = turn.optString("status")
+            if (completedId.isBlank() || turnStatus !in setOf("completed", "interrupted", "failed")) return
             val execution = threadExecutions.value[threadId]
             val validCompletion = execution?.turnId.isNullOrBlank() ||
                 completedId.isNullOrBlank() || execution?.turnId == completedId
-            if (!validCompletion) return
+            if (!validCompletion) {
+                // An older terminal event may enrich history but must never finish a newer active turn.
+                if (threadId == activeThread.value && threadId != hydratingThread)
+                    timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
+                else liveTimelines.event(threadId, method, params, threadExecutions.value.keys)
+                return
+            }
             threadExecutions.value = ThreadExecutionPolicy.finish(
                 threadExecutions.value, threadId)
-            val turnStatus = params.optJSONObject("turn")?.optString("status")
             if (turnStatus == "interrupted") queuePausedThreads.value = queuePausedThreads.value + threadId
             val completed = turnStatus == "completed"
             if (!completed) {
@@ -166,7 +174,9 @@ internal object CodexNotificationDispatcher {
                 threadActivities.value, threadId,
                 if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
             if (threadId == activeThread.value) {
-                conversationState.update { it.copy(running = false, turnId = null) }
+                // Publish terminal text, phase and running state in one snapshot.
+                conversationState.update { state -> state.copy(running = false, turnId = null,
+                    timeline = TimelineEventReducer.reduce(method, params, state.timeline)) }
             }
             sessions.refreshChanged(threadId)
             accountMetrics.refresh()
@@ -222,7 +232,7 @@ internal object CodexNotificationDispatcher {
             in TimelineEventReducer.methods - "turn/completed" ->
                 timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
-            "turn/completed" -> timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
+            "turn/completed" -> Unit // Applied atomically above, or buffered for the hydrating/offscreen thread.
         }
         if (!threadSwitching.value && !running.value && !loadingEarlier.value && !timelineCompacting && method in TimelineEventReducer.methods && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
             val epoch = timelineEpoch

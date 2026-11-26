@@ -983,6 +983,38 @@ class CodexInteractionComponentsInstrumentedTest {
     }
 
 
+    @Test fun nativeUserMessageUsesMobileBubble() {
+        rule.setContent {
+            CodexTheme { TimelineActivityGroup(listOf(TimelineItem("native-user", "userMessage", "任务", "completed"))) }
+        }
+        rule.onNodeWithTag("chat-user-message").assertExists()
+        rule.onNodeWithText("任务").assertExists()
+        rule.onNodeWithTag("chat-activity-group").assertDoesNotExist()
+    }
+
+    @Test fun liveReplyShowsToolRowsAndNativeRichContent() {
+        val fence = "```"
+        val tools = listOf(TimelineItem("live-tool", "commandExecution", "读取仓库", "completed", turnId = "turn"))
+        val running = androidx.compose.runtime.mutableStateOf(true)
+        rule.setContent {
+            CodexTheme {
+                androidx.compose.foundation.layout.Column {
+                    TimelineActivityGroup(tools, liveProcess = running.value)
+                    NativeMessageMarkdown(fence + "codex-metrics\n文件数|11,404\n开放 PR|3\n" + fence)
+                    NativeMessageMarkdown(fence + "codex-flow\n读取\n检查\n" + fence)
+                }
+            }
+        }
+        rule.onNodeWithText("读取仓库").assertExists()
+        rule.onNodeWithTag("message-rich-metrics").assertExists()
+        rule.onNodeWithText("11,404").assertExists()
+        rule.onNodeWithTag("message-rich-flow").assertExists()
+        rule.runOnIdle { running.value = false }
+        rule.onNodeWithText("读取仓库").assertDoesNotExist()
+        rule.onNodeWithTag("chat-activity-group").performClick()
+        rule.onNodeWithText("读取仓库").assertExists()
+    }
+
     @Test fun progressiveReplyShowsFragmentsThenOneAnswerAction() {
         val partial = TimelineItem("partial-ui", "agentMessage", "第一部分\n\n", "completed",
             turnId = "progressive-ui", phase = "partial_answer")
@@ -1000,7 +1032,7 @@ class CodexInteractionComponentsInstrumentedTest {
                     rows.forEach { row ->
                         androidx.compose.runtime.key(row.key) {
                             TimelineActivityGroup(row.group, showMessageActions = row.showActions,
-                                actionItem = row.actionItem, forceActivity = row.forceActivity, note = row.note)
+                                actionItem = row.actionItem, forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess)
                         }
                     }
                 }

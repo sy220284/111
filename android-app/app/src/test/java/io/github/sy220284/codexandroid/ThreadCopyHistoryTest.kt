@@ -16,6 +16,8 @@ class ThreadCopyHistoryTest {
         val history = ThreadCopyHistory { method, params ->
             methods += method
             when {
+                method == "thread/turns/list" -> JSONObject().put("data", JSONArray().put(
+                    JSONObject().put("id", "turn").put("status", "interrupted"))).put("nextCursor", JSONObject.NULL)
                 method == "thread/items/read" -> {
                     assertEquals("turn", params.getString("turnId"))
                     assertEquals("b", params.getJSONArray("itemIds").getString(0))
@@ -31,7 +33,8 @@ class ThreadCopyHistoryTest {
         }.read("thread")
         val output = ThreadMarkdownExporter.render(history)
         assertTrue(output.indexOf("第一条") < output.indexOf("完整输出"))
-        assertEquals(listOf("thread/items/list", "thread/items/list", "thread/items/read"), methods)
+        assertTrue(output.contains("任务已中断"))
+        assertEquals(listOf("thread/items/list", "thread/items/list", "thread/items/read", "thread/turns/list"), methods)
     }
 
     @Test fun repeatedCursorFailsInsteadOfExportingPartialHistory() = runBlocking {

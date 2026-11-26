@@ -35,8 +35,14 @@ internal class ThreadCopyHistory(private val request: suspend (String, JSONObjec
             cursor = historyCursor(page)
             if (cursor != null) check(seenCursors.add(cursor)) { "历史分页重复，请重新读取" }
         } while (cursor != null)
+        val outcomes = HistoryTurnOutcomes(threadId, request).load(turns.keys)
         return JSONObject().put("thread", JSONObject().put("turns", JSONArray().apply {
-            turns.forEach { (id, items) -> put(JSONObject().put("id", id).put("items", items)) }
+            turns.forEach { (id, items) ->
+                val turn = outcomes[id]
+                put(JSONObject().put("id", id).put("items", items)
+                    .put("status", turn?.optString("status") ?: "unverified")
+                    .put("error", turn?.opt("error") ?: JSONObject.NULL))
+            }
         }))
     }
 }

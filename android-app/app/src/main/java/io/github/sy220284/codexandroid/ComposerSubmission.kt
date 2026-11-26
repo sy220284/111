@@ -38,7 +38,8 @@ internal fun CodexViewModel.submitComposerDraft(draft: ComposerDraft, followUp: 
     } else sendPrompt(draft.text, draft.images, draft.references) { acceptComposerDraft(it, draft) }
 }
 
-internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp: String, accepted: () -> Unit) {
+internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp: String,
+    onSettled: (Boolean?) -> Unit = {}, accepted: () -> Unit) {
     val thread = activeThread.value ?: return
     val turn = activeTurn.value
     val workspace = activeWorkspace.value
@@ -60,6 +61,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
     pendingComposerImages.value = pendingComposerImages.value + draft.images
     viewModelScope.launch {
         var dispatched = false
+        var outcome: Boolean? = false
         try {
             check(bridge.connectedSession.value == epoch && permit()) { "连接或账号已变化，原输入已保留" }
             remoteBindings.forThread(thread)?.let {
@@ -80,7 +82,9 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                     .put("clientUserMessageId", clientId)
                     .put("input", TurnRequestContract.input(draft.text, draft.images, draft.references))
                 dispatched = true
+                outcome = null
                 bridge.request("thread/queue/add", params, expectedSession = epoch, sendPermit = permit)
+                outcome = true
                 accepted()
                 actionFeedback.tryEmit(ActionFeedbackReceipt("已加入后续指令"))
                 refresh("queue:$thread", "thread/queue/list", JSONObject().put("threadId", thread).put("limit", 100))
@@ -98,7 +102,9 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                     .put("clientUserMessageId", clientId)
                 check(threadExecutions.value[thread]?.turnId == turn) { "当前运行回合已变化，原指令已保留" }
                 dispatched = true
+                outcome = null
                 bridge.request("turn/steer", params, expectedSession = epoch, sendPermit = permit)
+                outcome = true
                 accepted()
                 actionFeedback.tryEmit(ActionFeedbackReceipt("引导指令已发送"))
             }
@@ -107,6 +113,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
             throw cancel
         } catch (failure: Exception) {
             val method = if (queue) "thread/queue/add" else "turn/steer"
+            if (failure is RpcServerRejection && failure.method == method) outcome = false
             val reason = failure.message ?: "发送失败"
             val message = if (dispatched && !(failure is RpcServerRejection && failure.method == method))
                 "$reason；发送结果尚未确认，原输入已保留，请先核对当前消息或队列再重试"
@@ -117,6 +124,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
         } finally {
             pendingComposerImages.value = pendingComposerImages.value - draft.images.toSet()
             if (queue) loading.value = loading.value - key else steerBusy.value = false
+            onSettled(outcome)
         }
     }
 }

@@ -8,13 +8,16 @@ internal object ProgressiveReplyProjection {
         val showActions: Boolean = true,
         val actionItem: TimelineItem? = null,
         val forceActivity: Boolean = false,
-        val note: String? = null
+        val note: String? = null,
+        val liveProcess: Boolean = false,
+        val partialCopy: Boolean = false
     )
 
     private val assistantKinds = setOf("agent", "agentMessage")
     private val activityKinds = setOf("reasoning", "commandExecution", "fileChange", "mcpToolCall",
         "dynamicToolCall", "functionCallOutput", "webSearch", "imageView", "sleep", "hookPrompt")
     private val runningStates = setOf("inProgress", "in_progress", "running", "streaming", "sending")
+    private val incompleteStates = setOf("failed", "interrupted", "cancelled", "stopped", "incomplete")
     fun commentary(item: TimelineItem) = item.kind in assistantKinds && item.phase == "commentary"
     fun answer(item: TimelineItem) = item.kind in assistantKinds && !commentary(item)
     fun answerText(items: List<TimelineItem>): String =
@@ -61,24 +64,42 @@ internal object ProgressiveReplyProjection {
 
     private fun sectionRows(section: List<List<TimelineItem>>, running: Boolean,
         hasEarlier: Boolean): List<Row> = buildList {
-        val items = section.flatten()
+        val visibleSection = section.filterNot { it.singleOrNull()?.kind == "turnOutcome" }
+        val items = visibleSection.flatten()
+        if (items.isEmpty()) return@buildList
         val turn = items.first().turnId
         val answers = items.filter(::answer)
         val progressive = answers.any { it.phase == "partial_answer" }
+        val interrupted = items.any { it.kind == "error" && it.id == "turn-error:$turn" && it.status in incompleteStates }
+        val unverified = items.any { it.id == "turn-unverified:$turn" }
+        fun incomplete(item: TimelineItem) = interrupted || item.status in incompleteStates
+        fun unverified(item: TimelineItem) = unverified || item.status == "unverified"
         val explicit = answers.any { it.phase in setOf("partial_answer", "final_answer") }
-        val open = running || items.any { it.status in runningStates }
+        val open = section.none { it.singleOrNull()?.kind == "turnOutcome" } &&
+            !interrupted && (running || items.any { it.status in runningStates })
         // Item paging can start inside a turn, even at a steering user message. Never claim a
         // complete answer until the preceding page has established the turn's beginning.
         val clipped = hasEarlier && turn.isNotBlank() && explicit
         val incompleteNote = "加载更早记录后可使用完整回答操作"
         if (turn.isBlank() || open || (!progressive && items.none(::commentary))) {
-            section.forEach { group ->
+            visibleSection.forEach { group ->
                 val single = group.singleOrNull()
                 val formal = single?.let(::answer) == true
                 val allow = !formal || (!open && !clipped && single?.phase != "partial_answer")
+                if (open && group.size > 12 && group.all { it.kind in activityKinds }) {
+                    group.chunked(12).forEach { chunk -> add(Row(chunk.first().id, chunk, liveProcess = true)) }
+                    return@forEach
+                }
                 add(Row(group.first().id, group, showActions = allow,
                     actionItem = single?.takeIf { formal && clipped && !open },
-                    note = if (formal && clipped && !open) incompleteNote else null))
+                    note = when {
+                        formal && clipped && !open -> incompleteNote
+                        formal && !open && single != null && unverified(single) -> "连接中断，任务结果待核实"
+                        formal && !open && single != null && incomplete(single) -> "任务未成功完成，已保留收到的回答"
+                        else -> null
+                    },
+                    liveProcess = open && group.all { it.kind in activityKinds },
+                    partialCopy = open && formal && single?.phase == "partial_answer" && single?.status == "completed"))
             }
             return@buildList
         }
@@ -93,10 +114,15 @@ internal object ProgressiveReplyProjection {
             val formal = segment.filter(::answer)
             if (process.isNotEmpty()) output += Row(process.first().id, process, forceActivity = true)
             if (progressive && formal.isNotEmpty()) {
-                val joined = formal.last().copy(text = answerText(formal), evidence = "")
+                val joined = AgentReplyContract.aggregate(formal)
                 output += Row(formal.first().id, listOf(joined), showActions = false)
             } else formal.forEach { output += Row(it.id, listOf(it), showActions = !clipped,
-                actionItem = it.takeIf { clipped }, note = incompleteNote.takeIf { clipped }) }
+                actionItem = it.takeIf { clipped }, note = when {
+                    clipped -> incompleteNote
+                    unverified(it) -> "连接中断，任务结果待核实"
+                    incomplete(it) -> "任务未成功完成，已保留收到的回答"
+                    else -> null
+                }) }
             segment = mutableListOf()
         }
         items.forEach { item ->
@@ -106,19 +132,34 @@ internal object ProgressiveReplyProjection {
         flush()
         if (progressive && answers.isNotEmpty()) {
             val last = output.indexOfLast { it.group.singleOrNull()?.let(::answer) == true && !it.forceActivity }
-            val aggregate = answers.last().copy(text = answerText(answers), evidence = "")
+            val aggregate = AgentReplyContract.aggregate(answers)
             val note = when {
                 clipped -> incompleteNote
-                answers.none { it.phase == "final_answer" || it.phase.isBlank() } -> "已保留阶段性回答，未收到最终回答"
+                unverified || answers.any { it.status == "unverified" } -> "连接中断，任务结果待核实"
+                interrupted || answers.any { it.status in incompleteStates } -> "任务未成功完成，已保留收到的回答"
+                answers.none { it.phase == "final_answer" } -> "已保留阶段性回答，未收到确认的最终回答"
                 else -> null
             }
             if (last >= 0) output[last] = output[last].copy(showActions = !clipped,
                 actionItem = aggregate, note = note)
         }
+        if (answers.isEmpty() && items.any(::commentary)) {
+            val lastProcess = output.indexOfLast { it.forceActivity }
+            if (lastProcess >= 0) output[lastProcess] = output[lastProcess].copy(note =
+                "已保留过程回复，未收到正式回答")
+        }
         addAll(output)
     }
 
-    const val instruction = "长任务采用渐进式回复：开始工作时简短说明计划；获得可靠且可独立使用的结果后，及时输出正式答案片段并继续执行；过程更新与正式答案分开，最终回答补齐剩余结果，避免重复已交付内容。只有任务完成或需要用户决策时结束当前回合。"
-    fun appendInstruction(current: String): String =
-        if (current.contains(instruction)) current else if (current.isBlank()) instruction else current.trimEnd() + "\n\n" + instruction
+    private const val baseInstruction = "长任务采用渐进式回复：开始工作时简短说明计划；获得可靠且可独立使用的结果后，及时输出正式答案片段并继续执行；过程更新与正式答案分开，最终回答补齐剩余结果，避免重复已交付内容。只有任务完成或需要用户决策时结束当前回合。"
+    private const val richInstruction = "移动端正式回答在有真实数据时可使用 codex-metrics Markdown 代码围栏，每行标签|数值|可选说明；线性步骤可使用 codex-flow 围栏，每行一个步骤，最多12项。只在确实有助阅读时使用，普通段落、表格及代码仍用标准 Markdown。"
+    private const val progressInstruction = "复杂任务在首次工具调用前简述目标和步骤；执行过程中仅在有新发现、重要决策或阻碍时提供一两句有用进度，长时间工作也应持续告知用户已确认的进展。阶段性正式内容须有可靠依据；最终总结明确已完成、实际验证、失败或未完成事项。避免重复计划、逐条播报工具及把中间进度当成最终结果。"
+    private const val visualInstruction = "需要图表时可使用 codex-bar、codex-line、codex-pie，每行标签|有限数值；分支关系使用 codex-graph，每行起点|关系|终点；任务清单使用 codex-checklist，每行 done/todo/doing|任务；公式可使用 codex-math 或独立 TeX 公式；文件交付可使用 codex-file，每行显示名称|工作区实际文件路径。仅按实际数据使用，图表不超过24行。"
+    const val instruction = baseInstruction + "\n\n" + richInstruction + "\n\n" + progressInstruction + "\n\n" + visualInstruction
+
+    fun appendInstruction(current: String): String {
+        val missing = listOf(baseInstruction, richInstruction, progressInstruction, visualInstruction).filterNot { current.contains(it) }
+        if (missing.isEmpty()) return current
+        return (listOf(current.trimEnd()).filter(String::isNotBlank) + missing).joinToString("\n\n")
+    }
 }

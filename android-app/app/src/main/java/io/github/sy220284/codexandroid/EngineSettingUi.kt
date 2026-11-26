@@ -93,7 +93,7 @@ internal fun EngineSettingEditor(setting: EngineSetting, current: Any?,
                     CodexTextAction(onClick = {
                         edited = true
                         draft = ProgressiveReplyProjection.appendInstruction(draft)
-                    }, enabled = enabled && !busy && !draft.contains(ProgressiveReplyProjection.instruction),
+                    }, enabled = enabled && !busy && draft != ProgressiveReplyProjection.appendInstruction(draft),
                         modifier = Modifier.testTag("append-progressive-reply-instruction")) { Text("添加渐进式回复指令") }
                 }
                 ActionQuestionRow(draft, { edited = true; draft = it }, "描述全局工作要求", singleLine = false, enabled = !busy)

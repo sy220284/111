@@ -6,8 +6,9 @@ import org.json.JSONObject
 /** Default export is the conversation; execution evidence is an explicit separate scope. */
 internal object ThreadMarkdownExporter {
     private fun body(item: JSONObject): String {
+        if (item.optString("type") == "agentMessage") return AgentReplyContract.visibleText(item)
         val direct = item.optString("text")
-        if (direct.isNotEmpty() && !item.isNull("text")) return direct
+        if (direct.isNotEmpty() && !item.isNull("text")) return if (item.optString("type") == "userMessage") AsyncReplyContract.visibleUserText(direct) else direct
         val content = item.optJSONArray("content") ?: return ""
         return (0 until content.length()).mapNotNull { content.optJSONObject(it)?.let { part ->
             when (part.optString("type")) {
@@ -15,7 +16,7 @@ internal object ThreadMarkdownExporter {
                 "localImage", "localAudio" -> if (part.optString("type") == "localImage") "[本地图片]" else "[本地音频]"
                 "skill", "mention" -> "[" + part.optString("type").let { if (it == "skill") "技能" else "引用" } +
                     "：" + part.optString("name") + "]"
-                else -> part.optString("text").takeUnless { part.isNull("text") }
+                else -> part.optString("text").takeUnless { part.isNull("text") }?.let(AsyncReplyContract::visibleUserText)
             }
         } }.joinToString("\n")
     }
@@ -66,6 +67,13 @@ internal object ThreadMarkdownExporter {
                 }
             }
             flush()
+            val outcome = when (turn.optString("status")) {
+                "failed" -> "任务执行失败，以上为已收到内容。"
+                "interrupted" -> "任务已中断，以上为已收到内容。"
+                "inProgress", "unverified" -> "任务结果尚未确认，以上为已收到内容。"
+                else -> null
+            }
+            outcome?.let { emit("回合状态", it) }
         }
         require(messages > 0) { "会话暂无可导出的文字消息" }
         return lines.joinToString("\n").trimEnd() + "\n"

@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -44,7 +47,6 @@ internal object MessageMarkdown {
     private val fence = Regex("^(\u0060{3,}|~{3,})(.*)$")
     private val delimiter = Regex("^:?-{3,}:?$")
     private val rule = Regex("^(?:-{3,}|\\*{3,}|_{3,})$")
-    private val inline = Regex("(\\u0060[^\\u0060]+\\u0060|\\*\\*[^*]+\\*\\*|__[^_]+__|\\*[^*]+\\*|\\[[^\\]\\n]+\\]\\(https?://[^\\s)]+\\))")
     private fun cells(line: String): List<String> =
         line.trim().removePrefix("|").removeSuffix("|").split(Regex("(?<!\\\\)\\|"))
             .map { it.trim().replace("\\|", "|") }
@@ -96,6 +98,7 @@ internal object MessageMarkdown {
             when {
                 marker != null -> {
                     flush()
+                    val fenceStart = i
                     val opening = marker.groupValues[1]
                     val language = marker.groupValues[2].trim().substringBefore(' ')
                     val content = mutableListOf<String>()
@@ -105,7 +108,25 @@ internal object MessageMarkdown {
                         if (end.length >= opening.length && end.all { it == opening.first() }) break
                         content.add(lines[i++])
                     }
-                    result.add(MessageBlock("code", content.joinToString("\n"), label = language))
+                    val code = content.joinToString("\n")
+                    val closed = i < lines.size
+                    val rich = if (closed && marker.groupValues[2].trim() == language)
+                        RichReplyContent.parse(language, code) else null
+                    result.add(if (rich != null) MessageBlock(rich.kind, code, label = language,
+                        rows = rich.rows, source = lines.subList(fenceStart, i + 1).joinToString("\n"))
+                    else MessageBlock("code", code, label = language))
+                }
+                trimmed == "\$\$" || trimmed == "\\[" -> {
+                    val ending = if (trimmed == "\$\$") "\$\$" else "\\]"
+                    val end = (i + 1 until lines.size).firstOrNull { lines[it].trim() == ending }
+                    val sourceMath = end?.let { lines.subList(i + 1, it).joinToString(" ") }
+                    val math = sourceMath?.let { RichReplyContent.parse("codex-math", it) }
+                    if (math != null && end != null && sourceMath != null) {
+                        flush()
+                        result.add(MessageBlock("math", sourceMath, rows = math.rows,
+                            source = lines.subList(i, end + 1).joinToString("\n")))
+                        i = end
+                    } else paragraph.add(line)
                 }
                 tableHeader(lines, i) -> {
                     flush()
@@ -137,9 +158,12 @@ internal object MessageMarkdown {
                 listItem != null -> {
                     flush()
                     val prefix = listItem.groupValues[1]
-                    result.add(MessageBlock("bullet", listItem.groupValues[2],
+                    val body = listItem.groupValues[2]
+                    val task = Regex("^\\[([ xX])\\]\\s+(.+)$").matchEntire(body)
+                    result.add(MessageBlock("bullet", task?.groupValues?.get(2) ?: body,
                         ((line.length - trimmed.length) / 2).coerceIn(0, 3),
-                        if (prefix.first().isDigit()) prefix else "•"))
+                        if (task != null) if (task.groupValues[1].isBlank()) "☐" else "☑"
+                        else if (prefix.first().isDigit()) prefix else "•"))
                 }
                 else -> paragraph.add(line)
             }
@@ -150,49 +174,24 @@ internal object MessageMarkdown {
     }
 
     /** Uses exactly the same inline token boundaries as the visible Compose text. */
-    internal data class CopyPart(val visible: String, val prefix: String = "", val suffix: String = "")
-    fun copyParts(source: String): List<CopyPart> = buildList {
-        var offset = 0
-        for (match in inline.findAll(source)) {
-            if (match.range.first > offset) add(CopyPart(source.substring(offset, match.range.first)))
-            val part = match.value
-            add(when {
-                part.startsWith("[") -> {
-                    val separator = part.lastIndexOf("](")
-                    CopyPart(part.substring(1, separator), "[", part.substring(separator))
-                }
-                part.startsWith("**") || part.startsWith("__") ->
-                    CopyPart(part.drop(2).dropLast(2), part.take(2), part.takeLast(2))
-                else -> CopyPart(part.drop(1).dropLast(1), part.take(1), part.takeLast(1))
-            })
-            offset = match.range.last + 1
-        }
-        if (offset < source.length) add(CopyPart(source.substring(offset)))
-    }
+    internal data class CopyPart(val visible: String, val prefix: String = "", val suffix: String = "",
+        val styles: Set<String> = emptySet(), val url: String? = null, val original: String? = null)
+    fun copyParts(source: String): List<CopyPart> = ReplyInlineMarkdown.parts(source)
 
     fun inlineText(source: String) = buildAnnotatedString {
-        var offset = 0
-        for (match in inline.findAll(source)) {
-            append(source.substring(offset, match.range.first))
-            val part = match.value
-            when {
-                part.startsWith("[") -> {
-                    val separator = part.lastIndexOf("](")
-                    val url = part.substring(separator + 2, part.length - 1)
-                    withLink(LinkAnnotation.Url(url, TextLinkStyles(style =
-                        SpanStyle(textDecoration = TextDecoration.Underline)))) {
-                        append(part.substring(1, separator))
-                    }
-                }
-                part.startsWith("**") || part.startsWith("__") ->
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(part.drop(2).dropLast(2)) }
-                part.startsWith('\u0060') ->
-                    withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) { append(part.drop(1).dropLast(1)) }
-                else -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(part.drop(1).dropLast(1)) }
+        for (part in copyParts(source)) {
+            val style = SpanStyle(
+                fontWeight = if ("strong" in part.styles) FontWeight.Bold else null,
+                fontStyle = if ("emphasis" in part.styles || "math" in part.styles) FontStyle.Italic else null,
+                fontFamily = if ("code" in part.styles) FontFamily.Monospace else null,
+                textDecoration = if ("strike" in part.styles) TextDecoration.LineThrough else null)
+            withStyle(style) {
+                val url = part.url
+                if (url == null) append(part.visible)
+                else withLink(LinkAnnotation.Url(url, TextLinkStyles(style =
+                    SpanStyle(textDecoration = TextDecoration.Underline)))) { append(part.visible) }
             }
-            offset = match.range.last + 1
         }
-        append(source.substring(offset))
     }
 }
 
@@ -207,6 +206,7 @@ private class MarkdownBoundary {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
     // Keep the already formatted prefix while a long answer is extending. A single conflated
@@ -240,13 +240,31 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
     val blocks = ready?.second.orEmpty() + unfinished
     MessageSelectionContainer(blocks) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            var headingIndex = 0
             blocks.forEach { block ->
                 when (block.kind) {
                     "code" -> MessageCodeBlock(block)
+                    in RichReplyContent.kinds -> NativeRichReplyBlock(block)
                     "table" -> MessageTable(block)
                     "rule" -> HorizontalDivider(color = Ink.border)
-                    "heading" -> Text(MessageMarkdown.inlineText(block.text), fontWeight = FontWeight.SemiBold,
-                        style = if (block.level <= 2) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall)
+                    "heading" -> {
+                        val index = headingIndex++
+                        val navigation = LocalReplyHeadingNavigation.current
+                        val requester = remember(index) { BringIntoViewRequester() }
+                        LaunchedEffect(navigation, index) {
+                            if (navigation?.heading == index) {
+                                withFrameNanos { }
+                                requester.bringIntoView()
+                                navigation.onReached()
+                            }
+                        }
+                        Text(MessageMarkdown.inlineText(block.text), Modifier.bringIntoViewRequester(requester),
+                            fontWeight = FontWeight.SemiBold, style = when (block.level) {
+                                1 -> MaterialTheme.typography.titleLarge
+                                2 -> MaterialTheme.typography.titleMedium
+                                else -> MaterialTheme.typography.titleSmall
+                            })
+                    }
                     "bullet" -> Row(Modifier.fillMaxWidth().padding(start = (block.level * 12).dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(block.label, color = Ink.muted)
@@ -278,7 +296,7 @@ private fun MessageCodeBlock(block: MessageBlock) {
                 }
             }
             HorizontalDivider(color = Ink.border)
-            Text(block.text, Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
+            Text(ReplyCodeHighlight.render(block.text, block.label), Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
                 fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
         }
     }
@@ -316,8 +334,10 @@ private fun MessageTable(block: MessageBlock) {
         return row in minOf(a.first, b.first)..maxOf(a.first, b.first) &&
             column in minOf(a.second, b.second)..maxOf(a.second, b.second)
     }
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-        color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val cellWidth = maxOf(maxWidth / count, (82 * codexEffectiveFontScale()).dp)
+        Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+            color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
         Column {
             DisableSelection {
             Row(Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -346,7 +366,7 @@ private fun MessageTable(block: MessageBlock) {
                 rows.forEachIndexed { index, row ->
                     Row(Modifier.background(if (index == 0) Ink.recessed else Ink.canvas)) {
                         repeat(count) { column ->
-                            val cell = Modifier.width(132.dp).then(if (selecting)
+                            val cell = Modifier.width(cellWidth).then(if (selecting)
                                 Modifier.background(if (selected(index, column)) Ink.border else
                                     if (index == 0) Ink.recessed else Ink.canvas)
                                     .clickable {
@@ -369,6 +389,7 @@ private fun MessageTable(block: MessageBlock) {
                 }
             }
         }
+    }
     }
 }
 
