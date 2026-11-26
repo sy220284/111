@@ -143,6 +143,8 @@ fun CodexShell(vm: CodexViewModel) {
     )
     var activeSheet by remember { mutableStateOf<String?>(null) }
     var requestedSheet by remember { mutableStateOf<String?>(null) }
+    // A drawer exit and a full incoming page must not render concurrently.
+    var requestedPage by remember { mutableStateOf<String?>(null) }
     fun openSheet(route: String) {
         focusManager.clearFocus()
         keyboard?.hide()
@@ -205,7 +207,7 @@ fun CodexShell(vm: CodexViewModel) {
                 return@move
             }
         }
-        if (page.id != destination) {
+        if ((requestedPage ?: selected) != destination) {
             backHistory = (backHistory + destination).takeLast(18)
             // Each specialized screen owns its initial read and refresh lifecycle.
             // Only account and diagnostics delegate an entry refresh to the shell.
@@ -216,10 +218,15 @@ fun CodexShell(vm: CodexViewModel) {
         }
         activeSheet = null
         requestedSheet = null
-        savedRoute = destination
+        if (drawer.isOpen || drawer.targetValue == DrawerValue.Open) {
+            requestedPage = destination
+            closeDrawer()
+        } else {
+            requestedPage = null
+            savedRoute = destination
+        }
         focusManager.clearFocus()
         keyboard?.hide()
-        closeDrawer()
     }
     // An older saved route may still point to a screen now owned by an overlay.
     LaunchedEffect(Unit) {
@@ -271,6 +278,12 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
+    LaunchedEffect(requestedPage, drawerOwnsInput) {
+        if (!drawerOwnsInput) requestedPage?.let { route ->
+            savedRoute = route
+            requestedPage = null
+        }
+    }
     LaunchedEffect(requestedSheet, drawerOwnsInput) {
         if (!drawerOwnsInput) requestedSheet?.let { route ->
             activeSheet = route
