@@ -42,13 +42,13 @@ def selected(root):
 def path_for(root, name, item):
     return root/"host"/name/item["pin"]
 
-def install(root, directory, pins, head, names, repair=False):
+def install(root, directory, pins, head, names, repair=False, sources=None):
     require(re.fullmatch(r"[0-9a-f]{40}",head), "expected producer SHA")
     require(set(names) <= set(HOST) and len(set(names)) == len(names), "invalid component list")
     selection = selected(root)
     validated = {}
     for name in names:
-        folder = directory/name
+        folder = (sources or {}).get(name, directory/name)
         if not folder.is_dir():
             folder = directory/("111-toolchain-"+name)
         pin_file = pins/(name+".sha256")
@@ -57,14 +57,16 @@ def install(root, directory, pins, head, names, repair=False):
             pin_file = pins/("111-toolchain-"+group+"-manifest-pins")/(name+".sha256")
         pin = pin_file.read_text().strip()
         require(re.fullmatch(r"[0-9a-f]{64}",pin), "invalid component digest")
-        manifest = bundle.load(folder,name,pin)
+        manifest = bundle.load_manifest(folder,name,pin)
         require(manifest["head"] == head, "component source mismatch: "+name)
         validated[name] = (folder, {"head":head,"pin":pin})
     for name,(folder,item) in validated.items():
         dest = path_for(root,name,item)
         # Gradle and Cargo intentionally update their caches. Exact original
         # archive validation and native strict/locked dependency checks remain.
-        if not (name in MUTABLE and not repair and selection.get(name)==item and dest.is_dir() and not dest.is_symlink()):
+        if name in MUTABLE and not repair and selection.get(name)==item and dest.is_dir() and not dest.is_symlink():
+            bundle.load(folder,name,item["pin"])
+        else:
             require(bundle.install(name,folder,root/"host",item["pin"])==dest, "unexpected install path")
         receipt = root/"host-manifests"/name/(item["pin"]+".json")
         receipt.parent.mkdir(parents=True,exist_ok=True)
@@ -243,6 +245,21 @@ def reusable(root,name,head,pin):
         return True
     return bundle.manifest_digest(bundle.inventory(dest))==json.loads(manifest.read_text())["treeSha256"]
 
+def object_path(root,name,pin):
+    require(name in HOST and re.fullmatch(r"[0-9a-f]{64}",pin),"invalid object identity")
+    return root/"host-objects"/name/pin
+
+def cache_downloaded_object(root,name,pin,head,downloaded):
+    """Keep verified original parts separate from all build-owned writable paths.
+    The published manifest pin is the trust root; a local index never grants trust."""
+    dest=object_path(root,name,pin)
+    manifest=bundle.load(downloaded,name,pin)
+    require(manifest["head"]==head,"cached producer mismatch")
+    dest.parent.mkdir(parents=True,exist_ok=True)
+    require(not dest.exists() and not dest.is_symlink(),"object already exists")
+    downloaded.rename(dest)  # same filesystem, publish only after complete verification
+    return dest
+
 def install_run(root,run_id,names,repair=False):
     require(set(names)<=set(HOST) and len(set(names))==len(names),"invalid components")
     head,rows=reviewed_artifacts(run_id,names)
@@ -253,16 +270,30 @@ def install_run(root,run_id,names,repair=False):
             name="111-toolchain-"+group+"-manifest-pins"
             download_artifact(rows[name],directory/name)
         pending=[]
+        sources={}
         for name in names:
             pin_file=directory/("111-toolchain-"+group_for(name)+"-manifest-pins")/(name+".sha256")
             pin=pin_file.read_text().strip()
             require(re.fullmatch(r"[0-9a-f]{64}",pin),"invalid published manifest pin")
             if repair or not reusable(root,name,head,pin):
                 artifact="111-toolchain-"+name
-                download_artifact(rows[artifact],directory/artifact)
+                cached=object_path(root,name,pin)
+                if cached.exists() or cached.is_symlink():
+                    require(cached.is_dir() and not cached.is_symlink(),"unsafe cached object")
+                    if repair:
+                        # A repair uses the intact local original first; corrupted
+                        # objects are replaced only using the reviewed producer.
+                        try:
+                            require(bundle.load(cached,name,pin)["head"]==head,"cached producer mismatch")
+                        except (OSError,ValueError,KeyError):
+                            shutil.rmtree(cached)
+                if not cached.exists():
+                    download_artifact(rows[artifact],directory/artifact)
+                    cached=cache_downloaded_object(root,name,pin,head,directory/artifact)
+                sources[name]=cached
                 pending.append(name)
         if pending:
-            install(root,directory,directory,head,pending,repair)
+            install(root,directory,directory,head,pending,repair,sources=sources)
     selection=selected(root)
     return {name:str(path_for(root,name,selection[name])) for name in names}
 

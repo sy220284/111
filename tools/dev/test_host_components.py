@@ -2,7 +2,7 @@ import pathlib
 import tempfile
 import unittest
 from unittest.mock import patch
-from host_components import bundle, install, selected, reviewed_artifacts, reusable
+from host_components import bundle, install, selected, reviewed_artifacts, reusable, object_path, cache_downloaded_object
 
 class HostComponentTests(unittest.TestCase):
     def test_exact_source_and_cache_reuse(self):
@@ -34,6 +34,55 @@ class HostComponentTests(unittest.TestCase):
             (pins/"cargo.sha256").write_text("c"*64)
             with self.assertRaisesRegex(ValueError,"manifest digest mismatch"):
                 install(target,bundles,pins,head,["cargo"])
+    def test_content_addressed_archive_remains_separate_from_working_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp)
+            source=root/"source"
+            source.mkdir()
+            (source/"dependency").write_bytes(b"verified"*10000)
+            downloaded=root/"downloaded"
+            head="a"*40
+            pin=bundle.pack("cargo",source,downloaded,head)
+            cached=cache_downloaded_object(root,"cargo",pin,head,downloaded)
+            self.assertEqual(cached,object_path(root,"cargo",pin))
+            self.assertFalse(downloaded.exists())
+            pins=root/"pins"
+            pins.mkdir()
+            (pins/"cargo.sha256").write_text(pin)
+            paths=install(root,root,pins,head,["cargo"],sources={"cargo":cached})
+            dep=pathlib.Path(paths["cargo"])/"dependency"
+            dep.write_text("working state")
+            self.assertEqual(bundle.load(cached,"cargo",pin)["head"],head)
+            install(root,root,pins,head,["cargo"],repair=True,sources={"cargo":cached})
+            self.assertEqual(dep.read_bytes(),b"verified"*10000)
+            part=next(cached.glob("payload.*"))
+            raw=bytearray(part.read_bytes())
+            raw[len(raw)//2]^=1
+            part.write_bytes(raw)
+            with self.assertRaisesRegex(ValueError,"corrupt part"):
+                install(root,root,pins,head,["cargo"],repair=True,sources={"cargo":cached})
+
+    def test_stream_verification_checks_whole_archive_and_each_part(self):
+        import hashlib
+        import io
+        import json
+        with tempfile.TemporaryDirectory() as tmp:
+            folder=pathlib.Path(tmp)
+            source=folder/"source"
+            source.mkdir()
+            (source/"data").write_bytes(bytes(range(256))*4096)
+            packed=folder/"packed"
+            with patch.object(bundle,"PART_SIZE",1024):
+                pin=bundle.pack("jdk",source,packed,"a"*40)
+                manifest=bundle.load_manifest(packed,"jdk",pin)
+                self.assertGreater(len(manifest["parts"]),1)
+                sink=io.BytesIO()
+                bundle.verify_stream(packed,manifest,sink)
+                self.assertEqual(hashlib.sha256(sink.getvalue()).hexdigest(),manifest["archiveSha256"])
+                manifest["archiveSha256"]="0"*64
+                with self.assertRaisesRegex(ValueError,"archive digest mismatch"):
+                    bundle.verify_stream(packed,manifest)
+
     def test_remote_producer_requires_actual_success_and_matching_attempt(self):
         head="a"*40
         run={"id":7,"head_repository":{"full_name":"sy220284/111"},"path":".github/workflows/dev-toolchain.yml","head_sha":head,"status":"completed","run_attempt":2}

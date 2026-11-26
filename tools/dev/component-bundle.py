@@ -54,57 +54,87 @@ def pack(name, folder, out, head):
         with tarfile.open(archive, "w:gz", compresslevel=3) as tar:
             for path in sorted(folder.iterdir()):
                 tar.add(path, arcname=path.name)
-        archive_sha = digest(archive)
+        archive_hash = hashlib.sha256()
         with archive.open("rb") as stream:
             index = 0
             while True:
                 part = out / ("payload.%03d" % index)
                 written = 0
+                part_hash = hashlib.sha256()
                 with part.open("wb") as target:
                     while written < PART_SIZE:
                         block = stream.read(min(1024**2, PART_SIZE - written))
                         if not block:
                             break
                         target.write(block)
+                        part_hash.update(block)
+                        archive_hash.update(block)
                         written += len(block)
                 if not written:
                     part.unlink()
                     break
-                parts.append({"name": part.name, "size": written, "sha256": digest(part)})
+                parts.append({"name": part.name, "size": written, "sha256": part_hash.hexdigest()})
                 index += 1
     m = {"schema": 1, "component": name, "repository": "sy220284/111", "head": head,
-         "archiveSha256": archive_sha, "unpackedBytes": size, "treeSha256": manifest_digest(entries), "parts": parts}
+         "archiveSha256": archive_hash.hexdigest(), "unpackedBytes": size, "treeSha256": manifest_digest(entries), "parts": parts}
     (out / "manifest.json").write_text(json.dumps(m, indent=2) + "\n")
     return digest(out / "manifest.json")
 
-def load(folder, name, expected):
+def load_manifest(folder, name, expected):
+    require(folder.is_dir() and not folder.is_symlink(), "invalid component directory")
     manifest = folder / "manifest.json"
-    require(digest(manifest) == expected, "manifest digest mismatch")
-    m = json.loads(manifest.read_text())
+    require(manifest.is_file() and not manifest.is_symlink(), "invalid manifest file")
+    raw = manifest.read_bytes()
+    require(hashlib.sha256(raw).hexdigest() == expected, "manifest digest mismatch")
+    m = json.loads(raw)
     require(m["schema"] == 1 and m["repository"] == "sy220284/111" and m["component"] == name, "component identity mismatch")
     require(0 < len(m["parts"]) <= 100 and 0 < m["unpackedBytes"] <= 32 * 1024**3, "component bounds")
     require({p.name for p in folder.iterdir()} == {"manifest.json", *(p["name"] for p in m["parts"])}, "unexpected component files")
     for i, spec in enumerate(m["parts"]):
         require(spec["name"] == "payload.%03d" % i and 0 < spec["size"] <= PART_SIZE, "invalid part")
         part = folder / spec["name"]
-        require(part.is_file() and not part.is_symlink() and part.stat().st_size == spec["size"] and digest(part) == spec["sha256"], "corrupt part: " + spec["name"])
+        require(part.is_file() and not part.is_symlink() and part.stat().st_size == spec["size"], "corrupt part: " + spec["name"])
+    return m
+
+def verify_stream(folder, manifest, output=None):
+    """Validate each part and the complete archive in one bounded pass.
+    When materializing, the exact verified bytes are also the bytes written."""
+    archive = hashlib.sha256()
+    for spec in manifest["parts"]:
+        part = folder / spec["name"]
+        require(part.is_file() and not part.is_symlink(), "invalid part: " + spec["name"])
+        part_hash = hashlib.sha256()
+        count = 0
+        with part.open("rb") as source:
+            while block := source.read(1024**2):
+                count += len(block)
+                require(count <= spec["size"], "corrupt part: " + spec["name"])
+                part_hash.update(block)
+                archive.update(block)
+                if output is not None:
+                    output.write(block)
+        require(count == spec["size"] and part_hash.hexdigest() == spec["sha256"],
+                "corrupt part: " + spec["name"])
+    require(archive.hexdigest() == manifest["archiveSha256"], "archive digest mismatch")
+
+def load(folder, name, expected):
+    m = load_manifest(folder, name, expected)
+    verify_stream(folder, m)
     return m
 
 def install(name, folder, root, expected):
-    m = load(folder, name, expected)
+    m = load_manifest(folder, name, expected)
     parent = root / name
     parent.mkdir(parents=True, exist_ok=True)
     dest = parent / expected
     if dest.is_dir() and not dest.is_symlink() and manifest_digest(inventory(dest)) == m["treeSha256"]:
+        verify_stream(folder, m)
         return dest
     with tempfile.TemporaryDirectory(dir=parent) as tmp:
         tmp = pathlib.Path(tmp)
         archive = tmp / "payload.tar.gz"
         with archive.open("wb") as out:
-            for spec in m["parts"]:
-                with (folder / spec["name"]).open("rb") as source:
-                    shutil.copyfileobj(source, out, 1024**2)
-        require(digest(archive) == m["archiveSha256"], "archive digest mismatch")
+            verify_stream(folder, m, out)
         stage = tmp / "component"
         stage.mkdir()
         with tarfile.open(archive, "r:gz") as tar:
