@@ -1,10 +1,11 @@
 """Regression tests for the APK executable and size safety gate."""
 import tempfile
+import json
 import unittest
 from pathlib import Path
 from zipfile import ZipFile
 
-from audit_apk_contents import ApkAuditError, REQUIRED_RUNTIME, audit
+from audit_apk_contents import ApkAuditError, REQUIRED_RUNTIME, audit, verify_report
 
 
 def elf(machine):
@@ -30,6 +31,7 @@ class ApkAuditTests(unittest.TestCase):
             f"lib/{abi}/libhpatchz.so": elf(183 if abi == "arm64-v8a" else 62),
         }
         if core:
+            payload["assets/domestic-providers.json"] = b"[]"
             for ext in ("zip", "sha256", "version", "provenance.json"):
                 payload["assets/development-runtime/development-runtime." + ext] = b"fixture"
             extra = ("libnode.so", "libnpm.so", "libpython3.so", "libcodex_curl.so")
@@ -49,6 +51,16 @@ class ApkAuditTests(unittest.TestCase):
             for name, data in payload.items():
                 dest.writestr(name, data)
 
+    def test_download_verifies_same_bytes_and_rejects_modified_apk(self):
+        self.package()
+        report=self.path.with_suffix(".json")
+        report.write_text(json.dumps(audit(self.path,"arm64-v8a","full")))
+        self.assertEqual("arm64-v8a",verify_report(self.path,"arm64-v8a","full",report)["abi"])
+        with self.path.open("ab") as target:
+            target.write(b"changed")
+        with self.assertRaises(ApkAuditError):
+            verify_report(self.path,"arm64-v8a","full",report)
+
     def test_full_core_and_size_breakdown(self):
         self.package()
         result = audit(self.path, "arm64-v8a", "full")
@@ -61,6 +73,15 @@ class ApkAuditTests(unittest.TestCase):
         self.package(core=False)
         self.assertIsNone(audit(self.path, "arm64-v8a", "ui-smoke")["core_bytes"])
         with self.assertRaisesRegex(ApkAuditError, "libcodex_server"):
+            audit(self.path, "arm64-v8a", "full")
+
+    def test_full_package_rejects_missing_runtime_provider_catalog(self):
+        self.package()
+        with ZipFile(self.path) as original:
+            payload = {name: original.read(name) for name in original.namelist() if name != "assets/domestic-providers.json"}
+        with ZipFile(self.path, "w") as archive:
+            for name, content in payload.items(): archive.writestr(name, content)
+        with self.assertRaisesRegex(ApkAuditError, "domestic-providers.json"):
             audit(self.path, "arm64-v8a", "full")
 
     def test_rejects_wrong_abi_and_malformed_elf(self):

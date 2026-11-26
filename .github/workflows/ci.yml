@@ -195,7 +195,7 @@ jobs:
       - name: 验证自更新证据判定与安装完成条件
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
       - name: 验证 Compose、协议测试与静态检查
-        run: ./android-app/gradlew -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
@@ -252,7 +252,7 @@ jobs:
           STORE="$RUNNER_TEMP/dependency-baseline.jks"
           keytool -genkeypair -noprompt -keystore "$STORE" -storetype PKCS12 -alias 111-release -keyalg RSA -keysize 2048 -validity 1 -storepass ci-only-password -keypass ci-only-password -dname "CN=111 dependency baseline"
           CODEX_RELEASE_KEYSTORE_PATH="$STORE" CODEX_RELEASE_PASSWORD=ci-only-password CODEX_RELEASE_KEY_ALIAS=111-release \
-            ./android-app/gradlew -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:lintRelease :app:assembleRelease \
+            ./android-app/gradlew -p android-app :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:lintRelease :app:assembleRelease \
             -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 \
             --write-locks --write-verification-metadata sha256 --no-daemon --stacktrace
           test -s android-app/app/gradle.lockfile
@@ -423,20 +423,15 @@ jobs:
           APK="android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk"
           test -s "$APK"
           test -s "android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-          unzip -tqq "$APK"
-          unzip -Z1 "$APK" > "$RUNNER_TEMP/apk-arm64-files"
-          for LIB in server code_mode_host rg git; do
-            grep -Fxq "lib/arm64-v8a/libcodex_$LIB.so" "$RUNNER_TEMP/apk-arm64-files"
-          done
-          grep -Fxq 'lib/arm64-v8a/libhpatchz.so' "$RUNNER_TEMP/apk-arm64-files"
-          grep -Fxq 'classes.dex' "$RUNNER_TEMP/apk-arm64-files"
-          if grep -Eq '^lib/x86_64/' "$RUNNER_TEMP/apk-arm64-files"; then
-            echo "::error::ARM64 手机 APK 混入 x86_64 原生库"
-            exit 1
-          fi
-          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full --report "$RUNNER_TEMP/arm64-apk-audit.json"
           python3 .github/scripts/verify_git_corresponding_source.py "$APK" "$RUNNER_TEMP/git-corresponding-source.tar.xz"
-          sha256sum "$APK"
+      - name: 保存完整 APK 审计及字节摘要
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: codex-android-arm64-apk-audit
+          path: ${{ runner.temp }}/arm64-apk-audit.json
+          if-no-files-found: error
+          retention-days: 30
 
       - name: 上传 ARM64 安卓手机专用 APK
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -476,6 +471,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             android-app
+            upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
       - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
@@ -504,7 +500,7 @@ jobs:
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
-          ./android-app/gradlew -p android-app :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          ./android-app/gradlew -p android-app -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
           python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
       - name: 允许模拟器硬件加速
         run: |
@@ -556,22 +552,13 @@ jobs:
         with:
           name: codex-android-arm64-apk
           path: apks
-      - name: 验证完整性、ABI 与关键原生组件
-        shell: bash
-        run: |
-          set -euo pipefail
-          APK="apks/app-arm64-v8a-debug.apk"
-          test -s "$APK"
-          unzip -tqq "$APK"
-          for LIB in server code_mode_host rg git; do
-            unzip -Z1 "$APK" | grep -Fxq "lib/arm64-v8a/libcodex_$LIB.so"
-          done
-          if unzip -Z1 "$APK" | grep -Eq '^lib/x86_64/'; then
-            echo "::error::ARM64 手机安装包混入其他架构"
-            exit 1
-          fi
-          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full
-          sha256sum "$APK"
+      - name: 取回完整 APK 审计凭证
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: codex-android-arm64-apk-audit
+          path: audit
+      - name: 独立核对上传下载 APK 的完整字节哈希
+        run: python3 .github/scripts/audit_apk_contents.py --apk apks/app-arm64-v8a-debug.apk --abi arm64-v8a --mode full --verify-report audit/arm64-apk-audit.json
 
   preflight:
     name: 发布脚本回归检查

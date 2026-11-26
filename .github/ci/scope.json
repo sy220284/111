@@ -88,7 +88,11 @@
       "android-app/app/src/debug/java/io/github/sy220284/codexandroid/CiIsolationProbeService.kt",
       "android-app/app/src/debug/AndroidManifest.xml",
       "android-app/app/gradle.lockfile",
-      "android-app/gradle/verification-metadata.xml"
+      "android-app/gradle/verification-metadata.xml",
+      "android-app/gradlew.bat",
+      "android-app/gradle/wrapper/gradle-wrapper.jar",
+      ".github/workflows/build-native-codex.yml",
+      ".github/scripts/audit_apk_contents.py"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
