@@ -21,8 +21,12 @@ internal object FullTextSearchPolicy {
 
     fun slices(chunkIndex: Int, chunkLength: Int, queryLength: Int,
         hits: List<Int>, currentMatch: Int): List<Slice> {
+        return slicesAt(chunkIndex * CHUNK_SIZE, chunkLength, queryLength, hits, currentMatch)
+    }
+
+    fun slicesAt(offset: Int, chunkLength: Int, queryLength: Int,
+        hits: List<Int>, currentMatch: Int): List<Slice> {
         if (queryLength <= 0) return emptyList()
-        val offset = chunkIndex * CHUNK_SIZE
         val endOffset = offset + chunkLength
         return hits.mapIndexedNotNull { index, found ->
             val start = maxOf(offset, found)

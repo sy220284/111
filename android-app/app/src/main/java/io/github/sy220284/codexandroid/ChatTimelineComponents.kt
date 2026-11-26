@@ -39,7 +39,8 @@ internal fun TimelineActivityGroup(
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity", "hookRun")) {
         TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion,
             showMessageActions && lastPage, actionItem, note.takeIf { lastPage },
-            partialCopy = partialCopy && lastPage, replyPage = replyPage)
+            partialCopy = partialCopy && lastPage, replyPage = replyPage,
+            firstLongPage = !lastPage && replyPage?.firstHeading == 0 && group.first().id.isNotBlank())
         return
     }
     val active = group.any { it.active() }
@@ -96,7 +97,7 @@ internal fun TimelineStepCard(
     version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null, note: String? = null,
     compactActivity: Boolean = false, partialCopy: Boolean = false,
-    replyPage: ReplyRenderPage? = null
+    replyPage: ReplyRenderPage? = null, firstLongPage: Boolean = false
 ) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
@@ -109,6 +110,7 @@ internal fun TimelineStepCard(
     val copy = rememberConversationCopy()
     var menuOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var readerOpen by rememberSaveable(item.id) { mutableStateOf(false) }
+    var sourceReaderOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var evidenceOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     var rawOpen by rememberSaveable(item.id) { mutableStateOf(false) }
     val detail = item.hasEvidence
@@ -143,6 +145,10 @@ internal fun TimelineStepCard(
                         }
                     }
                 } else {
+                    if (firstLongPage) CodexTextAction(onClick = { sourceReaderOpen = true },
+                        modifier = Modifier.heightIn(min = 48.dp).testTag("reply-cross-page-read")) {
+                        Text("阅读原文 / 跨页选取")
+                    }
                     Box(Modifier.fillMaxWidth().testTag("chat-assistant-message").padding(vertical = 4.dp)) {
                         if (replyPage != null) PreparedMarkdownPage(replyPage)
                         else NativeMessageMarkdown(shownText, streaming = active)
@@ -221,7 +227,9 @@ internal fun TimelineStepCard(
             }
         }
     }
-    if (readerOpen) FullTextReaderDialog(title, actionMessage.text) { readerOpen = false }
+    if (readerOpen) FullTextReaderDialog(title, actionMessage.text,
+        if (assistant) CopyContentFormat.Markdown else CopyContentFormat.Literal) { readerOpen = false }
+    if (sourceReaderOpen) FullTextReaderDialog(title, item.text, CopyContentFormat.Markdown) { sourceReaderOpen = false }
     if (evidenceOpen) CodexEvidenceSheet(title = "$title · 执行详情", payload = item.evidence,
         onDismiss = { evidenceOpen = false })
     if (rawOpen) FullTextReaderDialog("原始执行记录", TimelineEvidenceText.render(item)) { rawOpen = false }
