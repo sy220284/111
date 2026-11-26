@@ -26,6 +26,16 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  maven-metadata-audit:
+    name: Maven Central 缺失元数据独立摘要审查
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - run: python3 tools/dev/audit_maven_metadata.py
+
   shared:
     name: 777 固定共享产物与工作流检查
     runs-on: ubuntu-latest
@@ -118,17 +128,21 @@ jobs:
           for c in jdk android-sdk gradle; do
             python3 tools/dev/component-bundle.py pack "$c" "$RUNNER_TEMP/stage/$c" "$RUNNER_TEMP/bundles/$c" --head "$GITHUB_SHA" > "$RUNNER_TEMP/$c.sha256"
             rm -rf "$RUNNER_TEMP/stage/$c"
-            python3 tools/dev/component-bundle.py install "$c" "$RUNNER_TEMP/bundles/$c" "$RUNNER_TEMP/installed" --manifest-sha "$(cat "$RUNNER_TEMP/$c.sha256")" > "$RUNNER_TEMP/$c.path"
+          done
+          python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/host" host-install --artifacts-dir "$RUNNER_TEMP/bundles" --pins-dir "$RUNNER_TEMP" --source-sha "$GITHUB_SHA" --components jdk android-sdk gradle > "$RUNNER_TEMP/host-paths.json"
+          for c in jdk android-sdk gradle; do
+            jq -er --arg name "$c" '.[$name]' "$RUNNER_TEMP/host-paths.json" > "$RUNNER_TEMP/$c.path"
           done
       - name: 禁用外网后重新执行 Android 构建
         run: |
           set -euo pipefail
-          JAVA_HOME="$(cat "$RUNNER_TEMP/jdk.path")"
+          python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/host" host-env --components jdk android-sdk gradle > "$RUNNER_TEMP/host-env.json"
+          JAVA_HOME="$(jq -er .JAVA_HOME "$RUNNER_TEMP/host-env.json")"
           export JAVA_HOME
-          ANDROID_HOME="$(cat "$RUNNER_TEMP/android-sdk.path")"
+          ANDROID_HOME="$(jq -er .ANDROID_HOME "$RUNNER_TEMP/host-env.json")"
           export ANDROID_HOME
           export ANDROID_SDK_ROOT="$ANDROID_HOME"
-          GRADLE_USER_HOME="$(cat "$RUNNER_TEMP/gradle.path")"
+          GRADLE_USER_HOME="$(jq -er .GRADLE_USER_HOME "$RUNNER_TEMP/host-env.json")"
           export GRADLE_USER_HOME
           export PATH="$JAVA_HOME/bin:$PATH"
           export CODEX_RELEASE_KEYSTORE_PATH="$RUNNER_TEMP/dependency-baseline.jks" CODEX_RELEASE_PASSWORD=ci-only-password CODEX_RELEASE_KEY_ALIAS=111-release
@@ -198,14 +212,18 @@ jobs:
           for c in rust cargo; do
             python3 tools/dev/component-bundle.py pack "$c" "$RUNNER_TEMP/stage/$c" "$RUNNER_TEMP/bundles/$c" --head "$GITHUB_SHA" > "$RUNNER_TEMP/$c.sha256"
             rm -rf "$RUNNER_TEMP/stage/$c"
-            python3 tools/dev/component-bundle.py install "$c" "$RUNNER_TEMP/bundles/$c" "$RUNNER_TEMP/installed" --manifest-sha "$(cat "$RUNNER_TEMP/$c.sha256")" > "$RUNNER_TEMP/$c.path"
+          done
+          python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/host" host-install --artifacts-dir "$RUNNER_TEMP/bundles" --pins-dir "$RUNNER_TEMP" --source-sha "$GITHUB_SHA" --components rust cargo > "$RUNNER_TEMP/host-paths.json"
+          for c in rust cargo; do
+            jq -er --arg name "$c" '.[$name]' "$RUNNER_TEMP/host-paths.json" > "$RUNNER_TEMP/$c.path"
           done
       - name: 验证搬移后的 Rust 与双 ABI 缓存
         run: |
           set -euo pipefail
-          CARGO_HOME="$(cat "$RUNNER_TEMP/cargo.path")"
+          python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/host" host-env --components rust cargo > "$RUNNER_TEMP/host-env.json"
+          CARGO_HOME="$(jq -er .CARGO_HOME "$RUNNER_TEMP/host-env.json")"
           export CARGO_HOME
-          PATH="$(cat "$RUNNER_TEMP/rust.path")/bin:$PATH"
+          PATH="$(jq -er .PATH "$RUNNER_TEMP/host-env.json")"
           export PATH
           RUSTC="$(command -v rustc)"
           export RUSTC

@@ -18,6 +18,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 REPO = HERE.parents[1]
 LOCK = json.loads((HERE / "toolchain-lock.json").read_text())
 COMPONENTS = LOCK["shared"]
+import host_components as host
 
 def sha256(path):
     with path.open("rb") as stream:
@@ -150,6 +151,16 @@ def main():
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("plan")
     sub.add_parser("check")
+    install_host = sub.add_parser("host-install")
+    install_host.add_argument("--artifacts-dir", type=pathlib.Path, required=True)
+    install_host.add_argument("--pins-dir", type=pathlib.Path, required=True)
+    install_host.add_argument("--source-sha", required=True)
+    install_host.add_argument("--components", nargs="+", choices=host.HOST, default=list(host.HOST))
+    install_host.add_argument("--repair", action="store_true")
+    host_env = sub.add_parser("host-env")
+    host_env.add_argument("--components", nargs="+", choices=host.HOST, default=list(host.HOST))
+    cargo = sub.add_parser("cargo")
+    cargo.add_argument("args", nargs=argparse.REMAINDER)
     shared = sub.add_parser("shared-install")
     shared.add_argument("--artifacts-dir", type=pathlib.Path, required=True)
     shared.add_argument("--components", nargs="+", choices=sorted(COMPONENTS), default=list(COMPONENTS))
@@ -165,6 +176,12 @@ def main():
             "777 当前组件仅适用于 Linux/WSL x64")
     root = args.root.resolve()
     require(root != pathlib.Path("/") and root != pathlib.Path.home(), "工具链根目录不安全")
+    if args.command == "host-install":
+        print(json.dumps(host.install(root, args.artifacts_dir, args.pins_dir, args.source_sha, args.components, args.repair), indent=2))
+        return 0
+    if args.command == "host-env":
+        print(json.dumps(host.environment(root, args.components), indent=2))
+        return 0
     if args.command == "shared-install":
         args.artifacts_dir.mkdir(parents=True, exist_ok=True)
         for name in args.components:
@@ -194,17 +211,25 @@ def main():
         state = {"source": LOCK["source"], "shared": {name: {"ready": check_installed(root, name, spec),
                 "artifactId": spec["id"], "artifactName": spec["name"], "sha256": spec["sha256"]}
                 for name, spec in COMPONENTS.items()},
-                "projectVersions": LOCK["project"], "missingAndroidLocks": missing_locks}
+                "projectVersions": LOCK["project"], "missingAndroidLocks": missing_locks, "hostInstalled": host.selected(root)}
         print(json.dumps(state, ensure_ascii=False, indent=2))
         return 1 if args.command != "plan" and (missing_locks or not all(v["ready"] for v in state["shared"].values())) else 0
-    env = host_environment(root)
     command = args.args[1:] if args.args and args.args[0] == "--" else args.args
     if args.command == "gradle":
         require(not missing_locks, "111 Gradle 依赖锁/校验元数据缺失: " + ", ".join(missing_locks))
-        command = [str(REPO / "android-app/gradlew"), "--offline", *command]
+        require(not any(x.startswith("--dependency-verification") or x in ("--write-locks", "--write-verification-metadata") for x in command),
+                "依赖锁更新须独立审查；构建命令固定严格校验")
+        env = os.environ | host.environment(root, host.ANDROID)
+        command = [str(REPO / "android-app/gradlew"), "--offline", "--dependency-verification", "strict", *command]
         return subprocess.call(command, cwd=REPO / "android-app", env=env)
+    if args.command == "cargo":
+        require(command and command[0] in ("build","check","test","fetch","metadata"), "请指定支持锁定依赖的 Cargo 子命令")
+        env = os.environ | host.environment(root, host.RUST)
+        binary = pathlib.Path(env["RUSTC"]).with_name("cargo")
+        return subprocess.call([str(binary), "--offline", command[0], "--locked", *command[1:]],
+                               cwd=REPO / "upstream/codex/codex-rs", env=env)
     require(command, "缺少运行命令")
-    return subprocess.call(command, cwd=REPO, env=env)
+    return subprocess.call(command, cwd=REPO, env=host_environment(root))
 
 if __name__ == "__main__":
     try:
