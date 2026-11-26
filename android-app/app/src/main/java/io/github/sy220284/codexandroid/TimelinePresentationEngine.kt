@@ -12,15 +12,24 @@ import kotlinx.coroutines.withContext
 internal data class TimelinePresentation(
     val frame: ActiveConversationContext,
     val rows: List<ProgressiveReplyProjection.Row>,
-    val answeredQuestions: Set<String>
+    val displayRows: List<TimelineDisplayRow>,
+    val answeredQuestions: Set<String>,
+    val tail: TimelineItem?,
+    val formalTurns: Set<String>,
+    val byId: Map<String, TimelineItem>
 )
 
 internal class TimelinePresentationEngine {
     private val replies = ProgressiveReplyProjection.Cache()
-    fun project(frame: ActiveConversationContext, hasEarlier: Boolean): TimelinePresentation =
-        TimelinePresentation(frame,
-            replies.rows(TimelineEventReducer.groups(frame.timeline), frame.running, frame.turnId, hasEarlier),
-            AsyncReplyContract.answeredFromTimeline(frame.timeline))
+    private val pages = TimelineReplyPages()
+    fun project(frame: ActiveConversationContext, hasEarlier: Boolean): TimelinePresentation {
+        val rows = replies.rows(TimelineEventReducer.groups(frame.timeline), frame.running, frame.turnId, hasEarlier)
+        return TimelinePresentation(frame, rows, pages.project(rows),
+            AsyncReplyContract.answeredFromTimeline(frame.timeline),
+            frame.timeline.lastOrNull { it.kind != "turnOutcome" },
+            frame.timeline.filter(ProgressiveReplyProjection::answer).mapTo(hashSetOf()) { it.turnId },
+            frame.timeline.associateBy { it.id })
+    }
 }
 
 /** Only the completed presentation is observed by the viewport. The expensive

@@ -32,12 +32,14 @@ internal fun TimelineActivityGroup(
     version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null,
     forceActivity: Boolean = false, note: String? = null, liveProcess: Boolean = false,
-    partialCopy: Boolean = false, liveVisibleIds: Set<String>? = null
+    partialCopy: Boolean = false, liveVisibleIds: Set<String>? = null,
+    replyPage: ReplyRenderPage? = null, lastPage: Boolean = true
 ) {
     if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "userMessage", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity", "hookRun")) {
         TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion,
-            showMessageActions, actionItem, note, partialCopy = partialCopy)
+            showMessageActions && lastPage, actionItem, note.takeIf { lastPage },
+            partialCopy = partialCopy && lastPage, replyPage = replyPage)
         return
     }
     val active = group.any { it.active() }
@@ -93,7 +95,8 @@ internal fun TimelineStepCard(
     onTurnAction: ((TimelineItem, MessageTurnAction) -> Unit)? = null,
     version: AnswerVersionChoice? = null, onVersion: ((String) -> Unit)? = null,
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null, note: String? = null,
-    compactActivity: Boolean = false, partialCopy: Boolean = false
+    compactActivity: Boolean = false, partialCopy: Boolean = false,
+    replyPage: ReplyRenderPage? = null
 ) {
     val user = item.kind in setOf("user", "userMessage")
     val assistant = item.kind in setOf("agent", "agentMessage")
@@ -141,7 +144,8 @@ internal fun TimelineStepCard(
                     }
                 } else {
                     Box(Modifier.fillMaxWidth().testTag("chat-assistant-message").padding(vertical = 4.dp)) {
-                        NativeMessageMarkdown(shownText, streaming = active)
+                        if (replyPage != null) PreparedMarkdownPage(replyPage)
+                        else NativeMessageMarkdown(shownText, streaming = active)
                     }
                 }
                 note?.let { Text(it, color = Ink.muted, style = MaterialTheme.typography.labelSmall,

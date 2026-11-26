@@ -250,9 +250,16 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
     val tail = source.substring(ready?.prefix?.length ?: 0)
     val blocks = ready?.blocks.orEmpty() +
         (if (tail.isEmpty()) emptyList() else listOf(PreparedReplyBlock.tail(tail)))
+    PreparedMarkdownPage(ReplyRenderPage(blocks, 0))
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun PreparedMarkdownPage(page: ReplyRenderPage) {
+    val blocks = page.blocks
     MessageSelectionContainer(blocks) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            var headingIndex = 0
+            var headingIndex = page.firstHeading
             blocks.forEachIndexed { blockIndex, prepared ->
                 val block = prepared.block
                 key(blockIndex, block.kind) {

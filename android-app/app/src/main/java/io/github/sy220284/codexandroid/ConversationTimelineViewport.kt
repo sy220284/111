@@ -36,6 +36,7 @@ internal fun ConversationTimelineViewport(
     val contextLoading = switching || projection == null || frame.threadId != thread
     val items = if (contextLoading) emptyList() else frame.timeline
     val rows = if (contextLoading) emptyList() else projection?.rows.orEmpty()
+    val displayRows = if (contextLoading) emptyList() else projection?.displayRows.orEmpty()
     val answerVersions by vm.answerVersions.state.collectAsState()
     val reducedMotion by UiPreferences.reducedMotion.collectAsState()
     val scroll = rememberLazyListState()
@@ -52,6 +53,7 @@ internal fun ConversationTimelineViewport(
     var filePreview by remember(thread) { mutableStateOf<ModelPreviewRequest?>(null) }
     var remoteDelivery by remember(thread) { mutableStateOf<RemoteDeliveryRequest?>(null) }
     var anchorKey by remember(thread) { mutableStateOf<String?>(null) }
+    var anchorRowKey by remember(thread) { mutableStateOf<String?>(null) }
     var anchorOffset by remember(thread) { mutableIntStateOf(0) }
     val mutatingHistory by vm.loading.collectProjection {
         "threadFork:$thread" in it || "threadRevert:$thread" in it
@@ -74,9 +76,11 @@ internal fun ConversationTimelineViewport(
     val ownedVersion = thread?.let { answerVersions.ownedChoice(it) }
     val fallbackVersion = ownedVersion?.takeIf { version ->
         val turn = version.versions[version.index].turnId
-        items.none { it.turnId == turn && it.kind in setOf("agent", "agentMessage") && it.phase != "commentary" }
+        turn !in projection?.formalTurns.orEmpty()
     }
-    val visibleGroups = rows.size + if (fallbackVersion != null && items.isNotEmpty()) 1 else 0
+    val recoveryCount = if (fallbackVersion != null && items.isNotEmpty()) 1 else 0
+    val visibleGroups = displayRows.size + recoveryCount
+    val logicalGroups = rows.size + recoveryCount
     val latestIndex = TimelineViewportPolicy.latestIndex(visibleGroups, olderPageVisible)
 
     // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
@@ -98,22 +102,28 @@ internal fun ConversationTimelineViewport(
     }
     val hasOlderPage by rememberUpdatedState(olderPageVisible)
     val currentGroupCount by rememberUpdatedState(visibleGroups)
-    val currentTail by rememberUpdatedState(items.lastOrNull { it.kind != "turnOutcome" })
+    val currentTail by rememberUpdatedState(if (contextLoading) null else projection?.tail)
+    val currentLogicalCount by rememberUpdatedState(logicalGroups)
+    val currentDisplayRows by rememberUpdatedState(displayRows)
     LaunchedEffect(scroll, thread) {
         snapshotFlow { Triple(scroll.isScrollInProgress, scroll.layoutInfo.visibleItemsInfo.firstOrNull()?.key,
             scroll.firstVisibleItemScrollOffset) }.collect { (scrolling, key, offset) ->
             if (!scrolling && !followTail && key is String && key != "timeline-older-pages") {
                 anchorKey = key; anchorOffset = offset
+                anchorRowKey = currentDisplayRows.firstOrNull { it.key == key }?.row?.key
             }
         }
     }
-    LaunchedEffect(rows, followTail) {
+    LaunchedEffect(displayRows, followTail) {
         val anchor = anchorKey
-        if (!followTail && !scroll.isScrollInProgress && anchor != null && rows.none { it.key == anchor }) {
-            val replacement = ReplyReadingNavigation.replacementIndex(rows, anchor)
+        if (!followTail && !scroll.isScrollInProgress && anchor != null && displayRows.none { it.key == anchor }) {
+            val owner = anchorRowKey ?: anchor
+            val logical = ReplyReadingNavigation.replacementIndex(rows, owner)
+            val replacement = if (logical >= 0) displayRows.indexOfFirst { it.row.key == rows[logical].key } else -1
             if (replacement >= 0) {
                 scroll.scrollToItem(replacement + if (olderPageVisible) 1 else 0, anchorOffset.coerceAtLeast(0))
-                anchorKey = rows[replacement].key
+                anchorKey = displayRows[replacement].key
+                anchorRowKey = displayRows[replacement].row.key
             }
         }
     }
@@ -122,17 +132,17 @@ internal fun ConversationTimelineViewport(
     LaunchedEffect(scroll, thread, contextLoading) {
         if (contextLoading) return@LaunchedEffect
         // One collector per conversation; a stream of deltas must not cancel and restart it.
-        snapshotFlow { TimelineRenderTarget(currentGroupCount, currentTail, hasOlderPage,
+        snapshotFlow { TimelineRenderTarget(currentGroupCount, currentLogicalCount, currentTail, hasOlderPage,
             scroll.layoutInfo.viewportSize.height) }
-            .collect { (count, tail, older, viewportHeight) ->
+            .collect { (count, logicalCount, tail, older, viewportHeight) ->
                 val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage
                 previousViewportHeight = viewportHeight
                 previousOlderPage = older
                 val threadChanged = observedThread != thread
-                val collapsed = count < lastKnownStepCount
-                val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, count, tail)
+                val collapsed = logicalCount < lastKnownStepCount
+                val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, logicalCount, tail)
                 observedThread = thread
-                lastKnownStepCount = count
+                lastKnownStepCount = logicalCount
                 lastKnownTail = tail
                 if (threadChanged) {
                     followTail = true
@@ -204,12 +214,14 @@ internal fun ConversationTimelineViewport(
                     Text(if (loadingEarlier) "正在加载…" else "加载更早记录")
                 }
             }
-            items(rows, key = { it.key }) { row ->
-                val message = row.actionItem ?: row.group.singleOrNull()?.takeIf {
+            items(displayRows, key = { it.key }) { display ->
+                val row = display.row
+                val message = if (!display.lastPage) null else row.actionItem ?: row.group.singleOrNull()?.takeIf {
                     row.showActions && ProgressiveReplyProjection.answer(it)
                 }
                 val version = message?.let { item -> thread?.let { answerVersions.choice(it, item.turnId) } }
-                val heading = headingTarget?.takeIf { it.rowKey == row.key }
+                val heading = headingTarget?.takeIf { it.rowKey == row.key &&
+                    (display.page?.ownsHeading(it.heading) ?: true) }
                 val openFile: ((String) -> Unit)? = if (thread != null && connected) { path ->
                     val epoch = vm.bridge.connectedSession.value
                     if (epoch != null && vm.activeThread.value == thread) {
@@ -225,14 +237,15 @@ internal fun ConversationTimelineViewport(
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val safety = row.group.singleOrNull()?.takeIf { it.kind == "safetyRecourse" }
                 if (safety != null) NativeSafetyRecourseCard(vm, thread, safety,
-                    items.firstOrNull { it.id == "turn-error:" + safety.turnId })
+                    projection?.byId?.get("turn-error:" + safety.turnId))
                 else TimelineActivityGroup(row.group, workspaceRoot = vm.workingDirectory,
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
                     version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null,
                     showMessageActions = row.showActions, actionItem = row.actionItem,
                     forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess,
-                    partialCopy = row.partialCopy, liveVisibleIds = row.liveVisibleIds)
-                if (thread != null) {
+                    partialCopy = row.partialCopy, liveVisibleIds = row.liveVisibleIds,
+                    replyPage = display.page, lastPage = display.lastPage)
+                if (thread != null && display.lastPage) {
                     NativeReplyMetadata(vm, thread, row.group, canSwitchVersion)
                     row.group.flatMap(AsyncReplyContract::questions).distinctBy { it.id }.forEach { question ->
                         NativeAsyncReplyCard(vm, thread, question,
@@ -297,7 +310,8 @@ internal fun ConversationTimelineViewport(
                 items(outline.orEmpty()) { entry ->
                     CodexTextAction(onClick = {
                         outlineOpen = false; followTail = false
-                        val index = rows.indexOfFirst { it.key == entry.rowKey }
+                        val index = displayRows.indexOfFirst { it.row.key == entry.rowKey &&
+                            (it.page?.ownsHeading(entry.heading) ?: true) }
                         if (index >= 0) scope.launch { scroll.scrollToItem(index + if (olderPageVisible) 1 else 0); headingTarget = entry }
                     }, modifier = Modifier.fillMaxWidth().padding(start = ((entry.level - 1).coerceIn(0, 3) * 8).dp)) {
                         Text(entry.title, Modifier.fillMaxWidth())
@@ -343,7 +357,7 @@ internal fun ConversationTimelineViewport(
 }
 
 private data class TimelineRenderTarget(
-    val count: Int, val tail: TimelineItem?, val older: Boolean, val viewportHeight: Int
+    val count: Int, val logicalCount: Int, val tail: TimelineItem?, val older: Boolean, val viewportHeight: Int
 )
 
 /** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */
