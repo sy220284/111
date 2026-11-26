@@ -1,9 +1,9 @@
 {
-  "reviewedBaseline": "0dfa3edc76cf20d33a1e93570eeb40c5c32750a3",
-  "reviewedCandidate": "4d09d3710f6d7b5c7562643f87bf79cb4388489b",
+  "reviewedBaseline": "492e383a43190d3c31e587a826416d039f041c82",
+  "reviewedCandidate": "e55ed7272f73bac60f95794f6f9bb9daf5fd7445",
   "reviewRecord": "docs/接口协议动作清单与落地验收台账-20261122.md",
   "roots": {
-    "upstream/codex/codex-rs/app-server-protocol": "390c500b9ab1a9a7d66ac60d6bdd53953216379c",
+    "upstream/codex/codex-rs/app-server-protocol": "0b8a6f79614f77f8fd863579d763ec49fe0da147",
     "upstream/codex/codex-rs/config/src/config_toml.rs": "fbc9f11aeb84ee2f33fecd91466e5ff4e43521f4",
     "upstream/codex/codex-rs/protocol/src/hooks.rs": "4a5e33487ace22e800ee8463aae74e029daf3740",
     "upstream/codex/codex-rs/protocol/src/protocol.rs": "79584c8c3e6ba00b2b80bd925183104cc73d1eac",
@@ -15,6 +15,7 @@
     "MCP 启动耗时、Hook 真实结果及失败策略已适配，待设备验收",
     "企业 configServer 专用启动授权按部署场景单独实施；Daybreak 保留官方默认",
     "Guardian 与动态工具结果遵循后台权限规则；客户端搜索服务选择字段删除，现有 web_search 控件继续有效",
-    "独立媒体分析扩展实验 thread/sample 的原生媒体输入与凭据绑定，新增只读 thread/sample/scope；后台归属、取消、用户授权及模型隔离已同步，待新提交 CI 与真机验收"
+    "独立媒体分析扩展实验 thread/sample 的原生媒体输入与凭据绑定，新增只读 thread/sample/scope；后台归属、取消、用户授权及模型隔离已同步，待新提交 CI 与真机验收",
+    "样本作用域回执增加原生有效 inputModalities；整组媒体预检先于解析和计费请求，保留核心逐请求验证；同一结果的持久化和模型切换隔离新增回归。"
   ]
 }
