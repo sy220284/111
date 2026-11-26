@@ -150,9 +150,11 @@ jobs:
             echo "::error::Android versionCode 超出限制"; exit 1
           fi
           VERSION="$BASE-111.$((10#$SEQUENCE))"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "version_code=$((10#$SEQUENCE))" >> "$GITHUB_OUTPUT"
-          echo "should_release=true" >> "$GITHUB_OUTPUT"
+          {
+            echo "version=$VERSION"
+            echo "version_code=$((10#$SEQUENCE))"
+            echo "should_release=true"
+          } >> "$GITHUB_OUTPUT"
           echo "准备发布 $RELEASE_SHA -> v$VERSION"
 
   developer-runtime:
@@ -232,9 +234,11 @@ jobs:
           printf '%s' "$KEYSTORE_B64" | base64 --decode > "$KEYSTORE_PATH"
           keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" -alias 111-release >/dev/null
           chmod 600 "$KEYSTORE_PATH"
-          echo "CODEX_RELEASE_KEYSTORE_PATH=$KEYSTORE_PATH" >> "$GITHUB_ENV"
-          echo "CODEX_RELEASE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-          echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
+          {
+            echo "CODEX_RELEASE_KEYSTORE_PATH=$KEYSTORE_PATH"
+            echo "CODEX_RELEASE_PASSWORD=$KEYSTORE_PASSWORD"
+            echo "CODEX_RELEASE_KEY_ALIAS=111-release"
+          } >> "$GITHUB_ENV"
 
 
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4

@@ -575,6 +575,7 @@ class CoreStartupInstrumentedTest {
     @Test fun bundledDeveloperToolsActuallyExecute() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val tools = NativeToolInstaller.prepare(app)
+        val ripgrepVersion = if (Build.SUPPORTED_ABIS.firstOrNull() == "x86_64") "16.0.0" else "15.2.0"
         val command = """set -e
             case ":${'$'}PATH:" in *":${'$'}PYTHONUSERBASE/bin:"*) ;; *) exit 91 ;; esac
             case ":${'$'}PATH:" in *":${'$'}npm_config_prefix/bin:"*) ;; *) exit 92 ;; esac
@@ -584,7 +585,7 @@ class CoreStartupInstrumentedTest {
             curl --version | grep -F 8.23.0
             jq -n '1+1' | grep -x 2
             jq --version | grep -F 1.8.2
-            rg --version | grep -F 15.2.0
+            rg --version | grep -F "$ripgrepVersion"
             python3 --version | grep -F 3.14.10
             python3 -c 'import ssl, sqlite3, json; assert json.loads("42") == 42'
             python3 -m pip --version | grep -F 26.3
@@ -628,7 +629,6 @@ class CoreStartupInstrumentedTest {
                     .put("", JSONObject().put("name", "codex-runtime-probe").put("version", "1.0.0")
                         .put("dependencies", JSONObject().put("is-number", "7.0.0")))
                     .put("node_modules/is-number", dependency)).toString())
-            val arm64 = Build.SUPPORTED_ABIS.firstOrNull() == "arm64-v8a"
             val script = """set -e
                 git init -q local
                 printf probe > local/probe.txt

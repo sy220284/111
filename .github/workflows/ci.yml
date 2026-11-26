@@ -870,9 +870,11 @@ jobs:
           keytool -genkeypair -noprompt -keystore "$STORE" -storetype PKCS12 \
             -alias 111-release -keyalg RSA -keysize 2048 -validity 1 \
             -storepass ci-only-password -keypass ci-only-password -dname "CN=111 CI signing smoke"
-          echo "CODEX_RELEASE_KEYSTORE_PATH=$STORE" >> "$GITHUB_ENV"
-          echo "CODEX_RELEASE_PASSWORD=ci-only-password" >> "$GITHUB_ENV"
-          echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
+          {
+            echo "CODEX_RELEASE_KEYSTORE_PATH=$STORE"
+            echo "CODEX_RELEASE_PASSWORD=ci-only-password"
+            echo "CODEX_RELEASE_KEY_ALIAS=111-release"
+          } >> "$GITHUB_ENV"
       - name: 校验并装配正式版增量恢复组件
         shell: bash
         run: bash .github/scripts/prepare-android-patcher.sh arm64-v8a

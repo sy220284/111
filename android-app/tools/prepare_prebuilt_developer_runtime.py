@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import sys
 import zipfile
 
 GIT_VERSION = "2.56.1"
@@ -24,7 +25,9 @@ SYSTEM = {"libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so", "libandroid.
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 LOCK = json.loads((ROOT / "tools/dev/toolchain-lock.json").read_text())
-VERSIONS = LOCK["runtime777"]
+sys.path.insert(0, str(ROOT / "tools/runtime"))
+from runtime_versions import package_records, verify_versions, versions_for
+VERSIONS = versions_for("arm64-v8a")
 
 def digest(path):
     with path.open("rb") as stream:
@@ -109,30 +112,6 @@ def git_corresponding_source(work, manifest, output):
 
 def asset_root(prepared, group):
     return prepared / group / "assets/runtime" / group
-
-def package_records(prepared, group, abi):
-    manifest = asset_root(prepared, group) / abi / "packages.tsv"
-    rows = [line.split("\t") for line in manifest.read_text().splitlines()]
-    if not rows or any(len(row) != 4 or not re.fullmatch(r"[0-9a-f]{64}", row[3]) for row in rows):
-        raise ValueError("invalid signed package manifest: " + group)
-    result = {row[0]: {"version":row[1], "filename":row[2], "sha256":row[3]} for row in rows}
-    if len(result) != len(rows):
-        raise ValueError("duplicate signed package manifest")
-    return result
-
-def verify_versions(prepared, abi):
-    records = {group: package_records(prepared, group, abi) for group in ("git","node","python")}
-    for group, package, key in (("git","git","git"),("git","curl","curl"),("git","jq","jq"),
-                                ("git","ripgrep","ripgrep"),("node","nodejs","node"),
-                                ("python","python","python"),("python","python-pip","pip")):
-        if records[group][package]["version"] != VERSIONS[key]:
-            raise ValueError("777 runtime version drift: " + package)
-    if abi == "arm64-v8a" and records["git"]["git"]["sha256"] != GIT_DEB[1]:
-        raise ValueError("ARM64 Git package SHA-256 drift")
-    npm = asset_root(prepared,"node") / "npm/package/package.json"
-    if json.loads(npm.read_text())["version"] != VERSIONS["npm"]:
-        raise ValueError("npm version drift")
-    return records
 
 def verify_source(prepared, abi, source):
     manifest = asset_root(prepared,"git") / abi / "packages.tsv"
@@ -289,7 +268,7 @@ def prepare(abi, native, assets, prepared, clang, git_source_output):
                 if path.is_file():
                     archive.write(path,path.relative_to(data).as_posix())
         (assets/"development-runtime.sha256").write_text(digest(out)+"\n")
-        versions={key:VERSIONS[key] for key in ("git","curl","jq","ripgrep","python","pip","node","npm")}
+        versions=versions_for(abi)
         (assets/"development-runtime.version").write_text(json.dumps(versions,sort_keys=True)+"\n")
         provenance={"abi":abi,"source777":LOCK["source"],"versions":versions,"packages":records,"binaries":binaries,
                     "gitHttps":True,"gitCorrespondingSourceVerified":True,

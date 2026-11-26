@@ -97,5 +97,10 @@
     "buildTools": "37.0.0",
     "deviceImage": "37.0",
     "reason": "不得覆盖111专用构建锁、Gradle缓存、Android API 35/NDK及37.2设备镜像。"
+  },
+  "runtimeX86": {
+    "ripgrep": "16.0.0",
+    "ripgrepRecipeCommit": "3ad460e73d924ca38cdfded88373e8213f149dde",
+    "ripgrepSourceSha256": "17e7a1a0db80ed9618a0963c7ae4aecb8fce25c70cf7ebed514daf2b38a0d153"
   }
 }

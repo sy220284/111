@@ -2,7 +2,7 @@ name: 111 开发工具链产物与离线验收
 
 on:
   push:
-    branches: [main, migration/777-toolchain-111-20261126]
+    branches: [main, validation/combined-111-reply-20261126]
     paths:
       - 'tools/dev/**'
       - 'tools/runtime/**'
@@ -11,6 +11,10 @@ on:
       - 'upstream/codex/codex-rs/rust-toolchain.toml'
       - '.github/workflows/dev-toolchain.yml'
       - '.github/workflows/prepare-developer-runtime.yml'
+      - '.github/workflows/ci.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/build-native-codex.yml'
+      - '.github/actionlint.yaml'
   workflow_dispatch:
 
 permissions:
@@ -23,7 +27,7 @@ concurrency:
 
 jobs:
   shared:
-    name: 777 固定共享产物与 ARM64 运行时
+    name: 777 固定共享产物与工作流检查
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -40,7 +44,10 @@ jobs:
           NODE="$(jq -r '.node' "$RUNNER_TEMP/shared.json")"
           LINT="$(jq -r '.actionlint' "$RUNNER_TEMP/shared.json")"
           "$NODE/bin/node" --version
-          "$LINT/actionlint" .github/workflows/dev-toolchain.yml .github/workflows/prepare-developer-runtime.yml .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/build-native-codex.yml
+          "$LINT/actionlint" .github/workflows/dev-toolchain.yml .github/workflows/prepare-developer-runtime.yml .github/workflows/ci.yml .github/workflows/release.yml
+          # GitHub 已实际运行 queue: max，777 固定 actionlint 尚未认识该新字段。
+          # 仅在原生工作流过滤此已确认的解析差异；不屏蔽其它错误。
+          "$LINT/actionlint" -ignore 'unexpected key "queue" for "concurrency" section' .github/workflows/build-native-codex.yml
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
           python3 -m unittest discover -s .github/scripts -p 'test_audit_apk_contents.py'
 
@@ -76,22 +83,18 @@ jobs:
           mkdir -p "$RUNNER_TEMP/gradle-home" "$RUNNER_TEMP/stage/android-sdk" "$RUNNER_TEMP/stage/gradle" "$RUNNER_TEMP/bundles"
           echo "GRADLE_USER_HOME=$RUNNER_TEMP/gradle-home" >> "$GITHUB_ENV"
           printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
-      - name: 解析所有 Android 构建变体并生成待审查依赖基线
+      - name: 验证已提交的 Gradle 依赖基线与所有 Android 变体
         run: |
           set -euo pipefail
           STORE="$RUNNER_TEMP/dependency-baseline.jks"
           keytool -genkeypair -noprompt -keystore "$STORE" -storetype PKCS12 -alias 111-release -keyalg RSA -keysize 2048 -validity 1 -storepass ci-only-password -keypass ci-only-password -dname "CN=111 dependency baseline"
           export CODEX_RELEASE_KEYSTORE_PATH="$STORE" CODEX_RELEASE_PASSWORD=ci-only-password CODEX_RELEASE_KEY_ALIAS=111-release
           tasks=(:app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:lintRelease :app:assembleRelease)
-          if test ! -s android-app/app/gradle.lockfile || test ! -s android-app/gradle/verification-metadata.xml; then
-            ./android-app/gradlew -p android-app "${tasks[@]}" -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --write-locks --write-verification-metadata sha256 --no-daemon --stacktrace
-            echo "candidate" > "$RUNNER_TEMP/baseline-status"
-          else
-            ./android-app/gradlew -p android-app "${tasks[@]}" -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
-            echo "committed" > "$RUNNER_TEMP/baseline-status"
-          fi
           test -s android-app/app/gradle.lockfile
           test -s android-app/gradle/verification-metadata.xml
+          ./android-app/gradlew -p android-app "${tasks[@]}" -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --dependency-verification strict --no-daemon --stacktrace
+          git diff --exit-code -- android-app/app/gradle.lockfile android-app/gradle/verification-metadata.xml
+          echo "committed" > "$RUNNER_TEMP/baseline-status"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: 111-toolchain-gradle-dependency-baseline
@@ -129,11 +132,11 @@ jobs:
           export GRADLE_USER_HOME
           export PATH="$JAVA_HOME/bin:$PATH"
           export CODEX_RELEASE_KEYSTORE_PATH="$RUNNER_TEMP/dependency-baseline.jks" CODEX_RELEASE_PASSWORD=ci-only-password CODEX_RELEASE_KEY_ALIAS=111-release
-          sudo --preserve-env=JAVA_HOME,ANDROID_HOME,ANDROID_SDK_ROOT,GRADLE_USER_HOME,PATH,CODEX_RELEASE_KEYSTORE_PATH,CODEX_RELEASE_PASSWORD,CODEX_RELEASE_KEY_ALIAS unshare --net bash -c '
-            set -e
-            ip link set lo up
-            exec runuser --preserve-environment -u "$SUDO_USER" -- ./android-app/gradlew -p android-app :app:clean :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:lintRelease :app:assembleRelease -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --offline --no-daemon --stacktrace
-          '
+          bash tools/dev/run-without-network.sh \
+            "JAVA_HOME=$JAVA_HOME" "ANDROID_HOME=$ANDROID_HOME" "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" \
+            "GRADLE_USER_HOME=$GRADLE_USER_HOME" "CODEX_RELEASE_KEYSTORE_PATH=$CODEX_RELEASE_KEYSTORE_PATH" \
+            "CODEX_RELEASE_PASSWORD=$CODEX_RELEASE_PASSWORD" "CODEX_RELEASE_KEY_ALIAS=$CODEX_RELEASE_KEY_ALIAS" \
+            "$GITHUB_WORKSPACE/android-app/gradlew" -p android-app :app:clean :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:lintRelease :app:assembleRelease -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --offline --dependency-verification strict --no-daemon --stacktrace
           test -s android-app/app/build/outputs/apk/debug/app-debug.apk
           test -s android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           test -s android-app/app/build/outputs/apk/release/app-release.apk
@@ -214,13 +217,13 @@ jobs:
             test -d "$(rustc --print sysroot)/lib/rustlib/$target/lib"
           done
           cd upstream/codex/codex-rs
-          sudo --preserve-env=CARGO_HOME,PATH,RUSTC,RUSTDOC,CARGO_NET_OFFLINE unshare --net bash -c '
-            set -e
-            ip link set lo up
-            for target in aarch64-linux-android x86_64-linux-android; do
-              runuser --preserve-environment -u "$SUDO_USER" -- "$1" fetch --locked --offline --target "$target"
-            done
-          ' _ "$(command -v cargo)"
+          for target in aarch64-linux-android x86_64-linux-android; do
+            test -d "$CARGO_HOME/git/db"
+            cargo fetch --locked --offline --target "$target"
+            bash "$GITHUB_WORKSPACE/tools/dev/run-without-network.sh" \
+              "CARGO_HOME=$CARGO_HOME" "RUSTC=$RUSTC" "RUSTDOC=$RUSTDOC" "CARGO_NET_OFFLINE=true" \
+              "$(command -v cargo)" fetch --locked --offline --target "$target"
+          done
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: 111-toolchain-rust
