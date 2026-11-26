@@ -130,6 +130,60 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun androidRemoteDeliveryReadsActualExecutorFile() = runBlocking<Unit> {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val root = File(app.cacheDir, "remote-delivery-" + UUID.randomUUID()).apply { check(mkdirs()) }
+        val workspace = File(root, "workspace").apply { check(mkdir()) }
+        val home = File(root, "home").apply { check(mkdir()) }
+        val expected = ByteArray(4096) { (it % 251).toByte() }
+        File(workspace, "receipt.bin").writeBytes(expected)
+        val secret = File(root, "outside.bin").apply { writeText("outside workspace") }
+        android.system.Os.symlink(secret.absolutePath, File(workspace, "escape.bin").absolutePath)
+        val port = ServerSocket(0).use { it.localPort }
+        val executable = File(app.applicationInfo.nativeLibraryDir, "libcodex_server.so")
+        val log = File(root, "executor.log")
+        val executor = ProcessBuilder(executable.absolutePath, "exec-server", "--listen", "ws://127.0.0.1:$port")
+            .directory(workspace).redirectErrorStream(true).redirectOutput(log).apply {
+                environment()["CODEX_HOME"] = home.absolutePath
+                environment()["HOME"] = home.absolutePath
+                environment()["SHELL"] = "/system/bin/sh"
+            }.start()
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90000) {
+                var listening = false
+                repeat(100) {
+                    if (!listening) {
+                        check(executor.isAlive) { "真实远端执行器启动失败：" + log.readText().takeLast(2000) }
+                        listening = runCatching { Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 200) } }.isSuccess
+                        if (!listening) kotlinx.coroutines.delay(100)
+                    }
+                }
+                check(listening) { "真实执行器未监听" }
+                bridge.connect()
+                val id = "delivery-executor"
+                bridge.request("environment/add", JSONObject().put("environmentId", id)
+                    .put("execServerUrl", "ws://127.0.0.1:$port"))
+                val info = bridge.request("environment/info", JSONObject().put("environmentId", id))
+                val cwd = info.getString("cwd")
+                assertEquals(workspace.canonicalPath, File(java.net.URI(cwd)).canonicalPath)
+                suspend fun read(path: String) = bridge.request("android/remoteFile/read", JSONObject()
+                    .put("environmentId", id).put("workspaceUri", cwd).put("relativePath", path))
+                val reply = read("receipt.bin")
+                assertEquals(id, reply.getString("environmentId"))
+                org.junit.Assert.assertArrayEquals(expected, android.util.Base64.decode(reply.getString("dataBase64"), android.util.Base64.NO_WRAP))
+                for (path in listOf("../outside.bin", "escape.bin", "/outside.bin")) {
+                    org.junit.Assert.assertTrue("真实核心接受了不允许的路径：$path", runCatching { read(path) }.isFailure)
+                }
+            }
+        } finally {
+            bridge.close()
+            executor.destroy()
+            if (!executor.waitFor(5, TimeUnit.SECONDS)) executor.destroyForcibly()
+            root.deleteRecursively()
+        }
+    }
+
     @Test fun androidRemoteDeliveryRejectsLocalAndUnknownEnvironment() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)

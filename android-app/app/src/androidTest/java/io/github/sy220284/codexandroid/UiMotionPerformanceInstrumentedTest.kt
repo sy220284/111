@@ -94,6 +94,24 @@ class UiMotionPerformanceInstrumentedTest {
         Thread.sleep(650)
     }
 
+    private fun visibleLabel(label: String): Rect? {
+        val root = instrumentation.uiAutomation.rootInActiveWindow ?: return null
+        return try { findVisible(root, label, false, true) } finally { root.recycle() }
+    }
+
+    private fun physicalSwipe(x: Float, from: Float, to: Float) {
+        val start = SystemClock.uptimeMillis()
+        for (step in 0..16) {
+            val action = when (step) { 0 -> MotionEvent.ACTION_DOWN; 16 -> MotionEvent.ACTION_UP; else -> MotionEvent.ACTION_MOVE }
+            val y = from + (to - from) * step / 16
+            val event = MotionEvent.obtain(start, SystemClock.uptimeMillis(), action, x, y, 0)
+            try { event.source = InputDevice.SOURCE_TOUCHSCREEN; instrumentation.sendPointerSync(event) }
+            finally { event.recycle() }
+            Thread.sleep(24)
+        }
+        Thread.sleep(650)
+    }
+
     @Test fun realNavigationFramesAndRepeatedGestures() {
         val samples = Collections.synchronizedList(mutableListOf<Pair<Long, Long>>())
         val phases = Collections.synchronizedList(mutableListOf<List<Long>>())
@@ -151,9 +169,39 @@ class UiMotionPerformanceInstrumentedTest {
                 waitForLabel("打开侧边导航", clickable = true)
                 waitForLabel("发送给 Codex")
             }
+            val history = (0 until 32).map { i ->
+                TimelineItem("motion-history-$i", "agentMessage", "滚动阅读记录 $i", "completed", turnId = "motion-turn-$i")
+            }
+            val tail = TimelineItem("motion-tail", "agentMessage", "流式阶段末尾", "inProgress", turnId = "motion-live")
+            navigationStage.set("reply_stream_initial")
+            scenario.onActivity { (it.application as CodexApplication).session.timeline.value = history + tail }
+            val tailRect = waitForLabel("流式阶段末尾", textOnly = true)
+            navigationStage.set("reply_scroll_drag")
+            val distance = (tailRect.centerY() * .35f).coerceAtLeast(120f)
+            physicalSwipe(tailRect.exactCenterX(), tailRect.exactCenterY() - distance, tailRect.exactCenterY() - 16f)
+            waitForLabel("返回最新进度", clickable = true)
+            val anchor = history.map { it.text }.firstNotNullOfOrNull { label ->
+                visibleLabel(label)?.let { label to it }
+            } ?: error("长回复滚动后没有可见历史锚点")
+            navigationStage.set("reply_stream_while_reading")
+            repeat(10) { n ->
+                scenario.onActivity { (it.application as CodexApplication).session.timeline.value =
+                    history + tail.copy(text = "流式阶段末尾 " + "新增内容 ".repeat(n + 1)) }
+                Thread.sleep(100)
+            }
+            val after = waitForLabel(anchor.first, textOnly = true)
+            assertTrue("实际滚动阅读位置偏移：" + anchor.second + " -> " + after,
+                kotlin.math.abs(after.top - anchor.second.top) <= 2)
+            navigationStage.set("reply_scroll_return")
+            physicalTap("返回最新进度")
+            navigationStage.set("reply_stream_finish")
+            scenario.onActivity { (it.application as CodexApplication).session.timeline.value =
+                history + tail.copy(text = "流式最终成果", status = "completed") }
+            waitForLabel("流式最终成果", textOnly = true)
         } finally {
             scenario.onActivity {
                 if (attached) it.window.removeOnFrameMetricsAvailableListener(listener)
+                (it.application as CodexApplication).session.timeline.value = emptyList()
                 UiPreferences.setReducedMotion(originalMotion)
             }
             scenario.close()
@@ -197,6 +245,11 @@ class UiMotionPerformanceInstrumentedTest {
                     .put("very_slow_frames", ordered.count { it > 100_000_000L }))
             }
         report.put("navigation_stage_metrics", stageReport)
+        report.put("long_reply_scroll_anchor_verified", true)
+        for (stage in listOf("reply_scroll_drag", "reply_scroll_return")) {
+            val measured = stageReport.optJSONObject(stage)
+            assertTrue("缺少长回复实际动效帧：" + stage, measured != null && measured.optInt("frames") > 0)
+        }
         val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
         File(folder, "ui-motion-performance.json").writeText(report.toString(2))
         InstrumentationRegistry.getArguments().getString("expectedRenderer")?.let { expected ->
