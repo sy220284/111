@@ -23,7 +23,7 @@ Rust 源码、运行时、终端、远端执行、原生适配及关键权限输
 
 ## 2026 Android 17 设备矩阵
 
-所有生产 UI 和真实核心模拟器升级为 Android 17（API 37），统一使用 Google APIs 16KB 页镜像及 4GB RAM。测试 OS 更新不改变应用的 compileSdk、targetSdk 和 minSdk。
+所有生产 UI 和真实核心模拟器升级为 Android 17（API 37），统一使用 Google APIs 16KB 页镜像。公开仓库标准 Linux Runner 为4核、16GB内存；每台模拟器统一配置4 vCPU、8192MiB RAM（官方命令行上限）、8192MiB数据盘，Mesa工作线程上限为4，余下宿主内存供系统和渲染使用。UI分流与真实内核专项共享同一配置，启动后以实际在线CPU数及MemTotal核验资源并保存JSON；内核保留内存不计入MemTotal，低于配置值7/8或CPU数不符阻断验收。测试 OS 更新不改变应用的 compileSdk、targetSdk 和 minSdk。
 
 | 档位 | 基准像素 | 显示密度 | 逻辑宽度约 | 适配场景 |
 |---|---|---|---|---|

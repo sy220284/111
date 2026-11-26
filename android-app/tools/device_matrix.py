@@ -2,6 +2,8 @@
 import argparse
 import json
 import os
+import re
+import subprocess
 from pathlib import Path
 
 CONFIG = json.loads(Path(__file__).with_name("device-matrix.json").read_text(encoding="utf-8"))
@@ -86,10 +88,40 @@ def configure_avd(path, profile):
     print(json.dumps({"avd": str(path), "profile": profile, **fields}, ensure_ascii=False))
 
 
+def verify_resources(guest_cpus, meminfo):
+    """Verify the booted guest, allowing memory reserved by the kernel."""
+    match = re.search(r"(?m)^MemTotal:\s+(\d+)\s+kB\s*$", meminfo)
+    if not match:
+        raise ValueError("Android guest did not report MemTotal")
+    memory_kib = int(match[1])
+    requested_kib = int(CONFIG["ram"].removesuffix("M")) * 1024
+    result = {
+        "requested_cores": CONFIG["cores"], "actual_cores": int(guest_cpus),
+        "requested_ram_mib": requested_kib // 1024,
+        "actual_memtotal_kib": memory_kib,
+        "configured_disk": CONFIG["disk"],
+    }
+    # MemTotal excludes reserved kernel memory; 7/8 of the allocated RAM
+    # must remain visible, and an under-provisioned 4 GiB guest must fail.
+    result["status"] = "passed" if (result["actual_cores"] == CONFIG["cores"]
+        and requested_kib * 7 // 8 <= memory_kib <= requested_kib) else "failed"
+    return result
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--configure-avd", choices=sorted(PROFILES), required=True)
+    mode = parser.add_mutually_exclusive_group(required=True)
+    mode.add_argument("--configure-avd", choices=sorted(PROFILES))
+    mode.add_argument("--verify-resources", type=Path)
     parser.add_argument("--avd-name", default="test")
     args = parser.parse_args()
+    if args.verify_resources:
+        cpus = subprocess.check_output(["adb", "shell", "getconf", "_NPROCESSORS_ONLN"], text=True).strip()
+        memory = subprocess.check_output(["adb", "shell", "cat", "/proc/meminfo"], text=True)
+        result = verify_resources(cpus, memory)
+        args.verify_resources.parent.mkdir(parents=True, exist_ok=True)
+        args.verify_resources.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(result), flush=True)
+        raise SystemExit(result["status"] != "passed")
     root = Path(os.environ.get("ANDROID_AVD_HOME") or Path.home() / ".android/avd")
     configure_avd(root / (args.avd_name + ".avd") / "config.ini", args.configure_avd)

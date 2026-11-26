@@ -3,7 +3,7 @@
   "api": 37,
   "target": "google_apis_ps16k",
   "arch": "x86_64",
-  "ram": "4096M",
+  "ram": "8192M",
   "page_size": 16384,
   "profiles": [
     {
@@ -43,5 +43,8 @@
   "sdk_platform": "35",
   "runtime_profile": "mainstream",
   "minimum_ui_tests": 150,
-  "emulator_options": "-no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim"
+  "emulator_options": "-no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim",
+  "cores": 4,
+  "disk": "8192M",
+  "mesa_threads": 4
 }
