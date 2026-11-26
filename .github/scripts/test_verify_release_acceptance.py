@@ -20,7 +20,9 @@ class ReleaseAcceptanceTests(unittest.TestCase):
         requirements = {
             "device-ready": ("release", "check-release"),
             "device": ("release", "check-release", "device-ready"),
-            "publish": ("release", "check-release", "device"),
+            "cloud-ready": ("release", "check-release"),
+            "cloud-virtual": ("release", "check-release", "cloud-ready"),
+            "publish": ("release", "check-release", "device", "cloud-virtual"),
             "cleanup": ("publish", "release-result"),
         }
         for name, upstream in requirements.items():
@@ -30,12 +32,12 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                 for dependency in upstream:
                     self.assertIn("needs." + dependency + ".result == 'success'", condition)
         terminal = jobs["release-result"]
-        self.assertIn("needs: [check-release, release, device-ready, device, publish]", terminal)
+        self.assertIn("needs: [check-release, release, device-ready, device, cloud-ready, cloud-virtual, publish]", terminal)
         self.assertIn("!cancelled()", terminal)
         self.assertIn("needs.check-release.outputs.should_release == 'true'", terminal)
-        for name in ("release", "device-ready", "device", "publish"):
+        for name in ("release", "device-ready", "device", "cloud-ready", "cloud-virtual", "publish"):
             self.assertIn("needs." + name + ".result", terminal)
-        self.assertIn('for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$PUBLISHED"', terminal)
+        self.assertIn('for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$CLOUD_READY" "$CLOUD" "$PUBLISHED"', terminal)
         self.assertIn('exit 1', terminal)
 
     def test_all_real_android_jobs_are_required(self):
