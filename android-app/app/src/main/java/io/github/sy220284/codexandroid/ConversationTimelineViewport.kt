@@ -283,8 +283,8 @@ internal fun ConversationTimelineViewport(
     }
     if (outlineOpen) {
         val outline by loadCodexUiState<List<ReplyHeadingEntry>?>(null, rows, dispatcher = kotlinx.coroutines.Dispatchers.Default) { ReplyReadingNavigation.outline(rows) }
-        AlertDialog(onDismissRequest = { outlineOpen = false }, title = { Text("回答目录") },
-            text = { LazyColumn(Modifier.heightIn(max = 440.dp)) {
+        CodexDialogFrame(onDismissRequest = { outlineOpen = false }, title = { Text("回答目录") },
+            text = { LazyColumn(Modifier.heightIn(max = codexSheetContentLimit(.6f))) {
                 if (outline == null) item { Text("正在整理目录") }
                 else if (outline.orEmpty().isEmpty()) item { Text("当前回答没有标题") }
                 items(outline.orEmpty()) { entry ->
