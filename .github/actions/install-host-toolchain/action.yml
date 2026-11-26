@@ -25,9 +25,21 @@ runs:
         HOST_COMPONENTS: ${{ inputs.components }}
       run: |
         set -euo pipefail
+        # Match the producer fingerprint before consuming any host component.
+        . /etc/os-release
+        if [ "$ID" != ubuntu ] || [ "$VERSION_ID" != 24.04 ] || [ "$(uname -m)" != x86_64 ]; then
+          echo "::error::Host components require Ubuntu 24.04 x86_64, matching the producer fingerprint."
+          exit 1
+        fi
+        PYTHON_VERSION="$(python3 -c 'import json; print(json.load(open("tools/dev/toolchain-lock.json"))["project"]["hostPython"])')"
+        HOST_PYTHON="/usr/bin/python${PYTHON_VERSION}"
+        "$HOST_PYTHON" -c 'import sys; assert ".".join(map(str,sys.version_info[:2])) == sys.argv[1], "host Python lock mismatch"' "$PYTHON_VERSION"
+        if [ "$HOST_GROUP" = wheelhouse ]; then
+          printf 'CODEX_HOST_PYTHON=%s\n' "$HOST_PYTHON" >> "$GITHUB_ENV"
+        fi
         EXTRA=()
         if [ -n "$HOST_COMPONENTS" ]; then
           read -r -a NAMES <<< "$HOST_COMPONENTS"
           EXTRA=(--components "${NAMES[@]}")
         fi
-        python3 tools/dev/ci_host.py consume --group "$HOST_GROUP" --root "$RUNNER_TEMP/111-host-$HOST_GROUP" "${EXTRA[@]}"
+        "$HOST_PYTHON" tools/dev/ci_host.py consume --group "$HOST_GROUP" --root "$RUNNER_TEMP/111-host-$HOST_GROUP" "${EXTRA[@]}"

@@ -187,7 +187,7 @@ jobs:
     # The PR-only preflight is skipped for workflow_run. Check the actual
     # acceptance result explicitly instead of inheriting an implicit success().
     if: always() && needs.check-release.result == 'success' && needs.developer-runtime.result == 'success' && needs.host-android.result == 'success' && needs.check-release.outputs.should_release == 'true' && needs.host-patcher.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 65
     permissions:
       contents: read

@@ -140,7 +140,7 @@ jobs:
     name: 协议、视觉规范与静态覆盖检查
     needs: [plan, host-wheelhouse]
     if: needs.plan.outputs.run_static == 'true' && needs.host-wheelhouse.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
       - name: 仅检出 Android UI 源码
@@ -198,7 +198,7 @@ jobs:
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
-          python3 -m venv .ui-visual-test-venv
+          "$CODEX_HOST_PYTHON" -m venv .ui-visual-test-venv
           .ui-visual-test-venv/bin/pip install --no-index --find-links "$CODEX_WHEELHOUSE" --require-hashes -r "$CODEX_WHEELHOUSE/requirements.lock"
           .ui-visual-test-venv/bin/python -m unittest discover -s android-app/tools -p 'test_ui_visual_audit.py'
       - name: 验证自更新证据判定与安装完成条件
@@ -226,7 +226,7 @@ jobs:
     name: Kotlin 编译、协议单元测试与 Android Lint
     needs: [plan, static-ui, preflight, host-android, host-wheelhouse]
     if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && needs.host-wheelhouse.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
       - name: 仅检出 Android UI 源码
@@ -275,7 +275,7 @@ jobs:
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
-          python3 -m venv .ci-schema-venv
+          "$CODEX_HOST_PYTHON" -m venv .ci-schema-venv
           .ci-schema-venv/bin/python -m pip install --no-index --find-links "$CODEX_WHEELHOUSE" --require-hashes -r "$CODEX_WHEELHOUSE/requirements.lock"
           .ci-schema-venv/bin/python -m unittest discover \
             -s android-app/tools -p 'test_check_protocol_wire_fixtures.py'
@@ -331,7 +331,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.device_shards) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 65
     steps:
       - name: 检出截图采集器
@@ -484,7 +484,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.device_matrix) }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -518,7 +518,7 @@ jobs:
         run: python3 android-app/tools/merge_ui_shards.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --root ui-shards
       - name: 安装独立视觉审计依赖
         run: |
-          python3 -m venv .ui-visual-venv
+          "$CODEX_HOST_PYTHON" -m venv .ui-visual-venv
           .ui-visual-venv/bin/pip install --no-index --find-links "$CODEX_WHEELHOUSE" --require-hashes -r "$CODEX_WHEELHOUSE/requirements.lock"
       - name: 截图内容及历史视觉变化审计
         if: always()
@@ -603,7 +603,7 @@ jobs:
   build:
     needs: [plan, native, runtime-arm64, host-android, host-patcher]
     if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success' && needs.host-android.result == 'success' && needs.host-patcher.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 55
     steps:
       - name: 检出 Android 工程及源码版本标记
@@ -711,7 +711,7 @@ jobs:
     name: Android ${{ needs.plan.outputs.device_release }} (API ${{ needs.plan.outputs.device_api }}) 真实内核及异常恢复验收（x86_64）
     needs: [plan, native, runtime-x86, host-android, host-emulator, host-patcher]
     if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.host-android.result == 'success' && needs.plan.outputs.run_runtime == 'true' && needs.host-emulator.result == 'success' && needs.host-patcher.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - name: 检出同提交 Android 工程与原生配方
@@ -867,7 +867,7 @@ jobs:
     name: PR 内验证 Release 签名构建
     needs: [plan, static-ui, preflight, host-android, host-patcher]
     if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_sign == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && needs.host-patcher.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

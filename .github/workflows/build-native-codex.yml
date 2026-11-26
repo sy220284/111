@@ -405,7 +405,7 @@ jobs:
     name: 国内服务商目录与模型能力 Rust 回归测试
     needs: [reuse, host-rust]
     if: needs.reuse.outputs.provider_reuse != 'true' && needs.host-rust.result == 'success'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
       CARGO_INCREMENTAL: "0"
