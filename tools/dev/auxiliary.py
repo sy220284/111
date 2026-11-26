@@ -12,7 +12,9 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import tomllib
 import urllib.request
+import urllib.parse
 import zipfile
 
 ROOT=pathlib.Path(__file__).resolve().parents[2]
@@ -141,29 +143,50 @@ def bazel_registry_snapshot(output_root, destination):
     shutil.copytree(source,destination)
 
 def bazel_git_repository_names(external):
-    """Identify materialized Git repositories, not the download cache or registry."""
+    """Select locked Git workspaces, not crates.io packages or Bazel marker files."""
     direct=set(re.findall(r'git_repository\(\s*name\s*=\s*"([^"]+)"',
                           (UPSTREAM/"MODULE.bazel").read_text()))
+    locked=set()
+    for lock_path, prefix in (
+        ("codex-rs/Cargo.lock","rules_rs++crate+crates__"),
+        ("tools/argument-comment-lint/Cargo.lock","rules_rs++crate+argument_comment_lint_crates__"),
+    ):
+        with (UPSTREAM/lock_path).open("rb") as stream:
+            packages=tomllib.load(stream)["package"]
+        for package in packages:
+            source=package.get("source","")
+            if not source.startswith("git+"):
+                continue
+            url,_,revision=source[4:].rpartition("#")
+            need(re.fullmatch(r"[0-9a-f]{40}",revision),"unlocked Git source: "+source)
+            remote=urllib.parse.urlsplit(url)
+            need(remote.scheme=="https" and bool(remote.hostname),"unsupported Git source: "+source)
+            key=(remote.netloc+remote.path).replace("/","_")
+            # rules_rs names a workspace by remote URL and the first eight commit digits.
+            variants={key,key.removesuffix(".git"),key.removesuffix(".git")+".git"}
+            locked.update(prefix+name+"_"+revision[:8] for name in variants)
     names=[]
     for p in external.iterdir():
         name=p.name
-        if name.startswith("rules_rs++crate+crates__") or any(
+        if name in locked or any(
                 name==n or name.endswith("+git_repository+"+n) or name.endswith("~git_repository~"+n)
                 for n in direct):
-            need(re.fullmatch(r"[A-Za-z0-9_.+~-]+",name) and p.is_dir() and not p.is_symlink(),
+            need(re.fullmatch(r"[A-Za-z0-9_.+~-]+",name) and p.is_dir(),
                  "invalid generated Git repository: "+name)
             names.append(name)
     need(bool(names),"no materialized Git repositories found")
     return sorted(names)
 
 
-def bazel_git_snapshots(external, destination):
+def bazel_git_snapshots(external, destination, output_root):
     """Archive the exact generated Git repository, including its Bazel BUILD files."""
     names=bazel_git_repository_names(external)
     destination.mkdir()
     workspace=UPSTREAM.resolve()
     for name in names:
-        source=(external/name).resolve()
+        source=(external/name).resolve(strict=True)
+        need(source.is_relative_to(output_root.resolve()) and source.is_dir(),
+             "Git repository escapes Bazel output root: "+name)
         target=destination/name
         shutil.copytree(source,target,symlinks=True)
         for link in source.rglob("*"):
@@ -223,7 +246,7 @@ def bazel_fetch(stage,offline):
             bazel_registry_snapshot(pathlib.Path(d),registry)
             roots=list(pathlib.Path(d).glob("*/external/"+BAZEL_REGISTRY_REPO))
             need(len(roots)==1,"Bazel output root missing or ambiguous")
-            bazel_git_snapshots(roots[0].parent,git_repositories)
+            bazel_git_snapshots(roots[0].parent,git_repositories,pathlib.Path(d))
 
 def llvm_prepare(stage):
     # apt's signed repository metadata authenticates the package bytes; keep

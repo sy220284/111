@@ -32,9 +32,9 @@ internal fun ConversationTimelineViewport(
     val loadingEarlier by vm.loadingEarlier.collectAsState()
     val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
     val projection by collectTimelinePresentation(vm, thread, olderPageVisible)
-    val frame = projection?.frame ?: vm.conversationState.value
-    val contextLoading = switching || projection == null || frame.threadId != thread
-    val items = if (contextLoading) emptyList() else frame.timeline
+    val frame = projection?.frame
+    val contextLoading = switching || frame == null || frame.threadId != thread
+    val items = if (contextLoading) emptyList() else frame?.timeline.orEmpty()
     val rows = if (contextLoading) emptyList() else projection?.rows.orEmpty()
     val displayRows = if (contextLoading) emptyList() else projection?.displayRows.orEmpty()
     val answerVersions by vm.answerVersions.state.collectAsState()
@@ -171,7 +171,7 @@ internal fun ConversationTimelineViewport(
             }
     }
     BoxWithConstraints(modifier.fillMaxWidth().clipToBounds()) {
-        if (contextLoading) {
+        if (contextLoading || frame == null) {
             ConversationLoadingSkeleton(Modifier.fillMaxSize())
         } else if (items.isEmpty()) {
             val shortViewport = compactWorkArea || maxHeight < 345.dp
@@ -265,7 +265,7 @@ internal fun ConversationTimelineViewport(
                     AnswerVersionSwitcher(fallbackVersion, if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null, "recovery") }
             }
         }
-        if (!contextLoading && !frame.running && projection?.hasFormalReply == true) {
+        if (!contextLoading && frame?.running == false && projection?.hasFormalReply == true) {
             CodexSecondaryButton(onClick = { outlineOpen = true }, modifier = Modifier.align(Alignment.TopEnd)
                 .padding(4.dp).heightIn(min = 48.dp).testTag("reply-outline")) { Text("目录") }
         }

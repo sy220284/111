@@ -42,9 +42,19 @@ class PortableAuxiliaryTest(unittest.TestCase):
             workspace=root/"workspace"; workspace.mkdir()
             (workspace/"MODULE.bazel").write_text('git_repository(\n    name = "direct_git",\n)')
             (workspace/"BUILD.bazel").write_text("exports_files([])")
+            for lock_path in ("codex-rs/Cargo.lock","tools/argument-comment-lint/Cargo.lock"):
+                lock=workspace/lock_path
+                lock.parent.mkdir(parents=True)
+                lock.write_text('[[package]]\nname = "example"\nversion = "1.0.0"\n'
+                    'source = "git+https://github.com/example/repo.git#1234567890123456789012345678901234567890"\n')
             external=root/"output"; external.mkdir()
             name="rules_rs++crate+crates__github.com_example_repo.git_12345678"
-            source=external/name; source.mkdir()
+            cache=root/"repo-contents-cache"/"git-source"; cache.mkdir(parents=True)
+            alias=external/name; alias.symlink_to(cache,target_is_directory=True)
+            source=cache
+            (external/(name+".marker")).write_text("marker")
+            ordinary=root/"ordinary"; ordinary.mkdir()
+            (external/"rules_rs++crate+crates__rama-http-0.3.0-alpha.4").symlink_to(ordinary,target_is_directory=True)
             (source/"data").write_text("locked")
             (source/"internal").symlink_to(source/"data")
             (source/"BUILD.bazel").symlink_to(workspace/"BUILD.bazel")
@@ -52,15 +62,16 @@ class PortableAuxiliaryTest(unittest.TestCase):
             (direct/"file").write_text("direct")
             dest=root/"stage"
             with patch.object(auxiliary,"UPSTREAM",workspace):
-                auxiliary.bazel_git_snapshots(external,dest)
+                auxiliary.bazel_git_snapshots(external,dest,root)
                 self.assertEqual((dest/name/"internal").read_text(),"locked")
                 self.assertEqual((dest/name/"internal").readlink(),pathlib.Path("data"))
                 self.assertFalse((dest/name/"BUILD.bazel").is_symlink())
                 self.assertEqual((dest/name/"BUILD.bazel").read_text(),"exports_files([])")
                 self.assertEqual(len(list(auxiliary.bazel_git_overrides(dest))),2)
+                self.assertFalse((dest/"rules_rs++crate+crates__rama-http-0.3.0-alpha.4").exists())
                 (source/"escape").symlink_to(root)
                 with self.assertRaises(ValueError):
-                    auxiliary.bazel_git_snapshots(external,root/"bad")
+                    auxiliary.bazel_git_snapshots(external,root/"bad",root)
             (dest/"extra").mkdir()
             with self.assertRaises(ValueError):
                 list(auxiliary.bazel_git_overrides(dest))
