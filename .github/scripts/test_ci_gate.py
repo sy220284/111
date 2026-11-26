@@ -3,7 +3,9 @@ import json
 from ci_reuse import required_groups
 from ci_gate import verify, FULL, ALL
 
-def fixture(full=True, runtime=False, pr=True):
+def fixture(full=True, runtime=None, pr=True):
+    if runtime is None:
+        runtime = full
     jobs = {k: {"result": "skipped"} for k in ALL}
     groups=required_groups(full,runtime,"pull_request" if pr else "push","refs/pull/1/merge" if pr else "refs/heads/main")
     jobs["plan"] = {"result": "success", "outputs": {"full": str(full).lower(), "runtime": str(runtime).lower(), "receipt":json.dumps({"schema":1,"source":"head","tree":"tree","required":sorted(groups),"execute":sorted(groups),"reused":{}})}}
@@ -55,3 +57,9 @@ class GateTests(unittest.TestCase):
         record["reused"]={}
         jobs["plan"]["outputs"]["receipt"]=json.dumps(record)
         with self.assertRaises(ValueError): verify(jobs,"pull_request","refs/pull/1/merge")
+
+    def test_full_acceptance_cannot_omit_real_runtime(self):
+        data = fixture()
+        data["plan"]["outputs"]["runtime"] = "false"
+        with self.assertRaises(ValueError):
+            verify(data, "pull_request", "refs/pull/1/merge")

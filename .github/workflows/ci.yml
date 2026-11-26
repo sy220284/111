@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       runtime_x86:
-        description: 同时构建并运行 x86_64 真实内核专项
+        description: 手动全量验收（始终包含 x86_64 真实内核专项）
         type: boolean
         default: false
 

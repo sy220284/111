@@ -18,7 +18,8 @@ class PolicyTests(unittest.TestCase):
     def test_native_and_runtime_changes_enable_real_core(self):
         for path in ["upstream/codex/codex-rs/core/src/lib.rs", "android-app/tools/prepare_android_mxc.py", "android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt"]:
             self.assertTrue(plan([path])["runtime"])
-        self.assertFalse(plan(["android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt"])["runtime"])
+        self.assertTrue(plan(["android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt"])["runtime"])
+        self.assertFalse(plan(["AGENTS.md"])["runtime"])
 
     def test_device_matrix_changes_require_real_core(self):
         for path in ["android-app/tools/device-matrix.json", "android-app/tools/device_matrix.py", ".github/scripts/run-android-runtime-tests.sh"]:

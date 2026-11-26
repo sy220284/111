@@ -22,7 +22,7 @@ def plan(paths, force=False, runtime=False):
     paths = list(paths)
     runtime = runtime or any(matches(path, "runtime") for path in paths)
     full = force or runtime or not maintenance_only(paths)
-    return {"full": full, "runtime": runtime, "maintenance": not full, "changed": paths}
+    return {"full": full, "runtime": full, "maintenance": not full, "changed": paths}
 
 def changed(base, head):
     if not base or base == "0" * 40:
