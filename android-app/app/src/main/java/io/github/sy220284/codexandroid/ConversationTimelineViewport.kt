@@ -287,7 +287,7 @@ internal fun ConversationTimelineViewport(
             text = { LazyColumn(Modifier.heightIn(max = 440.dp)) {
                 if (outline.isEmpty()) item { Text("当前回答没有标题") }
                 items(outline) { entry ->
-                    TextButton(onClick = {
+                    CodexTextAction(onClick = {
                         outlineOpen = false; followTail = false; headingTarget = entry
                         val index = rows.indexOfFirst { it.key == entry.rowKey }
                         if (index >= 0) scope.launch { scroll.scrollToItem(index + if (olderPageVisible) 1 else 0) }
@@ -295,7 +295,7 @@ internal fun ConversationTimelineViewport(
                         Text(entry.title, Modifier.fillMaxWidth())
                     }
                 }
-            } }, confirmButton = { TextButton(onClick = { outlineOpen = false }) { Text("关闭") } })
+            } }, confirmButton = { CodexTextAction(onClick = { outlineOpen = false }) { Text("关闭") } })
     }
     filePreview?.let { preview -> ModelDocumentDialog(preview, java.io.File(vm.workingDirectory)) { filePreview = null } }
     turnAction?.let { (item, action) ->

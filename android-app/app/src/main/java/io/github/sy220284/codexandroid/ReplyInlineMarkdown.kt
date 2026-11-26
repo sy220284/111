@@ -18,7 +18,7 @@ internal object ReplyInlineMarkdown {
             // A math marker inside inline code is literal.
             if (source.substring(0, match.range.first).count { it == 96.toChar() } % 2 != 0) continue
             result += commonmark(source.substring(start, match.range.first))
-            result += MessageMarkdown.CopyPart(ReplyMath.linear(value), "\\(", "\\)", setOf("math"))
+            result += MessageMarkdown.CopyPart(ReplyMath.linear(value), styles = setOf("math"), original = match.value)
             start = match.range.last + 1
         }
         result += commonmark(source.substring(start))

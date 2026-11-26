@@ -65,7 +65,7 @@ internal fun ReplyDataChart(block: MessageBlock) {
     }
     // Values and selection remain accessible independently of the chart drawing.
     rows.forEachIndexed { index, row ->
-        TextButton(onClick = { selected = if (selected == index) -1 else index },
+        CodexTextAction(onClick = { selected = if (selected == index) -1 else index },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
             if (block.kind == "pie") Box(Modifier.size(10.dp).background(palette[index % palette.size], RoundedCornerShape(2.dp)))
             Spacer(Modifier.width(6.dp))

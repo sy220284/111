@@ -99,7 +99,7 @@ internal object ProgressiveReplyProjection {
                         else -> null
                     },
                     liveProcess = open && group.all { it.kind in activityKinds },
-                    partialCopy = open && formal && single?.phase == "partial_answer" && single.status == "completed"))
+                    partialCopy = open && formal && single?.phase == "partial_answer" && single?.status == "completed"))
             }
             return@buildList
         }

@@ -16,7 +16,10 @@ internal object MessageSelectionCopy {
                     val b = minOf(to, end)
                     if (a < b) {
                         val value = part.visible.substring(a - position, b - position)
-                        if (part.prefix.isNotEmpty()) {
+                        if (part.original != null && a == position && b == end) {
+                            styled = true
+                            append(part.original)
+                        } else if (part.prefix.isNotEmpty()) {
                             styled = true
                             append(part.prefix).append(value).append(part.suffix)
                         } else append(value)

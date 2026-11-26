@@ -121,7 +121,7 @@ internal object MessageMarkdown {
                     val end = (i + 1 until lines.size).firstOrNull { lines[it].trim() == ending }
                     val sourceMath = end?.let { lines.subList(i + 1, it).joinToString(" ") }
                     val math = sourceMath?.let { RichReplyContent.parse("codex-math", it) }
-                    if (math != null && end != null) {
+                    if (math != null && end != null && sourceMath != null) {
                         flush()
                         result.add(MessageBlock("math", sourceMath, rows = math.rows,
                             source = lines.subList(i, end + 1).joinToString("\n")))
@@ -175,7 +175,7 @@ internal object MessageMarkdown {
 
     /** Uses exactly the same inline token boundaries as the visible Compose text. */
     internal data class CopyPart(val visible: String, val prefix: String = "", val suffix: String = "",
-        val styles: Set<String> = emptySet(), val url: String? = null)
+        val styles: Set<String> = emptySet(), val url: String? = null, val original: String? = null)
     fun copyParts(source: String): List<CopyPart> = ReplyInlineMarkdown.parts(source)
 
     fun inlineText(source: String) = buildAnnotatedString {

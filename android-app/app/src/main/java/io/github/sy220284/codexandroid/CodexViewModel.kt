@@ -568,7 +568,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
      * repeated taps do not send the same instruction twice.
      */
     fun steerPrompt(text: String, afterAccepted: () -> Unit) =
-        submitRunningComposer(ComposerDraft(text = text), "steer", afterAccepted)
+        submitRunningComposer(ComposerDraft(text = text), "steer", accepted = afterAccepted)
 
     fun interrupt() {
         val tid = activeThread.value ?: return
