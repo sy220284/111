@@ -41,19 +41,15 @@ object LocalImageAttachments {
     fun directory(context: Context): File = File(context.filesDir, FOLDER)
 
     suspend fun importFrom(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
-        val type = context.contentResolver.getType(uri)
-        val ext = when (type) {
-            "image/jpeg" -> "jpg"
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            "audio/wav", "audio/x-wav", "audio/wave" -> "wav"
-            "audio/mpeg", "audio/mp3" -> "mp3"
-            "audio/mp4", "audio/x-m4a", "audio/m4a" -> "m4a"
-            "audio/webm" -> "webm"
-            "audio/ogg", "application/ogg" -> "ogg"
-            "video/mp4" -> "mp4"
-            else -> throw IllegalArgumentException("请选择 JPEG、PNG、WebP、WAV、MP3、M4A、OGG、WebM 音频或 MP4 视频")
-        }
+        val resolver = context.contentResolver
+        val type = resolver.getType(uri)
+        // Android's document providers may report a generic container MIME. Use
+        // their display name only to choose an allowed decoder, never to build a path.
+        val name = if (MediaImportFormat.requiresName(type)) {
+            resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null }
+        } else null
+        val ext = MediaImportFormat.extension(type, name)
         val folder = directory(context).apply { check(exists() || mkdirs()) { "无法建立媒体附件目录" } }
         val output = File(folder, UUID.randomUUID().toString() + "." + ext)
         val kind = LocalMediaAttachmentPolicy.kind(output.path)
@@ -87,9 +83,12 @@ object LocalImageAttachments {
                     val extractor = android.media.MediaExtractor()
                     try {
                         extractor.setDataSource(output.absolutePath)
-                        require((0 until extractor.trackCount).any {
-                            extractor.getTrackFormat(it).getString(android.media.MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-                        }) { "音频文件无法解码" }
+                        val tracks = (0 until extractor.trackCount).mapNotNull {
+                            extractor.getTrackFormat(it).getString(android.media.MediaFormat.KEY_MIME)
+                        }
+                        require(tracks.any { it.startsWith("audio/") } && tracks.none { it.startsWith("video/") }) {
+                            "请选择有效的独立音频文件；含视频轨的文件请作为视频导入"
+                        }
                     } finally { extractor.release() }
                     output.canonicalPath
                 }
@@ -101,7 +100,11 @@ object LocalImageAttachments {
                 }
             }
         } catch (failure: Exception) {
-            output.delete()
+            LocalMediaAttachmentPolicy.recoveryPaths(output.path).forEach { path ->
+                val file = File(path)
+                if (file.exists() && !file.delete())
+                    failure.addSuppressed(IllegalStateException("无法清理未完成的媒体附件"))
+            }
             throw failure
         }
     }

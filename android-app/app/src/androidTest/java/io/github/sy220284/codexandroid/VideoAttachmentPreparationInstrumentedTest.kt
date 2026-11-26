@@ -29,7 +29,12 @@ class VideoAttachmentPreparationInstrumentedTest {
             assertEquals("4e4ed97b4bf73b0d23818873698ce32d29fee6d66a16a1ca169a8b5e01741ec1", java.security.MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { "%02x".format(it.toInt() and 255) })
             val source = File(directory, java.util.UUID.randomUUID().toString() + ".mp4").apply { writeBytes(bytes) }
             val uri = FileProvider.getUriForFile(context, "${context.packageName}.composerprovider", source)
-            val imported = File(runBlocking { LocalImageAttachments.importFrom(context, uri) }).also { managedPath = it.path }
+            // Keep the provider metadata in failure diagnostics; the real import must succeed.
+            val mime = context.contentResolver.getType(uri)
+            val imported = File(runBlocking {
+                try { LocalImageAttachments.importFrom(context, uri) }
+                catch (failure: Exception) { throw AssertionError("MP4 content URI import failed; provider MIME=$mime", failure) }
+            }).also { managedPath = it.path }
             assertEquals(LocalImageAttachments.directory(context).canonicalFile, imported.canonicalFile.parentFile)
             assertNotEquals(source.canonicalPath, imported.canonicalPath)
             assertArrayEquals(bytes, imported.readBytes())
