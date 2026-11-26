@@ -18,10 +18,31 @@ object TerminalSessionContract {
     /** Fixed, user-initiated tool probe: no caller-supplied script, no stdin. */
     internal fun developerProbe(cwd: String): JSONObject {
         require(cwd.isNotBlank()) { "工作目录不可为空" }
-        val script = """
+        val script = listOf(
+            "for name in git rg curl python3 node npm; do",
+            "  if command -v \"\$name\" >/dev/null 2>&1; then",
+            "    output=\$(\"\$name\" --version 2>&1); code=\$?",
+            "    output=\$(printf '%s\\n' \"\$output\" | head -n 1)",
+            "    printf '%s\\t%s\\t%s\\n' \"\$name\" \"\$code\" \"\$output\"",
+            "  else",
+            "    printf '%s\\t127\\t命令未找到\\n' \"\$name\"",
+            "  fi",
+            "done",
+            "output=\$(python3 -m pip --version 2>&1); code=\$?",
+            "printf '%s\\t%s\\t%s\\n' 'pip (python3 -m pip)' \"\$code\" \"\$output\"",
+            "if command -v git-remote-https >/dev/null 2>&1; then",
+            "  printf '%s\\t0\\t%s\\n' 'Git HTTPS' '传输组件已注册，连接待验证'",
+            "else",
+            "  printf '%s\\t127\\t%s\\n' 'Git HTTPS' '传输组件未安装'",
+            "fi"
+        ).joinToString("\n")
+        return JSONObject()
+            .put("command", JSONArray().put("/system/bin/sh").put("-c").put(script))
+            .put("cwd", cwd)
+            .put("timeoutMs", 30000)
+            .put("sandboxPolicy", sandbox(false))
+    }
 
-        for name in git rg curl python3 node npm; do
-          if command -v "${'
     fun execute(command: String, cwd: String, processId: String, tty: Boolean = false, networkEnabled: Boolean = false): JSONObject {
         require(command.isNotBlank()) { "请输入要执行的命令" }
         require(cwd.isNotBlank()) { "工作目录不可为空" }
