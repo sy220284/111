@@ -1379,6 +1379,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-remote-name").performScrollTo()
         stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("临时名称")
+        // The system owns Back while its keyboard is open. Dismiss it before scrolling
+        // to the separate cancel control; dismissal must preserve the in-progress reply.
+        assertRealSoftKeyboardOpen()
+        pressSystemBack()
+        rule.waitUntil(5_000L) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(rule.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) != true
+        }
+        rule.onNodeWithTag("environment-name-reply-input").assertTextContains("临时名称")
         rule.onNodeWithTag("environment-name-reply-cancel").performScrollTo()
         stableClick("environment-name-reply-cancel")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
