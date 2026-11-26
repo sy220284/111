@@ -296,7 +296,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
+          bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName="${{ needs.check-release.outputs.version }}" \

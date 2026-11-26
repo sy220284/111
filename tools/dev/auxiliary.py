@@ -117,7 +117,9 @@ def bazel_fetch(stage,offline):
     need(output(exe,"--version")=="bazel "+LOCK["bazel"],"Bazel version mismatch")
     with tempfile.TemporaryDirectory() as d:
         cache=stage/"repository-cache";cache.mkdir(exist_ok=True)
-        contents=stage/"repo-contents-cache";contents.mkdir(exist_ok=True)
+        contents=pathlib.Path(d)/"repo-contents-cache";contents.mkdir()
+        # Materialized external repositories can contain links to the old output root.
+        # Only the content-addressed download cache travels; rematerialize on each host.
         args=[exe,"--batch","--output_user_root="+d,"fetch","--lockfile_mode=error",
               "--repository_cache="+str(cache),"--repo_contents_cache="+str(contents),"--disk_cache=","--jobs=4"]
         if offline:args.append("--repository_disable_download")

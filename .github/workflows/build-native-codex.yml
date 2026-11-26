@@ -343,7 +343,7 @@ jobs:
           fi
           export "CARGO_TARGET_${TARGET_ENV}_RUSTFLAGS=$RUST_LINK_FLAGS"
           cd upstream/codex/codex-rs
-          cargo build --locked --offline --release \
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline --release \
             -p codex-app-server --bin codex-app-server \
             -p codex-code-mode-host --bin codex-code-mode-host \
             --target "$TARGET"
@@ -433,12 +433,12 @@ jobs:
         working-directory: upstream/codex/codex-rs
         run: |
           set -euo pipefail
-          cargo test --locked --offline -p codex-models-manager --lib android_catalog_version_tests
-          cargo test --locked --offline -p codex-models-manager --lib image_input
-          cargo test --locked --offline -p codex-model-provider --lib domestic_
-          cargo test --locked --offline -p codex-model-provider-info --lib domestic_workspace_tests
-          cargo test --locked --offline -p codex-api --lib body_model_reporting
-          cargo test --locked --offline -p codex-app-server --test all media_sample_native_
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-models-manager --lib android_catalog_version_tests
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-models-manager --lib image_input
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-model-provider --lib domestic_
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-model-provider-info --lib domestic_workspace_tests
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-api --lib body_model_reporting
+          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-app-server --test all media_sample_native_
       - name: 生成 Rust 回归凭证
         id: provider-index
         run: python3 .github/scripts/native_index.py provider --out "$RUNNER_TEMP/provider-index.json" --github-output "$GITHUB_OUTPUT"

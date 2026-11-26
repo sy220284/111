@@ -271,7 +271,7 @@ jobs:
         run: |
           printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证 Compose、协议测试与静态检查
-        run: ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+        run: bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
@@ -666,7 +666,7 @@ jobs:
         shell: bash
         run: bash .github/scripts/create-android-update-fixture.sh
       - name: 编译 Android APK 和设备测试包（单元测试由独立 UI 工作流执行）
-        run: ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
+        run: bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
       - name: 验证 ARM64 APK 的原生功能组件和 ABI
         shell: bash
         run: |
@@ -772,7 +772,7 @@ jobs:
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
-          ./android-app/gradlew -p android-app --offline --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
           python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
       - name: 允许模拟器硬件加速
         run: |
@@ -916,7 +916,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
+          bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 \
@@ -935,7 +935,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
+          bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexR8Candidate=true -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
           APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
