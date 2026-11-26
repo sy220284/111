@@ -100,17 +100,22 @@ internal object VideoAttachmentPreparation {
             try {
                 retriever.setDataSource(path)
                 require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes") { "文件不含可读取的视频轨" }
-                var previous: IntArray? = null
+                var previous = IntArray(96 * 54)
+                var pixels = IntArray(previous.size)
+                var hasPrevious = false
                 val probes = VideoSamplingPlan.probeTimes(duration).map { time ->
                     checkActive()
                     val frame = frameAt(retriever, time, 96, 96)
                     try {
                         val normalized = Bitmap.createScaledBitmap(frame, 96, 54, true)
                         try {
-                            val pixels = IntArray(96 * 54)
                             normalized.getPixels(pixels, 0, 96, 0, 0, 96, 54)
-                            VideoSamplingPlan.Probe(time, previous?.let { VideoSamplingPlan.change(it, pixels) } ?: 0.0)
-                                .also { previous = pixels }
+                            val change = if (hasPrevious) VideoSamplingPlan.change(previous, pixels) else 0.0
+                            val reusable = previous
+                            previous = pixels
+                            pixels = reusable
+                            hasPrevious = true
+                            VideoSamplingPlan.Probe(time, change)
                         } finally { if (normalized !== frame) normalized.recycle() }
                     } finally { frame.recycle() }
                 }

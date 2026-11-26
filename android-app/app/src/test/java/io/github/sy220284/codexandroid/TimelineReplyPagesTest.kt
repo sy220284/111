@@ -20,6 +20,11 @@ class TimelineReplyPagesTest {
         assertEquals(36, final.sumOf { it.page?.headingCount ?: 0 })
         assertEquals(1, final.count { it.page?.ownsHeading(25) == true })
         assertSame(live.first().page!!.blocks.first(), final.first().page!!.blocks.first())
+        for (index in 0 until live.lastIndex) assertSame(live[index].page, final[index].page)
+        val replaced = project("## 新标题\n\n替换正文", "completed")
+        assertEquals(1, replaced.size)
+        assertNotSame(final.first().page, replaced.first().page)
+        assertEquals(1, replaced.first().page!!.headingCount)
         assertEquals(prefix + "尾部完成", final.last().row.group.single().text)
     }
 

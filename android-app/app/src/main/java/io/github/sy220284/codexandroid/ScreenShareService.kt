@@ -154,6 +154,10 @@ class ScreenShareService : Service() {
     private fun newReader(width: Int, height: Int): ImageReader {
         val result = ImageReader.newInstance(width, height, PixelFormat.RGBA_8888, 2)
         val sessionToken = checkNotNull(token)
+        val rowBytes = Math.multiplyExact(width, 4)
+        val pixels = ByteArray(Math.multiplyExact(rowBytes, height))
+        val fingerprint = java.security.MessageDigest.getInstance("SHA-256")
+        var previousDigest: ByteArray? = null
         result.setOnImageAvailableListener({ source ->
             try {
                 source.acquireLatestImage()?.use { image ->
@@ -162,31 +166,33 @@ class ScreenShareService : Service() {
                     lastSample = now
                     if (reader !== source || ending) return@use
                     val plane = image.planes[0]
-                    val rowBytes = Math.multiplyExact(image.width, 4)
-                    require(plane.pixelStride == 4 && plane.rowStride >= rowBytes)
-                    val pixels = java.nio.ByteBuffer.allocate(Math.multiplyExact(rowBytes, image.height))
-                    val row = ByteArray(rowBytes)
-                    val buffer = plane.buffer
-                    // Some Android implementations omit padding after the last row.
-                    // Copy only visible pixels rather than copying the padded image width.
-                    for (y in 0 until image.height) {
-                        buffer.position(Math.multiplyExact(y, plane.rowStride))
-                        buffer.get(row)
-                        pixels.put(row)
-                    }
-                    pixels.flip()
-                    val bitmap = Bitmap.createBitmap(image.width, image.height, Bitmap.Config.ARGB_8888)
+                    require(image.width == width && image.height == height &&
+                        plane.pixelStride == 4 && plane.rowStride >= rowBytes)
                     try {
-                        bitmap.copyPixelsFromBuffer(pixels)
-                        val bytes = ByteArrayOutputStream().use { stream ->
-                            check(bitmap.compress(Bitmap.CompressFormat.JPEG, 88, stream))
-                            stream.toByteArray()
+                        val buffer = plane.buffer
+                        // Only visible pixels enter the reusable buffer; padding never enters the digest.
+                        for (y in 0 until height) {
+                            buffer.position(Math.multiplyExact(y, plane.rowStride))
+                            buffer.get(pixels, y * rowBytes, rowBytes)
                         }
+                        val digest = fingerprint.digest(pixels)
+                        if (previousDigest?.contentEquals(digest) == true) return@use
+                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                         try {
-                            // Recheck source identity after encoding as a resize may have occurred.
-                            if (reader === source && !ending) screenShareSession.publish(sessionToken, bytes, now)
-                        } finally { bytes.fill(0) }
-                    } finally { bitmap.recycle(); row.fill(0); pixels.array().fill(0) }
+                            bitmap.copyPixelsFromBuffer(java.nio.ByteBuffer.wrap(pixels))
+                            val bytes = ByteArrayOutputStream().use { stream ->
+                                check(bitmap.compress(Bitmap.CompressFormat.JPEG, 88, stream))
+                                stream.toByteArray()
+                            }
+                            try {
+                                // Recheck source identity after encoding as a resize may have occurred.
+                                if (reader === source && !ending) {
+                                    screenShareSession.publish(sessionToken, bytes, now)
+                                    previousDigest = digest
+                                }
+                            } finally { bytes.fill(0) }
+                        } finally { bitmap.recycle() }
+                    } finally { pixels.fill(0) }
                 }
             } catch (_: IllegalStateException) {
                 // A queued callback may race a reader's release. Report only if this reader still owns capture.

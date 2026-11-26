@@ -320,7 +320,7 @@ private fun MessageCodeBlock(block: MessageBlock) {
                 }
             }
             HorizontalDivider(color = Ink.border)
-            Text(ReplyCodeHighlight.render(block.text, block.label), Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
+            Text(ReplyCodeHighlight.render(block.text, checkNotNull(LocalPreparedReplyBlock.current).codeTokens), Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
                 fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
         }
     }
