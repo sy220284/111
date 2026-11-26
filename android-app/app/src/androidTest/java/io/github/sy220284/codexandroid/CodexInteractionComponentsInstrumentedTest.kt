@@ -59,6 +59,56 @@ class CodexInteractionComponentsInstrumentedTest {
 
     @get:Rule val rule = createComposeRule()
 
+    @Test fun isolatedMcpAppRealWebViewRoundTrip() {
+        val port = java.util.concurrent.atomic.AtomicReference<android.webkit.WebMessagePort>()
+        val view = java.util.concurrent.atomic.AtomicReference<android.webkit.WebView>()
+        val receipt = java.util.concurrent.atomic.AtomicReference<org.json.JSONObject>()
+        val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+        val html = """
+            <!doctype html><script>
+            (async function(){
+              let parentDenied=false, storageDenied=false, networkDenied=false;
+              try { void parent.document.body; } catch(e) { parentDenied=true; }
+              try { localStorage.setItem("probe","blocked"); } catch(e) { storageDenied=true; }
+              try { await fetch("https://111-mcp-test.invalid/probe"); } catch(e) { networkDenied=true; }
+              addEventListener("message", e=>{
+                if(e.source===parent && e.data.result && e.data.result.receipt==="native")
+                  parent.postMessage({jsonrpc:"2.0",method:"test/ack"},"*");
+              });
+              parent.postMessage({jsonrpc:"2.0",id:1,method:"test/isolation",params:{parentDenied,storageDenied,networkDenied}},"*");
+            })();
+            </script>
+        """.trimIndent()
+        try {
+            rule.setContent {
+                androidx.compose.ui.viewinterop.AndroidView(factory = { context ->
+                    android.webkit.WebView(context).apply {
+                        view.set(this)
+                        McpAppSandbox.attach(this, html, { true }, { port.set(it) }, { raw ->
+                            val msg = org.json.JSONObject(raw)
+                            when (msg.optString("method")) {
+                                "test/isolation" -> {
+                                    receipt.set(msg.getJSONObject("params"))
+                                    port.get().postMessage(android.webkit.WebMessage(
+                                        """{"jsonrpc":"2.0","id":1,"result":{"receipt":"native"}}"""))
+                                }
+                                "test/ack" -> finished.set(true)
+                            }
+                        })
+                    }
+                })
+            }
+            rule.waitUntil(20000L) { finished.get() }
+            val isolated = requireNotNull(receipt.get())
+            org.junit.Assert.assertTrue(isolated.getBoolean("parentDenied"))
+            org.junit.Assert.assertTrue(isolated.getBoolean("storageDenied"))
+            org.junit.Assert.assertTrue(isolated.getBoolean("networkDenied"))
+        } finally {
+            rule.runOnIdle { port.get()?.close(); view.get()?.stopLoading(); view.get()?.destroy() }
+        }
+    }
+
+
     @Test fun adaptiveActionsKeepLabelsAndCallbacksAtDoubleFontScale() {
         val chosen = mutableListOf<String>()
         rule.setContent {
