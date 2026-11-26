@@ -35,6 +35,15 @@ class VideoSamplingPlanTest {
         }
     }
 
+    @Test fun decoderSelectionUsesActualGopWorkRatherThanAlwaysSeeking() {
+        val dense = VideoSamplingPlan.probeTimes(60000)
+        assertTrue(VideoSamplingPlan.preferSequential(listOf(VideoSamplingPlan.Gop(0, 1800)), dense, 60_000_000))
+        val shortGops = (0 until 60).map { VideoSamplingPlan.Gop(it * 1_000_000L, 30) }
+        assertFalse(VideoSamplingPlan.preferSequential(shortGops, dense, 60_000_000))
+        assertFalse(VideoSamplingPlan.preferSequential(emptyList(), dense, 60_000_000))
+        assertFalse(VideoSamplingPlan.preferSequential(listOf(VideoSamplingPlan.Gop(0, 1800)), listOf(0, 59999), 60_000_000))
+    }
+
     @Test fun changingScenesAllocateMoreSamplesWithoutDroppingBaseline() {
         val duration = 60_000L
         val quiet = VideoSamplingPlan.plan(duration, emptyList()).single()

@@ -14,6 +14,28 @@ internal object VideoSamplingPlan {
     data class Window(val startMs: Long, val endMs: Long)
     data class Probe(val timeMs: Long, val change: Double)
     data class Segment(val window: Window, val times: List<Long>)
+    data class Gop(val startUs: Long, val frames: Int)
+
+    /** Decode sequentially only when measured GOP structure predicts a clear win.
+     * Short-GOP sparse requests retain indexed seeks. The estimate affects only
+     * the decoder choice, never the baseline sampling budget. */
+    fun preferSequential(gops: List<Gop>, probesMs: List<Long>, durationUs: Long): Boolean {
+        if (gops.isEmpty() || probesMs.size < 4 || durationUs <= 0 ||
+            gops.any { it.frames <= 0 } || gops.zipWithNext().any { (a, b) -> a.startUs >= b.startUs }) return false
+        val frames = gops.sumOf { it.frames.toLong() }
+        var random = 0L
+        var index = 0
+        for (probe in probesMs) {
+            val time = probe * 1000
+            while (index + 1 < gops.size && gops[index + 1].startUs <= time) index++
+            val gop = gops[index]
+            val next = gops.getOrNull(index + 1)?.startUs ?: durationUs
+            val span = (next - gop.startUs).coerceAtLeast(1)
+            val elapsed = (time - gop.startUs).coerceIn(0, span)
+            random += 1 + (gop.frames - 1L) * elapsed / span
+        }
+        return random >= frames * 2
+    }
 
     fun windows(duration: Long): List<Window> {
         require(duration in 1..MAX_DURATION_MS) { "视频时长上限10分钟" }

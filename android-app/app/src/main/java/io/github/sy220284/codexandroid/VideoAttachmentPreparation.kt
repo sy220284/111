@@ -103,7 +103,10 @@ internal object VideoAttachmentPreparation {
                 var previous = IntArray(96 * 54)
                 var pixels = IntArray(previous.size)
                 var hasPrevious = false
-                val probes = VideoSamplingPlan.probeTimes(duration).map { time ->
+                val probeTimes = VideoSamplingPlan.probeTimes(duration)
+                val sequential = VideoSequentialProbes.select(path, probeTimes, checkActive)
+                val probes = if (sequential != null) VideoSequentialProbes.read(path, sequential, probeTimes, checkActive)
+                else probeTimes.map { time ->
                     checkActive()
                     val frame = frameAt(retriever, time, 96, 96)
                     try {
