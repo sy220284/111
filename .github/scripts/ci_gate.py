@@ -23,6 +23,10 @@ def verify(jobs, event, ref):
     check_shape(receipt,receipt["source"],groups)
     if "compile" in receipt["reused"] and outputs.get("compile_run_id") != str(receipt["reused"]["compile"]["run_id"]):
         raise ValueError("UI APK source does not match the compile receipt")
+    if "compile" in receipt["reused"]:
+        for artifact, key in (("codex-android-ui-apks","compile_apk_id"), ("ui-apk-integrity","compile_integrity_id")):
+            if outputs.get(key) != str(receipt["reused"]["compile"]["artifacts"][artifact]["id"]):
+                raise ValueError("UI artifact ID does not match the compile receipt")
     required = actual_jobs(receipt["execute"])
     for name in ALL - {"plan"}:
         expected = "success" if name in required else "skipped"

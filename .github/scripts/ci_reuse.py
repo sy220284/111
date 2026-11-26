@@ -46,7 +46,7 @@ ARTIFACTS = {
                 "codex-android-instrumentation-apk", "codex-android-arm64-apk-audit"},
     "runtime": {"codex-android-real-runtime-evidence"},
 }
-SCHEMA = 2
+SCHEMA = 3
 MAX_AGE = timedelta(days=2)
 # Unknown paths or changed recipes invalidate all groups. The exceptions
 # below are limited to known unrelated consumers of a changed file.
@@ -126,10 +126,20 @@ def run_names(repo, run_id, attempt, source):
     jobs = [j for j in rows["jobs"] if j.get("run_attempt") == attempt and j.get("head_sha") == source]
     plans = [j for j in jobs if j["name"] == "统一变更分类" and j["conclusion"] == "success"]
     if len(plans) != 1 or not plans[0].get("started_at"):
-        return set(), None
+        return {}, None
     # The planning job must have actually executed in this attempt. Its start
     # time bounds every artifact; stale uploads from earlier attempts cannot qualify.
-    return successful_names(jobs), datetime.fromisoformat(plans[0]["started_at"].replace("Z","+00:00"))
+    done = {}
+    for job in jobs:
+        if job.get("status") != "completed" or job.get("conclusion") != "success":
+            continue
+        if not job.get("completed_at") or not job.get("started_at") or type(job.get("id")) is not int:
+            continue
+        name = job["name"].rsplit(" / ", 1)[-1]
+        if name in done:
+            raise ValueError("Ambiguous successful CI job")
+        done[name] = {"id":job["id"], "started":job["started_at"], "finished":job["completed_at"]}
+    return done, datetime.fromisoformat(plans[0]["started_at"].replace("Z","+00:00"))
 
 def artifact_index(repo, run_id, started, finished):
     response = api(repo, f"actions/runs/{run_id}/artifacts?per_page=100")
@@ -149,7 +159,8 @@ def artifact_index(repo, run_id, started, finished):
 
 def candidate(repo, run, target, now):
     old = run.get("head_sha","")
-    if (run.get("conclusion") not in {"success", "failure", "cancelled"} or run.get("status") != "completed"
+    if (run.get("status") not in {"completed", "in_progress", "queued", "pending", "waiting", "requested"}
+        or (run["status"] == "completed" and run.get("conclusion") not in {"success", "failure", "cancelled", "timed_out"})
         or (run.get("head_repository") or {}).get("full_name") != repo
         or run.get("path","").split("@",1)[0] != ".github/workflows/ci.yml"
         or run.get("event") not in {"pull_request","push","workflow_dispatch"}
@@ -159,7 +170,6 @@ def candidate(repo, run, target, now):
     if type(attempt) is not int or attempt < 1 or not run.get("run_started_at") or not run.get("updated_at"):
         return None
     started = datetime.fromisoformat(run["run_started_at"].replace("Z","+00:00"))
-    finished = datetime.fromisoformat(run["updated_at"].replace("Z","+00:00"))
     age = now - datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
     if not timedelta(0) <= age <= MAX_AGE or not ancestor(old,target):
         return None
@@ -170,19 +180,26 @@ def candidate(repo, run, target, now):
     names, plan_started = run_names(repo, run["id"], attempt, old)
     if "统一变更分类" not in names or plan_started is None:
         return None
-    artifacts = artifact_index(repo, run["id"], max(started, plan_started), finished)
     result = {}
     for group, expected in JOB_NAMES.items():
         required = ARTIFACTS.get(group,set())
-        if group not in touched and expected <= names and required <= artifacts.keys():
+        if group in touched or not expected <= names.keys():
+            continue
+        # Artifact creation must precede completion of the actual successful
+        # group. Later unrelated jobs may not replace its outputs.
+        start = max(started, plan_started, min(datetime.fromisoformat(names[n]["started"].replace("Z","+00:00")) for n in expected))
+        end = min(now, max(datetime.fromisoformat(names[n]["finished"].replace("Z","+00:00")) for n in expected))
+        artifacts = artifact_index(repo, run["id"], start, end) if required else {}
+        if required <= artifacts.keys():
             result[group] = {"run_id":run["id"], "attempt":attempt, "source":old, "tree":tree(old),
+                             "jobs":{n:names[n] for n in sorted(expected)},
                              "artifacts":{name:artifacts[name] for name in sorted(required)}}
     return result
 
 def make_plan(repo, source, required, force=False):
     reused = {}
     if required and not force:
-        runs = api(repo, "actions/workflows/ci.yml/runs?status=completed&per_page=100")["workflow_runs"]
+        runs = api(repo, "actions/workflows/ci.yml/runs?per_page=100")["workflow_runs"]
         now = datetime.now(timezone.utc)
         for run in runs:
             if run["id"] == int(os.environ.get("GITHUB_RUN_ID","0")):

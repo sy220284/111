@@ -68,10 +68,14 @@ class GateTests(unittest.TestCase):
         jobs=fixture()
         record=json.loads(jobs["plan"]["outputs"]["receipt"])
         record["execute"].remove("compile")
-        record["reused"]["compile"]={"run_id":12}
+        record["reused"]["compile"]={"run_id":12,"artifacts":{"codex-android-ui-apks":{"id":21},"ui-apk-integrity":{"id":22}}}
         jobs["verify-ui"]["result"]="skipped"
         jobs["plan"]["outputs"]["receipt"]=json.dumps(record)
         jobs["plan"]["outputs"]["compile_run_id"]="13"
         with self.assertRaises(ValueError): verify(jobs,"pull_request","refs/pull/1/merge")
         jobs["plan"]["outputs"]["compile_run_id"]="12"
+        jobs["plan"]["outputs"]["compile_apk_id"]="21"
+        jobs["plan"]["outputs"]["compile_integrity_id"]="23"
+        with self.assertRaises(ValueError): verify(jobs,"pull_request","refs/pull/1/merge")
+        jobs["plan"]["outputs"]["compile_integrity_id"]="22"
         self.assertIn("ui-emulator",verify(jobs,"pull_request","refs/pull/1/merge"))
