@@ -122,6 +122,14 @@ class UiMotionPerformanceInstrumentedTest {
             FrameMetrics.COMMAND_ISSUE_DURATION, FrameMetrics.SWAP_BUFFERS_DURATION, FrameMetrics.GPU_DURATION)
         val phaseNames = listOf("input", "animation", "layout_measure", "draw", "sync", "command_issue", "swap_buffers", "gpu")
         val lost = java.util.concurrent.atomic.AtomicInteger()
+        val resources = PerformanceResourceSampler(instrumentation.targetContext) { navigationStage.get() }
+        val arguments = InstrumentationRegistry.getArguments()
+        val physical = arguments.getString("physicalPerformance") == "true"
+        val seconds = arguments.getString("streamSeconds")?.toInt() ?: 8
+        val rate = arguments.getString("streamRate")?.toInt() ?: 25
+        require(seconds in 8..1800 && rate in 10..100)
+        var streamUpdates = 0
+        var pressureElapsed = 0L
         val thread = HandlerThread("ci-frame-metrics").apply { start() }
         val listener = Window.OnFrameMetricsAvailableListener { _, metrics, dropped ->
             val total = metrics.getMetric(FrameMetrics.TOTAL_DURATION)
@@ -157,6 +165,7 @@ class UiMotionPerformanceInstrumentedTest {
                 it.window.addOnFrameMetricsAvailableListener(listener, Handler(thread.looper))
                 attached = true
             }
+            resources.start()
             repeat(4) {
                 navigationStage.set("drawer_open")
                 physicalTap("打开侧边导航")
@@ -198,7 +207,45 @@ class UiMotionPerformanceInstrumentedTest {
             scenario.onActivity { (it.application as CodexApplication).session.timeline.value =
                 history + tail.copy(text = "流式最终成果", status = "completed") }
             waitForLabel("流式最终成果", textOnly = true)
+
+            // Native immutable append snapshots, real UI rendering, large retained
+            // history. The test producer is deliberately separate from the UI thread.
+            val largeHistory = IndexedTimeline.from((0 until 5000).map { n ->
+                TimelineItem("pressure-history-$n", "agentMessage", "历史记录 $n", "completed", turnId = "pressure-history-$n")
+            })
+            fun newTail(id: Int) = TimelineItem("pressure-$id", "agentMessage", "", "streaming",
+                evidence = JSONObject().put("id", "pressure-$id").put("type", "agentMessage").put("text", "").toString(),
+                turnId = "pressure-turn-$id", phase = "final_answer")
+            var pressureTail = newTail(0).appendNative("text", "压力测试起点\n\n", 0, "streaming")
+            val initial = largeHistory.put(pressureTail)
+            navigationStage.set("stream_pressure")
+            scenario.onActivity { (it.application as CodexApplication).session.timeline.value = initial }
+            waitForLabel("压力测试起点", textOnly = true)
+            val start = SystemClock.elapsedRealtime()
+            val interval = 1000.0 / rate
+            val deadline = start + seconds * 1000L
+            val addition = ("正文持续增长，保留原文及 Unicode 😀。".repeat(18) + "\n\n")
+            var turnLength = 0
+            while (SystemClock.elapsedRealtime() < deadline) {
+                if (turnLength + addition.length > 500000) {
+                    pressureTail = newTail(streamUpdates)
+                    turnLength = 0
+                }
+                pressureTail = pressureTail.appendNative("text", addition, 0, "streaming")
+                turnLength += addition.length
+                val next = largeHistory.put(pressureTail)
+                scenario.onActivity { (it.application as CodexApplication).session.timeline.value = next }
+                streamUpdates++
+                val nextAt = start + (streamUpdates * interval).toLong()
+                val wait = nextAt - SystemClock.elapsedRealtime()
+                if (wait > 0) Thread.sleep(wait)
+            }
+            pressureElapsed = SystemClock.elapsedRealtime() - start
+            val finalPressure = largeHistory.put(pressureTail.appendNative("text", "压力测试结束\n\n", 0, "completed").withStatus("completed"))
+            scenario.onActivity { (it.application as CodexApplication).session.timeline.value = finalPressure }
+            waitForLabel("压力测试结束", textOnly = true)
         } finally {
+            resources.stop()
             scenario.onActivity {
                 if (attached) it.window.removeOnFrameMetricsAvailableListener(listener)
                 (it.application as CodexApplication).session.timeline.value = emptyList()
@@ -246,6 +293,15 @@ class UiMotionPerformanceInstrumentedTest {
             }
         report.put("navigation_stage_metrics", stageReport)
         report.put("long_reply_scroll_anchor_verified", true)
+        report.put("stream_pressure", JSONObject().put("history_items", 5000)
+            .put("target_updates_per_second", rate).put("updates", streamUpdates)
+            .put("elapsed_ms", pressureElapsed)
+            .put("observed_updates_per_second", streamUpdates * 1000.0 / pressureElapsed.coerceAtLeast(1)))
+        report.put("resources", resources.report())
+        report.put("device_class", if (physical) "physical_arm64" else "emulator")
+        val pressure = stageReport.optJSONObject("stream_pressure")
+        assertTrue("没有长回复压力帧", pressure != null && pressure.optInt("frames") > 0 && streamUpdates > 0)
+        assertTrue("缺少资源采样", report.getJSONObject("resources").getJSONArray("samples").length() >= 2)
         for (stage in listOf("reply_scroll_drag", "reply_scroll_return")) {
             val measured = stageReport.optJSONObject(stage)
             assertTrue("缺少长回复实际动效帧：" + stage, measured != null && measured.optInt("frames") > 0)
@@ -256,7 +312,14 @@ class UiMotionPerformanceInstrumentedTest {
             assertTrue("Unexpected actual renderer: $report", expected in rendererPipelines)
         }
         assertTrue("Insufficient rendered frame evidence: $report", values.size >= 12 && lost.get() == 0)
-        assertTrue("Severe emulator rendering regression: $report", p95 <= 120.0 &&
+        assertTrue("Severe rendering regression: $report", p95 <= 120.0 &&
             verySlow.toDouble() / values.size <= .15)
+        if (physical) {
+            val evidence = report.getJSONObject("resources")
+            assertTrue("Physical run requires actual unplugged energy or charge-counter evidence",
+                evidence.optBoolean("unplugged") && evidence.optDouble("consumed_mwh", -1.0) > 0.0)
+            assertTrue("Physical stream frame budget exceeded: $pressure",
+                pressure!!.getDouble("p95_ms") <= budget / 1_000_000.0)
+        }
     }
 }
