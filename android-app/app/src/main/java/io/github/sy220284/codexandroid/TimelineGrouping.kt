@@ -7,6 +7,8 @@ internal class TimelineGrouping private constructor(
     private val starts: PersistentSequence<Int>
 ) {
     val groups: List<List<TimelineItem>> get() = entries
+    fun sameIdentityPrefix(other: TimelineGrouping, count: Int): Boolean =
+        entries.sameIdentityPrefix(other.entries, count)
     fun append(item: TimelineItem): TimelineGrouping {
         val previous = entries.lastOrNull()
         if (previous == null) return TimelineGrouping(

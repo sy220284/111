@@ -66,17 +66,15 @@ internal fun ConversationTimelineViewport(
     val queueBusy by vm.loading.collectProjection { "queueWrite" in it || "interrupt" in it }
     val queueData by vm.data.collectEntries("queue:$thread")
     val queue = queueData["queue:$thread"]
-    val answeredQuestions = remember(projection?.answeredQuestions, queue, contextLoading) {
-        (if (contextLoading) emptySet() else projection?.answeredQuestions.orEmpty()) +
-            AsyncReplyContract.answeredFromQueue(queue)
-    }
+    val queuedAnswers = remember(queue) { AsyncReplyContract.answeredFromQueue(queue) }
+    fun answered(id: String) = id in queuedAnswers || (!contextLoading && projection?.answered(id) == true)
     val canSwitchVersion = connected && !busy && !contextLoading && thread != null && !loadingEarlier &&
         !firstThreadStarting && !mutatingHistory && !savingPermissions && !restarting
     val canChangeTurn = canSwitchVersion && !familyBusy
     val ownedVersion = thread?.let { answerVersions.ownedChoice(it) }
     val fallbackVersion = ownedVersion?.takeIf { version ->
         val turn = version.versions[version.index].turnId
-        turn !in projection?.formalTurns.orEmpty()
+        projection?.hasFormalTurn(turn) != true
     }
     val recoveryCount = if (fallbackVersion != null && items.isNotEmpty()) 1 else 0
     val visibleGroups = displayRows.size + recoveryCount
@@ -237,7 +235,7 @@ internal fun ConversationTimelineViewport(
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 val safety = row.group.singleOrNull()?.takeIf { it.kind == "safetyRecourse" }
                 if (safety != null) NativeSafetyRecourseCard(vm, thread, safety,
-                    projection?.byId?.get("turn-error:" + safety.turnId))
+                    projection?.byId("turn-error:" + safety.turnId))
                 else TimelineActivityGroup(row.group, workspaceRoot = vm.workingDirectory,
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
                     version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null,
@@ -249,7 +247,7 @@ internal fun ConversationTimelineViewport(
                     NativeReplyMetadata(vm, thread, row.group, canSwitchVersion)
                     row.group.flatMap(AsyncReplyContract::questions).distinctBy { it.id }.forEach { question ->
                         NativeAsyncReplyCard(vm, thread, question,
-                            question.id in answeredQuestions || question.messageId in answeredQuestions,
+                            answered(question.id) || answered(question.messageId),
                             frame.running && frame.turnId == question.turnId,
                             connected && !contextLoading && !savingPermissions && !restarting && !steering && !queueBusy)
                     }

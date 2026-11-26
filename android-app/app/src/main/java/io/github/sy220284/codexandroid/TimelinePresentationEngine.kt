@@ -7,28 +7,91 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.withContext
 
-/** One immutable presentation snapshot: the rows, metadata and running state
- * always correspond to the same authoritative timeline. Projection never mutates it. */
-internal data class TimelinePresentation(
-    val frame: ActiveConversationContext,
+/** Joined presentation lists retain their historical list instance. A stream
+ * update does not copy it, and equality skips it when ownership is unchanged. */
+internal class TimelineJoinedList<T>(val history: List<T>, val active: List<T>) : AbstractList<T>() {
+    override val size: Int get() = history.size + active.size
+    override fun get(index: Int): T {
+        if (index !in 0 until size) throw IndexOutOfBoundsException("Presentation index $index")
+        return if (index < history.size) history[index] else active[index - history.size]
+    }
+    override fun equals(other: Any?): Boolean = this === other ||
+        if (other is TimelineJoinedList<*> && history === other.history) active == other.active
+        else super.equals(other)
+    override fun hashCode(): Int = super.hashCode()
+}
+
+internal data class TimelinePresentationPart(
     val rows: List<ProgressiveReplyProjection.Row>,
     val displayRows: List<TimelineDisplayRow>,
     val answeredQuestions: Set<String>,
-    val tail: TimelineItem?,
-    val formalTurns: Set<String>,
-    val byId: Map<String, TimelineItem>
+    val formalTurns: Set<String>
 )
 
+/** One immutable presentation snapshot: history and live content are independent
+ * projections of the same authoritative timeline. No event or record is discarded. */
+internal data class TimelinePresentation(
+    val frame: ActiveConversationContext,
+    val history: TimelinePresentationPart,
+    val active: TimelinePresentationPart,
+    private val indexed: IndexedTimeline,
+    val tail: TimelineItem?
+) {
+    val rows: List<ProgressiveReplyProjection.Row> = TimelineJoinedList(history.rows, active.rows)
+    val displayRows: List<TimelineDisplayRow> = TimelineJoinedList(history.displayRows, active.displayRows)
+    fun answered(id: String) = id in history.answeredQuestions || id in active.answeredQuestions
+    fun hasFormalTurn(id: String) = id in history.formalTurns || id in active.formalTurns
+    fun byId(id: String) = indexed.byId(id)
+}
+
 internal class TimelinePresentationEngine {
-    private val replies = ProgressiveReplyProjection.Cache()
-    private val pages = TimelineReplyPages()
+    private class PartEngine {
+        private val replies = ProgressiveReplyProjection.Cache()
+        private val pages = TimelineReplyPages()
+        fun project(groups: List<List<TimelineItem>>, running: Boolean, turn: String?,
+            earlier: Boolean): TimelinePresentationPart {
+            val rows = replies.rows(groups, running, turn, earlier)
+            val items = groups.asSequence().flatten()
+            val answered = mutableSetOf<String>()
+            val formal = mutableSetOf<String>()
+            items.forEach { item ->
+                if (item.kind == "user") answered += AsyncReplyContract.answeredFromInput(item.metadata()?.optJSONArray("content"))
+                if (ProgressiveReplyProjection.answer(item)) formal += item.turnId
+            }
+            return TimelinePresentationPart(rows, pages.project(rows), answered, formal)
+        }
+    }
+    private val historyEngine = PartEngine()
+    private val activeEngine = PartEngine()
+    private data class History(val grouping: TimelineGrouping, val count: Int,
+        val earlier: Boolean, val part: TimelinePresentationPart)
+    private var history: History? = null
+
     fun project(frame: ActiveConversationContext, hasEarlier: Boolean): TimelinePresentation {
-        val rows = replies.rows(TimelineEventReducer.groups(frame.timeline), frame.running, frame.turnId, hasEarlier)
-        return TimelinePresentation(frame, rows, pages.project(rows),
-            AsyncReplyContract.answeredFromTimeline(frame.timeline),
-            frame.timeline.lastOrNull { it.kind != "turnOutcome" },
-            frame.timeline.filter(ProgressiveReplyProjection::answer).mapTo(hashSetOf()) { it.turnId },
-            frame.timeline.associateBy { it.id })
+        val indexed = IndexedTimeline.from(frame.timeline)
+        val grouping = indexed.grouping
+        val groups = grouping.groups
+        // Never split a native turn. If the running turn is not the last
+        // contiguous section (late/steering events), keep the whole projection
+        // in the live partition until the ownership boundary becomes clear.
+        val boundary = activeBoundary(groups, frame.running, frame.turnId)
+        val cached = history?.takeIf { it.count == boundary && it.earlier == hasEarlier &&
+            it.grouping.sameIdentityPrefix(grouping, boundary) }
+        val prefix = cached?.part ?: historyEngine.project(groups.subList(0, boundary), false, null, hasEarlier)
+        history = History(grouping, boundary, hasEarlier, prefix)
+        val suffix = activeEngine.project(groups.subList(boundary, groups.size), frame.running,
+            frame.turnId, hasEarlier && boundary == 0)
+        return TimelinePresentation(frame, prefix, suffix, indexed,
+            indexed.lastOrNull { it.kind != "turnOutcome" })
+    }
+
+    private fun activeBoundary(groups: List<List<TimelineItem>>, running: Boolean, turn: String?): Int {
+        if (groups.isEmpty()) return 0
+        val last = groups.last().first().turnId
+        if (running && !turn.isNullOrBlank() && turn != last) return 0
+        var boundary = groups.lastIndex
+        if (last.isNotBlank()) while (boundary > 0 && groups[boundary - 1].first().turnId == last) boundary--
+        return boundary
     }
 }
 

@@ -68,6 +68,22 @@ internal class PersistentIndex<K : Comparable<K>, V : Any> private constructor(p
         return balance(Node(successor.key, successor.value, n.left, erase(n.right, successor.key)))
     }
 
+    /** Identity comparison of an unchanged ordered prefix. Shared nodes are
+     * skipped without reading their contents. Rotation or shape differences
+     * request an exact indexed comparison instead of guessing. */
+    fun sameIdentityPrefix(other: PersistentIndex<K, V>, exclusive: K): Boolean? {
+        fun same(a: Node<K, V>?, b: Node<K, V>?): Boolean? {
+            if (a === b) return true
+            if (a == null || b == null || a.key != b.key) return null
+            val left = same(a.left, b.left)
+            if (left != true) return left
+            if (a.key >= exclusive) return true
+            if (a.value !== b.value) return false
+            return same(a.right, b.right)
+        }
+        return same(root, other.root)
+    }
+
     /** Sequences use contiguous append-only keys, so equal-size trees have the
      * same shape. Equality skips unchanged branches by identity. */
     fun sameSequence(other: PersistentIndex<*, *>): Boolean {
@@ -92,6 +108,12 @@ internal class PersistentSequence<T : Any> private constructor(
     fun replace(position: Int, value: T): PersistentSequence<T> {
         if (position !in 0 until size) throw IndexOutOfBoundsException("Sequence index $position")
         return PersistentSequence(index.put(position, value), size)
+    }
+    fun sameIdentityPrefix(other: PersistentSequence<T>, count: Int): Boolean {
+        require(count in 0..minOf(size, other.size))
+        if (count == 0 || this === other) return true
+        return index.sameIdentityPrefix(other.index, count)
+            ?: (0 until count).all { this[it] === other[it] }
     }
     override fun equals(other: Any?): Boolean = this === other || if (other is PersistentSequence<*>)
         size == other.size && index.sameSequence(other.index) else super.equals(other)
