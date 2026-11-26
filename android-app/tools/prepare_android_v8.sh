@@ -47,27 +47,17 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
       echo "Pinned V8 source commit mismatch" >&2; exit 1;
     }
     git -C "$SRC" submodule update --init --recursive --depth 1
-    sudo apt-get update
-    sudo apt-get install -y ninja-build libssl-dev pkg-config
-    if ! apt-cache show libclang-21-dev >/dev/null 2>&1 || ! apt-cache show clang-21 >/dev/null 2>&1; then
-      . /etc/os-release
-      test "$VERSION_CODENAME" = noble
-      KEY="$RUNNER_TEMP/llvm-snapshot.asc"
-      curl --proto '=https' --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o "$KEY"
-      FINGERPRINT="$(gpg --batch --with-colons --show-keys "$KEY" | awk -F: '$1=="pub"{primary=1} $1=="fpr"&&primary{print $10;primary=0}')"
-      test "$FINGERPRINT" = 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421
-      sudo install -m 0644 "$KEY" /usr/share/keyrings/111-llvm-snapshot.asc
-      printf '%s\n' 'deb [signed-by=/usr/share/keyrings/111-llvm-snapshot.asc] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main' | sudo tee /etc/apt/sources.list.d/111-llvm.list >/dev/null
-      sudo apt-get update
-    fi
-    sudo apt-get install -y libclang-21-dev clang-21
-    test -f /usr/lib/llvm-21/lib/libclang.so || test -f /usr/lib/llvm-21/lib/libclang.so.1
+    : "${LLVM_HOME:?missing verified LLVM component}" "${LIBCLANG_PATH:?missing verified libclang}"
+    "$LLVM_HOME/bin/clang" --version | grep -E 'clang version 21\.'
+    test -s "$LIBCLANG_PATH/libclang.so"
+    command -v ninja
+    command -v pkg-config
     mkdir -p "$SRC/third_party/android_toolchain" "$SRC/third_party/android_sdk"
     rm -rf "$SRC/third_party/android_ndk" "$SRC/third_party/android_toolchain/ndk" "$SRC/third_party/android_sdk/public"
     ln -s "$ANDROID_NDK_HOME" "$SRC/third_party/android_ndk"
     ln -s "$ANDROID_NDK_HOME" "$SRC/third_party/android_toolchain/ndk"
-    SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-    "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0"
+    test -s "$ANDROID_HOME/platforms/android-36/android.jar"
+    test -x "$ANDROID_HOME/build-tools/36.0.0/aapt"
     ln -s "$ANDROID_HOME" "$SRC/third_party/android_sdk/public"
     CFG="$SRC/build/config/android/config.gni"
     if ! grep -Eq '^[[:space:]]*android_ndk_version[[:space:]]*=' "$CFG"; then
@@ -88,7 +78,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     test -x "$LINKER"
     printf '[target.%s]\nlinker = "%s"\n' "$TARGET" "$LINKER" > "$WRAPPER/.cargo/config.toml"
     SYSROOT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
-    export LIBCLANG_PATH=/usr/lib/llvm-21/lib
+    export LIBCLANG_PATH="$LLVM_HOME/lib"
     export "BINDGEN_EXTRA_CLANG_ARGS_$(printf '%s' "$TARGET" | tr '-' '_')=--sysroot=$SYSROOT -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/$TARGET"
     export "CARGO_TARGET_$(printf '%s' "$TARGET" | tr '[:lower:]-' '[:upper:]_')_LINKER=$LINKER"
     # The pinned rusty_v8 source does not contain buildtools/linux64/gn.

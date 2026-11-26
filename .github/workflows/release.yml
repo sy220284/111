@@ -173,12 +173,20 @@ jobs:
       group: android
       source_sha: ${{ needs.check-release.outputs.release_sha }}
 
+  host-patcher:
+    needs: check-release
+    if: always() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true'
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: patcher
+      source_sha: ${{ needs.check-release.outputs.release_sha }}
+
   release:
     name: 签名并保存唯一 ARM64 候选 APK
-    needs: [check-release, developer-runtime, host-android]
+    needs: [check-release, developer-runtime, host-android, host-patcher]
     # The PR-only preflight is skipped for workflow_run. Check the actual
     # acceptance result explicitly instead of inheriting an implicit success().
-    if: always() && needs.check-release.result == 'success' && needs.developer-runtime.result == 'success' && needs.host-android.result == 'success' && needs.check-release.outputs.should_release == 'true'
+    if: always() && needs.check-release.result == 'success' && needs.developer-runtime.result == 'success' && needs.host-android.result == 'success' && needs.check-release.outputs.should_release == 'true' && needs.host-patcher.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 65
     permissions:
@@ -191,6 +199,12 @@ jobs:
           ref: ${{ needs.check-release.outputs.release_sha }}
           fetch-depth: 0
 
+      - name: 安装已验收的 patcher 组件
+        uses: ./.github/actions/install-host-toolchain
+        with:
+          group: patcher
+          descriptor: ${{ needs.host-patcher.outputs.descriptor }}
+          token: ${{ github.token }}
       - name: 安装已断网验收的 Android 工具组件
         uses: ./.github/actions/install-host-toolchain
         with:

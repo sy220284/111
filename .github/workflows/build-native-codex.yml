@@ -122,10 +122,18 @@ jobs:
       group: rust
       source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
 
+  host-llvm:
+    needs: reuse
+    if: needs.reuse.outputs.reuse != 'true'
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: llvm
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
   v8:
     name: V8 官方源码产物 · ${{ matrix.abi }}
-    needs: [reuse, provider-contract, host-android, host-rust]
-    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
+    needs: [reuse, provider-contract, host-android, host-rust, host-llvm]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }} && needs.host-llvm.result == 'success'
     strategy:
       fail-fast: false
       matrix:
@@ -145,6 +153,7 @@ jobs:
           sparse-checkout: |
             /.github/scripts/
             /.github/actions/install-host-toolchain/
+            /.github/actions/run-emulator/
             /tools/dev/
             /.github/workflows/
             /android-app/tools/prepare_android_v8.sh
@@ -152,6 +161,12 @@ jobs:
             /upstream/codex/codex-rs/Cargo.lock
           sparse-checkout-cone-mode: false
           persist-credentials: false
+      - name: 安装已验收的 llvm 组件
+        uses: ./.github/actions/install-host-toolchain
+        with:
+          group: llvm
+          descriptor: ${{ needs.host-llvm.outputs.descriptor }}
+          token: ${{ github.token }}
       - name: 安装已断网验收的 Android 工具组件
         uses: ./.github/actions/install-host-toolchain
         with:

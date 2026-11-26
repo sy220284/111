@@ -257,8 +257,14 @@ def validate(repo, record, source, required, *, now=None):
 def actual_jobs(groups):
     groups = set(groups)
     jobs = set().union(*(GROUPS[g] for g in groups))
-    if groups & {"compile", "package", "runtime", "sign"}:
+    if groups & {"compile", "package", "runtime", "sign", "ui"}:
         jobs.add("host-android")
+    if groups & {"static", "compile", "ui"}:
+        jobs.add("host-wheelhouse")
+    if groups & {"ui", "runtime"}:
+        jobs.add("host-emulator")
+    if groups & {"package", "runtime", "sign"}:
+        jobs.add("host-patcher")
     return jobs
 
 def native_key(source):

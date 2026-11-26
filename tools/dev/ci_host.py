@@ -29,7 +29,7 @@ def key(group, source="HEAD"):
     elif group == "rust":
         paths += ["upstream/codex/codex-rs", ".github/workflows/build-native-codex.yml", "android-app/tools/prepare_android_mxc.py"]
     else:
-        paths += [".github/workflows/prepare-aux-toolchain.yml", "tools/dev/auxiliary.py", "tools/dev/run-emulator.sh", "tools/dev/requirements-host.lock"]
+        paths += [".github/workflows/prepare-aux-toolchain.yml", "tools/dev/auxiliary.py", "tools/dev/run-emulator.sh", ".github/actions/run-emulator", "tools/dev/requirements-host.lock"]
         if group in ("wheelhouse","uv"):
             paths += ["android-app/tools/requirements-ui-visual.txt","upstream/codex"]
         if group=="pnpm": paths += ["upstream/codex"]

@@ -1,0 +1,17 @@
+name: 运行已核验的 Android 37.2 16KiB 设备镜像
+description: Boot a verified emulator bundle; never install SDK packages on the test runner.
+inputs:
+  profile:
+    required: true
+    description: Device matrix profile
+  script:
+    required: true
+    description: Actual Android acceptance commands
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        EMULATOR_PROFILE: ${{ inputs.profile }}
+        EMULATOR_SCRIPT: ${{ inputs.script }}
+      run: bash tools/dev/run-emulator.sh
