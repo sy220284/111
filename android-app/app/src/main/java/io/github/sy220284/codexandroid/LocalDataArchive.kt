@@ -60,7 +60,7 @@ internal object LocalDataArchive {
     }
 
     /** Streams the selected user data directly into the system document provider. */
-    fun export(context: Context, output: OutputStream): Int {
+    fun export(context: Context, output: OutputStream, workspaceRoot: File = WorkspaceStorage.root(context)): Int {
         val privateRoot = context.filesDir.canonicalFile
         BackupCheckpointValidation.verifyStore(File(privateRoot, AnswerCheckpointFormat.ROOT))
         val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs").canonicalFile
@@ -70,7 +70,7 @@ internal object LocalDataArchive {
             archive.putNextEntry(ZipEntry("manifest.txt"))
             archive.write(ARCHIVE_MARKER.toByteArray(Charsets.UTF_8))
             archive.closeEntry()
-            for ((prefix, root) in listOf("files" to privateRoot, PROJECTS_PREFIX to WorkspaceStorage.root(context), "shared_prefs" to prefsRoot)) {
+            for ((prefix, root) in listOf("files" to privateRoot, PROJECTS_PREFIX to workspaceRoot.canonicalFile, "shared_prefs" to prefsRoot)) {
                 if (!root.isDirectory) continue
                 root.walkTopDown().onEnter { directory ->
                     val allowed = directory == root || (directory != WorkspaceStorage.legacyRoot(context) &&
@@ -199,7 +199,7 @@ internal object LocalDataArchive {
     }
 
     /** Called before creating a process-wide ViewModel or a native subprocess. */
-    fun restoreIfPending(context: Context) {
+    fun restoreIfPending(context: Context, workspaceRoot: () -> File = { WorkspaceStorage.root(context) }) {
         val marker = File(context.filesDir, READY)
         val transaction = LocalRestoreTransaction(File(context.filesDir, ROLLBACK))
         if (!marker.isFile) {
@@ -220,20 +220,20 @@ internal object LocalDataArchive {
             }
             require(files.isNotEmpty() && files.size <= MAX_FILES) { "恢复数据不完整" }
             val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs")
+            val projectRoot by lazy { workspaceRoot().canonicalFile }
             val checkedTargets = files.sortedBy { it.relativeTo(staged).invariantSeparatorsPath }.map { file ->
                 val name = file.relativeTo(staged).invariantSeparatorsPath
                 require(validatePath(name) || (transaction.hasJournal() && legacyRollbackPath(name))) {
                     "恢复文件不属于允许迁移的数据，请重新选择备份：" + name
                 }
                 val target = if (name.startsWith("$PROJECTS_PREFIX/")) {
-                    val root = WorkspaceStorage.root(context)
-                    File(root, name.removePrefix("$PROJECTS_PREFIX/"))
+                    File(projectRoot, name.removePrefix("$PROJECTS_PREFIX/"))
                 } else if (name.startsWith("files/")) {
                     require(name != PROJECTS_PREFIX) { "工作区必须是目录" }
                     File(context.filesDir, name.removePrefix("files/"))
                 } else File(prefsRoot, name.removePrefix("shared_prefs/"))
                 val targetRoot = when {
-                    name.startsWith("$PROJECTS_PREFIX/") -> WorkspaceStorage.root(context)
+                    name.startsWith("$PROJECTS_PREFIX/") -> projectRoot
                     name.startsWith("files/") -> context.filesDir
                     else -> prefsRoot
                 }

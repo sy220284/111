@@ -120,6 +120,74 @@ class RuntimeOwnershipInstrumentedTest {
         }
     }
 
+    @Test fun portableArchiveRoundTripPreservesProjectsDraftsAttachmentsAndHistory() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val root = java.nio.file.Files.createTempDirectory(app.cacheDir.toPath(), "archive-roundtrip-").toFile()
+        val prefix = root.name + "-"
+        fun context(dataRoot: java.io.File): android.content.Context {
+            val privateRoot = java.io.File(dataRoot, "files").apply { check(mkdirs()) }
+            return object : android.content.ContextWrapper(app) {
+                override fun getFilesDir() = privateRoot
+                override fun getApplicationInfo() = android.content.pm.ApplicationInfo(app.applicationInfo).apply {
+                    dataDir = dataRoot.absolutePath
+                }
+                override fun getSharedPreferences(name: String, mode: Int) =
+                    app.getSharedPreferences(prefix + dataRoot.name + "-" + name, mode)
+            }
+        }
+        val from = context(java.io.File(root, "from"))
+        val to = context(java.io.File(root, "to"))
+        val fromProjects = java.io.File(root, "source-projects").apply { check(mkdirs()) }
+        val toProjects = java.io.File(root, "restored-projects").apply { check(mkdirs()) }
+        fun put(base: java.io.File, relative: String, data: String): java.io.File =
+            java.io.File(base, relative).apply {
+                check(parentFile!!.isDirectory || parentFile!!.mkdirs())
+                writeText(data)
+            }
+        val name = "12345678-1234-1234-1234-123456789abc.png"
+        val project = put(fromProjects, "demo/Main.kt", "current version")
+        val image = put(from.filesDir, "codex-turn-images/$name", "attachment bytes")
+        val rawDraft = DraftPersistence.encode(mapOf("thread-1" to ComposerDraft(text = "unsent draft", images = listOf(image.absolutePath))))
+        val prefs = java.io.File(from.applicationInfo.dataDir, "shared_prefs")
+        val xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?><map><string name=\"drafts\">" +
+            android.text.TextUtils.htmlEncode(rawDraft) + "</string></map>"
+        put(prefs, "codex-unsent-drafts.xml", xml)
+        put(from.filesDir, "codex-home/sessions/2026/rollout.jsonl", "{\"type\":\"session_meta\"}\n")
+        put(from.filesDir, "codex-home/config.toml", "source runtime config")
+        put(from.filesDir, "codex-home/auth.json", "source credential")
+        put(to.filesDir, "codex-home/config.toml", "destination runtime config")
+        val editor = WorkspaceEditorDraft("current version", "editor draft")
+        WorkspaceEditorDraftStore(java.io.File(from.filesDir, "editor-drafts")).save(fromProjects, project, editor)
+        val id = "12345678-1234-1234-1234-123456789abc"
+        val store = AnswerWorkspaceStore(fromProjects, java.io.File(from.filesDir, AnswerCheckpointFormat.ROOT))
+        try {
+            store.checkpoint(id, project.parentFile!!.absolutePath)
+            val output = java.io.ByteArrayOutputStream()
+            val exported = LocalDataArchive.export(from, output, fromProjects)
+            org.junit.Assert.assertEquals(7, exported)
+            org.junit.Assert.assertEquals(exported, LocalDataArchive.stageImport(to, output.toByteArray().inputStream()))
+            LocalDataArchive.restoreIfPending(to) { toProjects }
+            val restoredProject = java.io.File(toProjects, "demo/Main.kt")
+            org.junit.Assert.assertEquals("current version", restoredProject.readText())
+            org.junit.Assert.assertEquals(editor, WorkspaceEditorDraftStore(java.io.File(to.filesDir, "editor-drafts")).read(toProjects, restoredProject))
+            org.junit.Assert.assertEquals("destination runtime config", java.io.File(to.filesDir, "codex-home/config.toml").readText())
+            assertTrue(!java.io.File(to.filesDir, "codex-home/auth.json").exists())
+            org.junit.Assert.assertEquals("{\"type\":\"session_meta\"}\n", java.io.File(to.filesDir, "codex-home/sessions/2026/rollout.jsonl").readText())
+            org.junit.Assert.assertEquals(xml, java.io.File(to.applicationInfo.dataDir, "shared_prefs/codex-unsent-drafts.xml").readText())
+            val drafts = DraftPersistence.resolveStoredImages(java.io.File(to.filesDir, "codex-turn-images"), DraftPersistence.decode(rawDraft))
+            org.junit.Assert.assertEquals(0, drafts.missingImages)
+            org.junit.Assert.assertEquals("unsent draft", drafts.drafts.getValue("thread-1").text)
+            org.junit.Assert.assertEquals("attachment bytes", java.io.File(drafts.drafts.getValue("thread-1").images.single()).readText())
+            val restored = AnswerWorkspaceStore(toProjects, java.io.File(to.filesDir, AnswerCheckpointFormat.ROOT))
+            assertTrue(restored.hasBaseline(id))
+            org.junit.Assert.assertEquals("current version", java.io.File(restored.prepare(id, restoredProject.parentFile!!.absolutePath, false).directory, "Main.kt").readText())
+        } finally {
+            check(root.deleteRecursively())
+            app.deleteSharedPreferences(prefix + "from-codex-data-transfer-status")
+            app.deleteSharedPreferences(prefix + "to-codex-data-transfer-status")
+        }
+    }
+
     @Test fun isolatedProcessHasSeparateUidAndDeniesUnbrokeredAccess() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext
         val sentinel = java.io.File.createTempFile("isolation-probe-", ".txt", app.filesDir)

@@ -3,6 +3,7 @@ package io.github.sy220284.codexandroid
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 
 /** All referenced snapshot objects must be in the archive, with the correct bytes.
  * This deliberately does not interpret project code or use an imported cwd. */
@@ -11,20 +12,24 @@ internal object BackupCheckpointValidation {
 
     fun verifyStore(checkpoint: File) {
         if (!checkpoint.exists()) return
+        require(checkpoint.isDirectory && !Files.isSymbolicLink(checkpoint.toPath())) { "快照根目录无效" }
         val objects = File(checkpoint, AnswerCheckpointFormat.OBJECTS)
         val manifests = File(checkpoint, AnswerCheckpointFormat.MANIFESTS)
         val sizes = mutableMapOf<String, Long>()
-        fun entries(folder: File): Array<File> =
-            if (!folder.exists()) emptyArray() else requireNotNull(folder.listFiles()) {
-                "无法读取备份快照目录"
-            }
-        for (blob in entries(objects)) {
-            require(blob.isFile && AnswerCheckpointFormat.isObjectName(blob.name)) { "快照对象路径无效" }
+        // Match the archive policy. A process killed during snapshot creation
+        // may leave an unpublished .stage-* file; it is not portable content.
+        fun entries(folder: File, accepts: (String) -> Boolean): List<File> {
+            if (!folder.exists()) return emptyList()
+            require(folder.isDirectory && !Files.isSymbolicLink(folder.toPath())) { "快照目录无效" }
+            return requireNotNull(folder.listFiles()) { "无法读取备份快照目录" }
+                .filter { accepts(it.name) }
+                .onEach { require(it.isFile && !Files.isSymbolicLink(it.toPath())) { "快照文件路径无效" } }
+        }
+        for (blob in entries(objects, AnswerCheckpointFormat::isObjectName)) {
             if (AnswerCheckpointFormat.digest(blob) != blob.name) throw IOException("快照对象摘要不一致：" + blob.name)
             sizes[blob.name] = blob.length()
         }
-        for (manifest in entries(manifests)) {
-            require(manifest.isFile && AnswerCheckpointFormat.isManifestName(manifest.name)) { "快照清单路径无效" }
+        for (manifest in entries(manifests, AnswerCheckpointFormat::isManifestName)) {
             require(manifest.length() <= 16L * 1024 * 1024) { "快照清单超出安全大小" }
             val content = JSONObject(manifest.readText())
             require(content.getString("cwd").isNotBlank()) { "快照缺少工作区标识" }
