@@ -10,6 +10,7 @@ on:
       - 'upstream/codex/codex-rs/Cargo.lock'
       - 'upstream/codex/codex-rs/rust-toolchain.toml'
       - '.github/workflows/dev-toolchain.yml'
+      - '.github/workflows/prepare-developer-runtime.yml'
   workflow_dispatch:
 
 permissions:
@@ -39,23 +40,21 @@ jobs:
           NODE="$(jq -r '.node' "$RUNNER_TEMP/shared.json")"
           LINT="$(jq -r '.actionlint' "$RUNNER_TEMP/shared.json")"
           "$NODE/bin/node" --version
-          "$LINT/actionlint" .github/workflows/dev-toolchain.yml
-          cp -a "$(jq -r '."runtime-cache"' "$RUNNER_TEMP/shared.json")" "$RUNNER_TEMP/runtime-cache"
-          bash tools/runtime/prepare-111-runtime.sh arm64-v8a "$RUNNER_TEMP/runtime-cache" "$RUNNER_TEMP/runtime-arm64"
-          python3 tools/dev/component-bundle.py pack runtime-arm64 "$RUNNER_TEMP/runtime-arm64" "$RUNNER_TEMP/runtime-bundle" --head "$GITHUB_SHA" > "$RUNNER_TEMP/runtime-manifest.sha256"
-          python3 tools/dev/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/runtime-bundle" "$RUNNER_TEMP/installed" --manifest-sha "$(cat "$RUNNER_TEMP/runtime-manifest.sha256")"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: 111-toolchain-runtime-arm64
-          path: ${{ runner.temp }}/runtime-bundle/
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 90
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: 111-toolchain-runtime-arm64-manifest-pin
-          path: ${{ runner.temp }}/runtime-manifest.sha256
-          if-no-files-found: error
+          "$LINT/actionlint" .github/workflows/dev-toolchain.yml .github/workflows/prepare-developer-runtime.yml .github/workflows/ci.yml .github/workflows/release.yml .github/workflows/build-native-codex.yml
+          python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
+          python3 -m unittest discover -s .github/scripts -p 'test_audit_apk_contents.py'
+
+  runtime-arm64:
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: arm64-v8a
+      source_sha: ${{ github.sha }}
+
+  runtime-x86:
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: x86_64
+      source_sha: ${{ github.sha }}
 
   android:
     name: 111 专用 JDK、Android SDK、Gradle 离线依赖

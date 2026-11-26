@@ -155,12 +155,20 @@ jobs:
           echo "should_release=true" >> "$GITHUB_OUTPUT"
           echo "准备发布 $RELEASE_SHA -> v$VERSION"
 
+  developer-runtime:
+    needs: check-release
+    if: always() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true'
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: arm64-v8a
+      source_sha: ${{ needs.check-release.outputs.release_sha }}
+
   release:
     name: 签名并保存唯一 ARM64 候选 APK
-    needs: check-release
+    needs: [check-release, developer-runtime]
     # The PR-only preflight is skipped for workflow_run. Check the actual
     # acceptance result explicitly instead of inheriting an implicit success().
-    if: always() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true'
+    if: always() && needs.check-release.result == 'success' && needs.developer-runtime.result == 'success' && needs.check-release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 65
     permissions:
@@ -236,11 +244,19 @@ jobs:
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
 
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: 111-runtime-arm64-v8a
+          path: ${{ runner.temp }}/developer-runtime-bundle
       - name: 核验并装配 ARM64 主核心与 Code Mode Host
+        env:
+          RUNTIME_MANIFEST_SHA: ${{ needs.developer-runtime.outputs.manifest_sha }}
         shell: bash
         run: |
           set -euo pipefail
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          CODEX_RUNTIME_PREPARED="$(python3 tools/dev/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
+          export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
 
       - name: 装配官方 ARM64 增量恢复组件

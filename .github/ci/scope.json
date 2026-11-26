@@ -30,12 +30,16 @@
       ".github/release-version",
       "android-app/gradlew",
       "android-app/gradlew.bat",
-      "android-app/app/gradle.lockfile"
+      "android-app/app/gradle.lockfile",
+      "android-app/tools/developer_tool_launcher.c",
+      ".github/workflows/prepare-developer-runtime.yml"
     ],
     "prefixes": [
       "android-app/app/src/main/",
       "android-app/app/src/release/",
-      "android-app/gradle/"
+      "android-app/gradle/",
+      "tools/runtime/",
+      "tools/dev/"
     ]
   },
   "acceptance": {
@@ -99,11 +103,15 @@
       "android-app/gradle/verification-metadata.xml",
       "android-app/tools/prepare_android_remote_delivery.py",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteFileDelivery.kt",
-      "android-app/app/src/main/java/io/github/sy220284/codexandroid/NativeRemoteDeliveryDialog.kt"
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/NativeRemoteDeliveryDialog.kt",
+      "android-app/tools/developer_tool_launcher.c",
+      ".github/workflows/prepare-developer-runtime.yml"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
-      "upstream/codex/.cargo/"
+      "upstream/codex/.cargo/",
+      "tools/runtime/",
+      "tools/dev/"
     ]
   }
 }
