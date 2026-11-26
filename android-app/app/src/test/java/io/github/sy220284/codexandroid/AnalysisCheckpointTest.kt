@@ -68,4 +68,22 @@ class AnalysisCheckpointTest {
             assertEquals("damaged", file.readText())
         } finally { directory.deleteRecursively() }
     }
+
+    @Test fun allTwelveFullNativeResponsesSurviveAndStaleWritesCannotEraseThem() {
+        val directory = Files.createTempDirectory("full-media-results").toFile()
+        try {
+            val store = AnalysisCheckpointStore(directory)
+            val first = AnalysisCheckpoint("A", scope, "/media.mp4", "Understand", "question",
+                listOf("a".repeat(64_000)), 12, sourceTurn = "turn")
+            val completed = first.copy(parts = List(12) { "a".repeat(64_000) }, applied = 12)
+            store.save(first, false)
+            store.save(completed, false)
+            store.save(first, false)
+            assertEquals(completed, store.read("A", scope, false))
+            assertThrows(IllegalArgumentException::class.java) {
+                store.save(first.copy(question = "different"), false)
+            }
+            assertEquals(completed, store.read("A", scope, false))
+        } finally { directory.deleteRecursively() }
+    }
 }

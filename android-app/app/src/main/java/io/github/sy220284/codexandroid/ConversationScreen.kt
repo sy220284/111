@@ -149,11 +149,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val sharing by screenShareSession.state.collectAsState()
     val activeMediaAnalysis by vm.composerContent.mediaAnalysis.state.collectAsState()
     val mediaResults by vm.composerContent.mediaAnalysis.results.collectAsState()
-    val mediaAnalysis = mediaResults[draftOwner]?.takeIf { it.revision == previewAccountRevision } ?: MediaAnalysisController.State()
-    var mediaChoice by remember(draftOwner) { mutableStateOf<Pair<String, MediaAnalysisMode>?>(null) }
-    var reviewMedia by remember(draftOwner) { mutableStateOf(false) }
     val analysisModel = if (thread != null && remote == null) shownModel else null
-    LaunchedEffect(draftOwner, analysisModel, previewAccountRevision, status, busy) {
+    val mediaAnalysis = mediaResults[draftOwner]?.takeIf {
+        it.revision == previewAccountRevision && it.epoch == previewEpoch && it.selection == selectedModel &&
+            analysisModel != null && (analysisModel.isBlank() || it.model == analysisModel)
+    } ?: MediaAnalysisController.State()
+    var mediaChoice by remember(draftOwner, analysisModel, previewAccountRevision, previewEpoch) { mutableStateOf<Pair<String, MediaAnalysisMode>?>(null) }
+    var reviewMedia by remember(draftOwner, analysisModel, previewAccountRevision, previewEpoch) { mutableStateOf(false) }
+    LaunchedEffect(draftOwner, analysisModel, selectedModel, previewAccountRevision, previewEpoch, status, busy) {
         if (!busy && status == EngineStatus.Connected) {
             vm.composerContent.mediaAnalysis.restore(draftOwner, analysisModel)
             vm.composerContent.liveScreenAnalysis.restore(draftOwner, analysisModel)

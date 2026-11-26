@@ -15,9 +15,12 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, model: S
     val controller = vm.composerContent.liveScreenAnalysis
     val active by controller.state.collectAsState()
     val all by controller.resultsByOwner.collectAsState()
-    val live = all[owner] ?: LiveScreenAnalysisController.State()
-    var confirm by remember(owner) { mutableStateOf(false) }
-    var review by remember(owner, revision) { mutableStateOf<ScreenAnalysisResults?>(null) }
+    val epoch by vm.bridge.connectedSession.collectAsState()
+    val selection by vm.modelId.collectAsState()
+    val live = all[owner]?.takeIf { it.revision == revision && it.epoch == epoch && it.selection == selection &&
+        model != null && (model.isBlank() || it.model == model) } ?: LiveScreenAnalysisController.State()
+    var confirm by remember(owner, revision, epoch, model, selection) { mutableStateOf(false) }
+    var review by remember(owner, revision, epoch, model, selection) { mutableStateOf<ScreenAnalysisResults?>(null) }
     val mine = live.owner == owner && live.revision == revision
     if (model != null && share.owner == owner && share.capturing && share.revision == revision && !active.running && live.observations.isEmpty()) {
         CodexTextAction(onClick = { confirm = true }, enabled = enabled) { Text("开启持续分析") }

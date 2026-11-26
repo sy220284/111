@@ -16,7 +16,8 @@ internal data class AnalysisCheckpoint(
     init {
         require(owner.isNotBlank() && scope.matches(Regex("[0-9a-f]{64}")))
         require(parts.size <= 12 && total in 0..12 && applied in 0..parts.size)
-        require(parts.sumOf { it.length } <= 300_000)
+        require(parts.size <= MAX_PARTS && parts.all { it.length <= MAX_PART_CHARS } &&
+            parts.sumOf { it.length } <= MAX_PARTS * MAX_PART_CHARS)
     }
     val text get() = parts.joinToString("\n\n")
     val complete get() = total > 0 && parts.size == total
@@ -25,6 +26,10 @@ internal data class AnalysisCheckpoint(
         .put("total", total).put("applied", applied).put("sourceTurn", sourceTurn).toString()
 
     companion object {
+        // Native samples return up to 64 KiB of text; allow JSON/timeline metadata for each of twelve paid responses.
+        const val MAX_PARTS = 12
+        const val MAX_PART_CHARS = 80_000
+        const val MAX_RECORD_BYTES = 8_000_000L
         fun identity(endpoint: String, key: String): String = digest("$endpoint\n$key")
         fun digest(value: String): String = MessageDigest.getInstance("SHA-256")
             .digest(value.toByteArray()).joinToString("") { "%02x".format(it.toInt() and 255) }
@@ -51,7 +56,7 @@ internal class AnalysisCheckpointStore(private val directory: File) {
     fun read(owner: String, scope: String, screen: Boolean): AnalysisCheckpoint? = synchronized(lock) {
         val target = file(owner, scope, screen)
         if (!target.exists()) return@synchronized null
-        require(target.length() in 1..2_000_000) { "分析记录损坏，原文件已保留" }
+        require(target.length() in 1..AnalysisCheckpoint.MAX_RECORD_BYTES) { "分析记录损坏，原文件已保留" }
         AnalysisCheckpoint.decode(target.readText()).also {
             require(it.owner == owner && it.scope == scope) { "分析记录归属不匹配" }
         }
@@ -59,11 +64,13 @@ internal class AnalysisCheckpointStore(private val directory: File) {
     fun save(record: AnalysisCheckpoint, screen: Boolean): Unit = synchronized(lock) {
         check(directory.isDirectory || directory.mkdirs()) { "无法建立分析记录目录" }
         val target = file(record.owner, record.scope, screen)
-        val existing = if (screen) read(record.owner, record.scope, true) else null
+        val existing = read(record.owner, record.scope, screen)
         val durable = if (existing != null) {
             val longer = if (existing.parts.size > record.parts.size) existing else record
             val shorter = if (existing.parts.size > record.parts.size) record else existing
-            require(longer.sourceTurn == shorter.sourceTurn && longer.parts.take(shorter.parts.size) == shorter.parts) { "屏幕分析记录不属于同一次采集" }
+            require(longer.source == shorter.source && longer.mode == shorter.mode && longer.question == shorter.question &&
+                longer.sourceTurn == shorter.sourceTurn && longer.parts.take(shorter.parts.size) == shorter.parts &&
+                (screen || longer.total == shorter.total)) { "分析记录不属于同一次任务" }
             longer.copy(applied = maxOf(existing.applied, record.applied))
         } else record
         val temporary = File.createTempFile("analysis-", ".tmp", directory)
