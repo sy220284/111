@@ -43,7 +43,7 @@ jobs:
       provider_reuse: ${{ steps.detect.outputs.provider_reuse }}
       matrix: ${{ steps.detect.outputs.matrix }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -118,7 +118,7 @@ jobs:
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
     steps:
       - name: 检出已锁定的官方源码快照
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -155,7 +155,7 @@ jobs:
           test -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.clang }}"
           echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
       - name: 安装 Codex 源码锁定的 Rust 1.99.1 和 Android 目标
-        uses: dtolnay/rust-toolchain@master
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
           toolchain: "1.99.1"
           targets: ${{ matrix.rust_target }}
@@ -171,12 +171,12 @@ jobs:
           rustup target list --installed | grep -Fx "${{ matrix.rust_target }}"
           test -d "$(rustc --print sysroot)/lib/rustlib/${{ matrix.rust_target }}/lib"
       - name: 缓存 Rust 构建依赖
-        uses: Swatinem/rust-cache@v2
+        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: upstream/codex/codex-rs
           key: codex-android-${{ matrix.rust_target }}
       - name: 缓存沙箱版本的 Android V8 静态库与绑定
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: .android-v8-cache/${{ matrix.rust_target }}
           key: android-v8-${{ matrix.rust_target }}-152.2.0-sandbox-${{ hashFiles('android-app/tools/prepare_android_v8.sh', 'android-app/tools/adapt_android_v8_build.py') }}
@@ -286,7 +286,7 @@ jobs:
           done
       - name: 上传原生内核与构建清单
         id: native-upload
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-native-${{ matrix.abi }}
           path: |
@@ -304,7 +304,7 @@ jobs:
         run: |
           python3 .github/scripts/native_index.py create --abi "$ABI" --artifact-id "$ARTIFACT_ID" --out "$RUNNER_TEMP/native-index.json" --github-output "$GITHUB_OUTPUT"
         id: index
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: native-index-${{ matrix.abi }}-${{ steps.index.outputs.fingerprint }}
           path: ${{ runner.temp }}/native-index.json
@@ -323,7 +323,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: "0"
       CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -331,10 +331,10 @@ jobs:
             .github/scripts
             .github/ci
             upstream/codex
-      - uses: dtolnay/rust-toolchain@master
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
         with:
           toolchain: "1.99.1"
-      - uses: Swatinem/rust-cache@v2
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
         with:
           workspaces: upstream/codex/codex-rs
           key: codex-provider-contract-host
@@ -351,7 +351,7 @@ jobs:
       - name: 生成 Rust 回归凭证
         id: provider-index
         run: python3 .github/scripts/native_index.py provider --out "$RUNNER_TEMP/provider-index.json" --github-output "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: provider-index-${{ steps.provider-index.outputs.fingerprint }}
           path: ${{ runner.temp }}/provider-index.json

@@ -180,6 +180,10 @@ jobs:
       - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
         with:
           gradle-version: '8.11.1'
+      - name: 校验固定 Gradle Wrapper
+        shell: bash
+        run: |
+          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 安装 Android API 35 与 NDK
         shell: bash
         run: |
@@ -219,7 +223,7 @@ jobs:
           echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
 
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-native-arm64-v8a
           run-id: ${{ needs.check-release.outputs.native_run_id }}
@@ -253,7 +257,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          gradle -p android-app :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName="${{ needs.check-release.outputs.version }}" \
@@ -301,7 +305,7 @@ jobs:
         run: bash .github/scripts/prepare-release-assets.sh
 
       - name: 保存唯一正式候选
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-candidate
           path: .release-assets/
@@ -309,7 +313,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: 保存中文发布说明
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-notes
           path: ${{ runner.temp }}/release-notes.md
@@ -350,7 +354,7 @@ jobs:
         with:
           ref: ${{ needs.check-release.outputs.release_sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-candidate
           path: candidate
@@ -360,7 +364,7 @@ jobs:
           PREVIOUS_TAG: ${{ needs.check-release.outputs.previous_tag }}
           RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
         run: bash .github/scripts/verify-release-device.sh candidate device-evidence
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: release-device-evidence
@@ -382,15 +386,15 @@ jobs:
         with:
           ref: ${{ needs.check-release.outputs.release_sha }}
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-candidate
           path: .release-assets
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-notes
           path: release-notes
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-device-evidence
           path: device-evidence
