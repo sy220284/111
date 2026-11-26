@@ -142,7 +142,7 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 | `retain-check-artifacts.yml` | 验收证据保留 |
 | #116 工具链工作流 | dev-toolchain、prepare-host-toolchain、prepare-aux-toolchain、prepare-developer-runtime；候选专用，合并前须真实断网验收 |
 
-**分支验收差异**：当前 main 的 CI 为 Android 35、360/393/411dp 三档；#116 使用 Android 17 API 37、37.2 16KiB 镜像，两档设备各基准/适配、八个 UI 分片加 x86_64 真实内核专项。发布仍须同候选真实通过并取得正式签名 ARM64 设备证据。以实际目标提交的工作流和权威台账为准，不将候选代码或旧版截图当作正式版功能通过。
+**分支验收差异**：当前 main 的 CI 为 Android 35、360/393/411dp 三档；#116 使用 Android 17 API 37、37.2 16KiB 镜像，两档设备各基准/适配、八个 UI 分片加 x86_64 真实内核专项。发布仍须同候选真实通过并取得正式签名 ARM64 设备证据。以实际目标提交的工作流和权威台账为准，不将候选代码或旧版截图当作正式版功能通过。#116 新增发布后独立整机压力观察，手动执行并记录实际结果，不作为构建、合并或发布前置门禁。
 
 ## 关键原则
 
