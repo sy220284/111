@@ -36,10 +36,10 @@ class DeviceEvidenceTest(unittest.TestCase):
 
     def test_adaptive_dedicated_device_never_changes_home_or_resizes_after_test(self):
         with patch("run_ui_device_checks.prepare_display_change") as prepare, patch("run_ui_device_checks.adb") as adb, patch("run_ui_device_checks.run_fresh_suite", return_value={"status": "passed"}) as suite:
-            self.assertEqual({"status": "passed"}, adaptive("compact"))
+            self.assertEqual({"status": "passed"}, adaptive("compact", "navigation"))
             prepare.assert_called_once()
             self.assertEqual(3, adb.call_count)
-            suite.assert_called_once_with("compact", "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive")
+            suite.assert_called_once_with("compact", "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", "navigation")
 
     def test_success_requires_positive_count_and_successful_process(self):
         self.assertEqual("passed", parse_instrumentation("OK (142 tests)\n", 0)["status"])

@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 from pathlib import Path
-from device_matrix import CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd, MODES
+from device_matrix import CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd, MODES, SHARDS, shard_matrix, shard_classes, shard_job_name
 
 class DeviceMatrixTests(unittest.TestCase):
     def test_three_distinct_current_phones_and_one_update_owner(self):
@@ -14,6 +14,20 @@ class DeviceMatrixTests(unittest.TestCase):
         self.assertEqual(6, len({job_name(p,m) for p in PROFILES for m in MODES}))
         self.assertEqual(1, sum(row["self_update"] for row in matrix()["include"]))
         self.assertEqual(3, sum(row["motion"] for row in matrix()["include"]))
+    def test_twelve_distinct_shards_and_unique_specialty_owners(self):
+        rows = shard_matrix()["include"]
+        self.assertEqual(12, len(rows))
+        self.assertEqual(12, len({shard_job_name(r["profile"], r["mode"], r["shard"]) for r in rows}))
+        self.assertEqual({(p,m,s) for p in PROFILES for m in MODES for s in SHARDS},
+                         {(r["profile"],r["mode"],r["shard"]) for r in rows})
+        self.assertEqual(3, sum(r["motion"] for r in rows))
+        self.assertEqual(1, sum(r["self_update"] for r in rows))
+        for p in PROFILES:
+            for m in MODES:
+                a,b = (set(shard_classes(p,m,s)) for s in SHARDS)
+                self.assertFalse(a & b)
+                self.assertEqual(6 if p == "mainstream" and m == "baseline" else 5, len(a | b))
+
     def test_high_resolution_and_adaptive_narrow_screen(self):
         for profile in PROFILES:
             b = dimensions(profile, "baseline")

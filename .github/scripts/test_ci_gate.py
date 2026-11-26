@@ -49,7 +49,7 @@ class GateTests(unittest.TestCase):
         record["execute"].remove("ui")
         record["reused"]["ui"]={"run_id":12}
         jobs["plan"]["outputs"]["receipt"]=json.dumps(record)
-        for name in ("verify-ui","ui-emulator","ui-evidence"):
+        for name in ("verify-ui","ui-emulator","ui-collect","ui-evidence"):
             jobs[name]["result"]="skipped"
         self.assertNotIn("ui-emulator",verify(jobs,"pull_request","refs/pull/1/merge"))
         record["reused"]={}

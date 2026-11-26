@@ -1,0 +1,71 @@
+import json
+import tempfile
+import unittest
+import struct
+import zlib
+from pathlib import Path
+from unittest.mock import patch
+
+from device_matrix import CONFIG, SHARDS, dimensions, shard_classes
+from run_ui_device_checks import PACKAGE
+from merge_ui_shards import merge
+
+
+def chunk(kind, payload):
+    return struct.pack(">I", len(payload)) + kind + payload + struct.pack(">I", zlib.crc32(kind + payload))
+
+
+def png():
+    return b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1,1,8,2,0,0,0)) + chunk(b"IDAT", zlib.compress(b"\x00\xff\x00\x00")) + chunk(b"IEND", b"")
+
+
+class ShardMergeTests(unittest.TestCase):
+    def fixture(self, root):
+        root.mkdir()
+        for shard in SHARDS:
+            directory = root / f"ui-shard-compact-adaptive-{shard}"
+            screens = directory / "ui-screenshots-adaptive"
+            screens.mkdir(parents=True)
+            (screens / f"{shard}-android.png").write_bytes(png())
+            ids = [PACKAGE + "." + c + f"#test{i}" for c in shard_classes("compact","adaptive",shard) for i in range(40)]
+            common = dimensions("compact","adaptive") | dict(profile="compact",mode="adaptive",shard=shard,commit="head",android_api=CONFIG["api"],page_size=CONFIG["page_size"],build_fingerprint="fingerprint",android_release="17",physical_size="1080x2340",physical_density_dpi=440,width_dp=360,height_dp=720,run_id=shard)
+            report = common | dict(status="passed",tests=len(ids),test_ids=ids,missing_screens=[],screenshot_collection_exit=0)
+            manifest = common | dict(present=[shard],discovered=[shard],missing=[],screenshot_dimensions={shard:{"width_px":1,"height_px":1}})
+            (directory/"ui-adaptive-diagnosis.json").write_text(json.dumps(report))
+            (screens/"manifest.json").write_text(json.dumps(manifest))
+
+    def run_case(self, change=None):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)/"shards"; output=Path(d)/"output"; output.mkdir()
+            self.fixture(root)
+            if change: change(root)
+            with patch("merge_ui_shards.REQUIRED_SCREENS",list(SHARDS)):
+                return merge(root,output,"compact","adaptive","head")
+
+    def test_full_union(self):
+        result=self.run_case()
+        self.assertEqual(200,result["tests"])
+        self.assertEqual(set(SHARDS),set(result["shard_run_ids"]))
+
+    def test_missing_shard_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self.run_case(lambda root: (root/"ui-shard-compact-adaptive-navigation").rename(root/"wrong"))
+
+    def test_failed_or_stale_shard_is_rejected(self):
+        def change(root):
+            path=root/"ui-shard-compact-adaptive-navigation/ui-adaptive-diagnosis.json"
+            report=json.loads(path.read_text()); report["commit"]="old"; path.write_text(json.dumps(report))
+        with self.assertRaises(ValueError):
+            self.run_case(change)
+
+    def test_missing_screenshot_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self.run_case(lambda root: (root/"ui-shard-compact-adaptive-navigation/ui-screenshots-adaptive/navigation-android.png").unlink())
+
+    def test_duplicate_run_is_rejected(self):
+        def change(root):
+            folder=root/"ui-shard-compact-adaptive-components"
+            for path in (folder/"ui-adaptive-diagnosis.json",folder/"ui-screenshots-adaptive/manifest.json"):
+                data=json.loads(path.read_text()); data["run_id"]="navigation"; path.write_text(json.dumps(data))
+        with self.assertRaises(ValueError):
+            self.run_case(change)

@@ -90,7 +90,9 @@ def duplicate_content_groups(paths):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--destination", type=Path, default=DESTINATION)
-    destination = parser.parse_args().destination
+    parser.add_argument("--partial", action="store_true", help="Collect this shard only; the union is checked separately")
+    args = parser.parse_args()
+    destination = args.destination
     destination.mkdir(parents=True, exist_ok=True)
     # Evidence directories belong to one run/configuration only.
     for old in destination.glob("*.png"):
@@ -101,7 +103,8 @@ def main():
     discovered = discover_device_screens()
     # Required coverage still blocks regressions; new screenshots automatically
     # enter the artifact gallery without hand-maintained names in this script.
-    for screen in sorted(set(REQUIRED_SCREENS + OPTIONAL_SCREENS + discovered)):
+    required = discovered if args.partial else REQUIRED_SCREENS
+    for screen in sorted(set(discovered if args.partial else REQUIRED_SCREENS + OPTIONAL_SCREENS + discovered)):
         name = f"{screen}-android.png"
         result = subprocess.run(
             ["adb", "pull", f"{DEVICE_ROOT}/{name}", str(destination / name)],
@@ -115,9 +118,15 @@ def main():
                 width, height = struct.unpack('>II', png.read(8))
             dimensions[screen] = {'width_px': width, 'height_px': height}
             print(f"SCREENSHOT_OK {screen}", flush=True)
-        elif screen in REQUIRED_SCREENS:
+        elif screen in required:
             missing.append(screen)
             print(f"SCREENSHOT_MISSING {screen}: {result.stderr.strip()}", flush=True)
+    if args.partial and not discovered:
+        missing.append("no_shard_screenshots")
+    return write_evidence(destination, present, dimensions, missing, discovered, required)
+
+
+def write_evidence(destination, present, dimensions, missing, discovered, required):
     (destination / "missing.txt").write_text(
         "\n".join(missing) + ("\n" if missing else ""), encoding="utf-8")
     duplicates = duplicate_content_groups(
@@ -126,7 +135,7 @@ def main():
     for group in duplicates:
         print("SCREENSHOT_DUPLICATE " + ", ".join(group), flush=True)
     (destination / "manifest.json").write_text(
-        json.dumps({"required": REQUIRED_SCREENS, "discovered": discovered,
+        json.dumps({"required": required, "discovered": discovered,
                     "present": present, "missing": missing, "screenshot_dimensions": dimensions, "duplicate_content": duplicates},
                    ensure_ascii=False, indent=2),
         encoding="utf-8",
@@ -150,7 +159,7 @@ def main():
         'img{width:100%;height:350px;object-fit:contain;display:block}'
         'span{display:block;font-size:12px;word-break:break-all;margin-top:9px}</style>'
         f'<h1>Android {RELEASE} (API {API}) · 逐页截图</h1><small>本次实测捕获 ' + str(len(pngs)) +
-        ' 张，必检 ' + str(len(REQUIRED_SCREENS)) + ' 张，缺少 ' +
+        ' 张，必检 ' + str(len(required)) + ' 张，缺少 ' +
         str(len(missing)) + ' 张。</small><div class="grid">' + cells + '</div></html>'
     )
     (destination / "index.html").write_text(html, encoding="utf-8")

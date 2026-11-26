@@ -4,7 +4,7 @@ import json
 import os
 import sys
 from pathlib import Path
-from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, minimum_tests
+from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, minimum_tests, SHARDS
 
 def read(path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -36,7 +36,10 @@ def validate(root, source):
             run_id = report.get("run_id")
             if not run_id or run_id in run_ids:
                 raise ValueError("Duplicate UI execution ID")
-            run_ids.add(run_id)
+            shard_ids = report["shard_run_ids"]
+            if set(shard_ids) != set(SHARDS) or len(set(shard_ids.values())) != len(SHARDS) or any(not x or x in run_ids or x == run_id for x in shard_ids.values()):
+                raise ValueError("Missing or duplicate shard execution ID")
+            run_ids.update([run_id, *shard_ids.values()])
             ids = report["test_ids"]
             if len(ids) < minimum_tests(profile,mode) or len(ids) != report["tests"] or len(set(ids)) != len(ids):
                 raise ValueError("Missing or duplicate test completions")

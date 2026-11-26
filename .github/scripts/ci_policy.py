@@ -7,7 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'android-app/tools'))
-from device_matrix import CONFIG, matrix
+from device_matrix import CONFIG, matrix, shard_matrix
 
 POLICY = json.loads((Path(__file__).resolve().parents[1] / "ci" / "scope.json").read_text(encoding="utf-8"))
 
@@ -45,7 +45,7 @@ def main():
         for group in GROUPS:
             print(f"run_{group}={str(group in receipt['execute']).lower()}",file=stream)
         print("native_key="+(native_key(source) if "package" in receipt["execute"] else ""),file=stream)
-        for key, value in {"device_matrix": json.dumps(matrix(), separators=(",", ":")), "device_api": CONFIG["api"], "device_image_api": CONFIG["system_image_api"], "device_sdk_platform": CONFIG["sdk_platform"], "device_runtime_profile": CONFIG["runtime_profile"], "device_release": CONFIG["android_release"], "device_target": CONFIG["target"], "device_ram": CONFIG["ram"], "device_emulator_options": CONFIG["emulator_options"]}.items():
+        for key, value in {"device_matrix": json.dumps(matrix(), separators=(",", ":")), "device_shards": json.dumps(shard_matrix(), separators=(",", ":")), "device_api": CONFIG["api"], "device_image_api": CONFIG["system_image_api"], "device_sdk_platform": CONFIG["sdk_platform"], "device_runtime_profile": CONFIG["runtime_profile"], "device_release": CONFIG["android_release"], "device_target": CONFIG["target"], "device_ram": CONFIG["ram"], "device_emulator_options": CONFIG["emulator_options"]}.items():
             print(f"{key}={value}", file=stream)
         for key in ("full", "runtime", "maintenance"):
             print(f"{key}={str(result[key]).lower()}", file=stream)

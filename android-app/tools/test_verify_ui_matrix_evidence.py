@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device
+from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, SHARDS
 from verify_ui_matrix_evidence import validate
 
 class MatrixEvidenceTests(unittest.TestCase):
@@ -17,7 +17,7 @@ class MatrixEvidenceTests(unittest.TestCase):
                 self.write(folder/f"ui-{mode}-diagnosis.json", dict(dimensions(profile,mode),
                     status="passed", commit="head", profile=profile, mode=mode,
                     android_api=CONFIG["api"], page_size=CONFIG["page_size"], build_fingerprint="android",
-                    missing_screens=[], screenshot_collection_exit=0, run_id=profile+mode,
+                    missing_screens=[], screenshot_collection_exit=0, run_id=profile+mode, shard_run_ids={s:profile+mode+s for s in SHARDS},
                     tests=len(ids), test_ids=ids))
                 self.write(folder/"ui-visual-evidence/report.json", {"status":"baseline_pending","structural_errors":[]})
                 if mode=="baseline":

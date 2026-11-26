@@ -18,6 +18,13 @@ def dimensions(profile, mode):
         "font_scale": 1.0 if mode == "baseline" else spec["font_scale"]}
 
 MODES = ("baseline", "adaptive")
+# Keep complete test classes together; split the 68 navigation cases from the other 84 UI cases.
+SHARDS = {
+    "navigation": ("UiNavigationInstrumentedTest",),
+    "components": ("UiPopulatedSubpagesInstrumentedTest", "CodexInteractionComponentsInstrumentedTest",
+                   "CodexOverlayInstrumentedTest", "EngineSettingInstrumentedTest"),
+}
+
 # These three exercise Android Intent/PackageManager/FileProvider, with no Compose or screenshots.
 INDEPENDENT_CLASS = "SelfUpdateInstallerIntentInstrumentedTest"
 INDEPENDENT_IDS = frozenset("io.github.sy220284.codexandroid."+INDEPENDENT_CLASS+"#"+name for name in (
@@ -38,6 +45,25 @@ def matrix():
                           "self_update": p["self_update"] and mode == "baseline",
                           "motion": mode == "baseline", "api": API,
                           "android_release": RELEASE} for p in CONFIG["profiles"] for mode in MODES]}
+
+def shard_matrix():
+    return {"include": [row | {"shard": shard,
+                                "motion": row["motion"] and shard == "navigation",
+                                "self_update": row["self_update"] and shard == "components"}
+                        for row in matrix()["include"] for shard in SHARDS]}
+
+
+def shard_classes(profile, mode, shard):
+    return list(SHARDS[shard]) + ([INDEPENDENT_CLASS] if shard == "components" and independent_device(profile, mode) else [])
+
+
+def shard_job_name(profile, mode, shard):
+    return f"{job_name(profile, mode)} · {shard}"
+
+
+def collect_job_name(profile, mode):
+    return f"UI 分流证据汇总 · {profile} {mode}"
+
 
 def job_name(profile, mode):
     return f"Android {RELEASE} (API {API}) · {profile} {mode} UI 交互与截图验收"
