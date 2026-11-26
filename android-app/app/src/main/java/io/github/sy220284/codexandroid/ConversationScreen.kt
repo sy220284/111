@@ -154,7 +154,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         it.revision == previewAccountRevision && it.epoch == previewEpoch && it.selection == selectedModel &&
             analysisModel != null && (analysisModel.isBlank() || it.model == analysisModel)
     } ?: MediaAnalysisController.State()
-    var mediaChoice by remember(draftOwner, analysisModel, previewAccountRevision, previewEpoch) { mutableStateOf<Pair<String, MediaAnalysisMode>?>(null) }
+    var mediaChoice by remember(draftOwner, analysisModel, previewAccountRevision, previewEpoch) { mutableStateOf<Triple<String, MediaAnalysisMode, Boolean>?>(null) }
     var reviewMedia by remember(draftOwner, analysisModel, previewAccountRevision, previewEpoch) { mutableStateOf(false) }
     LaunchedEffect(draftOwner, analysisModel, selectedModel, previewAccountRevision, previewEpoch, status, busy) {
         if (!busy && status == EngineStatus.Connected) {
@@ -608,7 +608,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     if ((analysisModel != null || mediaAnalysis.owner == draftOwner) && remote == null) MediaAnalysisActions(
                         paths = attachedImages, state = mediaAnalysis, owner = draftOwner,
                         enabled = analysisModel != null && !busy && !switching && !attachmentBusy && !transferBusy && !restarting,
-                        onChoose = { path, mode -> mediaChoice = path to mode },
+                        onChoose = { path, mode -> mediaChoice = Triple(path, mode, false) },
+                        onContinue = { path, mode -> mediaChoice = Triple(path, mode, true) },
+                        onSelectRecord = { vm.composerContent.mediaAnalysis.selectRecord(draftOwner, it) },
                         onCancel = { vm.composerContent.mediaAnalysis.cancel() },
                         onReview = { reviewMedia = true },
                         onDismiss = { vm.composerContent.mediaAnalysis.dismiss(draftOwner) }
@@ -619,7 +621,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 
         }
     }
-    mediaChoice?.let { (path, mode) ->
+    mediaChoice?.let { (path, mode, resume) ->
         CodexConfirmDialog(
             title = mode.label,
             message = "将所选媒体及会话上下文发送给当前模型 " + shownModel.ifBlank { "（沿用会话模型）" } +
@@ -632,7 +634,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             confirmLabel = "确认分析",
             onConfirm = {
                 mediaChoice = null
-                analysisModel?.let { vm.composerContent.mediaAnalysis.start(draftOwner, it, path, mode, draft) }
+                analysisModel?.let { vm.composerContent.mediaAnalysis.start(draftOwner, it, path, mode, draft, resume) }
             },
             onDismiss = { mediaChoice = null }
         )

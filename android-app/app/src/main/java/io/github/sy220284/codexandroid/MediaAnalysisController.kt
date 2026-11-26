@@ -13,21 +13,30 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
 
-/** One authorization, one native provider/model, one durable result per conversation. */
+/** Independent durable records, keyed by attachment, processing intention, question and source turn. */
 internal class MediaAnalysisController(private val vm: CodexViewModel, private val adapter: MediaAnalysisAdapter) {
+    data class RecordSummary(val identity: String, val label: String)
+    private fun summary(record: AnalysisCheckpoint) = RecordSummary(record.identity,
+        (runCatching { MediaAnalysisMode.valueOf(record.mode).label }.getOrDefault(record.mode)) +
+            " · " + LocalMediaAttachmentPolicy.kind(record.source) + " · " +
+            record.parts.size + "/" + record.total + " · " + record.question.take(36))
     data class State(val owner: String? = null, val revision: Long = 0, val source: String? = null,
                      val mode: MediaAnalysisMode? = null, val completed: Int = 0, val total: Int = 0,
                      val busy: Boolean = false, val result: String? = null, val error: String? = null,
                      val checkpoint: AnalysisCheckpoint? = null, val scope: String? = null, val model: String = "",
-                     val epoch: Long? = null, val selection: String = "")
+                     val epoch: Long? = null, val selection: String = "", val history: List<RecordSummary> = emptyList())
     val state = MutableStateFlow(State())
     val results = MutableStateFlow<Map<String, State>>(emptyMap())
     private val app get() = vm.getApplication<android.app.Application>()
     private val store by lazy { AnalysisCheckpointStore(File(app.filesDir, "media-analysis-results")) }
     private var job: Job? = null
     private fun publish(value: State) {
-        state.value = value
-        value.owner?.let { owner -> results.update { it + (owner to value) } }
+        val prior = value.owner?.let { results.value[it] }
+        val history = value.history.ifEmpty { prior?.takeIf { it.scope == value.scope && it.revision == value.revision && it.epoch == value.epoch }?.history.orEmpty() }
+        val record = value.checkpoint
+        val next = value.copy(history = if (record == null) history else listOf(summary(record)) + history.filterNot { it.identity == record.identity })
+        state.value = next
+        next.owner?.let { owner -> results.update { it + (owner to next) } }
     }
     private fun restored(record: AnalysisCheckpoint, revision: Long, model: String, epoch: Long, selection: String) = State(record.owner, revision,
         record.source, MediaAnalysisMode.valueOf(record.mode), record.parts.size, record.total,
@@ -54,9 +63,10 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
         try {
             val target = adapter.bind(owner, model, epoch, permit)
             scope = target.checkpointScope
-            val record = withContext(Dispatchers.IO) { store.read(owner, target.checkpointScope, false) }
+            val records = withContext(Dispatchers.IO) { store.listMedia(owner, target.checkpointScope) }
             if (!permit() || state.value.busy) return
-            results.update { if (record == null) it - owner else it + (owner to restored(record, revision, target.model, epoch, selected)) }
+            val record = records.firstOrNull()
+            results.update { if (record == null) it - owner else it + (owner to restored(record, revision, target.model, epoch, selected).copy(history = records.map(::summary))) }
         } catch (cancel: CancellationException) { throw cancel }
         catch (failure: Exception) {
             if (scope != null && permit() && !state.value.busy) results.update { it + (owner to State(owner = owner,
@@ -64,7 +74,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
         }
     }
 
-    fun start(owner: String, model: String, source: String, mode: MediaAnalysisMode, question: String) {
+    fun start(owner: String, model: String, source: String, mode: MediaAnalysisMode, question: String, resume: Boolean = false) {
         if (state.value.busy || job?.isActive == true || vm.composerContent.liveScreenAnalysis.state.value.running ||
             !vm.globalWorkSnapshot().canStartNewTask) return
         val revision = vm.catalogWarmup.accountRevision.value
@@ -73,7 +83,11 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
         val permit = { valid(owner, revision, epoch) && vm.modelId.value == selected &&
             source in vm.composerDrafts.value[owner]?.images.orEmpty() }
         if (!permit()) return
-        publish(State(owner, revision, source, mode, busy = true, model = model, epoch = epoch, selection = selected))
+        val previous = results.value[owner]?.takeIf { owns(it, owner) }
+        val resumeRecord = if (resume) previous?.checkpoint else null
+        if (resume && (resumeRecord == null || resumeRecord.source != source || resumeRecord.mode != mode.name)) return
+        publish(State(owner, revision, source, mode, busy = true, model = model, epoch = epoch, selection = selected,
+            scope = previous?.scope, history = previous?.history.orEmpty()))
         job = vm.viewModelScope.launch {
             val guard = launch {
                 combine(vm.activeThread, vm.running, vm.catalogWarmup.accountRevision, vm.bridge.connectedSession, vm.modelId) { _, _, _, _, _ -> permit() }.first { !it }
@@ -83,14 +97,17 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
                 val target = adapter.bind(owner, model, epoch, permit)
                 publish(state.value.copy(scope = target.checkpointScope, model = target.model))
                 AppDataTransfer.withLocalMutation {
-                    val saved = withContext(Dispatchers.IO) { store.read(owner, target.checkpointScope, false) }
-                    require(saved == null || (saved.source == source && saved.mode == mode.name)) { "请先审阅或清除原分析记录" }
+                    val prompt = resumeRecord?.question ?: question.ifBlank { "按时间顺序描述关键画面、声音及其关联。" }
+                    val identity = AnalysisCheckpoint(owner, target.checkpointScope, source, mode.name, prompt, sourceTurn = target.sourceTurn).identity
+                    if (resumeRecord != null) require(resumeRecord.identity == identity && resumeRecord.scope == target.checkpointScope) {
+                        "会话上下文已变化，原记录可查看；重新分析需再次确认"
+                    }
+                    val saved = withContext(Dispatchers.IO) { store.readMedia(owner, target.checkpointScope, identity) }
                     if (saved?.complete == true) {
                         publish(restored(saved, revision, target.model, epoch, selected))
                         return@withLocalMutation
                     }
                     require(saved == null || saved.sourceTurn == target.sourceTurn) { "会话上下文已变化，请先审阅或清除原分析记录" }
-                    val prompt = saved?.question ?: question.ifBlank { "按时间顺序描述关键画面、声音及其关联。" }
                     // Resolve known incompatibility before expensive decoding or any model request.
                     val required = withContext(Dispatchers.IO) {
                         MediaAnalysisPlan.requiredModalities(LocalMediaAttachmentPolicy.kind(source),
@@ -127,14 +144,39 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
         }
     }
     fun cancel() { job?.cancel() }
+
+    fun selectRecord(owner: String, identity: String) {
+        val current = results.value[owner] ?: return
+        val scope = current.scope ?: return
+        if (state.value.busy || !owns(current, owner)) return
+        publish(current.copy(busy = true))
+        vm.viewModelScope.launch {
+            try {
+                val record = withContext(Dispatchers.IO) { store.readMedia(owner, scope, identity) }
+                    ?: error("分析记录已不存在")
+                if (owns(current, owner)) publish(restored(record, current.revision, current.model,
+                    requireNotNull(current.epoch), current.selection).copy(history = current.history))
+                else state.value = State()
+            } catch (cancel: CancellationException) { publish(current); throw cancel }
+            catch (failure: Exception) { publish(current.copy(error = failure.message ?: "无法打开分析记录")) }
+        }
+    }
     fun dismiss(owner: String) {
         val current = results.value[owner] ?: return
         if (state.value.busy || current.busy || !owns(current, owner) || !vm.globalWorkSnapshot().canStartNewTask) return
         publish(current.copy(busy = true))
         vm.viewModelScope.launch {
             try {
-                AppDataTransfer.mutateLocal { current.scope?.let { store.remove(owner, it, false) } }
+                val scope = requireNotNull(current.scope)
+                val record = current.checkpoint
+                AppDataTransfer.mutateLocal {
+                    if (record != null) store.removeMedia(record) else store.remove(owner, scope, false)
+                }
+                val remaining = withContext(Dispatchers.IO) { store.listMedia(owner, scope) }
                 results.update { it - owner }; state.value = State()
+                if (owns(current, owner) && remaining.isNotEmpty())
+                    publish(restored(remaining.first(), current.revision, current.model, requireNotNull(current.epoch), current.selection)
+                        .copy(history = remaining.map(::summary)))
             } catch (cancel: CancellationException) { publish(current); throw cancel }
             catch (failure: Exception) { publish(current.copy(error = failure.message ?: "分析记录清除失败")) }
         }

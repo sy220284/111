@@ -216,7 +216,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         loading.value = loading.value + key
         viewModelScope.launch {
             try {
-                val response = dispatchOwnedRequest(method, params, requireNotNull(requestEpoch) { "运行核心尚未连接" })
+                val response = dispatchOwnedRequest(method, params, requireNotNull(requestEpoch) { "运行核心尚未连接" },
+                    sendPermit = if (userAction || accountScopedRead(method)) ({ catalogWarmup.accountRevision.value == accountOwner }) else null)
                 if (ownsReceipt()) {
                     val published = if (key == "apps" && method == "app/list" &&
                         !params?.optString("cursor").isNullOrBlank())
@@ -377,13 +378,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后发送指令")
             return
         }
-        val epoch = bridge.connectedSession.value
-        if (epoch == null) {
+        val owner = captureTaskOwner()
+        if (owner == null) {
             errors.value = errors.value + ("conversation" to "运行核心尚未连接，草稿已保留")
             return
         }
-        val accountRevision = catalogWarmup.accountRevision.value
-        val permit = { catalogWarmup.accountRevision.value == accountRevision }
+        val epoch = owner.epoch
+        val permit = { owner.current(this) }
         val submittedThread = activeThread.value
         if ((prompt.isEmpty() && localImages.isEmpty() && references.isEmpty()) || running.value ||
             (submittedThread == null && firstThreadStarting.value) ||
@@ -417,7 +418,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             if (activeThread.value == submittedThread) timeline.value = timeline.value + TimelineItem(
                 pendingId, "user",
                 if (images.isEmpty()) prompt else
-                    listOf(prompt, "图片附件：${images.size} 张").filter { it.isNotBlank() }.joinToString("\n"),
+                    listOf(prompt, LocalMediaAttachmentPolicy.summary(images)).filter { it.isNotBlank() }.joinToString("\n"),
                 "sending")
             try {
                 // Android must confirm foreground mode before any turn RPC is sent.
@@ -429,16 +430,17 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 check(bridge.connectedSession.value == epoch && permit()) { "连接或账号已变化，草稿已保留" }
                 if (chosenRemote != null) {
                     if (submittedThread == null) remoteBindings.ready(epoch, chosenRemote) { method, params ->
-                        bridge.request(method, params, expectedSession = epoch)
-                    } else ensureRemoteThread(submittedThread, chosenRemote, expectedSession = epoch)
+                        owner.request(this@CodexViewModel, method, params)
+                    } else ensureRemoteThread(submittedThread, chosenRemote, expectedSession = epoch, sendPermit = permit)
                 }
-                AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(images, LocalImageAttachments.directory(getApplication())) }
-                ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
-                val permissionConfig = bridge.request("config/read", JSONObject().put("cwd", chosenWorkspace), expectedSession = epoch)
+                val permissionConfig = owner.request(this@CodexViewModel, "config/read", JSONObject().put("cwd", chosenWorkspace))
                 val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
                 val (provider, requestModel, catalog, effectiveConfig) = ComposerProviderScope.submission(
                     permissionConfig.getJSONObject("config"), submittedThread, chosenModel, chosenMode,
-                    chosenOptions, mediaKinds = LocalMediaAttachmentPolicy.modalities(images)) { method, params -> bridge.request(method, params, expectedSession = epoch) }
+                    chosenOptions, mediaKinds = LocalMediaAttachmentPolicy.modalities(images)) { method, params -> owner.request(this@CodexViewModel, method, params) }
+                AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(images, LocalImageAttachments.directory(getApplication())) { owner.requireCurrent(this@CodexViewModel) } }
+                ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
+                owner.requireCurrent(this@CodexViewModel)
                 if (submittedThread == null && chosenRemote == null) workspaceTasks.relocateProject(chosenProject, epoch)
                 if (chosenRemote == null) captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread)
                 LocalImageAttachments.preserveForHistory(getApplication(), images)

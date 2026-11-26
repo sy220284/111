@@ -16,7 +16,8 @@ import java.io.File
 @Composable
 internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisController.State,
                                   owner: String, enabled: Boolean,
-                                  onChoose: (String, MediaAnalysisMode) -> Unit, onCancel: () -> Unit,
+                                  onChoose: (String, MediaAnalysisMode) -> Unit, onContinue: (String, MediaAnalysisMode) -> Unit,
+                                  onSelectRecord: (String) -> Unit, onCancel: () -> Unit,
                                   onReview: () -> Unit, onDismiss: () -> Unit) {
     if (state.owner == owner) {
         if (state.busy) {
@@ -34,20 +35,25 @@ internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisContr
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("保留的分析记录", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
                 if (state.checkpoint != null && state.source != null && state.mode != null)
-                    CodexTextAction(onClick = { onChoose(state.source, state.mode) }, enabled = enabled) { Text("继续剩余") }
+                    CodexTextAction(onClick = { onContinue(state.source, state.mode) }, enabled = enabled) { Text("继续剩余") }
                 CodexTextAction(onClick = onDismiss) { Text("清除记录") }
             }
-            return
         }
         if (state.result != null) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("媒体分析结果已就绪", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
                 if (state.checkpoint?.complete == false && state.source != null && state.mode != null)
-                    CodexTextAction(onClick = { onChoose(state.source, state.mode) }, enabled = enabled) { Text("继续剩余") }
+                    CodexTextAction(onClick = { onContinue(state.source, state.mode) }, enabled = enabled) { Text("继续剩余") }
                 CodexTextAction(onClick = onReview) { Text("查看") }
                 CodexTextAction(onClick = onDismiss) { Text("清除") }
             }
-            return
+        }
+        var historyOpen by remember(owner) { mutableStateOf(false) }
+        if (state.history.size > 1) {
+            CodexTextAction(onClick = { historyOpen = !historyOpen }) { Text("分析记录 · " + state.history.size) }
+            if (historyOpen) state.history.forEach { record ->
+                CodexTextAction(onClick = { onSelectRecord(record.identity) }, enabled = enabled && record.identity != state.checkpoint?.identity) { Text(record.label) }
+            }
         }
     }
     var advanced by remember(owner) { mutableStateOf(false) }

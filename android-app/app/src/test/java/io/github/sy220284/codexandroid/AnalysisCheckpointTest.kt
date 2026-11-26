@@ -80,9 +80,12 @@ class AnalysisCheckpointTest {
             store.save(completed, false)
             store.save(first, false)
             assertEquals(completed, store.read("A", scope, false))
-            assertThrows(IllegalArgumentException::class.java) {
-                store.save(first.copy(question = "different"), false)
-            }
+            val other = first.copy(question = "different")
+            store.save(other, false)
+            assertEquals(2, store.listMedia("A", scope).size)
+            assertEquals(completed, store.readMedia("A", scope, completed.identity))
+            assertEquals(other, store.readMedia("A", scope, other.identity))
+            store.removeMedia(other)
             assertEquals(completed, store.read("A", scope, false))
         } finally { directory.deleteRecursively() }
     }

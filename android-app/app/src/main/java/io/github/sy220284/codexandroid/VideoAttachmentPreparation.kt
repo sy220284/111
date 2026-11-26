@@ -36,69 +36,117 @@ internal object VideoAttachmentPreparation {
         } finally { retriever.release() }
     }
 
-    // Only one heavy media decoder at a time; photo/audio imports may still proceed in parallel.
-    fun prepare(source: File, checkActive: () -> Unit = {}): File = synchronized(codecLock) {
-        if (File(VideoTimeline.manifest(source.path)).isFile) {
-            require(LocalMediaAttachmentPolicy.ownedPaths(source.path).all { File(it).isFile && File(it).length() > 0 }) { "视频解析资料已失效，请重新导入" }
-            return@synchronized source
-        }
-        val retriever = MediaMetadataRetriever()
-        val extractor = MediaExtractor()
-        val generated = mutableListOf<File>()
-        try {
-            checkActive()
-            retriever.setDataSource(source.absolutePath)
-            val duration = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
-                ?: error("无法读取视频时长")
-            val windows = VideoSamplingPlan.windows(duration)
-            require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes") { "文件不含可读取的视频轨" }
-            extractor.setDataSource(source.absolutePath)
-            val audioTracks = (0 until extractor.trackCount).filter {
-                extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-            }
-            require(audioTracks.size <= 1) { "多音轨视频请先选择并导出所需音轨" }
-            val track = audioTracks.singleOrNull()
-            if (track != null) require(extractor.getTrackFormat(track).getString(MediaFormat.KEY_MIME) == MediaFormat.MIMETYPE_AUDIO_AAC) {
-                "视频音轨须为 AAC；请先转为 AAC 编码的 MP4 或分别上传音频和无声视频"
-            }
-            val output = source
+    // Separate tracks share deterministic sidecars and are only generated when requested.
+    fun prepare(source: File, checkActive: () -> Unit = {}): File {
+        prepareTracks(source, includeImage = true, includeAudio = true, checkActive = checkActive)
+        return source
+    }
 
-            var previous: IntArray? = null
-            val probes = VideoSamplingPlan.probeTimes(duration).map { time ->
-                checkActive()
-                val frame = frameAt(retriever, time, 96, 96)
-                try {
-                    val normalized = Bitmap.createScaledBitmap(frame, 96, 54, true)
-                    try {
-                        val pixels = IntArray(96 * 54)
-                        normalized.getPixels(pixels, 0, 96, 0, 0, 96, 54)
-                        VideoSamplingPlan.Probe(time, previous?.let { VideoSamplingPlan.change(it, pixels) } ?: 0.0)
-                            .also { previous = pixels }
-                    } finally { if (normalized !== frame) normalized.recycle() }
-                } finally { frame.recycle() }
+    fun prepareTracks(source: File, includeImage: Boolean, includeAudio: Boolean,
+                      checkActive: () -> Unit = {}): VideoTimeline = synchronized(codecLock) {
+        require(includeImage || includeAudio)
+        checkActive()
+        val path = source.absolutePath
+        val full = File(VideoTimeline.manifest(path))
+        val hasAudio = LocalMediaAttachmentPolicy.hasAudio(path)
+        fun verify(timeline: VideoTimeline, visual: Boolean, audio: Boolean): VideoTimeline {
+            require(!visual || timeline.hasVisual) { "视频画面记录不完整" }
+            require(!audio || timeline.segments.any { it.audioStartUs != null } == hasAudio) { "视频音轨记录不完整" }
+            for ((i, segment) in timeline.segments.withIndex()) {
+                if (visual) require(File(VideoTimeline.sheet(path, i)).let { it.isFile && it.length() > 0 }) { "视频画面记录已失效" }
+                if (audio && segment.audioStartUs != null)
+                    require(File(VideoTimeline.audio(path, i)).let { it.isFile && it.length() > 0 }) { "视频音轨记录已失效" }
             }
-            val plan = VideoSamplingPlan.plan(duration, probes)
-            plan.forEachIndexed { index, segment ->
-                checkActive()
-                val sheet = File(VideoTimeline.sheet(output.path, index)).also(generated::add)
-                renderSheet(retriever, segment, sheet, checkActive)
-            }
-            val audioStarts = if (track == null) emptyMap() else
-                extractAudio(extractor, track, windows, output.path, generated, checkActive)
-            val timeline = VideoTimeline(duration, plan.mapIndexed { i, segment ->
-                VideoTimeline.Segment(segment.window.startMs, segment.window.endMs, segment.times, audioStarts[i])
-            })
-            val manifest = File(VideoTimeline.manifest(output.path)).also(generated::add)
-            manifest.writeText(timeline.encode())
-            checkActive()
-            output
-        } catch (failure: Throwable) {
-            for (file in generated) if (file.exists() && !file.delete())
-                failure.addSuppressed(IllegalStateException("无法清理视频解析文件：${file.name}"))
-            throw failure
-        } finally {
-            try { retriever.release() } finally { extractor.release() }
+            return timeline
         }
+        if (full.isFile) return@synchronized verify(VideoTimeline.read(path), includeImage, includeAudio)
+        val duration = if (File(path + ".metadata.json").isFile)
+            org.json.JSONObject(File(path + ".metadata.json").readText()).getLong("durationMs")
+        else {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(path)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull()
+                    ?: error("无法读取视频时长")
+            } finally { retriever.release() }
+        }
+        val windows = VideoSamplingPlan.windows(duration)
+        fun persist(file: File, timeline: VideoTimeline) {
+            checkActive()
+            val temp = File.createTempFile("video-timeline-", ".tmp", source.parentFile)
+            try {
+                temp.writeText(timeline.encode())
+                java.nio.file.Files.move(temp.toPath(), file.toPath(), java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING)
+            } finally { if (temp.exists()) check(temp.delete()) { "无法清理临时时间轴" } }
+        }
+        fun track(file: File, visual: Boolean, generate: (MutableList<File>) -> VideoTimeline): VideoTimeline {
+            if (file.isFile) return verify(VideoTimeline.readManifest(file), visual, !visual)
+                .also { require(it.durationMs == duration && it.hasVisual == visual) { "视频时间轴与原文件不一致" } }
+            val generated = mutableListOf<File>()
+            try {
+                val result = generate(generated)
+                verify(result, visual, !visual)
+                persist(file, result)
+                return result
+            } catch (failure: Throwable) {
+                for (output in generated) if (output.exists() && !output.delete())
+                    failure.addSuppressed(IllegalStateException("无法清理视频解析文件：${output.name}"))
+                throw failure
+            }
+        }
+        val visual = if (!includeImage) null else track(File(VideoTimeline.visualManifest(path)), true) { generated ->
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(path)
+                require(retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_HAS_VIDEO) == "yes") { "文件不含可读取的视频轨" }
+                var previous: IntArray? = null
+                val probes = VideoSamplingPlan.probeTimes(duration).map { time ->
+                    checkActive()
+                    val frame = frameAt(retriever, time, 96, 96)
+                    try {
+                        val normalized = Bitmap.createScaledBitmap(frame, 96, 54, true)
+                        try {
+                            val pixels = IntArray(96 * 54)
+                            normalized.getPixels(pixels, 0, 96, 0, 0, 96, 54)
+                            VideoSamplingPlan.Probe(time, previous?.let { VideoSamplingPlan.change(it, pixels) } ?: 0.0)
+                                .also { previous = pixels }
+                        } finally { if (normalized !== frame) normalized.recycle() }
+                    } finally { frame.recycle() }
+                }
+                val plan = VideoSamplingPlan.plan(duration, probes)
+                plan.forEachIndexed { index, segment ->
+                    checkActive()
+                    renderSheet(retriever, segment, File(VideoTimeline.sheet(path, index)).also(generated::add), checkActive)
+                }
+                VideoTimeline(duration, plan.map { VideoTimeline.Segment(it.window.startMs, it.window.endMs, it.times, null) })
+            } finally { retriever.release() }
+        }
+        val audio = if (!includeAudio || !hasAudio) null else track(File(VideoTimeline.audioManifest(path)), false) { generated ->
+            val extractor = MediaExtractor()
+            try {
+                extractor.setDataSource(path)
+                val tracks = (0 until extractor.trackCount).filter {
+                    extractor.getTrackFormat(it).getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
+                }
+                require(tracks.size == 1) { "多音轨视频请先选择并导出所需音轨" }
+                val index = tracks.single()
+                require(extractor.getTrackFormat(index).getString(MediaFormat.KEY_MIME) == MediaFormat.MIMETYPE_AUDIO_AAC) {
+                    "视频音轨须为 AAC；仍可仅分析画面，或分别导入音频"
+                }
+                val offsets = extractAudio(extractor, index, windows, path, generated, checkActive)
+                VideoTimeline(duration, windows.mapIndexed { i, window ->
+                    VideoTimeline.Segment(window.startMs, window.endMs, emptyList(), offsets[i])
+                }, hasVisual = false)
+            } finally { extractor.release() }
+        }
+        val result = VideoTimeline(duration, windows.mapIndexed { i, window ->
+            VideoTimeline.Segment(window.startMs, window.endMs, visual?.segments?.get(i)?.times.orEmpty(),
+                audio?.segments?.get(i)?.audioStartUs)
+        }, hasVisual = includeImage)
+        if (includeImage && (includeAudio || !hasAudio)) persist(full, result)
+        checkActive()
+        result
     }
 
     private fun frameAt(retriever: MediaMetadataRetriever, time: Long, width: Int, height: Int): Bitmap =

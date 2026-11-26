@@ -43,6 +43,17 @@ internal object ComposerProviderScope {
             ?: error("当前服务商没有可用模型，请检查授权或模型目录")
     }
 
+    /** Running queue/steer use the actual thread model, not a next-turn draft override. */
+    suspend fun requireExistingMedia(threadId: String, required: Set<String>,
+        rpc: suspend (String, JSONObject) -> JSONObject) {
+        if (required.isEmpty()) return
+        val thread = rpc("thread/read", JSONObject().put("threadId", threadId)).getJSONObject("thread")
+        val provider = requireNotNull(provider(thread.optString("modelProvider"))) { "当前会话服务商未确认" }
+        val model = requireNotNull(provider(thread.optString("model"))) { "当前会话模型未确认，请重新打开会话" }
+        val catalog = records(rpc("model/list", request(provider)))
+        ComposerModelPolicy.requireMediaInput(catalog, model, required)
+    }
+
     data class Submission(val provider: String, val model: String, val catalog: List<JSONObject>, val effectiveConfig: JSONObject?)
 
     suspend fun submission(

@@ -16,9 +16,9 @@ internal object AttachmentRetentionPolicy {
         val directory = root.canonicalFile
         paths.flatMap(LocalMediaAttachmentPolicy::ownedPaths).distinct().forEach { path ->
             val image = File(path).canonicalFile
-            require(image.parentFile == directory && image.isFile) { "图片附件已失效，请重新添加" }
+            require(image.parentFile == directory && image.isFile) { "媒体附件已失效，请重新添加" }
             val marker = historyMarker(directory, image)
-            check(marker.parentFile.isDirectory || marker.parentFile.mkdirs()) { "无法保存历史图片记录" }
+            check(marker.parentFile.isDirectory || marker.parentFile.mkdirs()) { "无法保存历史媒体记录" }
             marker.createNewFile()
         }
     }
@@ -39,7 +39,7 @@ internal object AttachmentRetentionPolicy {
             val file = entry.canonicalFile
             if (!file.isFile || file.parentFile != dir || file.path in protected || isHistorical(dir, file) ||
                 file.lastModified() >= nowMillis - ORPHAN_TTL_MILLIS) continue
-            check(file.delete()) { "无法清理无引用的旧图片：" + file.name }
+            check(file.delete()) { "无法清理无引用的旧媒体：" + file.name }
             deleted++
         }
         return deleted

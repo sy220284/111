@@ -58,8 +58,9 @@ internal object MediaAnalysisPlan {
             val parts = if (kind != "video") {
                 listOf(Part("原始媒体", instruction, JSONArray().put(local(kind, file.path))))
             } else {
-                LocalMediaAttachmentPolicy.prepare(listOf(source), root) { cancellation.ensureActive() }
-                val timeline = VideoTimeline.read(source)
+                val timeline = VideoAttachmentPreparation.prepareTracks(file,
+                    includeImage = mode != MediaAnalysisMode.Transcription,
+                    includeAudio = mode != MediaAnalysisMode.VisualOnly) { cancellation.ensureActive() }
                 timeline.segments.mapIndexedNotNull { index, segment ->
                     cancellation.ensureActive()
                     if (mode == MediaAnalysisMode.Transcription && segment.audioStartUs == null) return@mapIndexedNotNull null

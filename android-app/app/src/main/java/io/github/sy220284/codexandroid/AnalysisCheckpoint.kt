@@ -19,6 +19,7 @@ internal data class AnalysisCheckpoint(
         require(parts.size <= MAX_PARTS && parts.all { it.length <= MAX_PART_CHARS } &&
             parts.sumOf { it.length } <= MAX_PARTS * MAX_PART_CHARS)
     }
+    val identity get() = digest(JSONArray(listOf(source, mode, question, sourceTurn)).toString())
     val text get() = parts.joinToString("\n\n")
     val complete get() = total > 0 && parts.size == total
     fun encode() = JSONObject().put("owner", owner).put("scope", scope).put("source", source)
@@ -53,18 +54,41 @@ internal class AnalysisCheckpointStore(private val directory: File) {
     }
     private fun file(owner: String, scope: String, screen: Boolean) = File(directory,
         AnalysisCheckpoint.digest("$owner\n$scope\n$screen") + ".json")
-    fun read(owner: String, scope: String, screen: Boolean): AnalysisCheckpoint? = synchronized(lock) {
-        val target = file(owner, scope, screen)
-        if (!target.exists()) return@synchronized null
+    private fun readFile(target: File, owner: String, scope: String): AnalysisCheckpoint? {
+        if (!target.exists()) return null
         require(target.length() in 1..AnalysisCheckpoint.MAX_RECORD_BYTES) { "分析记录损坏，原文件已保留" }
-        AnalysisCheckpoint.decode(target.readText()).also {
+        return AnalysisCheckpoint.decode(target.readText()).also {
             require(it.owner == owner && it.scope == scope) { "分析记录归属不匹配" }
         }
     }
+    private fun mediaFile(owner: String, scope: String, identity: String): File {
+        require(identity.matches(Regex("[0-9a-f]{64}"))) { "分析记录标识无效" }
+        return File(directory, file(owner, scope, false).nameWithoutExtension + "-" + identity + ".json")
+    }
+    /** Old single-record files remain readable; successful writes migrate only that same record. */
+    fun listMedia(owner: String, scope: String): List<AnalysisCheckpoint> = synchronized(lock) {
+        if (!directory.exists()) return@synchronized emptyList()
+        val legacy = file(owner, scope, false)
+        val prefix = legacy.nameWithoutExtension + "-"
+        val files = requireNotNull(directory.listFiles()) { "无法读取媒体分析记录" }
+            .filter { it.name == legacy.name || (it.name.startsWith(prefix) && it.name.endsWith(".json")) }
+            .sortedWith(compareByDescending<File> { it.lastModified() }.thenBy { it.name })
+        files.mapNotNull { target -> readFile(target, owner, scope)?.also { record ->
+            require(target == legacy || target == mediaFile(owner, scope, record.identity)) { "分析记录标识不匹配" }
+        } }.distinctBy { it.identity }
+    }
+    fun readMedia(owner: String, scope: String, identity: String): AnalysisCheckpoint? = synchronized(lock) {
+        readFile(mediaFile(owner, scope, identity), owner, scope)?.also {
+            require(it.identity == identity) { "分析记录标识不匹配" }
+        } ?: readFile(file(owner, scope, false), owner, scope)?.takeIf { it.identity == identity }
+    }
+    fun read(owner: String, scope: String, screen: Boolean): AnalysisCheckpoint? = synchronized(lock) {
+        if (screen) readFile(file(owner, scope, true), owner, scope) else listMedia(owner, scope).firstOrNull()
+    }
     fun save(record: AnalysisCheckpoint, screen: Boolean): Unit = synchronized(lock) {
         check(directory.isDirectory || directory.mkdirs()) { "无法建立分析记录目录" }
-        val target = file(record.owner, record.scope, screen)
-        val existing = read(record.owner, record.scope, screen)
+        val target = if (screen) file(record.owner, record.scope, true) else mediaFile(record.owner, record.scope, record.identity)
+        val existing = if (screen) read(record.owner, record.scope, true) else readMedia(record.owner, record.scope, record.identity)
         val durable = if (existing != null) {
             val longer = if (existing.parts.size > record.parts.size) existing else record
             val shorter = if (existing.parts.size > record.parts.size) record else existing
@@ -79,8 +103,20 @@ internal class AnalysisCheckpointStore(private val directory: File) {
                 out.write(durable.encode().toByteArray()); out.fd.sync()
             }
             Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
+            if (!screen) {
+                val legacy = file(record.owner, record.scope, false)
+                if (readFile(legacy, record.owner, record.scope)?.identity == record.identity)
+                    check(legacy.delete()) { "无法迁移旧分析记录" }
+            }
         } finally { if (temporary.exists()) check(temporary.delete()) { "无法清理分析临时记录" } }
         Unit
+    }
+    fun removeMedia(record: AnalysisCheckpoint): Unit = synchronized(lock) {
+        val target = mediaFile(record.owner, record.scope, record.identity)
+        if (target.exists()) check(target.delete()) { "无法清除分析记录" }
+        val legacy = file(record.owner, record.scope, false)
+        if (readFile(legacy, record.owner, record.scope)?.identity == record.identity)
+            check(legacy.delete()) { "无法清除旧分析记录" }
     }
     fun remove(owner: String, scope: String, screen: Boolean): Unit = synchronized(lock) {
         val target = file(owner, scope, screen)

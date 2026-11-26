@@ -39,17 +39,21 @@ internal object LocalMediaAttachmentPolicy {
     fun ownedPaths(path: String): List<String> {
         if (kind(path) != "video") return listOf(path)
         val metadata = File(path + ".metadata.json").takeIf { it.isFile }?.path
-        if (!File(VideoTimeline.manifest(path)).isFile) return listOfNotNull(path, metadata)
-        val timeline = VideoTimeline.read(path)
-        return listOfNotNull(path, metadata, VideoTimeline.manifest(path)) + timeline.segments.flatMapIndexed { i, segment ->
-            listOf(VideoTimeline.sheet(path, i)) + (if (segment.audioStartUs != null) listOf(VideoTimeline.audio(path, i)) else emptyList())
-        }
+        val manifests = listOf(VideoTimeline.manifest(path), VideoTimeline.visualManifest(path), VideoTimeline.audioManifest(path))
+            .filter { File(it).isFile }
+        return (listOfNotNull(path, metadata) + manifests.flatMap { manifest ->
+            val timeline = VideoTimeline.readManifest(File(manifest))
+            listOf(manifest) + timeline.segments.flatMapIndexed { i, segment ->
+                (if (timeline.hasVisual) listOf(VideoTimeline.sheet(path, i)) else emptyList()) +
+                    (if (segment.audioStartUs != null) listOf(VideoTimeline.audio(path, i)) else emptyList())
+            }
+        }).distinct()
     }
 
     /** Used by recovery/cleanup only, so an invalid manifest cannot strand a draft or delete others. */
     fun recoveryPaths(path: String): List<String> {
         if (kind(path) != "video") return listOf(path)
-        return listOf(path, path + ".metadata.json", VideoTimeline.manifest(path)) + (0 until 10).flatMap {
+        return listOf(path, path + ".metadata.json", VideoTimeline.manifest(path), VideoTimeline.visualManifest(path), VideoTimeline.audioManifest(path)) + (0 until 10).flatMap {
             listOf(VideoTimeline.sheet(path, it), VideoTimeline.audio(path, it))
         }
     }
@@ -60,6 +64,13 @@ internal object LocalMediaAttachmentPolicy {
             else -> listOf(kind(path))
         }
     }.toSet()
+
+    fun summary(paths: List<String>): String {
+        val counts = paths.groupingBy(::kind).eachCount()
+        return listOf("image" to "图片", "audio" to "音频", "video" to "视频")
+            .mapNotNull { (kind, name) -> counts[kind]?.let { "$name $it 份" } }.joinToString("、")
+            .let { if (it.isEmpty()) "" else "媒体附件：$it" }
+    }
 
     fun label(path: String): String = when (kind(path)) {
         "video" -> if (!File(VideoTimeline.manifest(path)).isFile) "视频 · 原文件" else
@@ -91,6 +102,7 @@ internal object LocalMediaAttachmentPolicy {
     /** Ordinary sends and auxiliary analysis use the same segment timeline and native input types. */
     fun appendVideoSegment(input: JSONArray, path: String, index: Int, segment: VideoTimeline.Segment,
                            includeImage: Boolean, includeAudio: Boolean) {
+        require(!includeImage || segment.times.isNotEmpty()) { "该分段没有画面" }
         val audioDescription = if (!includeAudio) "本次明确选择仅画面，音轨未发送。" else
             segment.audioStartUs?.let { "音轨首样本位于原始视频 ${it / 1000.0}ms；音频内部时间须加该偏移。" }
                 ?: "此段无音频样本。"

@@ -10,10 +10,11 @@ internal fun accountScopedRead(method: String): Boolean = method in setOf(
 
 internal suspend fun CodexViewModel.ensureRemoteThread(
     id: String, binding: RemoteExecutionBinding, running: Boolean = false,
-    expectedSession: Long = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" }
+    expectedSession: Long = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" },
+    sendPermit: (() -> Boolean)? = null
 ) {
     val request: suspend (String, JSONObject) -> JSONObject = { method, params ->
-        bridge.request(method, params, expectedSession = expectedSession)
+        bridge.request(method, params, expectedSession = expectedSession, sendPermit = sendPermit)
     }
     remoteBindings.ready(expectedSession, binding, request)
     if (!running) {
@@ -25,24 +26,24 @@ internal suspend fun CodexViewModel.ensureRemoteThread(
 }
 
 internal suspend fun CodexViewModel.dispatchOwnedRequest(
-    method: String, params: JSONObject?, epoch: Long
+    method: String, params: JSONObject?, epoch: Long, sendPermit: (() -> Boolean)? = null
 ): JSONObject {
     if (method == "environment/add" && params != null) {
         require(params.keys().asSequence().toSet() == setOf("environmentId", "execServerUrl")) { "当前客户端仅支持不含认证令牌的远端登记" }
         return remoteBindings.register(epoch, params.getString("environmentId"), params.getString("execServerUrl")) { name, payload ->
-            bridge.request(name, payload, expectedSession = epoch)
+            bridge.request(name, payload, expectedSession = epoch, sendPermit = sendPermit)
         }
     }
     if (method != "thread/fork" || params == null)
-        return bridge.request(method, params, expectedSession = epoch)
+        return bridge.request(method, params, expectedSession = epoch, sendPermit = sendPermit)
     val parent = params.getString("threadId")
     val binding = remoteBindings.forThread(parent)
-        ?: return modelPreviews.request(method, params, expectedSession = epoch)
-    ensureRemoteThread(parent, binding, expectedSession = epoch)
-    val reply = bridge.request(method, params, expectedSession = epoch)
+        ?: return modelPreviews.request(method, params, expectedSession = epoch, sendPermit = sendPermit)
+    ensureRemoteThread(parent, binding, expectedSession = epoch, sendPermit = sendPermit)
+    val reply = bridge.request(method, params, expectedSession = epoch, sendPermit = sendPermit)
     val id = reply.getJSONObject("thread").getString("id")
     remoteBindings.bind(id, binding)
-    ensureRemoteThread(id, binding, expectedSession = epoch)
-    val confirmed = bridge.request("thread/read", JSONObject().put("threadId", id), expectedSession = epoch)
+    ensureRemoteThread(id, binding, expectedSession = epoch, sendPermit = sendPermit)
+    val confirmed = bridge.request("thread/read", JSONObject().put("threadId", id), expectedSession = epoch, sendPermit = sendPermit)
     return reply.put("thread", confirmed.getJSONObject("thread"))
 }
