@@ -56,7 +56,14 @@ internal class ConversationLiveTimeline {
                 val phase = if (selected.kind != "agentMessage") selected.phase
                     else if (prior.status in terminal && next.status !in terminal) prior.phase.ifBlank { next.phase }
                     else next.phase.ifBlank { prior.phase }
-                if (phase == selected.phase) selected else selected.copy(phase = phase,
+                if (selected.kind == "agentMessage" && (prior.hasEvidence || next.hasEvidence)) {
+                    val other = if (selected === prior) next else prior
+                    val merged = AgentReplyContract.merge(other, selected, keepText = false)
+                    // Retain a restriction even if a stale selected snapshot lacked its metadata.
+                    if (AgentReplyContract.restricted(other.metadata()) && !AgentReplyContract.restricted(merged.metadata()))
+                        AgentReplyContract.merge(merged, other.copy(status = selected.status), keepText = true)
+                    else merged.copy(phase = phase)
+                } else if (phase == selected.phase) selected else selected.copy(phase = phase,
                     evidence = if (selected.hasEvidence) JSONObject(selected.evidence).put("phase", phase).toString() else "")
             } + live.filterNot { it.id in existing }
         }

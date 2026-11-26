@@ -22,7 +22,8 @@ internal object TimelineEventReducer {
     private fun JSONObject.arrayText(key: String) = optJSONArray(key).strings().joinToString("\n\n")
     private fun shortPath(path: String) = path.substringAfterLast('/').ifBlank { "文件" }
 
-    fun project(item: JSONObject, turnId: String, lifecycle: String): TimelineItem {
+    fun project(rawItem: JSONObject, turnId: String, lifecycle: String): TimelineItem {
+        val item = AgentReplyContract.sanitize(rawItem)
         val kind = item.string("type")
         val text = when (kind) {
             "userMessage" -> item.optJSONArray("content").objects().mapNotNull {
@@ -137,14 +138,10 @@ internal object TimelineEventReducer {
                         (raw.isNull("text") || (status != "completed" && prior.text.startsWith(item.text))))
                         prior.text else item.text
                     if (item.kind == "agentMessage") evidence.put("text", retainedText)
-                    put(item.copy(text = retainedText, evidence = evidence.toString()))
-                } else if (item.kind == "agentMessage" && prior.kind == item.kind &&
-                    item.phase.isNotBlank() && item.phase != prior.phase) {
-                    // A terminal item is not a terminal turn. Accept authoritative phase metadata
-                    // from the turn snapshot without replacing already completed visible text.
-                    val evidence = JSONObject(if (prior.hasEvidence) prior.evidence else item.evidence)
-                        .put("phase", item.phase).put("text", prior.text)
-                    put(prior.copy(phase = item.phase, evidence = evidence.toString()))
+                    put(AgentReplyContract.merge(prior, item.copy(text = retainedText, evidence = evidence.toString())))
+                } else if (item.kind == "agentMessage" && prior.kind == item.kind) {
+                    // Keep completed text, but accept authoritative attributes, including restrictions.
+                    put(AgentReplyContract.merge(prior, item.copy(status = prior.status), keepText = true))
                 }
             }
             if (status != "completed") put(TimelineItem("turn-error:$id", "error",
@@ -177,11 +174,8 @@ internal object TimelineEventReducer {
             if (!complete && old != null && old.status != "sending") {
                 // A resumed subscription may have received text before its lifecycle metadata.
                 // Enrich the same native item without resetting its accumulated text.
-                if (old.kind == "agentMessage" && next.kind == old.kind &&
-                    old.phase.isBlank() && next.phase.isNotBlank()) {
-                    val evidence = JSONObject(if (old.hasEvidence) old.evidence else next.evidence)
-                        .put("phase", next.phase).put("text", old.text)
-                    put(old.copy(phase = next.phase, evidence = evidence.toString()))
+                if (old.kind == "agentMessage" && next.kind == old.kind) {
+                    put(AgentReplyContract.merge(old, next.copy(status = old.status), keepText = true))
                     return items
                 }
                 return current
@@ -198,7 +192,7 @@ internal object TimelineEventReducer {
             val retained = if (failedTurn && old != null && next.kind == "agentMessage" &&
                 (raw.isNull("text") || old.text.startsWith(next.text))) old.text else next.text
             if (next.kind == "agentMessage") evidence.put("text", retained)
-            put(next.copy(text = retained, status = terminal, evidence = evidence.toString()))
+            put(AgentReplyContract.merge(old, next.copy(text = retained, status = terminal, evidence = evidence.toString())))
             return items
         }
         val id = params.string("itemId")
@@ -206,6 +200,7 @@ internal object TimelineEventReducer {
         val kind = method.substringAfter("item/").substringBefore("/")
         val old = items.byId(id)
         if (items.byId("turn-error:$turnId") != null || (old != null && old.status in terminalStates)) return current
+        if (kind == "agentMessage" && AgentReplyContract.restricted(old?.metadata())) return current
         val delta = params.string("delta")
         val field = when (method) {
             "item/agentMessage/delta", "item/plan/delta" -> "text"

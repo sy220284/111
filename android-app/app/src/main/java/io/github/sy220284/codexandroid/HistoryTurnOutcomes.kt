@@ -15,6 +15,10 @@ internal class HistoryTurnOutcomes(
     suspend fun reconcile(items: List<TimelineItem>): List<TimelineItem> {
         val wanted = items.map { it.turnId }.filter(String::isNotBlank).toSet()
         if (wanted.isEmpty()) return items
+        if (wanted.any { turns[it]?.optString("status") == "inProgress" || it !in turns && exhausted }) {
+            cursor = null; exhausted = false; seenCursors.clear()
+            turns.entries.removeAll { it.value.optString("status") == "inProgress" }
+        }
         while (!exhausted && wanted.any { it !in turns }) {
             val params = JSONObject().put("threadId", threadId).put("limit", 120)
                 .put("sortDirection", "desc").put("itemsView", "notLoaded")

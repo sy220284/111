@@ -6,6 +6,7 @@ import org.json.JSONObject
 /** Default export is the conversation; execution evidence is an explicit separate scope. */
 internal object ThreadMarkdownExporter {
     private fun body(item: JSONObject): String {
+        if (item.optString("type") == "agentMessage") return AgentReplyContract.visibleText(item)
         val direct = item.optString("text")
         if (direct.isNotEmpty() && !item.isNull("text")) return direct
         val content = item.optJSONArray("content") ?: return ""

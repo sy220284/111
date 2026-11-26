@@ -105,7 +105,7 @@ internal object ProgressiveReplyProjection {
             val formal = segment.filter(::answer)
             if (process.isNotEmpty()) output += Row(process.first().id, process, forceActivity = true)
             if (progressive && formal.isNotEmpty()) {
-                val joined = formal.last().copy(text = answerText(formal), evidence = "")
+                val joined = AgentReplyContract.aggregate(formal)
                 output += Row(formal.first().id, listOf(joined), showActions = false)
             } else formal.forEach { output += Row(it.id, listOf(it), showActions = !clipped,
                 actionItem = it.takeIf { clipped }, note = when {
@@ -123,7 +123,7 @@ internal object ProgressiveReplyProjection {
         flush()
         if (progressive && answers.isNotEmpty()) {
             val last = output.indexOfLast { it.group.singleOrNull()?.let(::answer) == true && !it.forceActivity }
-            val aggregate = answers.last().copy(text = answerText(answers), evidence = "")
+            val aggregate = AgentReplyContract.aggregate(answers)
             val note = when {
                 clipped -> incompleteNote
                 unverified || answers.any { it.status == "unverified" } -> "连接中断，任务结果待核实"
