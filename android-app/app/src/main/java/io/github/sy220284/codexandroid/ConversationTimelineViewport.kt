@@ -223,7 +223,10 @@ internal fun ConversationTimelineViewport(
                     ReplyHeadingNavigation(entry.heading) { headingTarget = null }
                 }, LocalReplyFileOpen provides openFile) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                TimelineActivityGroup(row.group, workspaceRoot = vm.workingDirectory,
+                val safety = row.group.singleOrNull()?.takeIf { it.kind == "safetyRecourse" }
+                if (safety != null) NativeSafetyRecourseCard(vm, thread, safety,
+                    items.firstOrNull { it.id == "turn-error:" + safety.turnId })
+                else TimelineActivityGroup(row.group, workspaceRoot = vm.workingDirectory,
                     onTurnAction = if (canChangeTurn) ({ item, action -> turnAction = item to action }) else null,
                     version = version, onVersion = if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null,
                     showMessageActions = row.showActions, actionItem = row.actionItem,

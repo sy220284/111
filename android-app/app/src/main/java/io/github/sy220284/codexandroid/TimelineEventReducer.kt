@@ -9,7 +9,7 @@ internal object TimelineEventReducer {
         "item/plan/delta", "item/reasoning/summaryTextDelta", "item/reasoning/summaryPartAdded",
         "item/commandExecution/outputDelta", "item/commandExecution/terminalInteraction",
         "item/fileChange/outputDelta", "item/fileChange/patchUpdated",
-        "item/mcpToolCall/progress", "hook/started", "hook/completed", "turn/plan/updated", "turn/completed")
+        "item/mcpToolCall/progress", "hook/started", "hook/completed", "turn/plan/updated", "turn/completed", "turn/moderationMetadata", "model/safetyBuffering/updated")
 
     private val runningStates = setOf("streaming", "inProgress", "in_progress", "running", "sending")
     private val terminalStates = setOf("completed", "failed", "blocked", "stopped", "declined", "interrupted", "cancelled", "incomplete", "unverified")
@@ -122,6 +122,24 @@ internal object TimelineEventReducer {
                 items = IndexedTimeline.from(items.take(insertion) + next + items.drop(insertion))
             } else items = items.put(next, clientId)
         }
+        if (method == "turn/moderationMetadata" || method == "model/safetyBuffering/updated") {
+            if (turnId.isBlank()) return current
+            if (method == "model/safetyBuffering/updated") {
+                val marker = "safety-buffer:$turnId"
+                if (!closed && params.opt("showBufferingUi") == true)
+                    put(TimelineItem(marker, "safetyBuffer", "正在等待安全审核", "inProgress", turnId = turnId))
+                else items = IndexedTimeline.from(items.filterNot { it.id == marker })
+            } else {
+                val parsed = params.optJSONObject("metadata")?.let(SafetyRecourseContract::parse) ?: return current
+                val failed = items.byId("turn-error:$turnId")
+                if (closed && failed?.metadata()?.optString("safetyDomain") != parsed.optString("domain")) return current
+                val marker = "safety-recourse:$turnId"
+                val previous = items.byId(marker)?.metadata()
+                if (previous?.optString("status") == "ready" && parsed.optString("status") == "loading") return current
+                put(TimelineItem(marker, "safetyRecourse", "", "completed", parsed.toString(), turnId))
+            }
+            return items
+        }
         if (method == "hook/started" || method == "hook/completed") {
             if (closed) return current
             val hook = HookRunPresentation.project(params) ?: return current
@@ -162,8 +180,12 @@ internal object TimelineEventReducer {
             else put(TimelineItem("turn-error:$id", "error",
                 turn.optJSONObject("error")?.optString("message").orEmpty().ifBlank {
                     if (status == "interrupted") "任务已中断，已保留收到的内容" else "任务执行失败，已保留收到的内容"
-                }, status, turnId = id))
-            return IndexedTimeline.from(items.filterNot { it.id == "turn-unverified:$id" ||
+                }, status, evidence = SafetyRecourseContract.errorDomain(turn.optJSONObject("error"))
+                    ?.let { JSONObject().put("safetyDomain", it).toString() }.orEmpty(), turnId = id))
+            val safetyDomain = if (status == "failed") SafetyRecourseContract.errorDomain(turn.optJSONObject("error")) else null
+            return IndexedTimeline.from(items.filterNot { it.id == "safety-buffer:$id" ||
+                (it.id == "safety-recourse:$id" && (safetyDomain == null || it.metadata()?.optString("domain") != safetyDomain)) ||
+                it.id == "turn-unverified:$id" ||
                 (status == "completed" && it.id == "turn-error:$id") ||
                 (status != "completed" && it.id == outcomeId(id)) }.map {
                 if (it.turnId == id && (it.status in runningStates || it.status == "unverified"))
