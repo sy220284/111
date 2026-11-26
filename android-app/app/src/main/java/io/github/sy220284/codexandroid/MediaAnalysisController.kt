@@ -22,7 +22,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
     val state = MutableStateFlow(State())
     val results = MutableStateFlow<Map<String, State>>(emptyMap())
     private val app get() = vm.getApplication<android.app.Application>()
-    private val store get() = AnalysisCheckpointStore(File(app.filesDir, "media-analysis-results"))
+    private val store by lazy { AnalysisCheckpointStore(File(app.filesDir, "media-analysis-results")) }
     private var job: Job? = null
     @Volatile private var activeClient: QwenMediaAnalysis? = null
     private fun publish(value: State) {

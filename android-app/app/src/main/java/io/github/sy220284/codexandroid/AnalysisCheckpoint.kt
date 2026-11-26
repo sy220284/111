@@ -39,17 +39,23 @@ internal data class AnalysisCheckpoint(
 
 /** Call on IO, inside the existing local mutation lease. Accounts and conversations have separate files. */
 internal class AnalysisCheckpointStore(private val directory: File) {
+    // Controllers and restore readers may hold separate store objects for the same directory.
+    // The read/merge/atomic-replace transaction must share one lock across those objects.
+    private val lock = locks.computeIfAbsent(directory.canonicalPath) { Any() }
+    private companion object {
+        val locks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+    }
     private fun file(owner: String, scope: String, screen: Boolean) = File(directory,
         AnalysisCheckpoint.digest("$owner\n$scope\n$screen") + ".json")
-    @Synchronized fun read(owner: String, scope: String, screen: Boolean): AnalysisCheckpoint? {
+    fun read(owner: String, scope: String, screen: Boolean): AnalysisCheckpoint? = synchronized(lock) {
         val target = file(owner, scope, screen)
-        if (!target.exists()) return null
+        if (!target.exists()) return@synchronized null
         require(target.length() in 1..2_000_000) { "分析记录损坏，原文件已保留" }
-        return AnalysisCheckpoint.decode(target.readText()).also {
+        AnalysisCheckpoint.decode(target.readText()).also {
             require(it.owner == owner && it.scope == scope) { "分析记录归属不匹配" }
         }
     }
-    @Synchronized fun save(record: AnalysisCheckpoint, screen: Boolean) {
+    fun save(record: AnalysisCheckpoint, screen: Boolean): Unit = synchronized(lock) {
         check(directory.isDirectory || directory.mkdirs()) { "无法建立分析记录目录" }
         val target = file(record.owner, record.scope, screen)
         val existing = if (screen) read(record.owner, record.scope, true) else null
@@ -66,8 +72,9 @@ internal class AnalysisCheckpointStore(private val directory: File) {
             }
             Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE)
         } finally { if (temporary.exists()) check(temporary.delete()) { "无法清理分析临时记录" } }
+        Unit
     }
-    @Synchronized fun remove(owner: String, scope: String, screen: Boolean) {
+    fun remove(owner: String, scope: String, screen: Boolean): Unit = synchronized(lock) {
         val target = file(owner, scope, screen)
         if (target.exists()) check(target.delete()) { "无法清除分析记录" }
     }

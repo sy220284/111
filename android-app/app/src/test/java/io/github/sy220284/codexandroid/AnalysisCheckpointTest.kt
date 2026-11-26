@@ -36,6 +36,27 @@ class AnalysisCheckpointTest {
             assertNull(store.read("A", scope, true))
         } finally { directory.deleteRecursively() }
     }
+    @Test fun independentWritersKeepBothNewObservationsAndReviewProgress() {
+        val directory = Files.createTempDirectory("concurrent-results").toFile()
+        val workers = java.util.concurrent.Executors.newFixedThreadPool(2)
+        try {
+            repeat(30) { index ->
+                val owner = "thread-$index"
+                val record = AnalysisCheckpoint(owner, scope, "screen", "screen", "", listOf("1", "2"), 2)
+                AnalysisCheckpointStore(directory).save(record, true)
+                val start = java.util.concurrent.CountDownLatch(1)
+                val review = workers.submit { start.await(); AnalysisCheckpointStore(directory).save(record.copy(applied = 2), true) }
+                val observation = workers.submit { start.await(); AnalysisCheckpointStore(directory).save(
+                    record.copy(parts = listOf("1", "2", "3"), total = 3), true) }
+                start.countDown()
+                review.get(5, java.util.concurrent.TimeUnit.SECONDS)
+                observation.get(5, java.util.concurrent.TimeUnit.SECONDS)
+                val recovered = AnalysisCheckpointStore(directory).read(owner, scope, true)!!
+                assertEquals(listOf("1", "2", "3"), recovered.parts)
+                assertEquals(2, recovered.applied)
+            }
+        } finally { workers.shutdownNow(); directory.deleteRecursively() }
+    }
     @Test fun damagedRecordFailsExplicitlyAndIsNotOverwrittenByRead() {
         val directory = Files.createTempDirectory("bad-results").toFile()
         try {
