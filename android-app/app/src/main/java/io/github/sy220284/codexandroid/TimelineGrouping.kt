@@ -1,28 +1,28 @@
 package io.github.sy220284.codexandroid
 
-/** Reuse every unchanged activity group. A text/status delta never regroups the history. */
+/** Groups and their contents are persistent sequences. A delta replaces a
+ * logarithmic path in the affected group and outer index, never the group list. */
 internal class TimelineGrouping private constructor(
-    val groups: List<List<TimelineItem>>,
-    private val starts: List<Int>
+    private val entries: PersistentSequence<PersistentSequence<TimelineItem>>,
+    private val starts: PersistentSequence<Int>
 ) {
+    val groups: List<List<TimelineItem>> get() = entries
     fun append(item: TimelineItem): TimelineGrouping {
-        val previous = groups.lastOrNull()
-        if (previous == null) return TimelineGrouping(listOf(listOf(item)), listOf(0))
-        val next = groups.toMutableList()
+        val previous = entries.lastOrNull()
+        if (previous == null) return TimelineGrouping(
+            PersistentSequence<PersistentSequence<TimelineItem>>().append(PersistentSequence<TimelineItem>().append(item)),
+            PersistentSequence<Int>().append(0))
         return if (joins(previous.first(), item)) {
-            next[next.lastIndex] = previous + item
-            TimelineGrouping(next, starts)
+            TimelineGrouping(entries.replace(entries.lastIndex, previous.append(item)), starts)
         } else {
-            next.add(listOf(item))
-            TimelineGrouping(next, starts + (starts.last() + previous.size))
+            TimelineGrouping(entries.append(PersistentSequence<TimelineItem>().append(item)),
+                starts.append(starts.last() + previous.size))
         }
     }
     fun replace(index: Int, item: TimelineItem): TimelineGrouping {
         val found = starts.binarySearch(index)
         val group = if (found >= 0) found else -found - 2
-        val next = groups.toMutableList()
-        next[group] = groups[group].toMutableList().apply { set(index - starts[group], item) }
-        return TimelineGrouping(next, starts)
+        return TimelineGrouping(entries.replace(group, entries[group].replace(index - starts[group], item)), starts)
     }
     companion object {
         private val activity = setOf("reasoning", "commandExecution", "fileChange", "mcpToolCall",
@@ -37,7 +37,8 @@ internal class TimelineGrouping private constructor(
                 if (last != null && joins(last.first(), item)) last.add(item)
                 else { starts.add(index); groups.add(mutableListOf(item)) }
             }
-            return TimelineGrouping(groups, starts)
+            return TimelineGrouping(PersistentSequence.from(groups.map { PersistentSequence.from(it) }),
+                PersistentSequence.from(starts))
         }
     }
 }
