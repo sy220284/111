@@ -40,6 +40,17 @@ class ReplyDocumentEngineTest {
         assertEquals("replacement", replacement.document.blocks.single().block.text)
     }
 
+    @Test fun resumedTerminalSnapshotIsReparsedAtTheNewStreamingBoundary() {
+        val engine = ReplyDocumentEngine()
+        val first = TimelineTextChunks.from("alpha")
+        assertEquals("alpha", engine.prepareChunks(first, false).document.prefix)
+        val resumed = first.append("\n\nbeta")
+        val live = engine.prepareChunks(resumed, true)
+        assertEquals("alpha\n\n", live.document.prefix)
+        assertEquals("beta", live.tail.joinToString("") { it.block.text })
+        assertEquals(MessageMarkdown.blocks(resumed.text), engine.prepareChunks(resumed, false).document.blocks.map { it.block })
+    }
+
     @Test fun incompleteFenceAndFormulaAreNotCommittedAndReplacementInvalidatesPrefix() {
         val engine = ReplyDocumentEngine()
         val live = engine.prepare("intro\n\n```codex-math\n\\frac{1}{2}\n", true)

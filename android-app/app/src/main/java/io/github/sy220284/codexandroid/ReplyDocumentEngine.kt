@@ -37,7 +37,8 @@ internal class ReplyDocumentEngine {
     /** Native text snapshots share their immutable chunk chain. The normal stream path
      * scans only appended characters; no accumulated String is required by presentation. */
     fun prepareChunks(chunks: TimelineTextChunks, streaming: Boolean): StreamPreparation {
-        val append = lastChunks?.let(chunks::suffixSince)
+        val append = lastChunks?.takeIf { previous.stable || (!streaming && it === chunks) }
+            ?.let(chunks::suffixSince)
         if (append == null) {
             buffer = ReplyStreamBuffer()
             previous = Document(0, PersistentSequence(), true) { "" }

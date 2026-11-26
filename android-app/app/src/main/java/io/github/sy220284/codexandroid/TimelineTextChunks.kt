@@ -28,7 +28,7 @@ internal class TimelineTextChunks private constructor(private val last: Node?, v
 
     fun tail(limit: Int): String {
         var remaining = limit.coerceIn(0, length)
-        val parts = ArrayDeque<String>()
+        val parts = java.util.ArrayDeque<String>()
         var cursor = last
         while (cursor != null && remaining > 0) {
             val part = cursor.value.takeLast(remaining)
