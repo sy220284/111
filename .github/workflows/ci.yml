@@ -106,86 +106,26 @@ jobs:
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs
             /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
-      - name: 校验官方Rust协议方法、方向、DTO和通知清单
-        run: python3 -m unittest discover -s android-app/tools -p 'test_protocol_contract.py'
       - name: 阻断未经审查的官方协议及字段变更
         run: |
           python3 -B -m unittest discover -s android-app/tools -p 'test_review_upstream_protocol.py'
           python3 -B android-app/tools/review_upstream_protocol.py
-      - name: 对照Rust类型与稳定JSON Schema校验请求响应字段
+      - name: 统一静态审计规则回归
         run: |
-          python3 android-app/tools/check_protocol_schema_alignment.py \
-            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
-            --schemas upstream/codex/codex-rs/app-server-protocol/schema/json/v2 \
-            --thread-types upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs \
-            --turn-types upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/turn.rs \
-            --android-project android-app/app/src/main/java/io/github/sy220284/codexandroid/ProjectRequestContract.kt \
-            --android-turn android-app/app/src/main/java/io/github/sy220284/codexandroid/TurnRequestContract.kt \
-            --android-connection android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt \
-            --report protocol-contract-audit.json
+          python3 -m unittest discover -s android-app/tools -p 'test_protocol_contract.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_protocol_schema_alignment.py'
-      - name: 验证协议校验器正确区分请求与通知
-        run: python3 -m unittest discover -s android-app/tools -p 'test_verify_protocol_methods.py'
-      - name: 对照官方 Codex 接口清单，验证 UI 中所有协议方法
-        run: |
-          python3 android-app/tools/verify_protocol_methods.py \
-            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
-            --sources android-app/app/src/main/java
-      - name: UI调用表达式与普通协议字符串分层检查
-        run: python3 -m unittest discover -s android-app/tools -p 'test_audit_ui_rpc_calls.py'
-      - name: 审核技能与插件写入状态及检索关键词绑定
-        run: python3 -m unittest discover -s android-app/tools -p 'test_ui_mutation_keys.py'
-      - name: 自动核对可见页面与实际RPC引用并生成审计矩阵
-        run: |
-          python3 android-app/tools/audit_ui_feature_coverage.py \
-            --sources android-app/app/src/main/java \
-            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
-            --policy android-app/tools/ui_surface_policy.json \
-            --report ui-coverage.md \
-            --json-report ui-coverage.json
-      - name: 全量核查功能入口、路由、回归证据与官方协议方法
-        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_verify_protocol_methods.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_audit_ui_rpc_calls.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_ui_mutation_keys.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_full_feature_workflows.py'
-          python3 android-app/tools/check_full_feature_workflows.py \
-            --repository . \
-            --json-report full-feature-workflows.json \
-            --report full-feature-workflows.md
-      - name: 检查全页面及子页面共享交互覆盖
-        run: python3 android-app/tools/check_interaction_coverage.py --repository . --report interaction-coverage.json
-      - name: 从唯一协议策略核对 UI 组件映射文档
-        run: |
-          python3 android-app/tools/sync_ui_protocol_docs.py --check
           python3 -m unittest discover -s android-app/tools -p 'test_sync_ui_protocol_docs.py'
-      - name: 三方核验上游协议、Android 方法目录与界面层级
-        run: |
-          python3 android-app/tools/check_ui_protocol_matrix.py \
-            --matrix android-app/app/src/main/java/io/github/sy220284/codexandroid/UiProtocolMatrix.kt \
-            --policy android-app/tools/ui_surface_policy.json \
-            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
-            --pages android-app/app/src/main/java/io/github/sy220284/codexandroid/AppNavigation.kt \
-            --features android-app/app/src/main/java/io/github/sy220284/codexandroid/UiFeatureCatalog.kt \
-            --sources android-app/app/src/main/java
-          python3 android-app/tools/test_check_ui_protocol_matrix.py
-      - name: 检查 Kotlin 源文件体量并阻断超大文件回归
-        run: |
-          python3 android-app/tools/check_kotlin_file_budget.py \
-            --sources android-app/app/src/main/java --max-lines 760
-      - name: 自动核验 Compose 主题颜色与设计文档一致
-        run: |
-          python3 android-app/tools/check_design_system_tokens.py \
-            --source android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt \
-            --spec docs/设计系统.md \
-            --tokens docs/ui-assets/tokens.json \
-            --motion android-app/app/src/main/java/io/github/sy220284/codexandroid/InteractionSystem.kt
-          python3 android-app/tools/test_check_design_system_tokens.py
-      - name: 逐份核验 UI 素材、Android 原生矢量资源、调用页面与测试声明
-        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_check_ui_protocol_matrix.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_check_design_system_tokens.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_ui_assets.py'
-          python3 android-app/tools/check_ui_assets.py --repository . --report ui-assets-audit.json --markdown ui-assets-audit.md
-      - name: 核验生产共享控件及旧控件迁移
-        run: |
           python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
-          python3 android-app/tools/check_component_system.py --repository . --report component-system-audit.json
+          python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
+      - name: 一次加载源码，完整执行协议、功能和设计三类审计
+        run: python3 android-app/tools/run_static_audit.py --repository . --output .
       - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
@@ -210,6 +150,7 @@ jobs:
             full-feature-workflows.json
             interaction-coverage.json
             protocol-contract-audit.json
+            static-audit-summary.json
           if-no-files-found: ignore
           retention-days: 14
 

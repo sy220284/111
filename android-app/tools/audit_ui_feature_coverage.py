@@ -217,6 +217,11 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
     directory = sources.resolve()
     files = {path.name: path.read_text(encoding="utf-8")
              for path in sorted(directory.rglob("*.kt"))}
+    return audit_sources(files,parse_contracts(protocol.read_text(encoding="utf-8")),
+                         json.loads(policy.read_text(encoding="utf-8")) if policy is not None else None)
+
+
+def audit_sources(files, contracts, payload):
     if "AppNavigation.kt" not in files or "Screens.kt" not in files:
         raise ValueError("缺少 AppNavigation.kt 或 Screens.kt，无法核对页面和路由")
 
@@ -256,14 +261,12 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         for match in FUNCTION.finditer(code):
             defined.setdefault(match.group(1), filename)
 
-    contracts = parse_contracts(protocol.read_text(encoding="utf-8"))
     official = set(contracts)
     client_requests = {name for name, entry in contracts.items()
                        if entry.direction == "client_request"}
     host_requests = official - client_requests
     surfaces = {}
-    if policy is not None:
-        payload = json.loads(policy.read_text(encoding="utf-8"))
+    if payload is not None:
         surfaces = payload.get("methods", {})
         if not isinstance(surfaces, dict):
             raise ValueError("UI 接口分层清单缺少 methods 对象")
@@ -303,8 +306,7 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
 
     equivalents: dict[str, dict] = {}
     user_facing: set[str] = set()
-    if policy is not None:
-        payload = json.loads(policy.read_text(encoding="utf-8"))
+    if payload is not None:
         equivalents = payload.get("implementationEquivalents", {})
         if not isinstance(equivalents, dict):
             raise ValueError("implementationEquivalents 必须为 JSON 对象")
@@ -439,6 +441,9 @@ def report_markdown(result: dict) -> str:
     return "\n".join(lines)
 
 
+CHECK_FIELDS = ("missingRoutes", "unknownRoutes", "undefinedHandlers",
+                "invalidHierarchy", "missingSurfaceMappings", "emptyActionHandlers")
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sources", type=Path, required=True)
@@ -464,8 +469,7 @@ def main() -> int:
         f"UI 页面对照 {result['routedCount']}/{result['pageCount']}；"
         f"官方请求引用 {result['referencedRequests']}/{result['officialRequests']}。"
     )
-    checked = ("missingRoutes", "unknownRoutes", "undefinedHandlers",
-               "invalidHierarchy", "missingSurfaceMappings", "emptyActionHandlers")
+    checked = CHECK_FIELDS
     for field in checked:
         if result[field]:
             print(f"{field}：{result[field]}", file=sys.stderr)
