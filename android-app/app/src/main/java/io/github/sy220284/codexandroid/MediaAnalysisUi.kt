@@ -46,7 +46,13 @@ internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisContr
         if (kind != "image") {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.Center) {
                 Text("附件 ${index + 1}", style = MaterialTheme.typography.labelSmall, modifier = Modifier)
-                QwenMediaWire.Mode.entries.filter { QwenMediaWire.accepts(it, kind, File(path).length(), LocalMediaAttachmentPolicy.hasAudio(path)) }.forEach { mode ->
+                val metadata by loadCodexUiState<Result<Pair<Long, Boolean>>?>(null, path) {
+                    codexLoadResult { File(path).length() to LocalMediaAttachmentPolicy.hasAudio(path) }
+                }
+                if (metadata == null) Text("正在读取媒体资料")
+                if (metadata?.isFailure == true) ErrorText("媒体资料无法读取，请移除并重新添加")
+                val details = metadata?.getOrNull()
+                QwenMediaWire.Mode.entries.filter { details != null && QwenMediaWire.accepts(it, kind, details.first, details.second) }.forEach { mode ->
                     CodexTextAction(onClick = { onChoose(path, mode) }, enabled = enabled && !state.busy) { Text(mode.label) }
                 }
             }

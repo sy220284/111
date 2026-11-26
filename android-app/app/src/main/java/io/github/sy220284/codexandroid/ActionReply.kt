@@ -8,6 +8,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -64,6 +66,10 @@ internal fun ActionReplyRow(
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
     val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val draftError = validate?.invoke(draft)
+    fun applyReply() {
+        if (!enabled || !open || draftError != null) return
+        onValueChange(draft); setOpen(false); focus.clearFocus(); keyboard?.hide()
+    }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(modifier.fillMaxWidth().heightIn(min = 48.dp).codexPressable(enabled = enabled, role = Role.Button) {
             if (!open) draft = value
@@ -91,7 +97,10 @@ internal fun ActionReplyRow(
                 verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 CodexInputField(draft, { draft = it }, modifier = Modifier.fillMaxWidth().testTag("$replyTag-input"),
                     placeholder = placeholder ?: { Text("输入内容…") },
-                    enabled = enabled && open, keyboardOptions = keyboardOptions, singleLine = singleLine,
+                    enabled = enabled && open,
+                    keyboardOptions = if (singleLine) keyboardOptions.copy(imeAction = ImeAction.Done) else keyboardOptions,
+                    keyboardActions = if (singleLine) KeyboardActions(onDone = { applyReply() }) else KeyboardActions.Default,
+                    singleLine = singleLine,
                     maxLines = maxLines, minLines = minLines, isError = draftError != null,
                     confirmedValid = draft.isNotBlank() && draftError == null &&
                         (if (validate != null) true else confirmedValid && draft == value),
@@ -108,7 +117,7 @@ internal fun ActionReplyRow(
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CodexTextAction(onClick = { draft = value; setOpen(false); focus.clearFocus(); keyboard?.hide() },
                         modifier = Modifier.weight(1f).testTag("$replyTag-cancel"), enabled = enabled && open) { Text("取消") }
-                    CodexPrimaryButton(onClick = { onValueChange(draft); setOpen(false); focus.clearFocus(); keyboard?.hide() },
+                    CodexPrimaryButton(onClick = { applyReply() },
                         modifier = Modifier.weight(1f).testTag("$replyTag-send"), enabled = enabled && open && draftError == null) { Text("应用") }
                 }
             }

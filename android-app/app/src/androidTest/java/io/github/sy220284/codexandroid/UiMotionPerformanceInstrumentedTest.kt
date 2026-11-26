@@ -25,11 +25,21 @@ class UiMotionPerformanceInstrumentedTest {
 
     private fun findVisible(root: AccessibilityNodeInfo, label: String, clickable: Boolean, textOnly: Boolean): Rect? {
         val matches = root.isVisibleToUser && (root.text?.toString() == label ||
-            (!textOnly && root.contentDescription?.toString() == label)) && (!clickable || root.isClickable)
+            (!textOnly && root.contentDescription?.toString() == label))
         if (matches) {
-            val rect = Rect()
-            root.getBoundsInScreen(rect)
-            if (!rect.isEmpty) return rect
+            var action = root
+            var owned = false
+            try {
+                while (clickable && !action.isClickable) {
+                    val parent = action.parent ?: return null
+                    if (owned) action.recycle()
+                    action = parent
+                    owned = true
+                }
+                val rect = Rect()
+                action.getBoundsInScreen(rect)
+                if (action.isVisibleToUser && !rect.isEmpty) return rect
+            } finally { if (owned) action.recycle() }
         }
         for (i in 0 until root.childCount) {
             val child = root.getChild(i) ?: continue
@@ -53,7 +63,21 @@ class UiMotionPerformanceInstrumentedTest {
             }
             Thread.sleep(100)
         }
-        throw AssertionError("Actual accessibility label did not become visible: $label")
+        val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+        val root = instrumentation.uiAutomation.rootInActiveWindow
+        val evidence = StringBuilder()
+        fun describe(node: AccessibilityNodeInfo, depth: Int) {
+            evidence.append(" ".repeat(depth)).append(node.className).append(" text=").append(node.text)
+                .append(" description=").append(node.contentDescription).append(" visible=").append(node.isVisibleToUser)
+                .append(" clickable=").append(node.isClickable).append('\n')
+            for (i in 0 until node.childCount) node.getChild(i)?.let { child ->
+                try { describe(child, depth + 1) } finally { child.recycle() }
+            }
+        }
+        if (root != null) try { describe(root, 0) } finally { root.recycle() }
+        File(folder, "ui-motion-failure.txt").writeText(evidence.toString())
+        captureFailureDisplayScreenshot("ui-motion-failure.png")
+        throw AssertionError("Actual accessibility label did not become visible: $label; $evidence")
     }
 
     private fun physicalTap(label: String) {
@@ -83,7 +107,9 @@ class UiMotionPerformanceInstrumentedTest {
         val originalMotion = UiPreferences.reducedMotion.value
         var refreshRate = 60f
         var attached = false
-        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        val intent = android.content.Intent(instrumentation.targetContext, MainActivity::class.java)
+            .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        val scenario = ActivityScenario.launch<MainActivity>(intent)
         try {
             scenario.onActivity {
                 UiPreferences.setReducedMotion(false)

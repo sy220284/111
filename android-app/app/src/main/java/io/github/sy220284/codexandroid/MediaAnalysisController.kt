@@ -18,7 +18,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
     data class State(val owner: String? = null, val revision: Long = 0, val source: String? = null,
                      val mode: QwenMediaWire.Mode? = null, val completed: Int = 0, val total: Int = 0,
                      val busy: Boolean = false, val result: String? = null, val error: String? = null,
-                     val checkpoint: AnalysisCheckpoint? = null)
+                     val checkpoint: AnalysisCheckpoint? = null, val scope: String? = null)
     val state = MutableStateFlow(State())
     val results = MutableStateFlow<Map<String, State>>(emptyMap())
     private val app get() = vm.getApplication<android.app.Application>()
@@ -31,23 +31,27 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
     }
     private fun restored(record: AnalysisCheckpoint, revision: Long) = State(record.owner, revision,
         record.source, QwenMediaWire.Mode.valueOf(record.mode), record.parts.size, record.total,
-        result = record.text.takeIf { it.isNotBlank() }, checkpoint = record,
+        result = record.text.takeIf { it.isNotBlank() }, checkpoint = record, scope = record.scope,
         error = if (record.complete) null else "分析尚未全部完成；已完成结果已保留，可确认后继续剩余部分")
 
     suspend fun restore(owner: String, endpoint: String?) {
         if (endpoint == null || state.value.busy) return
         val revision = vm.catalogWarmup.accountRevision.value
+        var scope: String? = null
         try {
             val record = withContext(Dispatchers.IO) {
                 val preset = DomesticModelPresets.load(app).single { it.id == "qwen-cn" }
                 DomesticProviderCredentials.withBoundCredential(app, preset, endpoint) { key ->
-                    store.read(owner, AnalysisCheckpoint.identity(endpoint, key), false)
+                    val identity = AnalysisCheckpoint.identity(endpoint, key)
+                    scope = identity
+                    store.read(owner, identity, false)
                 }
             }
             if (revision != vm.catalogWarmup.accountRevision.value || state.value.busy) return
             results.update { if (record == null) it - owner else it + (owner to restored(record, revision)) }
         } catch (cancel: CancellationException) { throw cancel }
-        catch (failure: Exception) { vm.errors.value = vm.errors.value + ("mediaRecovery" to (failure.message ?: "分析记录读取失败")) }
+        catch (failure: Exception) { results.update { it + (owner to State(owner = owner, revision = revision, scope = scope,
+            error = "分析记录无法读取，原记录已保留；可清除后重新分析")) } }
     }
 
     fun start(owner: String, provider: String, source: String, mode: QwenMediaWire.Mode, question: String) {
@@ -92,9 +96,9 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
                                     onCompleted = { index, text ->
                                         check(index == checkpoint.parts.size) { "分析段落回执顺序错误" }
                                         checkpoint = checkpoint.copy(parts = checkpoint.parts + text)
-                                        store.save(checkpoint, false)
                                         val snapshot = restored(checkpoint, revision).copy(busy = true, error = null)
                                         results.update { it + (owner to snapshot) }; state.value = snapshot
+                                        store.save(checkpoint, false)
                                     }) { done, total ->
                                     checkpoint = checkpoint.copy(total = total)
                                     store.save(checkpoint, false)
@@ -120,7 +124,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel) {
         if (current.busy || !vm.globalWorkSnapshot().canStartNewTask) return
         vm.viewModelScope.launch {
             try {
-                AppDataTransfer.mutateLocal { current.checkpoint?.let { store.remove(owner, it.scope, false) } }
+                AppDataTransfer.mutateLocal { (current.checkpoint?.scope ?: current.scope)?.let { store.remove(owner, it, false) } }
                 results.update { it - owner }; if (state.value.owner == owner) state.value = State()
             } catch (failure: Exception) { vm.errors.value = vm.errors.value + ("mediaRecovery" to (failure.message ?: "分析记录清除失败")) }
         }

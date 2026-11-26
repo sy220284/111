@@ -405,6 +405,7 @@ jobs:
             ui-motion.log
             ui-motion-diagnosis.json
             ui-motion-performance.json
+            ui-motion-failure.*
             ui-screenshots-adaptive/
             self-update-open.log
             self-update-open.json
@@ -562,6 +563,7 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             android-app
+            upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
       - uses: actions/setup-java@v4

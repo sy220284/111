@@ -29,6 +29,7 @@ internal object DeveloperRuntime {
             pythonBin.absolutePath, nodeBin.absolutePath).joinToString(":")
         env["SHELL"] = "/system/bin/sh"
         env["GIT_EXEC_PATH"] = tools.absolutePath
+        GitWorkspaceTrust.configure(WorkspaceStorage.root(context), env)
         env["LD_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir + ":" + File(root, "git/lib").absolutePath
         if (File(root, "git/lib").isDirectory) {
             env["GIT_TEMPLATE_DIR"] = File(root, "git/templates").absolutePath

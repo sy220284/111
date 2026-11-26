@@ -82,6 +82,13 @@ fun CodexShell(vm: CodexViewModel) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val platformView = androidx.compose.ui.platform.LocalView.current
+    LaunchedEffect(selected) {
+        focusManager.clearFocus(force = true)
+        androidx.core.view.ViewCompat.getWindowInsetsController(platformView)
+            ?.hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+        keyboard?.hide()
+    }
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()

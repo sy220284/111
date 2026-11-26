@@ -50,6 +50,8 @@ class VideoAttachmentPreparationInstrumentedTest {
             assertEquals("RIFF", String(wav.copyOfRange(0, 4)))
             assertEquals("WAVE", String(wav.copyOfRange(8, 12)))
             assertTrue(wav.size > 44 && wav.size < QwenMediaWire.MAX_SOURCE_BYTES)
+            // 16 kHz mono PCM16 retains the two-second clip after AAC priming removal.
+            assertTrue((wav.size - 44) / 32_000.0 in 1.8..2.2)
             val roundTrip = DraftPersistence.encode(mapOf("video" to ComposerDraft(images = listOf(prepared.path))))
             assertEquals(listOf(prepared.name), DraftPersistence.decode(roundTrip).getValue("video").images)
             val input = TurnRequestContract.input("", listOf(prepared.path))

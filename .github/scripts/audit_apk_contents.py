@@ -37,6 +37,7 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
                 raise ApkAuditError("APK 包含重名文件条目")
             required = list(REQUIRED_ANDROID) + [f"lib/{abi}/libhpatchz.so"]
             if mode == "full":
+                required.append("assets/domestic-providers.json")
                 required.extend(f"lib/{abi}/{binary}" for binary in REQUIRED_RUNTIME)
             if mode == "full":
                 required.extend(f"lib/{abi}/{name}" for name in

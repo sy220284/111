@@ -160,7 +160,13 @@ internal object VideoAttachmentPreparation {
                 if (size < 0) break
                 require(size > 0 && size <= buffer.capacity()) { "视频音频样本大小无效" }
                 val time = extractor.sampleTime
-                require(time >= 0L) { "视频音频时间戳无效" }
+                // MP4 edit lists expose AAC encoder priming before the movie starts.
+                // These packets precede the visible video timeline and must be discarded.
+                if (time < 0L) {
+                    require(segment == -1 && time >= -1_000_000L) { "视频音频时间戳无效" }
+                    extractor.advance()
+                    continue
+                }
                 val index = (time / (VideoSamplingPlan.SEGMENT_MS * 1000)).toInt().coerceAtMost(windows.lastIndex)
                 require(time < windows[index].endMs * 1000 || (index == windows.lastIndex && index == segment && time <= windows[index].endMs * 1000 + 250_000L)) { "音轨超出视频时间轴，请重新编码音视频" }
                 if (index != segment) {

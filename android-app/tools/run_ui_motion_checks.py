@@ -31,6 +31,9 @@ def main():
         if result["status"] != "passed" or result["tests"] != 1 or data["frames"] < 12:
             raise RuntimeError("Actual motion test did not pass")
     finally:
+        for suffix in ("txt", "png"):
+            subprocess.run(["adb", "pull", DEVICE_ROOT + "/ui-motion-failure." + suffix,
+                            "ui-motion-failure." + suffix], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         for name, value in original.items():
             if value == "null":
                 adb("shell", "settings", "delete", "global", name)

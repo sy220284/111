@@ -46,11 +46,14 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel) {
     suspend fun restore(owner: String, endpoint: String?) {
         if (endpoint == null || state.value.running) return
         val revision = vm.catalogWarmup.accountRevision.value
+        var scope = ""
         try {
             val record = withContext(Dispatchers.IO) {
                 val preset = DomesticModelPresets.load(app).single { it.id == "qwen-cn" }
                 DomesticProviderCredentials.withBoundCredential(app, preset, endpoint) { key ->
-                    store.read(owner, AnalysisCheckpoint.identity(endpoint, key), true)
+                    val identity = AnalysisCheckpoint.identity(endpoint, key)
+                    scope = identity
+                    store.read(owner, identity, true)
                 }
             }
             if (revision != vm.catalogWarmup.accountRevision.value || state.value.running) return
@@ -61,7 +64,8 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel) {
                 }, saved.applied), message = "已恢复屏幕分析结果；共享和联网分析均已停止", scope = saved.scope) }
             resultsByOwner.update { if (value == null) it - owner else it + (owner to value) }
         } catch (cancel: CancellationException) { throw cancel }
-        catch (failure: Exception) { vm.errors.value = vm.errors.value + ("screenRecovery" to (failure.message ?: "屏幕分析记录读取失败")) }
+        catch (failure: Exception) { resultsByOwner.update { it + (owner to State(owner = owner, revision = revision, scope = scope,
+            message = "分析记录无法读取，原记录已保留；可清除后重新分析")) } }
     }
     private var job: Job? = null
     @Volatile private var client: QwenMediaAnalysis? = null

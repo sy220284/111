@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 import java.util.UUID
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -191,7 +192,7 @@ class CoreStartupInstrumentedTest {
         val process = ProcessBuilder("/system/bin/sh", "-c", shell)
             .directory(folder)
             .redirectErrorStream(true)
-            .apply { environment()["PATH"] = "${bin.absolutePath}:/system/bin" }
+            .apply { DeveloperRuntime.configure(app, bin, environment()) }
             .start()
         try {
             val ended = process.waitFor(30, TimeUnit.SECONDS)
@@ -594,7 +595,11 @@ class CoreStartupInstrumentedTest {
         server.soTimeout = 90_000
         val service = async(Dispatchers.IO) {
             repeat(3) { index ->
-                server.accept().use { connection ->
+                val accepted = try { server.accept() } catch (failure: java.net.SocketException) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    throw failure
+                }
+                accepted.use { connection ->
                     connection.soTimeout = 5_000
                     val reader = connection.getInputStream().bufferedReader(Charsets.US_ASCII)
                     check(reader.readLine()?.startsWith("GET /probe ") == true)
@@ -644,8 +649,9 @@ class CoreStartupInstrumentedTest {
                 service.await()
             }
         } finally {
+            service.cancel()
             server.close()
-            service.cancelAndJoin()
+            service.join()
             bridge.close()
         }
     }

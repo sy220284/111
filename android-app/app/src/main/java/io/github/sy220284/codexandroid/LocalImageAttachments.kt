@@ -169,7 +169,7 @@ fun LocalImageAttachmentStrip(
                             }
                             Spacer(Modifier.width(7.dp))
                             Column {
-                                Text("${LocalMediaAttachmentPolicy.label(path)} ${idx + 1}", style = MaterialTheme.typography.labelMedium)
+                                Text("${when (kind) { "video" -> "视频"; "audio" -> "音频"; else -> "图片" }} ${idx + 1}", style = MaterialTheme.typography.labelMedium)
                                 Text("${File(path).length() / 1024} KB",
                                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                             }
