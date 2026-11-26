@@ -304,8 +304,10 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
           filter: blob:none
           sparse-checkout: |
+            /.github/scripts/
             /android-app/tools/collect_ui_screenshots.py
             /android-app/tools/ui_evidence_manifest.py
             /android-app/tools/run_ui_device_checks.py
@@ -338,11 +340,20 @@ jobs:
           set -euo pipefail
           cd apks
           sha256sum -c ../apk-integrity/ui-apk-sha256.txt
+      - name: 核对原始成功分片及真实安装包输入
+        id: shard-reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_COMPILE_PROOF: ${{ toJSON(fromJSON(needs.plan.outputs.receipt).reused.compile) }}
+          TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 .github/scripts/ui_shard_reuse.py --repo "$GITHUB_REPOSITORY" --source "$TEST_SOURCE_SHA" --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --shard ${{ matrix.shard }}
       - name: 允许模拟器硬件加速
+        if: steps.shard-reuse.outputs.reused != 'true'
         run: |
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
       - name: 在真实 Android 环境验证侧栏导航并生成首页截图
+        if: steps.shard-reuse.outputs.reused != 'true'
         uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         env:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -405,6 +416,8 @@ jobs:
         with:
           name: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-${{ matrix.shard }}
           path: |
+            ui-shard-input.json
+            ui-shard-origin.json
             ui-device-resources.json
             ui-instrument-result.log
             ui-baseline-diagnosis.json
@@ -436,7 +449,9 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
           sparse-checkout: |
+            /.github/scripts/
             /android-app/tools/
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
@@ -447,6 +462,8 @@ jobs:
           path: ui-shards
       - name: 核对并汇总两个独立模拟器的完整用例和截图
         env:
+          GH_TOKEN: ${{ github.token }}
+          CI_COMPILE_PROOF: ${{ toJSON(fromJSON(needs.plan.outputs.receipt).reused.compile) }}
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 android-app/tools/merge_ui_shards.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --root ui-shards
       - name: 安装独立视觉审计依赖
@@ -490,6 +507,8 @@ jobs:
             ui-shards/*/*.log
             ui-shards/*/ui-*-diagnosis.json
             ui-shards/*/ui-device-resources.json
+            ui-shards/*/ui-shard-input.json
+            ui-shards/*/ui-shard-origin.json
           if-no-files-found: ignore
           retention-days: 14
 

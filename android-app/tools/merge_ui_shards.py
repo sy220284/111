@@ -6,11 +6,14 @@ import json
 import os
 import shutil
 import struct
+import sys
 from pathlib import Path
 
 from collect_ui_screenshots import REQUIRED_SCREENS, valid_png, write_evidence
 from device_matrix import CONFIG, PROFILES, MODES, SHARDS, dimensions, minimum_tests, shard_classes
 from run_ui_device_checks import PACKAGE
+sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'.github/scripts'))
+from ui_shard_reuse import INPUT, ORIGIN, check_input, verify_origin
 
 
 def read(path):
@@ -22,7 +25,7 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def merge(root, output, profile, mode, source):
+def merge(root, output, profile, mode, source, compile_proof=None, repo=None):
     names = {s: f"ui-shard-{profile}-{mode}-{s}" for s in SHARDS}
     require(root.is_dir() and {p.name for p in root.iterdir()} == set(names.values()), "Missing or unexpected shard artifacts")
     folder = "ui-screenshots" if mode == "baseline" else "ui-screenshots-adaptive"
@@ -30,12 +33,26 @@ def merge(root, output, profile, mode, source):
     destination.mkdir(parents=True, exist_ok=False)
     all_ids, screens, discovered, run_ids = set(), {}, set(), {}
     reports = []
+    shard_sources, origins = {}, {}
+    apk_inputs = None
     for shard, name in names.items():
         directory = root / name
         report = read(directory / f"ui-{mode}-diagnosis.json")
         manifest = read(directory / folder / "manifest.json")
+        current = read(directory/INPUT)
+        check_input(current,source,profile,mode,shard)
+        if apk_inputs is None:
+            apk_inputs=current["apk"]
+        require(apk_inputs==current["apk"], "Shards tested different APK bytes")
+        original_source=source
+        if (directory/ORIGIN).is_file():
+            require(bool(compile_proof and repo), "Missing trusted compile proof for reused shard")
+            origin=read(directory/ORIGIN)
+            original_source=verify_origin(repo,compile_proof,source,profile,mode,shard,origin,current)
+            origins[shard]=origin
+        shard_sources[shard]=original_source
         expected = dimensions(profile, mode) | {
-            "profile": profile, "mode": mode, "shard": shard, "commit": source,
+            "profile": profile, "mode": mode, "shard": shard, "commit": original_source,
             "android_api": CONFIG["api"], "page_size": CONFIG["page_size"]}
         for record in (report, manifest):
             require(all(record.get(k) == v for k,v in expected.items()), f"{shard}: source or device mismatch")
@@ -85,7 +102,8 @@ def merge(root, output, profile, mode, source):
     write_evidence(destination, present, screens, [], sorted(discovered), REQUIRED_SCREENS)
     report = dict(reports[0])
     report.pop("shard")
-    report.update(run_id=run_id, shard_run_ids=run_ids, tests=len(all_ids), test_ids=sorted(all_ids),
+    report.update(commit=source, run_id=run_id, shard_run_ids=run_ids, shard_source_commits=shard_sources,
+                  shard_origins=origins, tested_apk_sha256=apk_inputs, tests=len(all_ids), test_ids=sorted(all_ids),
                   exit_code=0, failures=[])
     manifest_path = destination / "manifest.json"
     manifest = read(manifest_path)
@@ -101,5 +119,6 @@ if __name__ == "__main__":
     parser.add_argument("--profile", choices=PROFILES, required=True)
     parser.add_argument("--mode", choices=MODES, required=True)
     args = parser.parse_args()
-    result = merge(args.root, Path.cwd(), args.profile, args.mode, os.environ["TEST_SOURCE_SHA"])
+    result = merge(args.root, Path.cwd(), args.profile, args.mode, os.environ["TEST_SOURCE_SHA"],
+                   json.loads(os.environ.get("CI_COMPILE_PROOF") or "null"),os.environ.get("GITHUB_REPOSITORY"))
     print(json.dumps({"tests": result["tests"], "shard_run_ids": result["shard_run_ids"]}, ensure_ascii=False))

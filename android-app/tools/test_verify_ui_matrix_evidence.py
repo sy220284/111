@@ -18,7 +18,8 @@ class MatrixEvidenceTests(unittest.TestCase):
                     status="passed", commit="head", profile=profile, mode=mode,
                     android_api=CONFIG["api"], page_size=CONFIG["page_size"], build_fingerprint="android",
                     missing_screens=[], screenshot_collection_exit=0, run_id=profile+mode, shard_run_ids={s:profile+mode+s for s in SHARDS},
-                    tests=len(ids), test_ids=ids))
+                    tested_apk_sha256={"debug/app-debug.apk":"a"*64,"androidTest/debug/app-debug-androidTest.apk":"b"*64},
+                    shard_source_commits={s:"head" for s in SHARDS},shard_origins={}, tests=len(ids), test_ids=ids))
                 self.write(folder/"ui-visual-evidence/report.json", {"status":"baseline_pending","structural_errors":[]})
                 if mode=="baseline":
                     self.write(folder/"ui-motion-diagnosis.json",{"status":"passed","tests":1})
@@ -98,3 +99,12 @@ class MatrixEvidenceTests(unittest.TestCase):
                     with self.assertRaises(ValueError): validate(root,"head")
             self.write(path,valid)
             self.assertEqual(4,validate(root,"head")["device_configurations"])
+
+    def test_matrix_rejects_different_apk_bytes(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            path=root/"ui-proof-ultra-baseline/ui-baseline-diagnosis.json"
+            data=json.loads(path.read_text())
+            data["tested_apk_sha256"]["debug/app-debug.apk"]="c"*64
+            self.write(path,data)
+            with self.assertRaises(ValueError): validate(root,"head")

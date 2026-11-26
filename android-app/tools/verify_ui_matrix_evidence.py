@@ -2,6 +2,7 @@
 """Require actual identical, unique successful test sets across all four configurations and eight independent shards."""
 import json
 import math
+import re
 import os
 import sys
 from pathlib import Path
@@ -34,6 +35,7 @@ def validate(root, source):
     if present_dirs != expected_dirs:
         failures.append(f"Missing or unexpected device proof: missing={sorted(expected_dirs-present_dirs)}, unexpected={sorted(present_dirs-expected_dirs)}")
     reference = None
+    apk_reference = None
     run_ids = set()
     count = 0
     for profile, mode in sorted(expected):
@@ -50,6 +52,19 @@ def validate(root, source):
                 raise ValueError(f"{profile}/{mode}: wrong or failed device proof")
             if any(report.get(k) != v for k,v in dimensions(profile,mode).items()):
                 raise ValueError(f"{profile}/{mode}: wrong display configuration")
+            apk = report["tested_apk_sha256"]
+            sources = report["shard_source_commits"]
+            origins = report["shard_origins"]
+            if (set(apk) != {"debug/app-debug.apk","androidTest/debug/app-debug-androidTest.apk"}
+                or not all(re.fullmatch("[0-9a-f]{64}", x) for x in apk.values())
+                or set(sources) != set(SHARDS) or set(origins) - set(SHARDS)
+                or any(sources[s] != source for s in set(SHARDS)-set(origins))
+                or any(origins[s]["source"] != sources[s] or origins[s]["input"]["apk"] != apk for s in origins)):
+                raise ValueError("Invalid APK or shard origin proof")
+            if apk_reference is None:
+                apk_reference = apk
+            if apk != apk_reference:
+                raise ValueError("Device matrix tested different APK bytes")
             run_id = report.get("run_id")
             if not run_id or run_id in run_ids:
                 raise ValueError("Duplicate UI execution ID")

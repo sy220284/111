@@ -31,6 +31,7 @@ class ShardMergeTests(unittest.TestCase):
             common = dimensions("mainstream","adaptive") | dict(profile="mainstream",mode="adaptive",shard=shard,commit="head",android_api=CONFIG["api"],page_size=CONFIG["page_size"],build_fingerprint="fingerprint",android_release="17",physical_size="1272x2772",physical_density_dpi=480,width_dp=424,height_dp=800,run_id=shard)
             report = common | dict(status="passed",tests=len(ids),test_ids=ids,missing_screens=[],screenshot_collection_exit=0)
             manifest = common | dict(present=[shard],required=[shard],discovered=[shard],missing=[],screenshot_dimensions={shard:{"width_px":1,"height_px":1}})
+            (directory/"ui-shard-input.json").write_text(json.dumps(dict(source="head",profile="mainstream",mode="adaptive",shard=shard,apk={"debug/app-debug.apk":"a"*64,"androidTest/debug/app-debug-androidTest.apk":"b"*64})))
             (directory/"ui-adaptive-diagnosis.json").write_text(json.dumps(report))
             (screens/"manifest.json").write_text(json.dumps(manifest))
 
@@ -79,3 +80,16 @@ class ShardMergeTests(unittest.TestCase):
             path.write_text(json.dumps(data))
         with self.assertRaises(ValueError):
             self.run_case(change)
+
+    def test_different_apk_bytes_are_rejected(self):
+        def change(root):
+            path=root/"ui-shard-mainstream-adaptive-navigation/ui-shard-input.json"
+            record=json.loads(path.read_text())
+            record["apk"]["debug/app-debug.apk"]="c"*64
+            path.write_text(json.dumps(record))
+        with self.assertRaises(ValueError): self.run_case(change)
+
+    def test_reused_shard_without_trusted_proof_is_rejected(self):
+        def change(root):
+            (root/"ui-shard-mainstream-adaptive-navigation/ui-shard-origin.json").write_text("{}")
+        with self.assertRaises(ValueError): self.run_case(change)
