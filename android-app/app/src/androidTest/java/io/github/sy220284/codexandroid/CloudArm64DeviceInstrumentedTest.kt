@@ -19,11 +19,11 @@ internal object CloudArm64RuntimeEnvironment {
 
     fun prepare() {
         if (!enabled()) return
-        assertEquals(37, Build.VERSION.SDK_INT)
+        assertEquals(InstrumentationRegistry.getArguments().getString("cloudApi")!!.toInt(), Build.VERSION.SDK_INT)
         assertEquals("arm64-v8a", Build.SUPPORTED_ABIS.first())
         assertTrue("64-bit application process required", Process.is64Bit())
         assertEquals("aarch64", Os.uname().machine)
-        assertEquals(16384L, Os.sysconf(OsConstants._SC_PAGESIZE))
+        assertEquals(InstrumentationRegistry.getArguments().getString("cloudPageSize")!!.toLong(), Os.sysconf(OsConstants._SC_PAGESIZE))
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         // Same dedicated-device workspace preparation as the local runtime CI.
         // No production permissions or authorization behavior is changed.

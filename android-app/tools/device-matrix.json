@@ -46,5 +46,6 @@
   "emulator_options": "-no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim",
   "cores": 4,
   "disk": "8192M",
-  "mesa_threads": 4
+  "mesa_threads": 4,
+  "arm64_cloud_device": "mediumphone-ps16k-arm-37"
 }
