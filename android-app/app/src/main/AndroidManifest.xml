@@ -45,7 +45,7 @@
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/composer_paths" />
         </provider>
         <service
-            android:name=".CodexForegroundService"
+            android:name="io.github.sy220284.codexandroid.CodexForegroundService"
             android:exported="false"
             android:foregroundServiceType="specialUse">
             <property

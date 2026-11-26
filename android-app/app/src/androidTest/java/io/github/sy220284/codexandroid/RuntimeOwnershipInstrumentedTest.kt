@@ -17,6 +17,14 @@ class RuntimeOwnershipInstrumentedTest {
     @Test fun foregroundServiceReportsReadyOnlyAfterAndroidPromotion() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext
             .applicationContext as CodexApplication
+        if (android.os.Build.VERSION.SDK_INT >= 34) {
+            val info = app.packageManager.getServiceInfo(
+                android.content.ComponentName(app, CodexForegroundService::class.java),
+                android.content.pm.PackageManager.ComponentInfoFlags.of(0L)
+            )
+            org.junit.Assert.assertEquals(android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
+                info.foregroundServiceType)
+        }
         // Keep service alive during readiness verification, then return control.
         app.session.terminalStarting.value = true
         try {
@@ -213,6 +221,13 @@ class RuntimeOwnershipInstrumentedTest {
         var bound = false
         try {
             java.net.ServerSocket(0, 1, java.net.InetAddress.getByName("127.0.0.1")).use { server ->
+                // Verify the same endpoint is reachable from the ordinary app UID.
+                // Instrumentation runs this test off the application main thread.
+                server.soTimeout = 2000
+                java.net.Socket().use { socket ->
+                    socket.connect(java.net.InetSocketAddress("127.0.0.1", server.localPort), 1000)
+                    server.accept().use { peer -> assertTrue(peer.isConnected) }
+                }
                 bound = app.bindService(intent, connection, android.content.Context.BIND_AUTO_CREATE)
                 assertTrue("无法启动独立 UID 测试服务", bound)
                 assertTrue("独立 UID 测试服务未连接", connected.await(15, java.util.concurrent.TimeUnit.SECONDS))
@@ -234,6 +249,11 @@ class RuntimeOwnershipInstrumentedTest {
                 assertTrue("独立进程不得直接读取应用私有数据", !evidence.getBoolean("privateRead"))
                 assertTrue("独立进程不得直接修改应用私有数据", !evidence.getBoolean("privateWrite"))
                 assertTrue("独立进程不得直接联网", !evidence.getBoolean("networkConnected"))
+                for (key in listOf("privateRead", "privateWrite", "networkConnected")) {
+                    assertTrue("必须记录真实拒绝原因：$key", evidence.getString(key + "Reason")?.isNotBlank() == true)
+                }
+                android.util.Log.i("CodexIsolationProbe",
+                    "denials: read=${evidence.getString("privateReadReason")} write=${evidence.getString("privateWriteReason")} network=${evidence.getString("networkConnectedReason")}")
                 org.junit.Assert.assertEquals("private-sentinel", sentinel.readText())
                 // FD/exec availability is recorded as feasibility evidence, not an assertion that
                 // the existing terminal is already isolated.
