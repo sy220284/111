@@ -141,8 +141,12 @@ def run_names(repo, run_id, attempt, source):
         done[name] = {"id":job["id"], "started":job["started_at"], "finished":job["completed_at"]}
     return done, datetime.fromisoformat(plans[0]["started_at"].replace("Z","+00:00"))
 
-def artifact_index(repo, run_id, started, finished):
-    response = api(repo, f"actions/runs/{run_id}/artifacts?per_page=100")
+def artifact_index(repo, run_id, started, finished, snapshot=None):
+    if snapshot is None:
+        snapshot = {}
+    if "response" not in snapshot:
+        snapshot["response"] = api(repo, f"actions/runs/{run_id}/artifacts?per_page=100")
+    response = snapshot["response"]
     rows = response["artifacts"]
     if response["total_count"] > len(rows):
         raise ValueError("Incomplete CI artifact index")
@@ -181,6 +185,7 @@ def candidate(repo, run, target, now):
     if "统一变更分类" not in names or plan_started is None:
         return None
     result = {}
+    snapshot = {}  # one API snapshot for all group windows in this candidate
     for group, expected in JOB_NAMES.items():
         required = ARTIFACTS.get(group,set())
         if group in touched or not expected <= names.keys():
@@ -189,7 +194,7 @@ def candidate(repo, run, target, now):
         # group. Later unrelated jobs may not replace its outputs.
         start = max(started, plan_started, min(datetime.fromisoformat(names[n]["started"].replace("Z","+00:00")) for n in expected))
         end = min(now, max(datetime.fromisoformat(names[n]["finished"].replace("Z","+00:00")) for n in expected))
-        artifacts = artifact_index(repo, run["id"], start, end) if required else {}
+        artifacts = artifact_index(repo, run["id"], start, end, snapshot) if required else {}
         if required <= artifacts.keys():
             result[group] = {"run_id":run["id"], "attempt":attempt, "source":old, "tree":tree(old),
                              "jobs":{n:names[n] for n in sorted(expected)},

@@ -73,7 +73,9 @@ def plan(artifacts, runs, open_heads, native_keep, native_safe, *, accepted_visu
         path = workflow_path(run)
         if a["expired"] or path not in CHECK_WORKFLOWS or run["status"] != "completed":
             continue
-        if NATIVE.fullmatch(a["name"]):
+        # Retain direct V8 producers until expiration; a newer copied
+        # artifact is not a substitute for the original source-build proof.
+        if NATIVE.fullmatch(a["name"]) or re.fullmatch(r"v8-binary-[0-9a-f]{64}",a["name"]):
             continue
         scope = ((run.get("head_repository") or {}).get("full_name"), run["head_branch"])
         # Open PRs keep their own newest evidence. Closed branches compete

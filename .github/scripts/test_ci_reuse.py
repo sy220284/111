@@ -93,6 +93,11 @@ class ReuseTests(unittest.TestCase):
         current=dict(row,id=2,created_at=self.now.isoformat())
         with patch("ci_reuse.api",return_value={"total_count":2,"artifacts":[row,current]}):
             self.assertEqual(2,artifact_index("o/r",12,self.now,self.now)["proof"]["id"])
+        with patch("ci_reuse.api",return_value={"total_count":2,"artifacts":[row,current]}) as api:
+            snapshot={}
+            self.assertEqual(1,artifact_index("o/r",12,old,old,snapshot)["proof"]["id"])
+            self.assertEqual(2,artifact_index("o/r",12,self.now,self.now,snapshot)["proof"]["id"])
+            api.assert_called_once()
         with patch("ci_reuse.api",return_value={"total_count":2,"artifacts":[current,dict(current,id=3)]}):
             with self.assertRaises(ValueError): artifact_index("o/r",12,self.now,self.now)
 
@@ -104,7 +109,7 @@ class ReuseTests(unittest.TestCase):
              patch("ci_reuse.run_names",return_value=(records,self.now)),patch("ci_reuse.delta",return_value=[]), \
              patch("ci_reuse.artifact_index",return_value={}) as index:
             self.assertEqual({},candidate("o/r",run,self.target,self.now))
-            index.assert_called_once_with("o/r",12,self.now,self.now)
+            index.assert_called_once_with("o/r",12,self.now,self.now,{})
         with patch("ci_reuse.ancestor",return_value=True),patch("ci_reuse.delta",return_value=[]), \
              patch("ci_reuse.run_names",return_value=({"统一变更分类":records["统一变更分类"]},self.now)):
             self.assertEqual({},candidate("o/r",run,self.target,self.now))

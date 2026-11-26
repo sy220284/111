@@ -86,8 +86,9 @@ def verify(folder, target, expected):
                 f'v8_target_cpu = "{TARGETS[target][1]}"','target_os = "android"'}
     if not required <= lines:
         raise ValueError("V8 source or sandbox provenance mismatch")
-    if (folder/files[0]).open("rb").read(8) != b"!<arch>\n":
-        raise ValueError("V8 archive format mismatch")
+    with (folder/files[0]).open("rb") as archive:
+        if archive.read(8) != b"!<arch>\n":
+            raise ValueError("V8 archive format mismatch")
     return files[:2]
 
 
@@ -116,6 +117,8 @@ def timestamp(s):
 def direct_producer(repo, artifact, target, expected_key, source, api_call=api, ancestor=None, fingerprint=key):
     if ancestor is None:
         def ancestor(old,new):
+            if subprocess.run(["git","cat-file","-e",old+"^{commit}"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
+                return False
             status = subprocess.run(["git","merge-base","--is-ancestor",old,new]).returncode
             if status not in (0,1):
                 raise ValueError("Cannot establish V8 source ancestry")

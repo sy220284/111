@@ -89,6 +89,12 @@ class RetentionTests(unittest.TestCase):
         for name in ("ui-apk-integrity","ui-shard-mainstream-baseline-navigation","codex-android-ui-apks"):
             self.assertEqual([],plan([artifact(1,1,name),artifact(2,2,name)],runs,set(),set(),False,now=now))
 
+    def test_v8_original_producer_not_deleted_by_newer_consumer(self):
+        runs={i:run(i,"build-native-codex") for i in (1,2,3)}
+        name="v8-binary-"+"a"*64
+        items=[artifact(i,i,name) for i in runs]
+        self.assertEqual([],plan(items,runs,set(),{3},True))
+
     def test_rerun_duplicate_retains_newest_artifact(self):
         runs = {1: run(1)}
         self.assertEqual([1], [a["id"] for a in plan(
