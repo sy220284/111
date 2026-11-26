@@ -289,18 +289,17 @@ jobs:
           arch: x86_64
           target: ${{ needs.plan.outputs.device_target }}
           ram-size: ${{ needs.plan.outputs.device_ram }}
-          cores: 4
+          cores: 2
           disk-size: 8192M
           avd-name: test
           pre-emulator-launch-script: python3 android-app/tools/device_matrix.py --configure-avd ${{ matrix.profile }}
-          emulator-options: ${{ needs.plan.outputs.device_emulator_options }}
+          emulator-options: ${{ matrix.motion && '-no-window -gpu lavapipe -no-snapshot -noaudio -no-boot-anim' || needs.plan.outputs.device_emulator_options }}
           disable-animations: true
           emulator-boot-timeout: 1200
           script: |
             adb install -r apks/debug/app-debug.apk
             adb shell appops set io.github.sy220284.codexandroid MANAGE_EXTERNAL_STORAGE allow
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
-            python3 android-app/tools/run_ui_device_checks.py --profile ${{ matrix.profile }} --mode prepare
             # Physical pixel resolution and logical density come from one device matrix.
             test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
             adb shell wm size reset
@@ -316,8 +315,8 @@ jobs:
             test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.density_dpi }}"
             # Measure motion on a fresh process before the 150+ deterministic UI cases.
             # Preserve both results even if the performance gate fails.
-            motion_status=0
-            if [ "${{ matrix.motion }}" = "true" ]; then python3 android-app/tools/run_ui_motion_checks.py --profile ${{ matrix.profile }} || motion_status=$?; fi
+            rm -f ui-motion-exit
+            if [ "${{ matrix.motion }}" = "true" ]; then if python3 android-app/tools/run_ui_motion_checks.py --profile ${{ matrix.profile }}; then printf '0\n' > ui-motion-exit; else printf '1\n' > ui-motion-exit; fi; else printf '0\n' > ui-motion-exit; fi
             # The instrumentation test captures the home screen after a visible
             # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
@@ -332,7 +331,7 @@ jobs:
             # system installer's actual Install and Open buttons. Execute after
             # screenshots: package replacement kills the old app process.
             if [ "${{ matrix.self_update }}" = "true" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
-            test "$motion_status" -eq 0
+            test -s ui-motion-exit && test "$(cat ui-motion-exit)" = "0"
       - name: 截图内容及历史视觉变化审计
         if: always()
         env:

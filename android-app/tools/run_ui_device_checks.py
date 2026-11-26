@@ -162,20 +162,21 @@ def collect_screens(destination):
 
 
 def prepare_display_change():
-    """Keep AVD Launcher out of display reconfiguration; retain all app assertions."""
-    home = adb("shell", "cmd", "package", "resolve-activity", "--brief",
-               "-a", "android.intent.action.MAIN", "-c", "android.intent.category.HOME")
-    package = home.splitlines()[-1].split("/", 1)[0] if home else ""
-    if package not in {"com.android.launcher3", "com.google.android.apps.nexuslauncher"}:
-        raise RuntimeError("Unexpected HOME package in dedicated UI emulator: " + home)
+    """Configure a disposable AVD with the tested app actually foregrounded."""
     launch = adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.MainActivity")
     if not re.search(r"(?m)^Status: ok\s*$", launch):
         raise RuntimeError("App could not own the display before reconfiguration: " + launch)
-    adb("shell", "am", "force-stop", package)
-    processes = adb("shell", "ps", "-A")
-    if any(line.split() and line.split()[-1].split(":", 1)[0] == package for line in processes.splitlines()):
-        raise RuntimeError("Background HOME process still running before display change")
-    print("DISPLAY_PREPARATION " + json.dumps({"foreground": PACKAGE, "stopped_home": package}), flush=True)
+    deadline = time.monotonic() + 15
+    while True:
+        activity = adb("shell", "dumpsys", "activity", "activities")
+        resumed = [line for line in activity.splitlines()
+                   if "mResumedActivity" in line or "topResumedActivity" in line]
+        if any(PACKAGE + "/" in line for line in resumed):
+            print("DISPLAY_PREPARATION " + json.dumps({"foreground": PACKAGE}), flush=True)
+            return
+        if time.monotonic() >= deadline:
+            raise RuntimeError("App did not become the resumed activity: " + "\n".join(resumed))
+        time.sleep(.25)
 
 
 def baseline(profile):
@@ -183,35 +184,21 @@ def baseline(profile):
 
 
 def adaptive(profile):
+    # Each configuration owns a disposable AVD. Apply its display override
+    # once; do not stop HOME or resize after capturing the test evidence.
     spec = dimensions(profile, "adaptive")
-    original_font = adb("shell", "settings", "get", "system", "font_scale")
-    original_size = re.search(r"Override size: (\d+x\d+)", adb("shell", "wm", "size"))
-    original_density = re.search(r"Override density: (\d+)", adb("shell", "wm", "density"))
-    try:
-        prepare_display_change()
-        adb("shell", "wm", "size", f"{spec['width_px']}x{spec['height_px']}")
-        adb("shell", "wm", "density", str(spec["density_dpi"]))
-        adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
-        # Each mode has its own clean emulator; the final evidence gate compares all six exact test sets.
-        return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive")
-    finally:
-        prepare_display_change()
-        adb("shell", "wm", "size", original_size.group(1) if original_size else "reset")
-        adb("shell", "wm", "density", original_density.group(1) if original_density else "reset")
-        if original_font == "null":
-            adb("shell", "settings", "delete", "system", "font_scale")
-        else:
-            adb("shell", "settings", "put", "system", "font_scale", original_font)
+    prepare_display_change()
+    adb("shell", "wm", "size", f"{spec['width_px']}x{spec['height_px']}")
+    adb("shell", "wm", "density", str(spec["density_dpi"]))
+    adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
+    return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=sorted(PROFILES), required=True)
-    parser.add_argument("--mode", choices=["baseline", "adaptive", "prepare"], required=True)
+    parser.add_argument("--mode", choices=["baseline", "adaptive"], required=True)
     args = parser.parse_args()
-    if args.mode == "prepare":
-        prepare_display_change()
-        return 0
     report = Path("ui-" + args.mode + "-diagnosis.json")
     try:
         result = baseline(args.profile) if args.mode == "baseline" else adaptive(args.profile)

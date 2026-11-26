@@ -69,6 +69,33 @@ class SelfUpdateInstallerIntentInstrumentedTest {
                 assertNotNull("Update FileProvider must serve the real cache path", stream)
                 assertEquals("verified fixture", stream!!.bufferedReader().readText())
             }
+            val composerAuthority = "${app.packageName}.composerprovider"
+            val updateInfo = app.packageManager.resolveContentProvider(authority, 0)!!
+            val composerInfo = app.packageManager.resolveContentProvider(composerAuthority, 0)!!
+            assertEquals(UpdateFileProvider::class.java.name, updateInfo.name)
+            assertEquals(ComposerFileProvider::class.java.name, composerInfo.name)
+            assertFalse(updateInfo.exported)
+            assertFalse(composerInfo.exported)
+            assertTrue(updateInfo.grantUriPermissions && composerInfo.grantUriPermissions)
+            val cameraDir = File(app.cacheDir, "codex-camera").apply { check(isDirectory || mkdirs()) }
+            val media = File(cameraDir, "provider-isolation-" + java.util.UUID.randomUUID() + ".png")
+            try {
+                media.writeText("composer fixture")
+                val cameraUri = FileProvider.getUriForFile(app, composerAuthority, media)
+                assertEquals("image/png", app.contentResolver.getType(cameraUri))
+                app.contentResolver.query(cameraUri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)!!.use {
+                    assertTrue(it.moveToFirst())
+                    assertEquals(media.name, it.getString(0))
+                }
+                assertEquals("composer fixture", app.contentResolver.openInputStream(cameraUri)!!.bufferedReader().use { it.readText() })
+                assertEquals("verified fixture", app.contentResolver.openInputStream(uri)!!.bufferedReader().use { it.readText() })
+                for ((foreignAuthority, file) in listOf(authority to media, composerAuthority to fixture)) {
+                    try {
+                        FileProvider.getUriForFile(app, foreignAuthority, file)
+                        org.junit.Assert.fail("Provider must reject a path owned by the other authority")
+                    } catch (_: IllegalArgumentException) { }
+                }
+            } finally { media.delete() }
             val intent = AppUpdateManager.systemInstallIntent(uri)
             assertEquals(uri, intent.data)
             assertEquals(uri, intent.clipData?.getItemAt(0)?.uri)

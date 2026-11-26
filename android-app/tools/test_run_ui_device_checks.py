@@ -1,29 +1,35 @@
 #!/usr/bin/env python3
 import unittest
 from unittest.mock import patch
-from run_ui_device_checks import SUITE, parse_instrumentation, assert_device, clear_device_screens, prepare_display_change, completed_test_ids
+from run_ui_device_checks import SUITE, parse_instrumentation, assert_device, clear_device_screens, completed_test_ids, prepare_display_change, adaptive
 
 
 class DeviceEvidenceTest(unittest.TestCase):
     def test_real_video_decoder_is_in_the_executed_device_suite(self):
         self.assertIn("VideoAttachmentPreparationInstrumentedTest", SUITE)
 
-    def test_display_preparation_foregrounds_app_and_stops_only_the_known_home_process(self):
-        with patch("run_ui_device_checks.adb", side_effect=["com.android.launcher3/.Launcher", "Status: ok\nComplete", "", "USER PID NAME\nu0_a10 123 other.app"]) as adb:
+    def test_display_preparation_waits_for_the_actual_resumed_activity(self):
+        with patch("run_ui_device_checks.adb", side_effect=[
+            "Status: ok\nComplete",
+            "topResumedActivity=ActivityRecord{1 u0 com.android.launcher3/.Launcher}",
+            "topResumedActivity=ActivityRecord{2 u0 io.github.sy220284.codexandroid/.MainActivity}",
+        ]) as adb, patch("run_ui_device_checks.time.sleep"):
             prepare_display_change()
-            self.assertEqual(("shell", "am", "start", "-W", "-n", "io.github.sy220284.codexandroid/.MainActivity"), adb.call_args_list[1].args)
-            self.assertEqual(("shell", "am", "force-stop", "com.android.launcher3"), adb.call_args_list[2].args)
-        with patch("run_ui_device_checks.adb", return_value="android/.ResolverActivity") as adb:
+            self.assertEqual(("shell", "am", "start", "-W", "-n", "io.github.sy220284.codexandroid/.MainActivity"), adb.call_args_list[0].args)
+            self.assertEqual(3, adb.call_count)
+        with patch("run_ui_device_checks.adb", return_value="Error: denied"):
             with self.assertRaises(RuntimeError):
                 prepare_display_change()
-            self.assertEqual(1, adb.call_count)
-        with patch("run_ui_device_checks.adb", side_effect=["com.android.launcher3/.Launcher", "Error: denied"]):
-            with self.assertRaises(RuntimeError):
-                prepare_display_change()
-        with patch("run_ui_device_checks.adb", side_effect=["com.android.launcher3/.Launcher", "Status: ok", "", "u0_a10 123 com.android.launcher3"]):
+        with patch("run_ui_device_checks.adb", side_effect=["Status: ok", "topResumedActivity=com.android.launcher3/.Launcher"]), patch("run_ui_device_checks.time.monotonic", side_effect=[0, 16]):
             with self.assertRaises(RuntimeError):
                 prepare_display_change()
 
+    def test_adaptive_dedicated_device_never_changes_home_or_resizes_after_test(self):
+        with patch("run_ui_device_checks.prepare_display_change") as prepare, patch("run_ui_device_checks.adb") as adb, patch("run_ui_device_checks.run_fresh_suite", return_value={"status": "passed"}) as suite:
+            self.assertEqual({"status": "passed"}, adaptive("compact"))
+            prepare.assert_called_once()
+            self.assertEqual(3, adb.call_count)
+            suite.assert_called_once_with("compact", "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive")
 
     def test_success_requires_positive_count_and_successful_process(self):
         self.assertEqual("passed", parse_instrumentation("OK (142 tests)\n", 0)["status"])
