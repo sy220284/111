@@ -167,6 +167,7 @@ internal object LocalDataArchive {
                 }
             }
             if (count == 0) throw IOException("备份中没有可恢复的数据")
+            BackupCheckpointValidation.verify(incoming)
             val staged = File(context.filesDir, STAGED)
             if (staged.exists() && !staged.deleteRecursively())
                 throw IOException("无法更换已有的恢复数据")
@@ -250,6 +251,7 @@ internal object LocalDataArchive {
                 file to target
             }
             targets = checkedTargets
+            if (!transaction.hasJournal()) BackupCheckpointValidation.verify(staged)
             if (transaction.hasJournal()) {
                 transaction.rollback(checkedTargets)
                 check(marker.delete()) { "恢复回滚完成但标记未清理" }
@@ -260,7 +262,7 @@ internal object LocalDataArchive {
                 transaction.apply(checkedTargets)
                 check(marker.delete()) { "恢复提交标记无法清理" }
                 committed = true
-                saveResult(context, "本地数据恢复完成（${checkedTargets.size} 项）。账号登录凭据已排除，请重新登录。")
+                saveResult(context, "本地数据恢复完成（${checkedTargets.size} 项）。账号登录凭据已排除，请重新登录。会话正文可由历史文件恢复；仅存于运行数据库的元数据不会随此格式迁移。")
             }
             transaction.finish()
             check(staged.deleteRecursively()) { "恢复暂存目录清理失败" }

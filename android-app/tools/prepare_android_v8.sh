@@ -29,6 +29,8 @@ trap 'rm -f "$EXPECTED_INPUTS"' EXIT
   printf 'source=%s\nversion=%s\ntarget=%s\n' "$SOURCE_COMMIT" "$VERSION" "$TARGET"
   rustc --version
   grep '^Pkg.Revision' "$ANDROID_NDK_HOME/source.properties"
+  printf 'runner=%s\n' "$(uname -m)"
+  cat /etc/os-release
   cd "$GITHUB_WORKSPACE"
   sha256sum android-app/tools/prepare_android_v8.sh android-app/tools/adapt_android_v8_build.py upstream/codex/codex-rs/Cargo.lock
 ) > "$EXPECTED_INPUTS"
@@ -50,11 +52,18 @@ else
     git -C "$SRC" submodule update --init --recursive --depth 1
     sudo apt-get update
     sudo apt-get install -y ninja-build libssl-dev pkg-config
-    if ! sudo apt-get install -y libclang-21-dev clang-21; then
-      curl -fsSL https://apt.llvm.org/llvm.sh -o "$RUNNER_TEMP/llvm-21.sh"
-      sudo bash "$RUNNER_TEMP/llvm-21.sh" 21
-      sudo apt-get install -y libclang-21-dev clang-21
+    if ! apt-cache show libclang-21-dev clang-21 >/dev/null 2>&1; then
+      . /etc/os-release
+      test "$VERSION_CODENAME" = noble
+      KEY="$RUNNER_TEMP/llvm-snapshot.asc"
+      curl --proto '=https' --tlsv1.2 -fsSL https://apt.llvm.org/llvm-snapshot.gpg.key -o "$KEY"
+      FINGERPRINT="$(gpg --batch --with-colons --show-keys "$KEY" | awk -F: '$1=="fpr"{print $10; exit}')"
+      test "$FINGERPRINT" = 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421
+      sudo install -m 0644 "$KEY" /usr/share/keyrings/111-llvm-snapshot.asc
+      printf '%s\n' 'deb [signed-by=/usr/share/keyrings/111-llvm-snapshot.asc] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main' | sudo tee /etc/apt/sources.list.d/111-llvm.list >/dev/null
+      sudo apt-get update
     fi
+    sudo apt-get install -y libclang-21-dev clang-21
     test -f /usr/lib/llvm-21/lib/libclang.so || test -f /usr/lib/llvm-21/lib/libclang.so.1
     mkdir -p "$SRC/third_party/android_toolchain" "$SRC/third_party/android_sdk"
     rm -rf "$SRC/third_party/android_ndk" "$SRC/third_party/android_toolchain/ndk" "$SRC/third_party/android_sdk/public"
@@ -145,6 +154,7 @@ TOML
       printf 'upstream_lock_sha256='
       sha256sum "$SRC/Cargo.lock" | cut -d' ' -f1
       git -C "$SRC" submodule status --recursive
+      dpkg-query -W clang-21 libclang-21-dev ninja-build
       cat "$GN_OUT/args.gn"
     } > "$CACHE/SOURCE_PROVENANCE"
     (cd "$CACHE" && sha256sum "$ARCHIVE" "$BINDING" BUILD_INPUTS SOURCE_PROVENANCE > SHA256SUMS)

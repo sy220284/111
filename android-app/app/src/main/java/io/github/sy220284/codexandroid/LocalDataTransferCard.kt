@@ -47,7 +47,7 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
                 CodexIcon(CodexGlyph.SaveAlt, "本机备份", tint = Ink.copper)
                 Text("备份与恢复", style = MaterialTheme.typography.titleMedium)
             }
-            Text("更换安装签名或重装应用前，可导出项目、会话、草稿及界面偏好。账号、核心权限、模型服务地址、MCP、插件和运行组件需在新环境中重新配置；项目依赖按声明重新安装。",
+            Text("更换安装签名或重装应用前，可导出项目、会话、草稿及界面偏好。账号、核心权限、模型服务地址、MCP、插件和运行组件需在新环境中重新配置；项目依赖按声明重新安装。会话正文、回答快照与草稿可迁移；仅存于运行数据库的任务元数据、记忆和队列状态暂不在此格式内。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CodexSecondaryButton(

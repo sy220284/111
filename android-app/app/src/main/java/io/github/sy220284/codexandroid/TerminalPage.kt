@@ -453,7 +453,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("本次命令允许联网", style = MaterialTheme.typography.bodyMedium)
+                        Text("请求本次命令联网", style = MaterialTheme.typography.bodyMedium)
                         Text("下载、依赖安装等操作按需开启；系统级联网限制尚未验证", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
                     WhiteSwitch(checked = allowNetwork, onCheckedChange = { allowNetwork = it },

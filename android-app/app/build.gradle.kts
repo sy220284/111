@@ -2,6 +2,7 @@
 val releaseVersionName = providers.gradleProperty("codexReleaseVersionName").orNull
 val releaseVersionCode = providers.gradleProperty("codexReleaseVersionCode").orNull?.toIntOrNull()
 val releaseTargetAbi = providers.gradleProperty("codexReleaseTargetAbi").orNull
+val r8Candidate = providers.gradleProperty("codexR8Candidate").orNull == "true"
 require(releaseTargetAbi == null || releaseTargetAbi == "arm64-v8a") {
     "正式发布目标架构只能是 arm64-v8a"
 }
@@ -57,8 +58,9 @@ android {
         release {
             // Full ARM64 runtime and all 29 UI pages have not yet been validated
             // with R8. Keep the proven release behavior until device coverage exists.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = r8Candidate
+            isShrinkResources = r8Candidate
+            if (r8Candidate) proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (signingReady) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -139,16 +141,4 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
 // Lock resolved dependency graphs; baseline creation is an explicit review operation.
 dependencyLocking {
     lockAllConfigurations()
-}
-
-tasks.register("resolveDependencyBaseline") {
-    notCompatibleWithConfigurationCache("Resolves dependency configurations for baseline review")
-    doFirst {
-        require(gradle.startParameter.isWriteDependencyLocks) {
-            "生成依赖基线必须显式传入 --write-locks"
-        }
-    }
-    doLast {
-        configurations.filter { it.isCanBeResolved }.forEach { it.resolve() }
-    }
 }

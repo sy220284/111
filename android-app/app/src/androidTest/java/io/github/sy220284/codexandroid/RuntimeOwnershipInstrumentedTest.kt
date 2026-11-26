@@ -76,6 +76,50 @@ class RuntimeOwnershipInstrumentedTest {
         }
     }
 
+    @Test fun realAnswerSnapshotSurvivesPortableRestore() = runBlocking {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext
+        val root = java.nio.file.Files.createTempDirectory(app.cacheDir.toPath(), "checkpoint-restore-").toFile()
+        val prefix = root.name + "-"
+        val privateRoot = java.io.File(root, "restored").apply { check(mkdirs()) }
+        val workspace = java.io.File(root, "workspace").apply { check(mkdirs()) }
+        val source = java.io.File(workspace, "demo").apply { check(mkdirs()) }
+        val sourceFile = java.io.File(source, "Main.kt").apply { writeText("first revision") }
+        val snapshots = java.io.File(root, AnswerCheckpointFormat.ROOT)
+        val id = "12345678-1234-1234-1234-123456789abc"
+        val context = object : android.content.ContextWrapper(app) {
+            override fun getFilesDir() = privateRoot
+            override fun getSharedPreferences(name: String, mode: Int) = app.getSharedPreferences(prefix + name, mode)
+        }
+        try {
+            val original = AnswerWorkspaceStore(workspace, snapshots)
+            original.checkpoint(id, source.absolutePath)
+            sourceFile.writeText("later revision")
+            val output = java.io.ByteArrayOutputStream()
+            java.util.zip.ZipOutputStream(output).use { zip ->
+                zip.putNextEntry(java.util.zip.ZipEntry("manifest.txt"))
+                zip.write("111-local-backup-version:2".toByteArray())
+                zip.closeEntry()
+                snapshots.walkTopDown().filter { it.isFile }.forEach { file ->
+                    val name = "files/" + AnswerCheckpointFormat.ROOT + "/" + file.relativeTo(snapshots).invariantSeparatorsPath
+                    assertTrue(LocalDataArchive.validatePath(name))
+                    zip.putNextEntry(java.util.zip.ZipEntry(name))
+                    file.inputStream().use { it.copyTo(zip) }
+                    zip.closeEntry()
+                }
+            }
+            org.junit.Assert.assertEquals(2, LocalDataArchive.stageImport(context, output.toByteArray().inputStream()))
+            LocalDataArchive.restoreIfPending(context)
+            val restored = AnswerWorkspaceStore(workspace, java.io.File(privateRoot, AnswerCheckpointFormat.ROOT))
+            assertTrue(restored.hasBaseline(id))
+            val prepared = restored.prepare(id, source.absolutePath, false)
+            org.junit.Assert.assertEquals("first revision", java.io.File(prepared.directory, "Main.kt").readText())
+            org.junit.Assert.assertEquals("later revision", sourceFile.readText())
+        } finally {
+            check(root.deleteRecursively())
+            app.deleteSharedPreferences(prefix + "codex-data-transfer-status")
+        }
+    }
+
     @Test fun serviceAndActivityReferToSameProcessRuntime() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext
             .applicationContext as CodexApplication

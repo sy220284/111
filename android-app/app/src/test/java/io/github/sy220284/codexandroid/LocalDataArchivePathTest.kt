@@ -37,6 +37,15 @@ class LocalDataArchivePathTest {
         assertTrue(BackupDataPolicy.mayContain("files/codex-home/sessions/2026"))
     }
 
+    @Test fun snapshotNamesMatchTheActualWriter() {
+        val id = "12345678-1234-1234-1234-123456789abc"
+        val name = AnswerCheckpointFormat.manifestName(id)
+        assertTrue(LocalDataArchive.validatePath("files/answer-checkpoints/manifests/" + name))
+        assertTrue(LocalDataArchive.validatePath("files/answer-checkpoints/objects/" + "a".repeat(64)))
+        assertFalse(LocalDataArchive.validatePath("files/answer-checkpoints/manifests/" + "a".repeat(64) + ".json"))
+        assertFalse(LocalDataArchive.validatePath("files/answer-checkpoints/objects/" + id))
+    }
+
     @Test fun blocksTraversalAndCredentials() {
         for (path in listOf(
             "/tmp/passwd", "files/../shared_prefs/settings.xml",

@@ -31,9 +31,9 @@ internal object BackupDataPolicy {
             }
             "codex-turn-images" -> parts.size == 3 && imageName.matches(parts[2])
             "editor-drafts" -> parts.size == 3 && parts[2].endsWith(".json") && hashName.matches(parts[2].removeSuffix(".json"))
-            "answer-checkpoints" -> parts.size == 4 && when (parts[2]) {
-                "objects" -> hashName.matches(parts[3])
-                "manifests" -> parts[3].endsWith(".json") && hashName.matches(parts[3].removeSuffix(".json"))
+            AnswerCheckpointFormat.ROOT -> parts.size == 4 && when (parts[2]) {
+                AnswerCheckpointFormat.OBJECTS -> AnswerCheckpointFormat.isObjectName(parts[3])
+                AnswerCheckpointFormat.MANIFESTS -> AnswerCheckpointFormat.isManifestName(parts[3])
                 else -> false
             }
             "terminal-transcript" -> parts.size == 3 && parts[2] in setOf("stdout.bin", "stderr.bin")

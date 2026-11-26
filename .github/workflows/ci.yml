@@ -248,7 +248,12 @@ jobs:
         if: ${{ hashFiles('android-app/app/gradle.lockfile') == '' || hashFiles('android-app/gradle/verification-metadata.xml') == '' }}
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app :app:resolveDependencyBaseline --write-locks --write-verification-metadata sha256 --no-daemon --stacktrace
+          STORE="$RUNNER_TEMP/dependency-baseline.jks"
+          keytool -genkeypair -noprompt -keystore "$STORE" -storetype PKCS12 -alias 111-release -keyalg RSA -keysize 2048 -validity 1 -storepass ci-only-password -keypass ci-only-password -dname "CN=111 dependency baseline"
+          CODEX_RELEASE_KEYSTORE_PATH="$STORE" CODEX_RELEASE_PASSWORD=ci-only-password CODEX_RELEASE_KEY_ALIAS=111-release \
+            ./android-app/gradlew -p android-app :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:lintRelease :app:assembleRelease \
+            -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 \
+            --write-locks --write-verification-metadata sha256 --no-daemon --stacktrace
           test -s android-app/app/gradle.lockfile
           test -s android-app/gradle/verification-metadata.xml
       - name: 上传待审查依赖基线
@@ -456,7 +461,7 @@ jobs:
 
 
   runtime-test:
-    name: Android 35 真实内核及异常恢复验收（手动 x86_64）
+    name: Android 35 真实内核及异常恢复验收（按变更 x86_64）
     needs: [plan, native, build]
     if: needs.build.result == 'success' && needs.plan.outputs.runtime == 'true'
     runs-on: ubuntu-latest
@@ -667,6 +672,30 @@ jobs:
           [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
           [[ "$BADGE" == *"versionCode='999'"* ]]
           [[ "$BADGE" == *"versionName='0.1.0-111.999'"* ]]
+          cp "$APK" "$RUNNER_TEMP/unoptimized-arm64.apk"
+      - name: 编译 R8 与资源压缩专项候选包
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease \
+            -PcodexR8Candidate=true -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a \
+            -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
+          APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
+          test -s "$APK"
+          test -s android-app/app/build/outputs/mapping/release/mapping.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode ui-smoke
+          mkdir -p "$RUNNER_TEMP/r8-candidate"
+          cp "$APK" "$RUNNER_TEMP/r8-candidate/"
+          cp android-app/app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/r8-candidate/"
+          wc -c "$RUNNER_TEMP/unoptimized-arm64.apk" "$APK" | tee "$RUNNER_TEMP/r8-candidate/sizes.txt"
+      - name: 保存仅供专项验收的压缩候选包及体积证据
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: r8-arm64-candidate-not-for-release
+          path: ${{ runner.temp }}/r8-candidate/
+          if-no-files-found: error
+          retention-days: 14
 
 
   compatibility:

@@ -76,7 +76,15 @@
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeVoiceController.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeVoiceLease.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/DomesticProviderCredentials.kt",
-      "android-app/tools/prepare_android_realtime_privacy.py"
+      "android-app/tools/prepare_android_realtime_privacy.py",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/AnswerCheckpointFormat.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/BackupCheckpointValidation.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/AnswerWorkspaceStore.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/OwnedRpcRequestController.kt",
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/RuntimeOwnershipInstrumentedTest.kt",
+      "android-app/app/build.gradle.kts",
+      "android-app/gradlew",
+      "android-app/gradle/wrapper/gradle-wrapper.properties"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
