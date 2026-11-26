@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.asFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import org.json.JSONObject
 import org.junit.Assert.*
@@ -60,5 +62,39 @@ class TimelineNotificationPressureTest {
             observed += Triple(it.wire.getLong(CORE_SESSION_FIELD), it.params.getString("itemId"), it.delta)
         }
         assertEquals(listOf(Triple(1L, "a", "ab"), Triple(2L, "a", "c"), Triple(2L, "b", "d")), observed)
+    }
+
+    @Test fun independentThreadProgressBeforeLifecycleBarrier() = runTest {
+        val entered = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val progress = mutableListOf<String>()
+        val a = delta("a", "x")
+        val b = delta("b", "y").also { it.getJSONObject("params").put("threadId", "other") }
+        val finish = lifecycle("item/completed", "a", "x")
+        val messages = flow {
+            emit(a)
+            entered.await()
+            emit(b)
+            emit(finish)
+        }
+        collectTimelineNotifications(messages) { notification ->
+            when (notification.params.optString("itemId")) {
+                "a" -> { entered.complete(Unit); release.await(); progress += "a" }
+                "b" -> { progress += "b"; release.complete(Unit) }
+                else -> progress += "finish"
+            }
+        }
+        assertEquals(listOf("b", "a", "finish"), progress)
+    }
+
+    @Test fun epochSwitchDrainsOldThreadBeforeNewThread() = runTest {
+        val first = delta("a", "x", 1)
+        val second = delta("b", "y", 2).also { it.getJSONObject("params").put("threadId", "other") }
+        val order = mutableListOf<Long>()
+        collectTimelineNotifications(listOf(first, second).asFlow()) {
+            if (it.wire.getLong(CORE_SESSION_FIELD) == 1L) kotlinx.coroutines.yield()
+            order += it.wire.getLong(CORE_SESSION_FIELD)
+        }
+        assertEquals(listOf(1L, 2L), order)
     }
 }

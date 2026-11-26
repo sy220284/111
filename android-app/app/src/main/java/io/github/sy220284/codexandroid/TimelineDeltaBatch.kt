@@ -48,24 +48,40 @@ internal class TimelineDeltaBatch(private val first: JSONObject) {
     }
 }
 
-/** Serial dispatch preserves lifecycle ordering. Channel capacity and collection time are bounded. */
+/** Independent thread delta lanes share bounded backpressure. Every non-delta
+ * notification and core-epoch transition is an explicit global ordering barrier. */
 @OptIn(FlowPreview::class)
 internal suspend fun collectTimelineNotifications(events: Flow<JSONObject>, dispatch: suspend (CoreNotification) -> Unit) = coroutineScope {
     val channel = events.produceIn(this)
+    val scheduler = ThreadEventScheduler<String>(this)
+    var epoch: Long? = null
     var pending: JSONObject? = null
     while (true) {
         val first = pending ?: channel.receiveCatching().let { result ->
-            if (result.isClosed) { result.exceptionOrNull()?.let { throw it }; return@coroutineScope }
+            if (result.isClosed) {
+                result.exceptionOrNull()?.let { throw it }
+                scheduler.drain()
+                return@coroutineScope
+            }
             result.getOrThrow()
         }
         pending = null
-        if (!TimelineDeltaBatch.accepts(first)) { dispatch(CoreNotification(first)); continue }
+        val nextEpoch = first.optLong(CORE_SESSION_FIELD, -1L)
+        if (epoch != nextEpoch) {
+            scheduler.drain()
+            epoch = nextEpoch
+        }
+        if (!TimelineDeltaBatch.accepts(first)) {
+            scheduler.barrier { dispatch(CoreNotification(first)) }
+            continue
+        }
         val batch = TimelineDeltaBatch(first)
         // Drain queued events immediately; display cadence belongs to presentation.
         for (i in 0 until 63) {
             val next = channel.tryReceive().getOrNull() ?: break
             if (!TimelineDeltaBatch.accepts(next) || !batch.append(next)) { pending = next; break }
         }
-        dispatch(batch.notification())
+        val notification = batch.notification()
+        scheduler.submit(notification.params.getString("threadId")) { dispatch(notification) }
     }
 }
