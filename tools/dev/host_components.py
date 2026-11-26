@@ -135,7 +135,7 @@ def reviewed_artifacts(run_id, names):
     require(type(run_id) is int and run_id>0,"invalid producer run ID")
     run=api(f"actions/runs/{run_id}")
     require(run["id"]==run_id and (run.get("head_repository") or {}).get("full_name")==REPOSITORY
-            and run["path"].split("@",1)[0]==".github/workflows/dev-toolchain.yml",
+            and run["path"].split("@",1)[0] in (".github/workflows/dev-toolchain.yml",".github/workflows/ci.yml",".github/workflows/build-native-codex.yml",".github/workflows/release.yml"),
             "unexpected producer workflow")
     require(run["status"]=="completed","producer run has not finished")
     head=run["head_sha"]
@@ -146,7 +146,7 @@ def reviewed_artifacts(run_id, names):
     groups={group_for(n) for n in names}
     windows={}
     for group in groups:
-        rows=[j for j in jobs["jobs"] if j["name"]==JOB_NAMES[group] and j.get("run_attempt")==attempt and j.get("head_sha")==head]
+        rows=[j for j in jobs["jobs"] if j["name"].rsplit(" / ",1)[-1]==JOB_NAMES[group] and j.get("run_attempt")==attempt and j.get("head_sha")==head]
         require(len(rows)==1 and rows[0]["conclusion"]=="success" and rows[0]["status"]=="completed",
                 "selected component producer not accepted: "+group)
         windows[group]=(timestamp(rows[0]["started_at"]),timestamp(rows[0]["completed_at"]))
@@ -156,7 +156,7 @@ def reviewed_artifacts(run_id, names):
     wanted.update({"111-toolchain-"+g+"-manifest-pins":g for g in groups})
     result={}
     for name, group in wanted.items():
-        rows=[r for r in response["artifacts"] if r["name"]==name]
+        rows=[r for r in response["artifacts"] if r["name"]==name or (name.endswith("-manifest-pins") and re.fullmatch(re.escape(name)+r"-[0-9a-f]{64}",r["name"]))]
         require(len(rows)==1,"missing or ambiguous artifact: "+name)
         row=rows[0]
         start,end=windows[group]

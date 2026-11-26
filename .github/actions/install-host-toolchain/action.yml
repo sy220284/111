@@ -1,0 +1,33 @@
+name: 安装经断网验收的 111 主机组件
+description: Consume exact immutable artifact IDs from the same dependency fingerprint.
+inputs:
+  group:
+    required: true
+    description: android or rust
+  descriptor:
+    required: true
+    description: verified producer descriptor
+  token:
+    required: true
+    description: GitHub Actions read token
+  components:
+    required: false
+    default: ''
+    description: optional subset of components
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        HOST_DESCRIPTOR: ${{ inputs.descriptor }}
+        HOST_GROUP: ${{ inputs.group }}
+        HOST_COMPONENTS: ${{ inputs.components }}
+      run: |
+        set -euo pipefail
+        EXTRA=()
+        if [ -n "$HOST_COMPONENTS" ]; then
+          read -r -a NAMES <<< "$HOST_COMPONENTS"
+          EXTRA=(--components "${NAMES[@]}")
+        fi
+        python3 tools/dev/ci_host.py consume --group "$HOST_GROUP" --root "$RUNNER_TEMP/111-host-$HOST_GROUP" "${EXTRA[@]}"
