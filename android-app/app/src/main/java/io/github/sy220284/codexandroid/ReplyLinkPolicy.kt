@@ -1,7 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import java.net.URI
-import java.net.URLDecoder
+import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 
 /** File paths and URI links are distinct; never pass file URIs directly to Android. */
@@ -11,8 +14,26 @@ internal object ReplyLinkPolicy {
     private fun decodePath(value: String): String {
         // Decode once, including UTF-8 escapes. '+' is an ordinary filename character.
         // A literal '%' that is not part of an escape must also survive.
-        val escaped = value.replace(Regex("%(?![0-9a-fA-F]{2})"), "%25").replace("+", "%2B")
-        return URLDecoder.decode(escaped, StandardCharsets.UTF_8.name())
+        val result = StringBuilder()
+        var index = 0
+        while (index < value.length) {
+            if (value[index] != '%' || index + 2 >= value.length || value.substring(index + 1, index + 3).toIntOrNull(16) == null) {
+                result.append(value[index++])
+                continue
+            }
+            val bytes = ByteArrayOutputStream()
+            while (index + 2 < value.length && value[index] == '%') {
+                val next = value.substring(index + 1, index + 3).toIntOrNull(16) ?: break
+                require(next in 0..255 && value[index + 1].isLetterOrDigit() && value[index + 2].isLetterOrDigit())
+                bytes.write(next)
+                index += 3
+            }
+            // Reject malformed UTF-8 instead of substituting a different filename.
+            result.append(StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPORT).onUnmappableCharacter(CodingErrorAction.REPORT)
+                .decode(ByteBuffer.wrap(bytes.toByteArray())))
+        }
+        return result.toString()
     }
 
     fun file(value: String): String? {
@@ -25,7 +46,7 @@ internal object ReplyLinkPolicy {
                 val uri = URI(value.replace(" ", "%20"))
                 // File URIs with query/fragment are ambiguous: reject rather than opening a different file.
                 if (uri.rawAuthority != null || uri.rawQuery != null || uri.rawFragment != null) return null
-                val decoded = uri.path?.takeIf { it.isNotBlank() } ?: return null
+                val decoded = uri.rawPath?.let(::decodePath)?.takeIf { it.isNotBlank() } ?: return null
                 if (Regex("^/[A-Za-z]:/.*").matches(decoded)) decoded.removePrefix("/") else decoded
             } else {
                 // Bare paths can legally contain '#' and '?' on POSIX; never treat them as URI delimiters.
@@ -33,6 +54,7 @@ internal object ReplyLinkPolicy {
             }
         } catch (_: IllegalArgumentException) { return null }
           catch (_: java.net.URISyntaxException) { return null }
+          catch (_: CharacterCodingException) { return null }
         val normalized = path.replace('\\', '/').removePrefix("./")
         if (normalized.isBlank() || normalized.startsWith("//") || normalized.any(Char::isISOControl) ||
             normalized.split('/').any { it == ".." || it == "." }) return null

@@ -3,11 +3,12 @@ package io.github.sy220284.codexandroid
 /** Bounded, declarative components; all data is validated before entering Compose. */
 internal data class RichReplyContent(val kind: String, val rows: List<List<String>>) {
     companion object {
-        val kinds = setOf("metrics", "flow", "bar", "line", "pie", "graph", "checklist", "math", "file")
+        val kinds = setOf("metrics", "flow", "bar", "line", "pie", "graph", "sequence", "checklist", "math", "file")
         private val chartKinds = setOf("bar", "line", "pie")
         fun parse(language: String, source: String): RichReplyContent? {
             val kind = language.removePrefix("codex-")
-            if (language == "mermaid") return ReplyGraph.parseMermaid(source)
+            if (language == "mermaid") return if (source.lineSequence().firstOrNull { it.isNotBlank() }?.trim() == "sequenceDiagram")
+                ReplySequence.parse(source) else ReplyGraph.parseMermaid(source)
             if (language != "codex-$kind" || kind !in kinds || source.length > 4096) return null
             if (kind == "math") return if (ReplyMath.parse(source) != null) RichReplyContent(kind, listOf(listOf(source))) else null
             val lines = source.lines().map(String::trim).filter(String::isNotEmpty)

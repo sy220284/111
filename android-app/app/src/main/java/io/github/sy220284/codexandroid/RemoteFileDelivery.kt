@@ -68,7 +68,7 @@ internal object RemoteFileDelivery {
         }.also { check(owns()) { "远端会话已变化" } }
     }
     suspend fun save(resolver: ContentResolver, destination: Uri, payload: Payload,
-        onVerified: suspend (Long) -> Unit = {}) = withContext(Dispatchers.IO) {
+        onVerified: suspend (Long) -> Unit = {}, onWritten: suspend () -> Unit = {}) = withContext(Dispatchers.IO) {
         require(destination.scheme == "content") { "请选择系统文档保存位置" }
         requireNotNull(resolver.openOutputStream(destination, "wt")) { "无法打开保存位置" }.use {
             var offset = 0
@@ -80,8 +80,10 @@ internal object RemoteFileDelivery {
             }
             it.flush()
         }
+        withContext(Dispatchers.Main.immediate) { onWritten() }
         val digest = MessageDigest.getInstance("SHA-256")
         var total = 0
+        var lastReport = 0
         requireNotNull(resolver.openInputStream(destination)) { "无法回读保存文件" }.use { stream ->
             val buffer = ByteArray(8192)
             while (true) {
@@ -91,7 +93,10 @@ internal object RemoteFileDelivery {
                 total += count
                 require(total <= payload.bytes.size) { "保存结果大小不符" }
                 digest.update(buffer, 0, count)
-                withContext(Dispatchers.Main.immediate) { onVerified(total.toLong()) }
+                if (total - lastReport >= 256 * 1024 || total == payload.bytes.size) {
+                    lastReport = total
+                    withContext(Dispatchers.Main.immediate) { onVerified(total.toLong()) }
+                }
             }
         }
         check(total == payload.bytes.size && digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == payload.sha256) {

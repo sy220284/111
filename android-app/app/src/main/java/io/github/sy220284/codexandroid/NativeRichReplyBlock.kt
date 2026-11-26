@@ -49,6 +49,8 @@ internal fun NativeRichReplyBlock(block: MessageBlock) {
                     ReplyDataChart(block)
                 } else if (block.kind == "graph") {
                     ReplyBranchGraph(block.rows, block.source)
+                } else if (block.kind == "sequence") {
+                    NativeReplySequence(block.rows)
                 } else if (block.kind == "checklist") {
                     block.rows.forEach { row ->
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {

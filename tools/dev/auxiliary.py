@@ -130,7 +130,7 @@ BAZEL_REGISTRY_REPO="rules_rs++crate+crates_https___index.crates.io_"
 def bazel_registry_snapshot(output_root, destination):
     """Retain the exact generated registry repository not cached by Bazel downloads."""
     roots=list(output_root.glob("*/external/"+BAZEL_REGISTRY_REPO))
-    need(len(roots)==1 and roots[0].is_dir(), "Bazel registry repository missing or ambiguous")
+    need(len(roots)==1 and roots[0].is_dir() and not roots[0].is_symlink(), "Bazel registry repository missing or ambiguous")
     source=roots[0]
     # It is a small generated repository; reject links rather than preserving host paths.
     entries=list(source.rglob("*"))
@@ -146,7 +146,7 @@ def bazel_fetch(stage,offline):
         cache=stage/"repository-cache";cache.mkdir(exist_ok=True)
         contents=pathlib.Path(d)/"repo-contents-cache";contents.mkdir()
         # Materialized external repositories can contain links to the old output root.
-        # Only the content-addressed download cache travels; rematerialize on each host.
+        # Only the content-addressed cache and verified small registry repository travel.
         args=[exe,"--batch","--output_user_root="+d,"fetch","--lockfile_mode=error",
               "--repository_cache="+str(cache),"--repo_contents_cache="+str(contents),"--disk_cache=","--jobs=4"]
         registry=stage/"registry-repository"

@@ -26,7 +26,37 @@ internal sealed interface ReplyMath {
             "epsilon" to "ε", "varepsilon" to "ϵ", "phi" to "φ", "varphi" to "ϕ", "rho" to "ρ", "tau" to "τ",
             "psi" to "ψ", "chi" to "χ", "xi" to "ξ", "zeta" to "ζ", "eta" to "η", "Omega" to "Ω",
             "Gamma" to "Γ", "Theta" to "Θ", "Pi" to "Π", "Lambda" to "Λ", "Psi" to "Ψ",
-            "langle" to "⟨", "rangle" to "⟩", "lvert" to "|", "rvert" to "|", "Vert" to "‖")
+            "langle" to "⟨", "rangle" to "⟩", "lvert" to "|", "rvert" to "|", "Vert" to "‖",
+            "le" to "≤", "ge" to "≥", "ne" to "≠", "equiv" to "≡", "sim" to "∼", "propto" to "∝",
+            "subset" to "⊂", "supset" to "⊃", "supseteq" to "⊇", "ni" to "∋", "setminus" to "∖",
+            "land" to "∧", "lor" to "∨", "neg" to "¬", "implies" to "⇒", "iff" to "⇔",
+            "leftrightarrow" to "↔", "mapsto" to "↦", "uparrow" to "↑", "downarrow" to "↓",
+            "oplus" to "⊕", "otimes" to "⊗", "circ" to "∘", "perp" to "⊥", "parallel" to "∥",
+            "Re" to "ℜ", "Im" to "ℑ", "aleph" to "ℵ", "angle" to "∠", "degree" to "°",
+            "arcsin" to "arcsin", "arccos" to "arccos", "arctan" to "arctan", "exp" to "exp",
+            "min" to "min", "max" to "max", "sup" to "sup", "inf" to "inf", "det" to "det", "gcd" to "gcd")
+        private val doubleStruckExceptions = mapOf('C' to "ℂ", 'H' to "ℍ", 'N' to "ℕ", 'P' to "ℙ",
+            'Q' to "ℚ", 'R' to "ℝ", 'Z' to "ℤ")
+        private val calligraphicExceptions = mapOf('B' to "ℬ", 'E' to "ℰ", 'F' to "ℱ", 'H' to "ℋ",
+            'I' to "ℐ", 'L' to "ℒ", 'M' to "ℳ", 'R' to "ℛ")
+        private fun alphabet(value: ReplyMath, command: String): ReplyMath {
+            val text = when (value) {
+                is Text -> value.value
+                is Sequence -> value.parts.joinToString("") { (it as? Text)?.value ?: throw IllegalArgumentException("复杂数学字体") }
+                else -> throw IllegalArgumentException("复杂数学字体")
+            }
+            require(text.isNotEmpty())
+            val mapped = text.map { c ->
+                when {
+                    command == "mathbb" && c in 'A'..'Z' -> doubleStruckExceptions[c] ?: String(Character.toChars(0x1D538 + (c - 'A')))
+                    command == "mathbb" && c in 'a'..'z' -> String(Character.toChars(0x1D552 + (c - 'a')))
+                    command == "mathbb" && c in '0'..'9' -> String(Character.toChars(0x1D7D8 + (c - '0')))
+                    command == "mathcal" && c in 'A'..'Z' -> calligraphicExceptions[c] ?: String(Character.toChars(0x1D49C + (c - 'A')))
+                    else -> throw IllegalArgumentException("不支持的数学字体字符")
+                }
+            }.joinToString("")
+            return Text(mapped)
+        }
         fun parse(source: String): ReplyMath? {
             if (source.isBlank() || source.length > 4096) return null
             return try { Parser(source).parse() } catch (_: IllegalArgumentException) { null }
@@ -149,6 +179,9 @@ internal sealed interface ReplyMath {
                         require(pos > start)
                         when (val command = source.substring(start, pos)) {
                             "frac", "dfrac", "tfrac" -> Fraction(argument(depth + 1), argument(depth + 1))
+                            "binom", "dbinom", "tbinom" -> Matrix(
+                                listOf(listOf(argument(depth + 1)), listOf(argument(depth + 1))), "(", ")")
+                            "mathbb", "mathcal" -> alphabet(argument(depth + 1), command)
                             "sqrt" -> {
                                 spaces()
                                 val index = if (peek("[")) {
@@ -166,7 +199,7 @@ internal sealed interface ReplyMath {
                             "overline", "underline", "hat", "bar", "vec", "dot", "ddot" ->
                                 Accent(command, argument(depth + 1))
                             "text" -> text()
-                            "mathrm", "mathbf", "mathit", "operatorname", "mathcal", "mathbb" -> argument(depth + 1)
+                            "mathrm", "mathbf", "mathit", "operatorname" -> argument(depth + 1)
                             "limits", "nolimits", "displaystyle", "textstyle" -> Text("")
                             else -> Text(requireNotNull(symbols[command]))
                         }

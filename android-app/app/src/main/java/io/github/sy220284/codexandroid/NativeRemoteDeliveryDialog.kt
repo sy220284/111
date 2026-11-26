@@ -26,6 +26,7 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
     var saved by remember(request) { mutableStateOf(false) }
     var operation by remember(request) { mutableStateOf<Job?>(null) }
     var saving by remember(request) { mutableStateOf(false) }
+    var verifying by remember(request) { mutableStateOf(false) }
     var verifiedBytes by remember(request) { mutableLongStateOf(0L) }
     var totalBytes by remember(request) { mutableLongStateOf(0L) }
     val session by vm.bridge.connectedSession.collectAsState()
@@ -37,18 +38,17 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
     val create = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         val payload = data
         if (uri != null && payload != null && owns()) {
-            loading = true; saving = true; saved = false; error = null
+            loading = true; saving = true; verifying = false; saved = false; error = null
             verifiedBytes = 0L; totalBytes = payload.bytes.size.toLong()
             operation = scope.launch {
                 try {
-                    RemoteFileDelivery.save(context.contentResolver, uri, payload) { count ->
-                        verifiedBytes = count
-                    }
+                    RemoteFileDelivery.save(context.contentResolver, uri, payload,
+                        onVerified = { count -> verifiedBytes = count }, onWritten = { verifying = true })
                     saved = true
                 }
                 catch (cancel: CancellationException) { throw cancel }
                 catch (failure: Exception) { error = failure.message ?: "文件保存失败" }
-                finally { loading = false; saving = false }
+                finally { loading = false; saving = false; verifying = false }
             }
         }
     }
@@ -59,14 +59,14 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
                 Text("文件：" + request.target)
                 Text("只读取当前绑定的远端工作区文件，单文件上限 8 MiB。")
                 if (loading) {
-                    if (saving && totalBytes > 0L) {
+                    if (verifying && totalBytes > 0L) {
                         LinearProgressIndicator(progress = { (verifiedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) },
                             modifier = Modifier.fillMaxWidth())
-                        Text("正在保存并校验 · " + verifiedBytes + " / " + totalBytes + " 字节",
+                        Text("正在回读校验 · " + verifiedBytes + " / " + totalBytes + " 字节",
                             style = MaterialTheme.typography.bodySmall)
                     } else {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        Text(if (saving) "正在保存并校验空文件…" else "正在读取远端文件…",
+                        Text(if (verifying) "正在校验空文件…" else if (saving) "正在保存文件…" else "正在读取远端文件…",
                             style = MaterialTheme.typography.bodySmall)
                     }
                 }
