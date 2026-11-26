@@ -125,7 +125,10 @@ class UiNavigationInstrumentedTest {
             val node = rule.onNodeWithTag(tag).fetchSemanticsNode()
             val bounds = node.boundsInWindow
             val now = android.os.SystemClock.elapsedRealtime()
-            if (bounds != last) { last = bounds; stableSince = now }
+            val previous = last
+            if (previous == null || kotlin.math.abs(bounds.left - previous.left) > .5f ||
+                kotlin.math.abs(bounds.top - previous.top) > .5f || kotlin.math.abs(bounds.right - previous.right) > .5f ||
+                kotlin.math.abs(bounds.bottom - previous.bottom) > .5f) { last = bounds; stableSince = now }
             bounds.width > 0 && bounds.height > 0 && now - stableSince >= 200L
         }
         rule.onNodeWithTag(tag).assertIsDisplayed().assertIsEnabled().performClick()
@@ -1345,16 +1348,16 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").performScrollTo()
         stableClick("environment-endpoint")
         rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://example.com/exec")
-        rule.onNodeWithTag("environment-address-reply-send").performScrollTo()
-        stableClick("environment-address-reply-send")
+        rule.onNodeWithTag("environment-address-reply-send").assertIsEnabled()
+        rule.onNodeWithTag("environment-address-reply-input").performImeAction()
         rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-remote-name").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com", substring = true)
         rule.onNodeWithTag("environment-remote-name").performScrollTo()
         stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("工作电脑")
-        rule.onNodeWithTag("environment-name-reply-send").performScrollTo()
-        stableClick("environment-name-reply-send")
+        rule.onNodeWithTag("environment-name-reply-send").assertIsEnabled()
+        rule.onNodeWithTag("environment-name-reply-input").performImeAction()
         rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-name-reply-input").fetchSemanticsNodes().isEmpty() }
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
@@ -1369,8 +1372,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").performScrollTo()
         stableClick("environment-endpoint")
         rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://other.example/exec")
-        rule.onNodeWithTag("environment-address-reply-send").performScrollTo()
-        stableClick("environment-address-reply-send")
+        rule.onNodeWithTag("environment-address-reply-send").assertIsEnabled()
+        rule.onNodeWithTag("environment-address-reply-input").performImeAction()
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         // Cancel keeps the existing name; explicitly clearing it restores the derived name.
         rule.onNodeWithTag("environment-remote-name").performScrollTo()
@@ -1382,8 +1385,8 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-remote-name").performScrollTo()
         stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextClearance()
-        rule.onNodeWithTag("environment-name-reply-send").performScrollTo()
-        stableClick("environment-name-reply-send")
+        rule.onNodeWithTag("environment-name-reply-send").assertIsEnabled()
+        rule.onNodeWithTag("environment-name-reply-input").performImeAction()
         rule.onNodeWithTag("environment-remote-name").assertTextContains("other.example", substring = true)
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
     }

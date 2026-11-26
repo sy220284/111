@@ -15,11 +15,30 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
 /** 实际模拟器验证：详情不挤动列表、可关闭，上下文菜单能完成所选动作。 */
 class CodexInteractionComponentsInstrumentedTest {
+    @Test fun singleQuestionKeyboardDoneAppliesOnlyAValidReply() {
+        var applied = "原值"
+        rule.setContent {
+            CodexTheme {
+                ActionQuestionRow(applied, { applied = it }, "名称", replyTag = "keyboard-reply",
+                    validate = { if (it.isBlank()) "需要名称" else null })
+            }
+        }
+        rule.onNodeWithText("修改").performClick()
+        rule.onNodeWithTag("keyboard-reply-input").performTextReplacement("")
+        rule.onNodeWithTag("keyboard-reply-input").performImeAction()
+        rule.runOnIdle { assertEquals("原值", applied) }
+        rule.onNodeWithTag("keyboard-reply-input").assertExists().performTextReplacement("新名称")
+        rule.onNodeWithTag("keyboard-reply-input").performImeAction()
+        rule.onNodeWithTag("keyboard-reply-input").assertDoesNotExist()
+        rule.runOnIdle { assertEquals("新名称", applied) }
+    }
+
     @get:Rule val rule = createComposeRule()
 
     @Test fun adaptiveActionsKeepLabelsAndCallbacksAtDoubleFontScale() {
