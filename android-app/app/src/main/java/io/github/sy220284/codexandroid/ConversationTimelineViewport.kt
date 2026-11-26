@@ -119,7 +119,7 @@ internal fun ConversationTimelineViewport(
             projection?.displayIndex(anchor) == -1) {
             val owner = anchorRowKey ?: anchor
             val logical = ReplyReadingNavigation.replacementIndex(rows, owner)
-            val replacement = if (logical >= 0) displayRows.indexOfFirst { it.row.key == rows[logical].key } else -1
+            val replacement = if (logical >= 0) projection?.displayIndex(rows[logical].key) ?: -1 else -1
             if (replacement >= 0) {
                 scroll.scrollToItem(replacement + if (olderPageVisible) 1 else 0, anchorOffset.coerceAtLeast(0))
                 anchorKey = displayRows[replacement].key
@@ -310,8 +310,7 @@ internal fun ConversationTimelineViewport(
                 items(outline.orEmpty()) { entry ->
                     CodexTextAction(onClick = {
                         outlineOpen = false; followTail = false
-                        val index = displayRows.indexOfFirst { it.row.key == entry.rowKey &&
-                            (it.page?.ownsHeading(entry.heading) ?: true) }
+                        val index = projection?.headingIndex(entry.rowKey, entry.heading) ?: -1
                         if (index >= 0) scope.launch { scroll.scrollToItem(index + if (olderPageVisible) 1 else 0); headingTarget = entry }
                     }, modifier = Modifier.fillMaxWidth().padding(start = ((entry.level - 1).coerceIn(0, 3) * 8).dp)) {
                         Text(entry.title, Modifier.fillMaxWidth())

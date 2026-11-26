@@ -23,12 +23,10 @@ internal class TimelineJoinedList<T>(val history: List<T>, val active: List<T>) 
 
 internal data class TimelinePresentationPart(
     val rows: List<ProgressiveReplyProjection.Row>,
-    val displayRows: List<TimelineDisplayRow>,
+    val displayRows: TimelineDisplayRows,
     val answeredQuestions: Set<String>,
     val formalTurns: Set<String>
-) {
-    val displayIndex: Map<String, Int> = displayRows.mapIndexed { index, row -> row.key to index }.toMap()
-}
+)
 
 /** One immutable presentation snapshot: history and live content are independent
  * projections of the same authoritative timeline. No event or record is discarded. */
@@ -44,8 +42,10 @@ internal data class TimelinePresentation(
     fun answered(id: String) = id in history.answeredQuestions || id in active.answeredQuestions
     fun hasFormalTurn(id: String) = id in history.formalTurns || id in active.formalTurns
     val hasFormalReply: Boolean get() = history.formalTurns.isNotEmpty() || active.formalTurns.isNotEmpty()
-    fun displayIndex(key: String): Int = history.displayIndex[key]
-        ?: active.displayIndex[key]?.let { history.displayRows.size + it } ?: -1
+    fun displayIndex(key: String): Int = history.displayRows.position(key)
+        ?: active.displayRows.position(key)?.let { history.displayRows.size + it } ?: -1
+    fun headingIndex(key: String, heading: Int): Int = history.displayRows.headingPosition(key, heading)
+        ?: active.displayRows.headingPosition(key, heading)?.let { history.displayRows.size + it } ?: -1
     fun byId(id: String) = indexed.byId(id)
 }
 

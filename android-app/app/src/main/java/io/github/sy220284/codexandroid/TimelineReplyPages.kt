@@ -62,14 +62,14 @@ internal class TimelineReplyPages {
         }
     }
     private var cache = emptyMap<String, Entry>()
-    fun project(rows: List<ProgressiveReplyProjection.Row>): List<TimelineDisplayRow> {
+    fun project(rows: List<ProgressiveReplyProjection.Row>): TimelineDisplayRows {
         val next = mutableMapOf<String, Entry>()
-        val result = buildList {
+        val result = buildList<TimelineDisplayRows.Span> {
             for (row in rows) {
                 val item = row.group.singleOrNull()?.takeIf {
                     !row.forceActivity && ProgressiveReplyProjection.answer(it) && it.hasDisplayText
                 }
-                if (item == null) { add(TimelineDisplayRow(row)); continue }
+                if (item == null) { add(TimelineDisplayRows.Span(row, emptyList())); continue }
                 val old = cache[row.key]
                 val entry = if (old?.item === item) old else {
                     val engine = old?.engine ?: ReplyDocumentEngine()
@@ -84,14 +84,11 @@ internal class TimelineReplyPages {
                     Entry(item, engine, pagination, pagination.prepare(prepared.document, prepared.tail))
                 }
                 next[row.key] = entry
-                if (entry.pages.isEmpty()) add(TimelineDisplayRow(row))
-                else entry.pages.forEachIndexed { index, page ->
-                    add(TimelineDisplayRow(row, page, index, index == entry.pages.lastIndex))
-                }
+                add(TimelineDisplayRows.Span(row, entry.pages))
             }
         }
         cache = next
-        return result
+        return TimelineDisplayRows(result)
     }
 
     companion object {

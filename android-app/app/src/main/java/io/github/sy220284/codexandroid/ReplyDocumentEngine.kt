@@ -7,7 +7,9 @@ internal data class PreparedReplyBlock(
     val block: MessageBlock,
     val inline: Map<String, List<MessageMarkdown.CopyPart>>,
     val math: Map<String, ReplyMath?> = emptyMap(),
-    val codeTokens: List<ReplyCodeHighlight.Token> = emptyList()
+    val codeTokens: List<ReplyCodeHighlight.Token> = emptyList(),
+    val codeSlices: List<ReplyCodeSlices.Slice> = emptyList(),
+    val tableColumns: Int = block.rows.maxOfOrNull { it.size } ?: 0
 ) {
     companion object {
         fun prepare(block: MessageBlock): PreparedReplyBlock {
@@ -16,10 +18,11 @@ internal data class PreparedReplyBlock(
                 "rule", "code", "stream-tail", in RichReplyContent.kinds -> emptyList()
                 else -> listOf(block.text)
             }
+            val tokens = if (block.kind == "code") ReplyCodeHighlight.prepare(block.text, block.label) else emptyList()
             return PreparedReplyBlock(block, text.distinct().associateWith(MessageMarkdown::copyParts),
                 if (block.kind == "math") block.rows.associate { it[0] to ReplyMath.parse(it[0]) }
                 else emptyMap(),
-                if (block.kind == "code") ReplyCodeHighlight.prepare(block.text, block.label) else emptyList())
+                tokens, if (block.kind == "code") ReplyCodeSlices.prepare(block.text, tokens) else emptyList())
         }
         fun tail(text: String) = PreparedReplyBlock(MessageBlock("stream-tail", text), emptyMap())
     }

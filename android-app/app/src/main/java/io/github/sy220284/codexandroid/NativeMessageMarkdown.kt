@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
@@ -297,8 +299,22 @@ private fun MessageCodeBlock(block: MessageBlock) {
                 }
             }
             HorizontalDivider(color = Ink.border)
-            Text(ReplyCodeHighlight.render(block.text, checkNotNull(LocalPreparedReplyBlock.current).codeTokens), Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
-                fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+            val prepared = checkNotNull(LocalPreparedReplyBlock.current)
+            if (prepared.codeSlices.isEmpty()) {
+                Text(ReplyCodeHighlight.render(block.text, prepared.codeTokens), Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
+                    fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+            } else {
+                Text("长代码 · 区域内滚动 · 顶部复制完整代码", Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                // Bound the inner viewport; never measure the entire code block on the UI thread.
+                LazyColumn(Modifier.fillMaxWidth().height(360.dp).horizontalScroll(rememberScrollState())
+                    .testTag("message-code-virtual"), contentPadding = PaddingValues(12.dp)) {
+                    itemsIndexed(prepared.codeSlices, key = { _, slice -> slice.start }) { _, slice ->
+                        Text(ReplyCodeHighlight.render(slice.text, slice.tokens), fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall, softWrap = false)
+                    }
+                }
+            }
         }
     }
 }
@@ -322,7 +338,8 @@ private fun MessageQuote(block: MessageBlock) {
 @Composable
 private fun MessageTable(block: MessageBlock) {
     val rows = block.rows
-    val count = rows.maxOfOrNull { it.size } ?: return
+    val count = checkNotNull(LocalPreparedReplyBlock.current).tableColumns
+    if (count == 0) return
     val copy = rememberConversationCopy()
     var selecting by remember(block) { mutableStateOf(false) }
     var first by remember(block) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -363,8 +380,7 @@ private fun MessageTable(block: MessageBlock) {
             }
             }
             HorizontalDivider(color = Ink.border)
-            Column(Modifier.horizontalScroll(rememberScrollState())) {
-                rows.forEachIndexed { index, row ->
+            val renderRow: @Composable (Int, List<String>) -> Unit = { index, row ->
                     Row(Modifier.background(if (index == 0) Ink.recessed else Ink.canvas)) {
                         repeat(count) { column ->
                             val cell = Modifier.width(cellWidth).then(if (selecting)
@@ -387,6 +403,23 @@ private fun MessageTable(block: MessageBlock) {
                         }
                     }
                     if (index != rows.lastIndex) HorizontalDivider(color = Ink.border)
+            }
+            if (rows.size <= 24) {
+                Column(Modifier.horizontalScroll(rememberScrollState())) {
+                    rows.forEachIndexed { index, row -> renderRow(index, row) }
+                }
+            } else {
+                Text("长表格 · 区域内滚动 · 支持跨行选取", Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                val horizontal = rememberScrollState()
+                // A fixed cross-axis width preserves the same column alignment across all lazy rows.
+                Column(Modifier.horizontalScroll(horizontal).width(cellWidth * count)) {
+                    renderRow(0, rows.first())
+                    LazyColumn(Modifier.fillMaxWidth().height(360.dp).testTag("message-table-virtual")) {
+                        items(rows.size - 1, key = { it + 1 }) { index ->
+                            renderRow(index + 1, rows[index + 1])
+                        }
+                    }
                 }
             }
         }

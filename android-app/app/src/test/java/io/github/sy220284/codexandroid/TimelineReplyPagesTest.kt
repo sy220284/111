@@ -28,6 +28,31 @@ class TimelineReplyPagesTest {
         assertEquals(prefix + "尾部完成", final.last().row.group.single().text)
     }
 
+    @Test fun logicalIndexHandlesThousandsOfPagesWithoutPerPageMap() {
+        val row = ProgressiveReplyProjection.Row("answer:含冒号", listOf(TimelineItem("answer", "agentMessage", "text")))
+        val pages = List(10000) { i -> ReplyRenderPage(listOf(PreparedReplyBlock.tail("page-$i")), 0) }
+        val list = TimelineDisplayRows(listOf(TimelineDisplayRows.Span(row, pages),
+            TimelineDisplayRows.Span(row.copy(key = "next"), emptyList())))
+        assertEquals(10001, list.size)
+        for (i in list.indices) assertEquals(i, list.position(list[i].key))
+        assertEquals(10000, list.position("next"))
+        assertNull(list.position("reply-page:2:no:999"))
+        assertTrue(list[9999].lastPage)
+        assertFalse(list[9998].lastPage)
+    }
+
+    @Test fun codeSlicesPreserveSourceAndTokenCoverage() {
+        val source = (0 until 150).joinToString("\n") { "val x$it = \"字😀\"" } + "\n" + "😀".repeat(4000)
+        val tokens = ReplyCodeHighlight.prepare(source, "kt")
+        val slices = ReplyCodeSlices.prepare(source, tokens)
+        assertTrue(slices.size > 1)
+        assertEquals(source, slices.joinToString("") { it.text })
+        assertTrue(slices.all { it.text.length <= 3200 })
+        assertTrue(slices.none { Character.isHighSurrogate(it.text.last()) || Character.isLowSurrogate(it.text.first()) })
+        for (slice in slices) for (token in slice.tokens) assertTrue(token.end <= slice.text.length)
+        assertEquals(tokens.sumOf { it.end - it.start }, slices.sumOf { s -> s.tokens.sumOf { it.end - it.start } })
+    }
+
     @Test fun rawTailChunksPreserveTextAndUnicodePairs() {
         val text = "a".repeat(TimelineReplyPages.TEXT_CHUNK - 1) + "😀" + "字".repeat(10000)
         val chunks = TimelineReplyPages.textChunks(text)
