@@ -219,9 +219,10 @@ fun CodexEmptyState(
     icon: CodexGlyph = CodexGlyph.Inbox,
     actionLabel: String? = null,
     onAction: () -> Unit = {},
-    artworkRes: Int? = if (icon == CodexGlyph.Inbox) R.drawable.ic_empty_content else null
+    artworkRes: Int? = if (icon == CodexGlyph.Inbox) R.drawable.ic_empty_content else null,
+    understated: Boolean = false
 ) {
-    val compact = rememberCodexViewport().height < 640.dp || codexEffectiveFontScale() > 1.3f
+    val compact = understated || rememberCodexViewport().height < 640.dp || codexEffectiveFontScale() > 1.3f
     Column(
         modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = if (compact) 10.dp else 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -229,7 +230,7 @@ fun CodexEmptyState(
     ) {
         if (artworkRes != null) {
             CodexStateArtwork(artworkRes, Modifier.size(width = if (compact) 88.dp else 128.dp,
-                height = if (compact) 64.dp else 96.dp))
+                height = if (compact) 52.dp else 96.dp))
         } else {
             Surface(
                 color = Ink.border.copy(alpha = .24f),
@@ -269,7 +270,7 @@ fun CodexRecoveryState(
     Column(modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         CodexEmptyState(
             title = title, description = description, icon = CodexGlyph.SyncProblem,
-            actionLabel = actionLabel, onAction = onAction, artworkRes = artworkRes
+            actionLabel = actionLabel, onAction = onAction, artworkRes = artworkRes, understated = true
         )
         if (onDiagnostics != null) {
             CodexTextAction(onClick = onDiagnostics, modifier = Modifier.heightIn(min = 48.dp)) {
@@ -365,13 +366,8 @@ fun CodexChoiceSheet(
     ) {
         Column(Modifier.fillMaxWidth().heightIn(max = atlasSheetHeight())
             .navigationBarsPadding().padding(horizontal = 20.dp)) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.headlineSmall,
-                    modifier = Modifier.weight(1f))
-                CodexIconAction(onClick = onDismiss, modifier = Modifier.size(48.dp)) {
-                    CodexIcon(CodexGlyph.Close, contentDescription = "关闭选择面板")
-                }
-            }
+            CodexPanelHeader(title, onDismiss, titleTag = "choice-title", closeTag = "choice-close",
+                closeDescription = "关闭选择面板", titleStyle = MaterialTheme.typography.headlineSmall)
             // Keep the existing title and large-directory navigator accessible.
             navigation()
             val listState = androidx.compose.foundation.lazy.rememberLazyListState()
@@ -438,9 +434,8 @@ fun CodexEvidenceSheet(
             Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
-            Text("查看本次操作的状态和实际输出",
-                style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+            CodexPanelHeader(title, onDismiss, titleTag = "evidence-title", closeTag = "evidence-close",
+                closeDescription = "关闭执行依据")
             Surface(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 color = Ink.panel,
@@ -452,6 +447,8 @@ fun CodexEvidenceSheet(
                         .verticalScroll(rememberScrollState()).padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
+                    Text("查看本次操作的状态和实际输出",
+                        style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
                     sections.forEach { (label, value) ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(label, Modifier.weight(1f), color = Ink.muted,

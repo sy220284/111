@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -200,12 +201,21 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
 }
 
 val LocalWorkPageTitle = compositionLocalOf { "" }
+internal val LocalWorkPageExplanation = compositionLocalOf<((String?) -> Unit)?> { null }
 
 /** 页面导语只保留标题；操作说明按需进入二级弹层。不再保留无效英文分类参数。 */
 @Composable
 fun SectionIntro(title: String, subtitle: String = "") {
     val showTitle = title != LocalWorkPageTitle.current
     var showExplanation by remember(title, subtitle) { mutableStateOf(false) }
+    val registerExplanation = LocalWorkPageExplanation.current
+    if (!showTitle && registerExplanation != null) {
+        DisposableEffect(registerExplanation, subtitle) {
+            registerExplanation(subtitle.takeIf { it.isNotBlank() })
+            onDispose { registerExplanation(null) }
+        }
+        return
+    }
     if (showTitle || subtitle.isNotBlank()) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             if (showTitle) {
