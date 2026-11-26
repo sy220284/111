@@ -14,6 +14,7 @@ import org.json.JSONObject
 @Composable
 internal fun NativeReplyMetadata(vm: CodexViewModel, thread: String, items: List<TimelineItem>,
     canOpenThread: Boolean) {
+    NativeSafetyReplyNotice(items)
     val records = remember(items) { items.flatMap(AsyncReplyContract::attributes) }
         .filterNot(AgentReplyContract::restricted)
     val citations = records.mapNotNull { it.optJSONObject("memoryCitation") }

@@ -7,16 +7,10 @@ import org.json.JSONObject
 internal object AgentReplyContract {
     private val metadataKeys = listOf("phase", "moderation", "delivery", "questions", "memoryCitation",
         "startedAtMs", "completedAtMs")
-    fun restricted(raw: JSONObject?): Boolean {
-        if (raw == null || raw.isNull("moderation")) return false
-        val moderation = raw.optJSONObject("moderation") ?: return true
-        val display = moderation.optJSONObject("display")
-        return if (display == null) moderation.optBoolean("moderated", true)
-            else display.optInt("version", -1) != 1 || display.optString("mode") != "show"
-    }
+    fun restricted(raw: JSONObject?): Boolean = SafetyReplyPresentation.parse(raw).restricted
     fun visibleText(raw: JSONObject): String =
         if (raw.optString("type") == "agentMessage" && restricted(raw))
-            "此回答受到运行核心的内容展示限制。"
+            SafetyReplyPresentation.parse(raw).replacement
         else if (raw.isNull("text")) "" else raw.optString("text")
 
     fun sanitize(raw: JSONObject): JSONObject {
@@ -36,7 +30,7 @@ internal object AgentReplyContract {
         val next = JSONObject((incoming.metadata() ?: JSONObject().put("type", "agentMessage").put("id", incoming.id)).toString())
         for (key in metadataKeys) if (next.isNull(key) && prior != null && !prior.isNull(key)) putMissing(next, prior, key)
         // A late incomplete snapshot cannot erase a previously applied restriction.
-        if (restricted(prior) && !restricted(next) && keepText && prior != null)
+        if (restricted(prior) && !restricted(next) && (keepText || incoming.status != "completed") && prior != null)
             next.put("moderation", prior.get("moderation"))
         val text = if (keepText) previous.text else incoming.text
         next.put("text", text)
