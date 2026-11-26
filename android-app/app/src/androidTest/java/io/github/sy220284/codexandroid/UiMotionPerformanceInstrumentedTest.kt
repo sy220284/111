@@ -97,6 +97,8 @@ class UiMotionPerformanceInstrumentedTest {
     @Test fun realNavigationFramesAndRepeatedGestures() {
         val samples = Collections.synchronizedList(mutableListOf<Pair<Long, Long>>())
         val phases = Collections.synchronizedList(mutableListOf<List<Long>>())
+        val navigationStage = java.util.concurrent.atomic.AtomicReference("startup")
+        val stageSamples = Collections.synchronizedList(mutableListOf<Pair<String, Long>>())
         val phaseIds = listOf(FrameMetrics.INPUT_HANDLING_DURATION, FrameMetrics.ANIMATION_DURATION,
             FrameMetrics.LAYOUT_MEASURE_DURATION, FrameMetrics.DRAW_DURATION, FrameMetrics.SYNC_DURATION,
             FrameMetrics.COMMAND_ISSUE_DURATION, FrameMetrics.SWAP_BUFFERS_DURATION, FrameMetrics.GPU_DURATION)
@@ -109,6 +111,7 @@ class UiMotionPerformanceInstrumentedTest {
             if (total > 0) {
                 samples.add(total to deadline)
                 phases.add(phaseIds.map { metrics.getMetric(it) })
+                stageSamples.add(navigationStage.get() to total)
             }
             lost.addAndGet(dropped)
         }
@@ -130,9 +133,12 @@ class UiMotionPerformanceInstrumentedTest {
                 attached = true
             }
             repeat(4) {
+                navigationStage.set("drawer_open")
                 physicalTap("打开侧边导航")
+                navigationStage.set("drawer_close_settings_entrance")
                 physicalTap("设置")
                 waitForLabel("设置", textOnly = true)
+                navigationStage.set("settings_back_chat_entrance")
                 instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
                 Thread.sleep(650)
                 waitForLabel("打开侧边导航", clickable = true)
@@ -171,6 +177,18 @@ class UiMotionPerformanceInstrumentedTest {
                 .put("p95_ms", sortedPhase[(kotlin.math.ceil(sortedPhase.size * .95).toInt() - 1).coerceAtLeast(0)] / 1_000_000.0))
         }
         report.put("phase_metrics", phaseReport)
+        // Callback-time stage labels are diagnostic only. All frames still
+        // determine the original, unchanged overall performance gate.
+        val stageReport = JSONObject()
+        synchronized(stageSamples) { stageSamples.toList() }.groupBy({ it.first }, { it.second })
+            .forEach { (stage, durations) ->
+                val ordered = durations.sorted()
+                stageReport.put(stage, JSONObject()
+                    .put("frames", ordered.size)
+                    .put("p95_ms", ordered[(kotlin.math.ceil(ordered.size * .95).toInt() - 1).coerceAtLeast(0)] / 1_000_000.0)
+                    .put("very_slow_frames", ordered.count { it > 100_000_000L }))
+            }
+        report.put("navigation_stage_metrics", stageReport)
         val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
         File(folder, "ui-motion-performance.json").writeText(report.toString(2))
         assertTrue("Insufficient rendered frame evidence: $report", values.size >= 12 && lost.get() == 0)
