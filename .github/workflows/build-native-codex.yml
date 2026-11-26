@@ -80,7 +80,11 @@ jobs:
             fi
             case "$RESULT" in
               0) echo "$ABI 复用已验证原生内核" ;;
-              3) MISSING="$(jq -c --arg abi "$ABI" --argjson missing "$MISSING" '$missing + map(select(.abi == $abi))' <<< "$ABI_MATRIX_JSON")" ;;
+              3)
+                TARGET="$(jq -r --arg abi "$ABI" '.[] | select(.abi==$abi) | .rust_target' <<< "$ABI_MATRIX_JSON")"
+                V8_KEY="$(python3 .github/scripts/v8_artifacts.py key --target "$TARGET")"
+                MISSING="$(jq -c --arg abi "$ABI" --arg key "$V8_KEY" --argjson missing "$MISSING" '$missing + map(select(.abi == $abi) + {v8_key:$key})' <<< "$ABI_MATRIX_JSON")"
+                ;;
               *) exit "$RESULT" ;;
             esac
           done
@@ -99,12 +103,72 @@ jobs:
             echo "只编译缺失或已改变的 ABI：$MISSING"
           fi
 
+  v8:
+    name: V8 官方源码产物 · ${{ matrix.abi }}
+    needs: [reuse, provider-contract]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}
+    concurrency:
+      group: android-v8-${{ matrix.v8_key }}
+      queue: max
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            /.github/scripts/
+            /.github/workflows/
+            /android-app/tools/prepare_android_v8.sh
+            /android-app/tools/adapt_android_v8_build.py
+            /upstream/codex/codex-rs/Cargo.lock
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: 配置 Android SDK/NDK
+        run: |
+          set -euo pipefail
+          TOOL="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          test -x "$TOOL"
+          "$TOOL" "ndk;27.2.12479018"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/27.2.12479018" >> "$GITHUB_ENV"
+      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+        with:
+          toolchain: "1.99.1"
+          targets: ${{ matrix.rust_target }}
+      - name: 回归独立 V8 凭证规则
+        run: python3 -m unittest discover -s .github/scripts -p test_v8_artifacts.py
+      - name: 查询同输入的已验收 V8 官方源码产物
+        id: restore
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/v8_artifacts.py restore --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 从官方源码编译 V8
+        if: steps.restore.outputs.restored == 'false'
+        run: bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+      - name: 独立核验完整 V8 文件、来源及构建输入
+        run: python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 发布本次已核验的 V8 二进制及来源凭证
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v8-binary-${{ matrix.v8_key }}
+          path: .android-v8-cache/${{ matrix.rust_target }}/*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
   native:
     name: 编译 ${{ matrix.abi }} 核心
     # Do not spend hours compiling Android binaries for a source revision that
     # has already failed the native host contract. A verified receipt also qualifies.
-    needs: [reuse, provider-contract]
-    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
+    needs: [reuse, provider-contract, v8]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && needs.v8.result == 'success' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     strategy:
@@ -178,8 +242,7 @@ jobs:
         with:
           workspaces: upstream/codex/codex-rs
           key: codex-android-${{ matrix.rust_target }}
-      # V8 raw cache has no independent trust anchor. Reuse only the already
-      # verified whole native artifact by exact source fingerprint on main.
+      # V8 comes only from the independently validated producer job.
       - name: 将 Android 平台接入上游现有 OpenSSL 源码编译配置
         shell: bash
         run: |
@@ -209,12 +272,13 @@ jobs:
           python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_realtime_privacy.py
           python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_realtime_privacy.py" \
             "$GITHUB_WORKSPACE/upstream/codex/codex-rs/codex-api/src/endpoint/realtime_websocket/methods.rs"
-      - name: 准备已核验的 Android V8 沙箱库
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash android-app/tools/prepare_android_v8.sh \
-            "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+      - name: 下载独立核验的 V8 官方源码产物
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: v8-binary-${{ matrix.v8_key }}
+          path: .android-v8-cache/${{ matrix.rust_target }}
+      - name: 核验 V8 产物字节、来源及本机编译输入
+        run: python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
       - name: 使用 Android Bionic 编译 App Server 与 Code Mode Host
         shell: bash
         run: |
@@ -374,7 +438,7 @@ jobs:
 
   verified:
     name: 原生核心统一验收
-    needs: [reuse, native, provider-contract]
+    needs: [reuse, native, provider-contract, v8]
     if: always()
     runs-on: ubuntu-latest
     outputs:
@@ -386,6 +450,7 @@ jobs:
           REUSE: ${{ needs.reuse.result }}
           REUSED: ${{ needs.reuse.outputs.reuse }}
           NATIVE: ${{ needs.native.result }}
+          V8: ${{ needs.v8.result }}
           TEST: ${{ needs.provider-contract.result }}
           PROVIDER_REUSED: ${{ needs.reuse.outputs.provider_reuse }}
           ARM: ${{ needs.reuse.outputs.arm_run_id }}
@@ -393,5 +458,5 @@ jobs:
           set -euo pipefail
           test "$REUSE" = success
           test -n "$ARM"
-          if [ "$REUSED" = true ]; then test "$NATIVE" = skipped; else test "$NATIVE" = success; fi
+          if [ "$REUSED" = true ]; then test "$NATIVE" = skipped; test "$V8" = skipped; else test "$NATIVE" = success; test "$V8" = success; fi
           if [ "$PROVIDER_REUSED" = true ]; then test "$TEST" = skipped; else test "$TEST" = success; fi

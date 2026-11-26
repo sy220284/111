@@ -147,7 +147,14 @@ class ArtifactSelector:
         signature = (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder,
                      v8_host_adapter, git_builder, native_recipe(workflow, abi))
         privacy = self.run(["git", "ls-tree", sha, "--", "android-app/tools/prepare_android_realtime_privacy.py"])
-        return signature + (privacy,) if privacy else signature
+        if privacy:
+            signature += (privacy,)
+        if "\n  v8:\n" in workflow:
+            from v8_artifacts import producer_recipe
+            signature += (producer_recipe(workflow),
+                          self.run(["git","ls-tree",sha,"--",".github/scripts/v8_artifacts.py"]),
+                          self.run(["git","ls-tree",sha,"--","upstream/codex/codex-rs/Cargo.lock"]))
+        return signature
 
     def test_signature(self, sha):
         upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex/codex-rs"])
