@@ -47,6 +47,7 @@ internal object SessionListPolicy {
 internal class SessionListController(private val vm: CodexViewModel, private val scope: CoroutineScope) {
     private val preferences = vm.getApplication<android.app.Application>()
         .getSharedPreferences("session-list-preferences", Context.MODE_PRIVATE)
+    val recentSearches = SessionSearchHistoryController(vm.getApplication<android.app.Application>(), scope)
     val pins = MutableStateFlow(preferences.getStringSet("pinned", emptySet()).orEmpty().toSet())
     val receipts = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val searching = MutableStateFlow(false)

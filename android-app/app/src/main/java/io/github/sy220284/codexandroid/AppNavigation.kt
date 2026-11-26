@@ -276,8 +276,11 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     var drawerWasOpen by remember { mutableStateOf(false) }
-    LaunchedEffect(drawerOwnsInput, status) {
-        if (drawerOwnsInput && status == EngineStatus.Connected) vm.sessions.refreshIfStale()
+    LaunchedEffect(drawer.isOpen, drawer.targetValue, status) {
+        if (drawer.isOpen && drawer.targetValue == DrawerValue.Open && status == EngineStatus.Connected)
+            vm.sessions.refreshIfStale()
+    }
+    LaunchedEffect(drawerOwnsInput) {
         if (!drawerOwnsInput && drawerWasOpen) {
             pendingThreadAction = null
             sidebarState.searching = false

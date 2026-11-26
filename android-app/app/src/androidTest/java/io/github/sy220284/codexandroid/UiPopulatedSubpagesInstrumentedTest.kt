@@ -319,7 +319,7 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 Column {
                     SidebarSessionsContent(
-                        all = sessions, connected = true, activeId = "ci-selected",
+                        ordered = SessionListPolicy.ordered(sessions, emptySet()), connected = true, activeId = "ci-selected",
                         running = false, switching = false, onOpenThread = {}
                     )
                 }
@@ -342,7 +342,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         var managed = ""
         rule.setContent {
             CodexTheme {
-                SidebarSessionsContent(all = records, connected = true, activeId = "session-130",
+                SidebarSessionsContent(ordered = SessionListPolicy.ordered(records, setOf("session-1")), connected = true, activeId = "session-130",
                     running = false, switching = false, onOpenThread = {},
                     pinned = setOf("session-1"), readStates = mapOf("session-1" to
                         JSONObject().put("firstUnread", JSONObject().put("type", "threadStart"))),
@@ -451,7 +451,7 @@ class UiPopulatedSubpagesInstrumentedTest {
             CodexTheme {
                 Column {
                     SidebarSessionsContent(
-                        all = entries, connected = true, activeId = "local",
+                        ordered = SessionListPolicy.ordered(entries, emptySet()), connected = true, activeId = "local",
                         running = false, switching = false, onOpenThread = {},
                         liveActivities = mapOf(
                             "remote-approval" to ThreadActivity.WaitingApproval,
@@ -478,7 +478,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.setContent {
             CodexTheme {
                 SidebarSessionsContent(
-                    all = entries, connected = true, activeId = "first",
+                    ordered = SessionListPolicy.ordered(entries, emptySet()), connected = true, activeId = "first",
                     running = true, switching = false,
                     onOpenThread = { opened = it }, onStopThread = { stopped = it },
                     liveExecutions = mapOf(
@@ -502,7 +502,7 @@ class UiPopulatedSubpagesInstrumentedTest {
         var stopped = ""
         rule.setContent {
             CodexTheme {
-                SidebarSessionsContent(all = listOf(row), connected = true, activeId = "current",
+                SidebarSessionsContent(ordered = listOf(row), connected = true, activeId = "current",
                     running = false, switching = true, onOpenThread = {},
                     onStopThread = { stopped = it },
                     liveExecutions = mapOf("running-other" to ThreadExecution(turnId = "turn-other")))

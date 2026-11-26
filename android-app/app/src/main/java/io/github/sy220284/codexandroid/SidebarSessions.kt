@@ -18,7 +18,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,10 +48,7 @@ internal fun SidebarSessions(
     continuationLabel: String? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
-    val context = LocalContext.current
-    var recentTitle by remember { mutableStateOf(RecentThreadSearches.load(context, false)) }
-    var recentFull by remember { mutableStateOf(RecentThreadSearches.load(context, true)) }
-    var historyError by remember { mutableStateOf("") }
+    val searchHistory by vm.sessions.recentSearches.state.collectAsState()
     val data by vm.data.collectEntries("sidebarThreads", "archivedThreads")
     val loading by vm.loading.collectProjection { it.intersect(setOf("sidebarThreads", "archivedThreads", "threadLibraryAction", "threadLibraryBulk")) }
     val errors by vm.errors.collectEntries("sidebarThreads", "archivedThreads", "threadLibraryAction", "threadLibraryBulk")
@@ -92,9 +88,6 @@ internal fun SidebarSessions(
     var managingSections by remember { mutableStateOf(false) }
     var moving by remember { mutableStateOf<Map<String, Set<String>>?>(null) }
     val response = data[if (state.archived) "archivedThreads" else "sidebarThreads"]
-    val rawRows = remember(section, state.fullText, response, sectionRows) {
-        if (section == null || state.fullText) records(response) else sectionRows.orEmpty()
-    }
     LaunchedEffect(section, state.archived, connected, sectionRevision) {
         val selected = section
         sectionRows = null
@@ -125,28 +118,15 @@ internal fun SidebarSessions(
     val query = state.search
     val archived = state.archived
     val fullText = state.fullText
-    val matching = remember(rawRows, answerVersions, fullText, archived, query, searchResult) {
-        if (fullText && query.isNotBlank())
-            searchResult?.takeIf { it.first == (archived to query.trim()) }?.second.orEmpty()
-        else if (fullText) emptyList() else {
-            val matchingRoots = rawRows.filter { SessionListPolicy.titleMatches(it, query) }
-                .mapTo(hashSetOf()) { answerVersions.root(SessionListPolicy.id(it)) }
-            rawRows.filter { answerVersions.root(SessionListPolicy.id(it)) in matchingRoots }
-        }
-    }
-    val remoteState = vm.conversationState.collectProjection { it.remote }
-    val remote = remoteState.value
-    val rows = remember(rawRows, matching, answerVersions, state.projectOnly, workspace, remote) {
-        answerVersions.rows(rawRows, matching).filter { row ->
-            if (!state.projectOnly) true
-            else {
-                val bound = vm.remoteBindings.forThread(SessionListPolicy.id(row))
-                if (remote != null) bound != null && bound.id == remote.id && bound.cwd == remote.cwd
-                else bound == null && row.optString("cwd") == workspace
-            }
-        }
-    }
-    val visiblePins = remember(pins, rows, answerVersions) { rows.map(SessionListPolicy::id).filter { answerVersions.root(it) in pins }.toSet() }
+    val remote by vm.conversationState.collectProjection { it.remote }
+    val accountRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val session by vm.bridge.connectedSession.collectAsState()
+    val directoryInput = SessionDirectoryInput(SessionDirectoryScope(session, accountRevision, section?.id,
+        fullText, archived, query, state.projectOnly, workspace, remote), response, sectionRows,
+        answerVersions, searchResult, pins)
+    val directory by collectSessionDirectory(vm, directoryInput)
+    val rows = if (directoryInput.available) directory?.getOrNull()?.rows.orEmpty() else emptyList()
+    val visiblePins = if (directoryInput.available) directory?.getOrNull()?.pinned.orEmpty() else emptySet()
     var selection by remember { mutableStateOf(false) }
     var selectedIds by remember { mutableStateOf(setOf<String>()) }
     var menu by remember { mutableStateOf<JSONObject?>(null) }
@@ -187,30 +167,22 @@ internal fun SidebarSessions(
             if (sectionError.isNotBlank()) CodexNotice(sectionError, NoticeTone.Error,
                 actionLabel = "重试", onAction = { sectionRevision++ })
             else if (sectionRows == null) AtlasOperationProgress("正在读取分组会话")
-            else if (rows.isEmpty()) Text("当前分组没有匹配会话", color = Ink.muted)
+            else if (directory?.isSuccess == true && rows.isEmpty()) Text("当前分组没有匹配会话", color = Ink.muted)
         }
         continuationLabel?.let { Text("选择会话后继续：$it", style = MaterialTheme.typography.labelMedium,
             modifier = Modifier.padding(8.dp)) }
         if (state.searching) {
             ClipboardQueryAction("使用剪贴板检索会话", state.search, onQuery = { term ->
                 state.search = term
-                try {
-                    if (state.fullText) recentFull = RecentThreadSearches.record(context, true, term)
-                    else recentTitle = RecentThreadSearches.record(context, false, term)
-                    historyError = ""
-                } catch (failure: Exception) { historyError = failure.message ?: "搜索记录保存失败" }
+                vm.sessions.recentSearches.record(state.fullText, term)
             }, onClear = { state.search = "" }, tag = "sidebar-clipboard-query")
             SidebarQueryFilters(state)
-            val recent = if (state.fullText) recentFull else recentTitle
+            val recent = if (state.fullText) searchHistory.full else searchHistory.title
             if (recent.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text("最近搜索", modifier = Modifier.weight(1f), style = MaterialTheme.typography.labelSmall)
                     CodexTextAction(onClick = {
-                        try {
-                            val cleared = RecentThreadSearches.clear(context, state.fullText)
-                            if (state.fullText) recentFull = cleared else recentTitle = cleared
-                            historyError = ""
-                        } catch (failure: Exception) { historyError = failure.message ?: "清除记录失败" }
+                        vm.sessions.recentSearches.clear(state.fullText)
                     }) { Text("清除记录") }
                 }
                 Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -221,9 +193,9 @@ internal fun SidebarSessions(
                     }
                 }
             }
-            if (historyError.isNotBlank()) ErrorText(historyError)
+            if (searchHistory.error.isNotBlank()) ErrorText(searchHistory.error)
             if (searchBusy && state.fullText && rows.isEmpty()) AtlasOperationProgress("正在搜索正文")
-            else if (state.search.isNotBlank() && rows.isEmpty() &&
+            else if (directory?.isSuccess == true && state.search.isNotBlank() && rows.isEmpty() &&
                 (!state.fullText || searchResult?.first == (state.archived to state.search.trim())))
                 Text("未找到匹配会话", style = MaterialTheme.typography.labelSmall, color = Ink.muted)
             if (state.fullText && searchError.isNotBlank())
@@ -236,7 +208,8 @@ internal fun SidebarSessions(
         }
         if (state.archived && response == null && "sidebarThreads" in loading)
             AtlasOperationProgress("正在读取归档会话")
-        SidebarSessionsContent(all = rows, modifier = Modifier.weight(1f).fillMaxWidth(),
+        directory?.exceptionOrNull()?.let { ErrorText(it.message ?: "会话目录处理失败") }
+        SidebarSessionsContent(ordered = rows, modifier = Modifier.weight(1f).fillMaxWidth(),
             connected = connected, activeId = activeId, running = running, switching = busy,
             onOpenThread = { id ->
                 val row = rows.firstOrNull { SessionListPolicy.id(it) == id }
@@ -337,7 +310,7 @@ internal fun SidebarSessions(
 
 @Composable
 internal fun SidebarSessionsContent(
-    all: List<JSONObject>, modifier: Modifier = Modifier, connected: Boolean,
+    ordered: List<JSONObject>, modifier: Modifier = Modifier, connected: Boolean,
     activeId: String?, running: Boolean, switching: Boolean, onOpenThread: (String) -> Unit,
     pendingApprovals: Int = 0, liveActivities: Map<String, ThreadActivity> = emptyMap(),
     liveExecutions: Map<String, ThreadExecution> = emptyMap(), onStopThread: (String) -> Unit = {},
@@ -347,7 +320,6 @@ internal fun SidebarSessionsContent(
     onLongPress: ((JSONObject) -> Unit)? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
-    val ordered = remember(all, pinned) { SessionListPolicy.ordered(all, pinned) }
     LazyColumn(state = state.scroll, modifier = modifier.fillMaxWidth().testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(3.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
         items(ordered, key = SessionListPolicy::id) { row ->
