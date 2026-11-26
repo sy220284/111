@@ -6,7 +6,7 @@ W = ROOT / ".github/workflows"
 class UnifiedScopeTests(unittest.TestCase):
     def test_single_ci_entry_and_complete_gate(self):
         ci = (W / "ci.yml").read_text()
-        for key in ("plan:", "native:", "static-ui:", "verify-ui:", "ui-emulator:", "ui-evidence:", "build:", "runtime-test:", "verify-apk:", "preflight:", "release-signing-smoke:", "compatibility:", "quality:"):
+        for key in ("plan:", "native:", "static-ui:", "verify-ui:", "ui-emulator:", "ui-collect:", "ui-evidence:", "build:", "runtime-test:", "verify-apk:", "preflight:", "release-signing-smoke:", "compatibility:", "quality:"):
             self.assertIn("  " + key, ci)
         self.assertIn("name: 111 合并验收", ci)
         self.assertIn("python3 .github/scripts/ci_gate.py", ci)
@@ -18,6 +18,10 @@ class UnifiedScopeTests(unittest.TestCase):
         self.assertIn("--mode ${{ matrix.mode }}", ci)
         self.assertIn("pattern: ui-proof-*", ci)
         self.assertIn("needs: [plan, ui-emulator]", ci)
+        self.assertIn("needs: [plan, ui-collect]", ci)
+        self.assertIn("needs.ui-collect.result == 'failure'", ci)
+        self.assertIn("--shard ${{ matrix.shard }}", ci)
+        self.assertIn("pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*", ci)
         self.assertEqual(3, ci.count("needs: [plan, static-ui, preflight]"))
         self.assertIn("needs.ui-emulator.result == 'failure'", ci)
         self.assertIn("保存供全矩阵核对的小型验收凭证\n        if: always()", ci)

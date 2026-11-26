@@ -43,11 +43,24 @@ def digest(path):
 
 def fetch(url, sha, directory):
     path = directory / url.rsplit("/", 1)[-1]
-    if not path.is_file():
-        subprocess.run(["curl", "--fail", "--location", "--retry", "3", "--proto", "=https",
-                        "--proto-redir", "=https", url, "-o", str(path)], check=True)
-    if digest(path) != sha:
-        raise ValueError(f"Digest mismatch: {url}")
+    if path.is_file():
+        if digest(path) != sha:
+            raise ValueError(f"Digest mismatch: {url}")
+        return path
+    # A TLS handshake failure (curl 35) is not covered by the default retry
+    # set. Retry bounded transport failures without changing the source pin.
+    partial = path.with_name(path.name + ".partial")
+    try:
+        subprocess.run(["curl", "--fail", "--location", "--retry", "3",
+                        "--retry-all-errors", "--connect-timeout", "30",
+                        "--max-time", "600", "--retry-max-time", "900",
+                        "--proto", "=https", "--proto-redir", "=https",
+                        url, "-o", str(partial)], check=True)
+        if digest(partial) != sha:
+            raise ValueError(f"Digest mismatch: {url}")
+        partial.replace(path)
+    finally:
+        partial.unlink(missing_ok=True)
     return path
 
 def relative(name):
