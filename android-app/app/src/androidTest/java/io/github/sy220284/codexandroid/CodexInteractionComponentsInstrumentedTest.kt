@@ -1143,6 +1143,7 @@ class CodexInteractionComponentsInstrumentedTest {
             context = androidx.compose.ui.platform.LocalContext.current
             CodexTheme { NativeMessageMarkdown("| A | B |\n| --- | --- |\n| 排除 | 保留 |") }
         }
+        rule.waitUntil(10_000) { rule.onAllNodesWithTag("message-table-select").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("message-table-select").performClick()
         rule.onNodeWithTag("message-table-cell-1-1").performClick()
         rule.onNodeWithTag("message-table-cell-1-1").performClick()

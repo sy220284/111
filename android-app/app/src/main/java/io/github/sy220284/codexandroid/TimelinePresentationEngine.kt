@@ -28,17 +28,22 @@ internal fun collectTimelinePresentation(vm: CodexViewModel, thread: String?,
     hasEarlier: Boolean): State<TimelinePresentation?> {
     val frame = vm.conversationState.collectFrameState(thread)
     val earlier by rememberUpdatedState(hasEarlier)
-    return key(vm, thread) {
-        produceCodexUiState<TimelinePresentation?>(null, vm, thread) {
+    val session by vm.bridge.connectedSession.collectAsState()
+    val account by vm.catalogWarmup.accountRevision.collectAsState()
+    return key(vm, thread, session, account) {
+        produceCodexUiState<TimelinePresentation?>(null, vm, thread, session, account) {
             val engine = TimelinePresentationEngine()
             snapshotFlow { frame.value to earlier }.conflate().collect { (snapshot, older) ->
                 if (snapshot.threadId != thread) value = null
                 else {
+                    val epoch = vm.timelineEpoch
                     val prepared = withContext(Dispatchers.Default) { engine.project(snapshot, older) }
-                    // Do not present a previous owner if selection changed during preparation.
-                    if (vm.conversationState.value.threadId == thread) {
+                    fun owns() = vm.conversationState.value.threadId == thread &&
+                        vm.timelineEpoch == epoch && vm.bridge.connectedSession.value == session &&
+                        vm.catalogWarmup.accountRevision.value == account
+                    if (owns()) {
                         withFrameNanos { }
-                        if (vm.conversationState.value.threadId == thread) value = prepared
+                        if (owns()) value = prepared
                     } else value = null
                 }
             }

@@ -10,11 +10,11 @@ import androidx.compose.ui.platform.testTag
 /** Read actual CLI versions using the existing local command RPC; no download or install. */
 @Composable
 internal fun DeveloperToolStatus(vm: CodexViewModel) {
-    val data by vm.data.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val engine by vm.bridge.status.collectAsState()
     val key = "developerToolStatus"
+    val data by vm.data.collectEntries(key)
+    val loading by vm.loading.collectProjection { it.intersect(setOf(key)) }
+    val errors by vm.errors.collectEntries(key)
+    val engine by vm.bridge.status.collectAsState()
     val session by vm.bridge.connectedSession.collectAsState()
     var checkedSession by remember { mutableStateOf<Long?>(null) }
     var details by remember { mutableStateOf(false) }
