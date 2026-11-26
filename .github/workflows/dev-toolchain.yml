@@ -21,10 +21,6 @@ permissions:
   contents: read
   actions: read
 
-concurrency:
-  group: 111-dev-toolchain-${{ github.ref }}
-  cancel-in-progress: false
-
 jobs:
   maven-metadata-audit:
     name: Maven Central 缺失元数据独立摘要审查
@@ -75,6 +71,9 @@ jobs:
 
   android:
     name: 111 专用 JDK、Android SDK、Gradle 离线依赖
+    concurrency:
+      group: 111-dev-toolchain-android-${{ github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 80
     steps:
@@ -187,6 +186,9 @@ jobs:
 
   rust:
     name: Rust 1.99.1 双 ABI 工具及 Cargo 离线依赖
+    concurrency:
+      group: 111-dev-toolchain-${{ github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
