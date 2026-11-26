@@ -61,28 +61,6 @@ def find_acceptance(repo: str, sha: str, workflow: str, branch: str = "main") ->
     return None
 
 
-def accepted_package_run(repo: str, sha: str) -> int:
-    """Return the actual verified package producer, including validated reuse."""
-    run_id = find_acceptance(repo, sha, "ci.yml")
-    if run_id is None:
-        raise ValueError("No accepted main CI for ARM64 cloud testing")
-    with tempfile.TemporaryDirectory() as folder:
-        subprocess.run(["gh", "run", "download", str(run_id), "--repo", repo,
-                        "--name", "ci-acceptance-receipt", "--dir", folder], check=True)
-        receipt = json.loads((Path(folder)/"ci-acceptance-receipt.json").read_text())
-    if set(receipt["required"]) != FULL_GROUPS:
-        raise ValueError("Incomplete main CI receipt")
-    actual = validate(repo, receipt, sha, FULL_GROUPS)
-    owner = run_id if "package" in actual else receipt["reused"]["package"]["run_id"]
-    from ci_reuse import ARTIFACTS
-    jobs = gh_json(["api", f"repos/{repo}/actions/runs/{owner}/jobs?per_page=100"])["jobs"]
-    artifacts = gh_json(["api", f"repos/{repo}/actions/runs/{owner}/artifacts?per_page=100"])["artifacts"]
-    available = {a["name"] for a in artifacts if not a["expired"] and a.get("size_in_bytes", 0)>0}
-    if not JOB_NAMES["package"] <= successful_names(jobs) or not ARTIFACTS["package"] <= available:
-        raise ValueError("Accepted ARM64 debug and instrumentation packages unavailable")
-    return owner
-
-
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repo", required=True)

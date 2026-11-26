@@ -58,22 +58,8 @@ Android 17 的运行时镜像包固定为 `system-images;android-37.2;google_api
 
 静态审计统一由 `android-app/tools/run_static_audit.py` 调度：协议、功能、设计三个入口共享一次源码及协议索引；原有规则、报告和负向回归测试全部保留。`static-audit-summary.json` 记录各类别结果，任意类别异常均阻断验收。禁止将静态源码通过作为真实设备或真实内核通过的证据。
 
-## 四层测试体系及基础设施状态
+## 零额外云设备费用的测试体系
 
-- 完整 CI：八台 x86_64 UI 模拟器、独立 x86_64 真实内核模拟器，均沿用4核、8GiB、Android 17与16KiB页大小。所有实质变更必须具有两类真实验收证据，允许现有经过验证的输入级复用。
-- 正式发布仍须经过既有 ARM64 实体手机、签名及覆盖安装、真实账号、远端工作区、权限、异常恢复门禁，不得以 x86 模拟器替代。
-- 计划新增 ARM64 原生 Cuttlefish 虚拟设备，使用独立 ARM64 主机、KVM、Android 17 ARM64 16KiB镜像，4核8GiB；运行真实内核/开发工具/网络与恢复测试及正式签名 APK 安装启动。普通 GitHub ARM64 Runner 的 KVM 不能假定可用，须先实际核验专用设备或经过授权的云服务；目前虚拟设备基础设施和发布接入均尚未完成，不能计为已验收。
-
-## ARM64 云设备落地（Google Developer Device Platform）
-
-官方 DDP 设备目录已列出 `mediumphone-ps16k-arm-37`，原生 ARM64、Android 17、16KiB 页。以该云端原生设备替代缺少 KVM 的普通 GitHub ARM64 Runner；云平台负责 CPU/RAM 分配，不能承诺与本地 4 核 8GiB 完全相同。Firebase Test Lab 2027-09-30 关停，不作为新架构长期依赖。Genymotion 当前仅支持至 Android 16，不能满足本轮严格版本要求。
-
-日常 CI 仍是八台 x86_64 UI 分流和一台真实内核模拟器。正式发布阶段，在签名候选生成后，云端 ARM64 与既有实体机验收并行。云设备使用 CI 已验收 ARM64 debug APK 与 instrumentation APK，不重新构建同类包；运行原有 CoreStartup、RuntimeOwnership 全部测试及新增架构/内存页契约。校验云端 session、单设备、真实 JUnit 全量身份和源 SHA，关联正式签名候选摘要；真实签名安装、真实账号、远端工作区、覆盖安装及权限仍由原实体机验收，不把 debug 云测当成正式签名安装。发布前再检查云端和实体证据。缺失授权、配额不足或测试失败一律保留候选、阻断公开。
-
-一次性配置（由拥有 Google Cloud 与 GitHub 管理权限的管理员完成）：
-1. 创建或选择专用 Google Cloud 项目，确认费用政策并授权后启用 Device Run、Device Streaming、Cloud Testing API；创建私有结果存储桶及限制作用域的测试服务账号。DDP 当前预览要求启用账单，不自动购买或开启账单。按官方权限文档授予运行测试、读写指定私有结果桶所需权限，设置费用与存储生命周期限制。
-2. GitHub 创建受保护环境 `arm64-cloud`，仅允许 main 正式发布，配置 `ARM64_CLOUD_PROJECT`、`ARM64_CLOUD_BUCKET`（仅桶名）、`ARM64_CLOUD_IDENTITY_PROVIDER`、`ARM64_CLOUD_SERVICE_ACCOUNT`。采用 GitHub OIDC / Workload Identity Federation，限定仓库、main、正式发布工作流及受保护环境；不提交长期密钥，不向公开 PR 提供云端身份。
-3. 确认项目权限、设备目录、实际配额及账单授权后，仓库管理员设置 `ARM64_CLOUD_READY=true`。未设置时云设备不启动，正式发布明确阻断。GitHub 原生 ARM64 host 与独立 KVM Runner 不再是必需前提。真机仍须独立具备原 `111-release-device` 及 `ARM64_RELEASE_RUNNER_READY`。
-4. 首次运行须回读 DDP session 与 JUnit 结果。云端测试时限 45 分钟，不自动重试、不额外扩容，避免无意义费用。一次成功记录后才登记实际通过。
-
-官方资料： https://docs.cloud.google.com/developer-device-platform/device-catalog 、https://docs.cloud.google.com/developer-device-platform/quickstart 、https://docs.cloud.google.com/developer-device-platform/device-run/android-instrument 、https://docs.cloud.google.com/developer-device-platform/device-run/find-logs 。当前代码接入待云账户授权及实测，未登记真实通过。
+- 日常完整 CI：八台 x86_64 UI 模拟器和一台 x86_64 真实内核模拟器，统一 Android 17、4核、8GiB 内存、16KiB 页大小，全部适用用例及门禁保留。公开仓库使用现有 GitHub 标准 Linux Runner；只复用验证通过的同输入证据。
+- 正式发布：沿用 ARM64 实体手机与专用 Runner 的真实签名安装、升级、账号、远端工作区、权限及异常恢复验收。实体设备未就绪则保留候选并阻断公开，不能用 x86 模拟器替代。
+- 取消收费 Google Developer Device Platform 原生云设备方案；源码中不保留云端调度、认证、专用测试与发布依赖，不配置云账单或云资源。ARM64 原生虚拟设备暂不接入、不计入已完成验收；后续仅在确认无额外费用且满足 Android 17、ARM64、16KiB 要求后再评估。当前共九台 CI 模拟器，另有独立实体机发布门禁，不要求付费云环境。

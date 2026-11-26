@@ -34,8 +34,6 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
-    @org.junit.Before fun prepareCloudDevice() = CloudArm64RuntimeEnvironment.prepare()
-
     @Test fun nativeFeatureDirectoryAndPersistentSwitchRoundTrip() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val config = File(app.filesDir, "codex-home/config.toml")

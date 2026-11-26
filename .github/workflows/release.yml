@@ -46,7 +46,6 @@ jobs:
       release_sha: ${{ steps.detect.outputs.release_sha }}
       previous_tag: ${{ steps.detect.outputs.previous_tag }}
       native_run_id: ${{ steps.detect.outputs.native_run_id }}
-      package_run_id: ${{ steps.detect.outputs.package_run_id }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -153,8 +152,6 @@ jobs:
           VERSION="$BASE-111.$((10#$SEQUENCE))"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "version_code=$((10#$SEQUENCE))" >> "$GITHUB_OUTPUT"
-          PACKAGE_ID="$(PYTHONPATH=.github/scripts python3 -c 'import sys; from verify_release_acceptance import accepted_package_run; print(accepted_package_run(sys.argv[1], sys.argv[2]))' "$GITHUB_REPOSITORY" "$RELEASE_SHA")"
-          echo "package_run_id=$PACKAGE_ID" >> "$GITHUB_OUTPUT"
           echo "should_release=true" >> "$GITHUB_OUTPUT"
           echo "准备发布 $RELEASE_SHA -> v$VERSION"
 
@@ -321,95 +318,6 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/111-release.keystore"
 
-  cloud-ready:
-    name: ARM64 原生云设备授权与基础设施检查
-    needs: [check-release, release]
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true' && needs.release.result == 'success' }}
-    runs-on: ubuntu-latest
-    steps:
-      - name: 检查管理员已明确启用云设备
-        env:
-          READY: ${{ vars.ARM64_CLOUD_READY }}
-        run: |
-          if [ "$READY" != true ]; then
-            echo "::error::尚未授权 Google Cloud ARM64 设备测试；保留签名候选并阻断公开"
-            exit 1
-          fi
-
-  cloud-virtual:
-    name: Android 17 ARM64 原生云设备内核验收
-    needs: [check-release, release, cloud-ready]
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.cloud-ready.result == 'success' }}
-    environment: arm64-cloud
-    runs-on: ubuntu-latest
-    timeout-minutes: 75
-    permissions:
-      contents: read
-      actions: read
-      id-token: write
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          ref: ${{ needs.check-release.outputs.release_sha }}
-          persist-credentials: false
-      - uses: actions/download-artifact@v4
-        with:
-          name: release-candidate
-          path: candidate
-      - uses: actions/download-artifact@v4
-        with:
-          name: codex-android-arm64-apk
-          run-id: ${{ needs.check-release.outputs.package_run_id }}
-          github-token: ${{ github.token }}
-          path: cloud-debug
-      - uses: actions/download-artifact@v4
-        with:
-          name: codex-android-instrumentation-apk
-          run-id: ${{ needs.check-release.outputs.package_run_id }}
-          github-token: ${{ github.token }}
-          path: cloud-test
-      - uses: actions/download-artifact@v4
-        with:
-          name: codex-android-arm64-apk-audit
-          run-id: ${{ needs.check-release.outputs.package_run_id }}
-          github-token: ${{ github.token }}
-          path: cloud-audit
-      - name: 验证输入及项目配置
-        env:
-          PROJECT: ${{ vars.ARM64_CLOUD_PROJECT }}
-          BUCKET: ${{ vars.ARM64_CLOUD_BUCKET }}
-          PROVIDER: ${{ vars.ARM64_CLOUD_IDENTITY_PROVIDER }}
-          SERVICE_ACCOUNT: ${{ vars.ARM64_CLOUD_SERVICE_ACCOUNT }}
-        run: |
-          set -euo pipefail
-          test -n "$PROJECT" && test -n "$BUCKET" && test -n "$PROVIDER" && test -n "$SERVICE_ACCOUNT"
-          python3 .github/scripts/audit_apk_contents.py --apk cloud-debug/app-arm64-v8a-debug.apk --abi arm64-v8a --mode full --verify-report cloud-audit/arm64-apk-audit.json
-          (cd candidate && sha256sum -c SHA256SUMS.txt)
-      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
-        with:
-          workload_identity_provider: ${{ vars.ARM64_CLOUD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.ARM64_CLOUD_SERVICE_ACCOUNT }}
-          project_id: ${{ vars.ARM64_CLOUD_PROJECT }}
-      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
-        with:
-          install_components: beta
-      - name: 执行原生 ARM64 设备上的内核与开发工具测试
-        env:
-          SOURCE: ${{ needs.check-release.outputs.release_sha }}
-          PACKAGE_RUN: ${{ needs.check-release.outputs.package_run_id }}
-          VERSION: ${{ needs.check-release.outputs.version }}
-          PROJECT: ${{ vars.ARM64_CLOUD_PROJECT }}
-          BUCKET: ${{ vars.ARM64_CLOUD_BUCKET }}
-        run: |
-          python3 .github/scripts/run_arm64_cloud.py run --sha "$SOURCE" --package-run "$PACKAGE_RUN" --project "$PROJECT" --bucket "$BUCKET" --app cloud-debug/app-arm64-v8a-debug.apk --test cloud-test/app-debug-androidTest.apk --signed "candidate/codex-android-arm64-v8a-$VERSION.apk" --output cloud-evidence
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: release-arm64-cloud-evidence
-          path: cloud-evidence/
-          if-no-files-found: error
-          retention-days: 30
-
   device-ready:
     name: ARM64 专用设备基础设施检查
     needs: [check-release, release]
@@ -462,8 +370,8 @@ jobs:
 
   publish:
     name: 远端回读后正式公开
-    needs: [check-release, release, device, cloud-virtual]
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.device.result == 'success' && needs.cloud-virtual.result == 'success' }}
+    needs: [check-release, release, device]
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.device.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -486,20 +394,11 @@ jobs:
         with:
           name: release-device-evidence
           path: device-evidence
-      - uses: actions/download-artifact@v4
-        with:
-          name: release-arm64-cloud-evidence
-          path: cloud-evidence
-      - name: 验证云端内核与实体机测试属于同一发布候选
-        env:
-          SOURCE: ${{ needs.check-release.outputs.release_sha }}
-          PACKAGE_RUN: ${{ needs.check-release.outputs.package_run_id }}
-          VERSION: ${{ needs.check-release.outputs.version }}
+      - name: 验证最终设备测试对应同一 APK
         run: |
           set -euo pipefail
           (cd .release-assets && sha256sum -c SHA256SUMS.txt)
           sha256sum -c device-evidence/candidate.sha256
-          python3 .github/scripts/run_arm64_cloud.py verify --sha "$SOURCE" --package-run "$PACKAGE_RUN" --signed ".release-assets/codex-android-arm64-v8a-$VERSION.apk" --output cloud-evidence
       - name: 发布前再次核对 main 客户端源码
         shell: bash
         env:
@@ -520,7 +419,7 @@ jobs:
 
   release-result:
     name: 正式发布闭环验收
-    needs: [check-release, release, device-ready, device, cloud-ready, cloud-virtual, publish]
+    needs: [check-release, release, device-ready, device, publish]
     # A selected candidate must never produce a green run without publication.
     if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true' }}
     runs-on: ubuntu-latest
@@ -531,14 +430,12 @@ jobs:
           SIGNED: ${{ needs.release.result }}
           DEVICE_READY: ${{ needs.device-ready.result }}
           DEVICE: ${{ needs.device.result }}
-          CLOUD_READY: ${{ needs.cloud-ready.result }}
-          CLOUD: ${{ needs.cloud-virtual.result }}
           PUBLISHED: ${{ needs.publish.result }}
         run: |
           set -eu
-          for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$CLOUD_READY" "$CLOUD" "$PUBLISHED"; do
+          for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$PUBLISHED"; do
             if [ "$status" != success ]; then
-              echo "::error::正式候选未完成完整发布链：签名=$SIGNED 设备就绪=$DEVICE_READY 真机=$DEVICE 云设备就绪=$CLOUD_READY 云设备=$CLOUD 公开=$PUBLISHED"
+              echo "::error::正式候选未完成完整发布链：签名=$SIGNED 设备就绪=$DEVICE_READY 真机=$DEVICE 公开=$PUBLISHED"
               exit 1
             fi
           done
