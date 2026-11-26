@@ -76,10 +76,7 @@ class UiMotionPerformanceInstrumentedTest {
         }
         if (root != null) try { describe(root, 0) } finally { root.recycle() }
         File(folder, "ui-motion-failure.txt").writeText(evidence.toString())
-        instrumentation.uiAutomation.takeScreenshot()?.let { bitmap ->
-            try { File(folder, "ui-motion-failure.png").outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) } }
-            finally { bitmap.recycle() }
-        }
+        captureFailureDisplayScreenshot("ui-motion-failure.png")
         throw AssertionError("Actual accessibility label did not become visible: $label; $evidence")
     }
 

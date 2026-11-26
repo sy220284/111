@@ -84,3 +84,16 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
         }
     } finally { image.recycle() }
 }
+
+/** Raw diagnostic only: retain overlays causing failure; never accepted as successful UI evidence. */
+internal fun captureFailureDisplayScreenshot(fileName: String) {
+    require(fileName.endsWith("-failure.png")) { "失败诊断须独立命名" }
+    val instrumentation = InstrumentationRegistry.getInstrumentation()
+    val image = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) { "无法保存失败画面" }
+    try {
+        val directory = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+        File(directory, fileName).outputStream().use {
+            check(image.compress(Bitmap.CompressFormat.PNG, 100, it)) { "无法写入失败画面" }
+        }
+    } finally { image.recycle() }
+}
