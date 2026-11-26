@@ -149,6 +149,9 @@ class ArtifactSelector:
         privacy = self.run(["git", "ls-tree", sha, "--", "android-app/tools/prepare_android_realtime_privacy.py"])
         if privacy:
             signature += (privacy,)
+        remote_delivery = self.run(["git", "ls-tree", sha, "--", "android-app/tools/prepare_android_remote_delivery.py"])
+        if remote_delivery:
+            signature += (remote_delivery,)
         if "\n  v8:\n" in workflow:
             from v8_artifacts import producer_recipe
             signature += (producer_recipe(workflow),

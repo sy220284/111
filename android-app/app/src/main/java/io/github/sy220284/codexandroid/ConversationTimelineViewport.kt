@@ -53,6 +53,7 @@ internal fun ConversationTimelineViewport(
     var outlineOpen by remember(thread) { mutableStateOf(false) }
     var headingTarget by remember(thread) { mutableStateOf<ReplyHeadingEntry?>(null) }
     var filePreview by remember(thread) { mutableStateOf<ModelPreviewRequest?>(null) }
+    var remoteDelivery by remember(thread) { mutableStateOf<RemoteDeliveryRequest?>(null) }
     var anchorKey by remember(thread) { mutableStateOf<String?>(null) }
     var anchorOffset by remember(thread) { mutableIntStateOf(0) }
     val mutatingHistory by vm.loading.collectProjection {
@@ -209,10 +210,12 @@ internal fun ConversationTimelineViewport(
                 }
                 val version = message?.let { item -> thread?.let { answerVersions.choice(it, item.turnId) } }
                 val heading = headingTarget?.takeIf { it.rowKey == row.key }
-                val openFile: ((String) -> Unit)? = if (thread != null && frame.remote == null && connected) { path ->
+                val openFile: ((String) -> Unit)? = if (thread != null && connected) { path ->
                     val epoch = vm.bridge.connectedSession.value
                     if (epoch != null && vm.activeThread.value == thread) {
-                        filePreview = ModelPreviewRequest("reply-file:" + row.key, thread, epoch,
+                        val remote = frame.remote
+                        if (remote != null) remoteDelivery = RemoteDeliveryRequest(thread, remote, path, epoch, vm.catalogWarmup.accountRevision.value)
+                        else filePreview = ModelPreviewRequest("reply-file:" + row.key, thread, epoch,
                             vm.catalogWarmup.accountRevision.value, frame.workspace, path, null)
                     }
                 } else null
@@ -298,6 +301,7 @@ internal fun ConversationTimelineViewport(
                 }
             } }, confirmButton = { CodexTextAction(onClick = { outlineOpen = false }) { Text("关闭") } })
     }
+    remoteDelivery?.let { request -> NativeRemoteDeliveryDialog(vm, request) { remoteDelivery = null } }
     filePreview?.let { preview -> ModelDocumentDialog(preview, java.io.File(vm.workingDirectory)) { filePreview = null } }
     turnAction?.let { (item, action) ->
         val clientId = items.firstOrNull { it.turnId == item.turnId && it.kind in setOf("user", "userMessage") }
