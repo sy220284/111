@@ -124,6 +124,8 @@ internal fun RealtimeVoiceSheet(
         if (controller.error.isNotBlank()) CodexNotice(controller.error, NoticeTone.Error)
         CapabilityFeedback(operation)
         if (idle) {
+            Text("开始后麦克风音频会通过当前会话的实时语音服务传输，语音文字可能保存在会话历史中。请确认当前服务商及其数据保留规则。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             CodexPrimaryButton(onClick = {
                 if (ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
                     PackageManager.PERMISSION_GRANTED) {

@@ -41,8 +41,10 @@ run_suite CoreStartupInstrumentedTest "$OUT/core.log"
 adb shell am force-stop "$PKG"
 adb shell am start -W -n "$PKG/.MainActivity"
 run_suite RuntimeOwnershipInstrumentedTest "$OUT/ownership.log"
+adb logcat -d -s CodexIsolationProbe:I '*:S' > "$OUT/isolation-capabilities.log"
+grep -Fq 'privateRead=false privateWrite=false networkConnected=false' "$OUT/isolation-capabilities.log"
 cat "$OUT/core.log" "$OUT/ownership.log" > "$OUT/instrumentation.log"
-for NAME in bundledDeveloperToolsActuallyExecute bundledDeveloperPackagesAndHttpsUseRealCore realNetworkFailureAndTimeoutRecoverOnSameCore bundledCoreReportsAndroidCodeModeDefault bundledCoreInitializesAndAnswersAccountRead nativeCoreDiscoversAndCallsAndroidPreviewMcp realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange androidPtySupportsInteractiveInputAndResize terminalLongRunningProcessCanBeStoppedByProcessId foregroundServiceReportsReadyOnlyAfterAndroidPromotion; do
+for NAME in bundledDeveloperToolsActuallyExecute bundledDeveloperPackagesAndHttpsUseRealCore realNetworkFailureAndTimeoutRecoverOnSameCore bundledCoreReportsAndroidCodeModeDefault bundledCoreInitializesAndAnswersAccountRead nativeCoreDiscoversAndCallsAndroidPreviewMcp realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange androidPtySupportsInteractiveInputAndResize terminalLongRunningProcessCanBeStoppedByProcessId foregroundServiceReportsReadyOnlyAfterAndroidPromotion legacyBackupRestoresHistoryWithoutChangingRuntimeConfiguration realAnswerSnapshotSurvivesPortableRestore isolatedProcessHasSeparateUidAndDeniesUnbrokeredAccess portableArchiveRoundTripPreservesProjectsDraftsAttachmentsAndHistory; do
   grep -Fq "test=$NAME" "$OUT/instrumentation.log"
 done
 echo "真实 Android 内核、故障恢复、终端和前台服务回执通过" | tee "$OUT/result.txt"

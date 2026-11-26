@@ -62,7 +62,7 @@ def native_recipe(workflow, abi=None):
         raise SelectionError("原生构建工作流缺少 native 作业")
     job = workflow.split(marker, 1)[1]
     start = re.search(r"(?m)^    runs-on:", job)
-    end = re.search(r"(?m)^      - name: 上传原生内核与构建清单\s*$", job)
+    end = re.search(r"(?m)^      - name: 上传原生内核(?:与构建清单|二进制)\s*$", job)
     if not start or not end or start.start() >= end.start():
         raise SelectionError("无法识别原生编译配置边界；需核对后再复用")
     recipe = job[start.start():end.start()].strip()

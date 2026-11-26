@@ -27,11 +27,15 @@
       ".github/scripts/prepare-android-patcher.sh",
       ".github/scripts/prepare-release-assets.sh",
       ".github/scripts/verify_git_corresponding_source.py",
-      ".github/release-version"
+      ".github/release-version",
+      "android-app/gradlew",
+      "android-app/gradlew.bat",
+      "android-app/app/gradle.lockfile"
     ],
     "prefixes": [
       "android-app/app/src/main/",
-      "android-app/app/src/release/"
+      "android-app/app/src/release/",
+      "android-app/gradle/"
     ]
   },
   "acceptance": {
@@ -74,7 +78,25 @@
       "android-app/gradle/wrapper/gradle-wrapper.jar",
       "android-app/gradle/wrapper/gradle-wrapper.properties",
       ".github/workflows/build-native-codex.yml",
-      ".github/scripts/audit_apk_contents.py"
+      ".github/scripts/audit_apk_contents.py",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/BackupDataPolicy.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/LocalDataArchive.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/LocalRestoreTransaction.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/TerminalSessionContract.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/TerminalCommandPolicy.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/DeveloperToolStatus.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeVoiceController.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeVoiceLease.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/DomesticProviderCredentials.kt",
+      "android-app/tools/prepare_android_realtime_privacy.py",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/AnswerCheckpointFormat.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/BackupCheckpointValidation.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/AnswerWorkspaceStore.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/OwnedRpcRequestController.kt",
+      "android-app/app/src/debug/java/io/github/sy220284/codexandroid/CiIsolationProbeService.kt",
+      "android-app/app/src/debug/AndroidManifest.xml",
+      "android-app/app/gradle.lockfile",
+      "android-app/gradle/verification-metadata.xml"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",

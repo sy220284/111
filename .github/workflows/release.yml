@@ -192,6 +192,12 @@ jobs:
           test -x "$SDK_MANAGER"
           "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
 
+      - name: 阻断未经审查的依赖基线
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s android-app/app/gradle.lockfile
+          test -s android-app/gradle/verification-metadata.xml
       - name: 校验正式签名材料
         shell: bash
         env:
@@ -257,7 +263,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease --dependency-verification strict \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName="${{ needs.check-release.outputs.version }}" \

@@ -453,8 +453,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("本次命令允许联网", style = MaterialTheme.typography.bodyMedium)
-                        Text("下载、依赖安装等操作按需开启", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                        Text("请求本次命令联网", style = MaterialTheme.typography.bodyMedium)
+                        Text("下载、依赖安装等操作按需开启；系统级联网限制尚未验证", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                     }
                     WhiteSwitch(checked = allowNetwork, onCheckedChange = { allowNetwork = it },
                         enabled = !session.running && !terminalStarting)
@@ -482,7 +482,9 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
     }
     if (confirm) CodexConfirmDialog(
         title = if (TerminalCommandPolicy.evaluate(command).dangerous) "高风险命令 · 二次确认" else "确认执行命令",
-        message = TerminalCommandPolicy.evaluate(command).warning ?: "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。",
+        message = (TerminalCommandPolicy.evaluate(command).warning ?: "将由 Codex 在当前工作区执行以下命令。请检查执行内容及目录。") +
+            "\n\n" + TerminalSessionContract.ACCESS_NOTICE +
+            (if (interactive) " 交互会话后续输入同样具有该权限。" else ""),
         detail = command + "\n\n执行位置：" +
             File(activeWorkspace).relativeTo(File(vm.workingDirectory)).path
                 .takeIf { it != "." }?.let { "projects/" + it }.orEmpty()

@@ -158,6 +158,10 @@ class NativeReuseTests(unittest.TestCase):
         edited = edited.replace("retention-days: 90", "retention-days: 30")
         self.assertEqual(native_recipe(COMPILER_JOB), native_recipe(edited))
 
+    def test_new_binary_upload_name_keeps_historical_recipe_compatible(self):
+        edited = COMPILER_JOB.replace("上传原生内核与构建清单", "上传原生内核二进制")
+        self.assertEqual(native_recipe(COMPILER_JOB), native_recipe(edited))
+
     def test_checkout_transport_does_not_invalidate_binary(self):
         old = COMPILER_JOB.replace("      - name: 构建", "      - name: checkout\n        uses: actions/checkout@v4\n        with:\n          sparse-checkout: |\n            upstream/codex\n      - name: 构建")
         new = old.replace("          sparse-checkout: |", "          ref: ${{ github.event.pull_request.head.sha || github.sha }}\n          fetch-depth: 0\n          sparse-checkout: |\n            .github/scripts\n            .github/ci")
