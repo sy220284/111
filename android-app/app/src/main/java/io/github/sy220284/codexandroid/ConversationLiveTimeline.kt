@@ -53,8 +53,9 @@ internal class ConversationLiveTimeline {
                 }
                 // The longest/terminal snapshot owns text. An explicit phase from the other
                 // snapshot still belongs to this same native item and must not be discarded.
-                val phase = if (selected.kind == "agentMessage") next.phase.ifBlank { prior.phase }
-                    else selected.phase
+                val phase = if (selected.kind != "agentMessage") selected.phase
+                    else if (prior.status in terminal && next.status !in terminal) prior.phase.ifBlank { next.phase }
+                    else next.phase.ifBlank { prior.phase }
                 if (phase == selected.phase) selected else selected.copy(phase = phase,
                     evidence = if (selected.hasEvidence) JSONObject(selected.evidence).put("phase", phase).toString() else "")
             } + live.filterNot { it.id in existing }

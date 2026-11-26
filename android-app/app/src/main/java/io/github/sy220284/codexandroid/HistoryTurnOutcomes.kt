@@ -4,7 +4,7 @@ import org.json.JSONObject
 
 /** Session-scoped cursor for native turn metadata. Item completion never proves turn success. */
 internal class HistoryTurnOutcomes(
-    private val threadId: String,
+    val threadId: String,
     private val request: suspend (String, JSONObject) -> JSONObject
 ) {
     private val turns = mutableMapOf<String, JSONObject>()

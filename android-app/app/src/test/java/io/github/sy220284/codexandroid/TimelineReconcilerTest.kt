@@ -243,6 +243,9 @@ class TimelineReconcilerTest {
         val rows = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(terminal), false, null, false)
         assertEquals("任务未成功完成，已保留收到的回答", rows.first().note)
         assertEquals(terminal, TimelineEventReducer.reduce("item/agentMessage/delta", delta, terminal))
+        val late = TimelineEventReducer.reduce("item/completed", params(message("f", "", "final_answer")), terminal)
+        assertEquals("尚未完成", late.first().text)
+        assertEquals("interrupted", late.first().status)
         assertEquals(pending, TimelineEventReducer.reduce("turn/completed", ended("inProgress"), pending))
         val completed = TimelineEventReducer.reduce("turn/completed",
             ended("completed", message("f", "完整正文", "final_answer")), pending)
@@ -251,6 +254,26 @@ class TimelineReconcilerTest {
         assertEquals("commentary", ConversationLiveTimeline.merge(prior, phase).single().phase)
         val updated = ConversationLiveTimeline.merge(listOf(prior.single().copy(phase = "partial_answer")), phase)
         assertEquals("commentary", updated.single().phase)
+    }
+
+    @Test fun disconnectRetainsTextWithoutInventingNativeTurnOutcome() {
+        val item = TimelineItem("f", "agentMessage", "收到的内容", "streaming", turnId = "t", phase = "final_answer")
+        val disconnected = TimelineEventReducer.connectionLost(listOf(item), "t")
+        assertEquals("unverified", disconnected.first().status)
+        assertEquals("收到的内容", disconnected.first().text)
+        assertEquals("turn-unverified:t", disconnected.last().id)
+        val rows = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(disconnected), false, null, false)
+        assertEquals("连接中断，任务结果待核实", rows.first().note)
+        val native = org.json.JSONObject().put("id", "t").put("status", "completed")
+        val ended = TimelineEventReducer.reduce("turn/completed", org.json.JSONObject().put("turn", native), disconnected)
+        assertEquals("completed", ended.single().status)
+        assertEquals("收到的内容", ended.single().text)
+        val commentary = item.copy(id = "c", phase = "commentary", status = "completed")
+        val onlyProcess = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(listOf(commentary)), false, null, false)
+        assertEquals("已保留过程回复，未收到正式回答", onlyProcess.single().note)
+        val saved = item.copy(status = "completed", phase = "final_answer")
+        val stale = item.copy(phase = "partial_answer")
+        assertEquals("final_answer", ConversationLiveTimeline.merge(listOf(saved), listOf(stale)).single().phase)
     }
 
     @Test fun latePhaseAndOffscreenResumeKeepAccumulatedNativeText() {

@@ -12,7 +12,7 @@ internal object TimelineEventReducer {
         "item/mcpToolCall/progress", "hook/started", "hook/completed", "turn/plan/updated", "turn/completed")
 
     private val runningStates = setOf("streaming", "inProgress", "in_progress", "running", "sending")
-    private val terminalStates = setOf("completed", "failed", "blocked", "stopped", "declined", "interrupted", "cancelled", "incomplete")
+    private val terminalStates = setOf("completed", "failed", "blocked", "stopped", "declined", "interrupted", "cancelled", "incomplete", "unverified")
 
     private fun JSONObject.string(key: String) = if (isNull(key)) "" else optString(key)
     private fun JSONArray?.objects() = if (this == null) emptyList() else
@@ -121,9 +121,9 @@ internal object TimelineEventReducer {
             val status = turn.string("status")
             if (status !in setOf("completed", "failed", "interrupted")) return current
             turn.optJSONArray("items").objects().forEach { raw ->
-                val item = project(raw, id, status)
+                val item = project(raw, id, if (raw.string("type") == "userMessage") "completed" else status)
                 val prior = items.byId(item.id)
-                if (prior == null || prior.status !in terminalStates) {
+                if (prior == null || prior.status !in terminalStates || prior.status == "unverified") {
                     // A turn snapshot may contain an unfinished message with no explicit item status.
                     // On failure preserve the text actually received and never promote it to success.
                     val evidence = JSONObject(item.evidence)
@@ -151,11 +151,13 @@ internal object TimelineEventReducer {
                 turn.optJSONObject("error")?.optString("message").orEmpty().ifBlank {
                     if (status == "interrupted") "任务已中断，已保留收到的内容" else "任务执行失败，已保留收到的内容"
                 }, status, turnId = id))
-            return IndexedTimeline.from(items.map {
-                if (it.turnId == id && it.status in runningStates) it.withStatus(status) else it
+            return IndexedTimeline.from(items.filterNot { it.id == "turn-unverified:$id" }.map {
+                if (it.turnId == id && (it.status in runningStates || it.status == "unverified"))
+                    it.withStatus(if (it.kind == "user") "completed" else status) else it
             })
         }
         if (method == "turn/plan/updated") {
+            if (items.byId("turn-error:$turnId") != null) return current
             val plan = params.optJSONArray("plan").objects().joinToString("\n") {
                 val symbol = when (it.string("status")) { "completed" -> "✓"; "inProgress" -> "•"; else -> "○" }
                 symbol + " " + it.string("step")
@@ -170,7 +172,7 @@ internal object TimelineEventReducer {
             val complete = method == "item/completed"
             val next = project(raw, turnId, if (complete) "completed" else "inProgress")
             val failedTurn = items.byId("turn-error:$turnId") != null
-            if (failedTurn && old == null) return current
+            if (failedTurn && old == null && !complete) return current
             if (old?.status in terminalStates && !complete && next.kind != "agentMessage") return current
             if (!complete && old != null && old.status != "sending") {
                 // A resumed subscription may have received text before its lifecycle metadata.
@@ -193,7 +195,10 @@ internal object TimelineEventReducer {
                 }
             }
             val terminal = if (failedTurn && old != null && old.status in terminalStates) old.status else next.status
-            put(next.copy(status = terminal, evidence = evidence.toString()))
+            val retained = if (failedTurn && old != null && next.kind == "agentMessage" &&
+                (raw.isNull("text") || old.text.startsWith(next.text))) old.text else next.text
+            if (next.kind == "agentMessage") evidence.put("text", retained)
+            put(next.copy(text = retained, status = terminal, evidence = evidence.toString()))
             return items
         }
         val id = params.string("itemId")
@@ -227,6 +232,17 @@ internal object TimelineEventReducer {
         }
         put(project(raw, turnId, "streaming"))
         return items
+    }
+
+    /** Losing the connection establishes neither a successful nor a failed native turn. */
+    fun connectionLost(current: List<TimelineItem>, turnId: String): List<TimelineItem> {
+        if (turnId.isBlank()) return current
+        val items = IndexedTimeline.from(current.map {
+            if (it.turnId == turnId && it.status in runningStates) it.withStatus("unverified") else it
+        })
+        return items.put(TimelineItem("turn-unverified:$turnId", "error",
+            "运行核心已断开，任务结果待核实。已保留收到的内容，请重新连接后查看。",
+            "unverified", turnId = turnId))
     }
 
     /** A compact activity group is interrupted by any user, answer, plan or turn boundary. */

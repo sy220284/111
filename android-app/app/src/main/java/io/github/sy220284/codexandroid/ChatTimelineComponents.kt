@@ -61,6 +61,8 @@ internal fun TimelineActivityGroup(
             CodexIcon(if (expanded) CodexGlyph.ExpandMore else CodexGlyph.ChevronRight,
                 if (expanded) "收起活动" else "展开活动", tint = Ink.muted)
         }
+        note?.let { Text(it, Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+            color = Ink.muted, style = MaterialTheme.typography.labelSmall) }
         CodexReveal(visible = expanded) {
             Column(Modifier.fillMaxWidth().padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
                 group.forEach { item -> key(item.id) { TimelineStepCard(item, workspaceRoot, onTurnAction,

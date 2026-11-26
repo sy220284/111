@@ -23,8 +23,9 @@ internal fun CodexViewModel.loadEarlierHistory() {
                 val response = bridge.request("thread/items/list", JSONObject().put("threadId", id)
                     .put("sortDirection", "desc").put("limit", 120).put("cursor", cursor))
                 if (activeThread.value != id || threadSwitching.value || timelineEpoch != epoch) return@launch
-                val reader = historyTurnOutcomes ?: HistoryTurnOutcomes(id) { method, params ->
-                    bridge.request(method, params)
+                val session = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" }
+                val reader = historyTurnOutcomes?.takeIf { it.threadId == id } ?: HistoryTurnOutcomes(id) { method, params ->
+                    bridge.request(method, params, expectedSession = session)
                 }.also { historyTurnOutcomes = it }
                 older = reader.reconcile(readHistoryPage(response))
                 if (activeThread.value != id || threadSwitching.value || timelineEpoch != epoch) return@launch

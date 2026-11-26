@@ -68,7 +68,9 @@ internal object ProgressiveReplyProjection {
         val answers = items.filter(::answer)
         val progressive = answers.any { it.phase == "partial_answer" }
         val interrupted = items.any { it.kind == "error" && it.id == "turn-error:$turn" && it.status in incompleteStates }
+        val unverified = items.any { it.id == "turn-unverified:$turn" }
         fun incomplete(item: TimelineItem) = interrupted || item.status in incompleteStates
+        fun unverified(item: TimelineItem) = unverified || item.status == "unverified"
         val explicit = answers.any { it.phase in setOf("partial_answer", "final_answer") }
         val open = running || items.any { it.status in runningStates }
         // Item paging can start inside a turn, even at a steering user message. Never claim a
@@ -84,6 +86,7 @@ internal object ProgressiveReplyProjection {
                     actionItem = single?.takeIf { formal && clipped && !open },
                     note = when {
                         formal && clipped && !open -> incompleteNote
+                        formal && !open && single != null && unverified(single) -> "连接中断，任务结果待核实"
                         formal && !open && single != null && incomplete(single) -> "任务未成功完成，已保留收到的回答"
                         else -> null
                     },
@@ -107,6 +110,7 @@ internal object ProgressiveReplyProjection {
             } else formal.forEach { output += Row(it.id, listOf(it), showActions = !clipped,
                 actionItem = it.takeIf { clipped }, note = when {
                     clipped -> incompleteNote
+                    unverified(it) -> "连接中断，任务结果待核实"
                     incomplete(it) -> "任务未成功完成，已保留收到的回答"
                     else -> null
                 }) }
@@ -122,12 +126,18 @@ internal object ProgressiveReplyProjection {
             val aggregate = answers.last().copy(text = answerText(answers), evidence = "")
             val note = when {
                 clipped -> incompleteNote
+                unverified || answers.any { it.status == "unverified" } -> "连接中断，任务结果待核实"
                 interrupted || answers.any { it.status in incompleteStates } -> "任务未成功完成，已保留收到的回答"
                 answers.none { it.phase == "final_answer" } -> "已保留阶段性回答，未收到确认的最终回答"
                 else -> null
             }
             if (last >= 0) output[last] = output[last].copy(showActions = !clipped,
                 actionItem = aggregate, note = note)
+        }
+        if (answers.isEmpty() && items.any(::commentary)) {
+            val lastProcess = output.indexOfLast { it.forceActivity }
+            if (lastProcess >= 0) output[lastProcess] = output[lastProcess].copy(note =
+                "已保留过程回复，未收到正式回答")
         }
         addAll(output)
     }

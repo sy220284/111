@@ -326,6 +326,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         errors.value = errors.value - "conversation"
         olderServerCursor.value = null
+        historyTurnOutcomes = null
         val epoch = ++timelineEpoch
         agentDraftWorkspace.value = if (agentDraft) workspace else null
         conversationState.value = ActiveConversationContext(workspace, projectId)
@@ -704,6 +705,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             bridge.status.collect { current ->
+                if (current is EngineStatus.Unavailable) historyTurnOutcomes = null
                 if (current is EngineStatus.Unavailable &&
                     (running.value || threadExecutions.value.isNotEmpty() || firstThreadStarting.value)) {
                     val wasVisible = running.value
@@ -714,10 +716,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     threadExecutions.value = emptyMap()
                     firstThreadStarting.value = false
                     firstTurnImages = emptyList()
-                    conversationState.update { it.copy(running = false, turnId = null) }
-                    if (wasVisible) timeline.value = timeline.value + TimelineItem(
-                        "disconnect-" + UUID.randomUUID(), "error",
-                        "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")
+                    conversationState.update { state ->
+                        val retained = when {
+                            !wasVisible -> state.timeline
+                            !state.turnId.isNullOrBlank() -> TimelineEventReducer.connectionLost(state.timeline, state.turnId)
+                            else -> state.timeline + TimelineItem("disconnect-" + UUID.randomUUID(), "error",
+                                "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")
+                        }
+                        state.copy(running = false, turnId = null, timeline = IndexedTimeline.from(retained))
+                    }
                 }
             }
         }
