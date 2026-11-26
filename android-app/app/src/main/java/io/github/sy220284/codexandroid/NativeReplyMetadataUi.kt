@@ -100,6 +100,6 @@ internal fun NativeMcpResourceCard(vm: CodexViewModel, thread: String, item: Tim
         }
         error?.let { ErrorText(it) }
     }
-    app?.let { (html, epoch, revision) -> NativeMcpAppHost(vm, thread, raw, html, epoch, revision) { app = null } }
+    app?.let { (html, epoch, revision) -> NativeMcpAppHost(vm, thread, raw, html, epoch, revision, item.id) { app = null } }
     content?.let { FullTextReaderDialog("工具资源（文本预览）", it) { content = null } }
 }

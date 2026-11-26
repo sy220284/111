@@ -24,6 +24,12 @@ class RuntimeOwnershipInstrumentedTest {
             )
             org.junit.Assert.assertEquals(android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE,
                 info.foregroundServiceType)
+            val screen = app.packageManager.getServiceInfo(ComponentName(app, ScreenShareService::class.java),
+                PackageManager.ComponentInfoFlags.of(0L))
+            org.junit.Assert.assertEquals(ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION, screen.foregroundServiceType)
+            val probe = app.packageManager.getServiceInfo(ComponentName(app, CiIsolationProbeService::class.java),
+                PackageManager.ComponentInfoFlags.of(0L))
+            org.junit.Assert.assertEquals(0, probe.foregroundServiceType)
         }
         // Keep service alive during readiness verification, then return control.
         app.session.terminalStarting.value = true
@@ -155,7 +161,20 @@ class RuntimeOwnershipInstrumentedTest {
         val name = "12345678-1234-1234-1234-123456789abc.png"
         val project = put(fromProjects, "demo/Main.kt", "current version")
         val image = put(from.filesDir, "codex-turn-images/$name", "attachment bytes")
-        val rawDraft = DraftPersistence.encode(mapOf("thread-1" to ComposerDraft(text = "unsent draft", images = listOf(image.absolutePath))))
+        val audio = put(from.filesDir, "codex-turn-images/12345678-1234-1234-1234-123456789abc.mp3", "audio bytes")
+        val video = put(from.filesDir, "codex-turn-images/12345678-1234-1234-1234-123456789abc.mp4", "video bytes")
+        java.io.File(video.path + ".metadata.json").writeText("""{"durationMs":1000,"audio":true}""")
+        java.io.File(VideoTimeline.manifest(video.path)).writeText(VideoTimeline(1000,
+            listOf(VideoTimeline.Segment(0, 1000, listOf(0, 500), 0))).encode())
+        java.io.File(VideoTimeline.sheet(video.path, 0)).writeText("sampled frame bytes")
+        java.io.File(VideoTimeline.audio(video.path, 0)).writeText("sampled audio bytes")
+        val media = listOf(image.path, audio.path, video.path)
+        val clientId = "87654321-1234-1234-1234-123456789abc"
+        MediaHistoryStore.record(image.parentFile!!, clientId, media)
+        AttachmentRetentionPolicy.preserveForHistory(image.parentFile!!, media)
+        val paid = AnalysisCheckpoint("thread-1", "a".repeat(64), video.path, "Understand", "question", listOf("paid result"), 1)
+        AnalysisCheckpointStore(java.io.File(from.filesDir, PortableMediaFormat.ANALYSES)).save(paid, false)
+        val rawDraft = DraftPersistence.encode(mapOf("thread-1" to ComposerDraft(text = "unsent draft", images = media)))
         val prefs = java.io.File(from.applicationInfo.dataDir, "shared_prefs")
         val xml = "<?xml version=\"1.0\" encoding=\"utf-8\"?><map><string name=\"drafts\">" +
             android.text.TextUtils.htmlEncode(rawDraft) + "</string></map>"
@@ -172,7 +191,11 @@ class RuntimeOwnershipInstrumentedTest {
             store.checkpoint(id, project.parentFile!!.absolutePath)
             val output = java.io.ByteArrayOutputStream()
             val exported = LocalDataArchive.export(from, output, fromProjects)
-            org.junit.Assert.assertEquals(7, exported)
+            assertTrue(exported > 7)
+            java.util.zip.ZipInputStream(output.toByteArray().inputStream()).use { archive ->
+                org.junit.Assert.assertEquals("manifest.txt", archive.nextEntry.name)
+                org.junit.Assert.assertEquals("111-local-backup-version:3", archive.readBytes().toString(Charsets.UTF_8))
+            }
             org.junit.Assert.assertEquals(exported, LocalDataArchive.stageImport(to, output.toByteArray().inputStream()))
             LocalDataArchive.restoreIfPending(to) { toProjects }
             val restoredProject = java.io.File(toProjects, "demo/Main.kt")
@@ -185,7 +208,17 @@ class RuntimeOwnershipInstrumentedTest {
             val drafts = DraftPersistence.resolveStoredImages(java.io.File(to.filesDir, "codex-turn-images"), DraftPersistence.decode(rawDraft))
             org.junit.Assert.assertEquals(0, drafts.missingImages)
             org.junit.Assert.assertEquals("unsent draft", drafts.drafts.getValue("thread-1").text)
-            org.junit.Assert.assertEquals("attachment bytes", java.io.File(drafts.drafts.getValue("thread-1").images.single()).readText())
+            val restoredMedia = drafts.drafts.getValue("thread-1").images
+            org.junit.Assert.assertEquals(listOf("attachment bytes", "audio bytes", "video bytes"), restoredMedia.map { java.io.File(it).readText() })
+            val attachmentRoot = java.io.File(to.filesDir, PortableMediaFormat.ATTACHMENTS)
+            org.junit.Assert.assertEquals(restoredMedia, MediaHistoryStore.read(attachmentRoot, clientId))
+            assertTrue(restoredMedia.all { AttachmentRetentionPolicy.isHistorical(attachmentRoot, java.io.File(it)) })
+            org.junit.Assert.assertEquals("sampled audio bytes", java.io.File(VideoTimeline.audio(restoredMedia.last(), 0)).readText())
+            org.junit.Assert.assertEquals(1000L, VideoTimeline.read(restoredMedia.last()).durationMs)
+            val analysis = AnalysisCheckpointStore(java.io.File(to.filesDir, PortableMediaFormat.ANALYSES)).listMedia(paid.owner, paid.scope).single()
+            org.junit.Assert.assertEquals(restoredMedia.last(), analysis.source)
+            org.junit.Assert.assertEquals(paid.parts, analysis.parts)
+            org.junit.Assert.assertEquals(0, AttachmentRetentionPolicy.prune(attachmentRoot, emptySet(), Long.MAX_VALUE))
             val restored = AnswerWorkspaceStore(toProjects, java.io.File(to.filesDir, AnswerCheckpointFormat.ROOT))
             assertTrue(restored.hasBaseline(id))
             org.junit.Assert.assertEquals("current version", java.io.File(restored.prepare(id, restoredProject.parentFile!!.absolutePath, false).directory, "Main.kt").readText())

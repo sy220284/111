@@ -190,7 +190,7 @@ internal object MessageMarkdown {
         val styles: Set<String> = emptySet(), val url: String? = null, val original: String? = null)
     fun copyParts(source: String): List<CopyPart> = ReplyInlineMarkdown.parts(source)
 
-    fun inlineText(source: String) = buildAnnotatedString {
+    fun inlineText(source: String, openFile: ((String) -> Unit)? = null) = buildAnnotatedString {
         for (part in copyParts(source)) {
             val style = SpanStyle(
                 fontWeight = if ("strong" in part.styles) FontWeight.Bold else null,
@@ -200,12 +200,21 @@ internal object MessageMarkdown {
             withStyle(style) {
                 val url = part.url
                 if (url == null) append(part.visible)
-                else withLink(LinkAnnotation.Url(url, TextLinkStyles(style =
+                else if (ReplyLinkPolicy.web(url)) withLink(LinkAnnotation.Url(url, TextLinkStyles(style =
                     SpanStyle(textDecoration = TextDecoration.Underline)))) { append(part.visible) }
+                else {
+                    val path = ReplyLinkPolicy.file(url)
+                    if (path == null || openFile == null) append(part.visible)
+                    else withLink(LinkAnnotation.Clickable(url, TextLinkStyles(style =
+                        SpanStyle(textDecoration = TextDecoration.Underline)), { openFile(path) })) { append(part.visible) }
+                }
             }
         }
     }
 }
+
+@Composable
+private fun replyInline(source: String) = MessageMarkdown.inlineText(source, LocalReplyFileOpen.current)
 
 /** Keeps the already verified block boundary while an append-only message grows. */
 private class MarkdownBoundary {
@@ -270,7 +279,7 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
                                 navigation.onReached()
                             }
                         }
-                        Text(MessageMarkdown.inlineText(block.text), Modifier.bringIntoViewRequester(requester),
+                        Text(replyInline(block.text), Modifier.bringIntoViewRequester(requester),
                             fontWeight = FontWeight.SemiBold, style = when (block.level) {
                                 1 -> MaterialTheme.typography.titleLarge
                                 2 -> MaterialTheme.typography.titleMedium
@@ -280,11 +289,11 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
                     "bullet" -> Row(Modifier.fillMaxWidth().padding(start = (block.level * 12).dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(block.label, color = Ink.muted)
-                        Text(MessageMarkdown.inlineText(block.text), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                        Text(replyInline(block.text), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                     }
                     "quote" -> MessageQuote(block)
                     "stream-tail" -> Text(block.text, style = MaterialTheme.typography.bodyLarge)
-                    else -> Text(MessageMarkdown.inlineText(block.text), style = MaterialTheme.typography.bodyLarge)
+                    else -> Text(replyInline(block.text), style = MaterialTheme.typography.bodyLarge)
                 }
             }
         }
@@ -319,7 +328,7 @@ private fun MessageQuote(block: MessageBlock) {
     val copy = rememberConversationCopy()
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.Top) {
         Box(Modifier.fillMaxHeight().width(3.dp).background(Ink.border, RoundedCornerShape(2.dp)))
-        Text(MessageMarkdown.inlineText(block.text), Modifier.padding(start = 12.dp).weight(1f),
+        Text(replyInline(block.text), Modifier.padding(start = 12.dp).weight(1f),
             color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         DisableSelection {
             CodexIconAction(onClick = { copy(block.text, CopyContentFormat.Literal) },
@@ -388,11 +397,11 @@ private fun MessageTable(block: MessageBlock) {
                                 else Modifier).padding(10.dp)
                             val value = row.getOrElse(column) { "" }
                             if (selecting) DisableSelection {
-                                val styled = MessageMarkdown.inlineText(value)
+                                val styled = replyInline(value)
                                 Text(AnnotatedString(styled.text, spanStyles = styled.spanStyles), cell,
                                     color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
                                     fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
-                            } else Text(MessageMarkdown.inlineText(value), cell,
+                            } else Text(replyInline(value), cell,
                                 color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
                                 fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
                         }

@@ -1133,6 +1133,30 @@ class UiNavigationInstrumentedTest {
             rule.runOnUiThread { vm.timeline.value = history + tail.copy(text = "最终交付已收到", status = "completed") }
             rule.waitForIdle()
             rule.onNodeWithText("最终交付已收到").assertIsDisplayed()
+            // Completing a progressive turn must keep the coordinate origin of the fragment being read.
+            val partial = TimelineItem("anchor-partial", "agentMessage", "第一阶段长内容\n\n".repeat(120),
+                "completed", turnId = "anchor-turn", phase = "partial_answer")
+            val final = TimelineItem("anchor-final", "agentMessage",
+                (0 until 80).joinToString("\n\n") { "第二阶段阅读位置 $it" }, "inProgress",
+                turnId = "anchor-turn", phase = "final_answer")
+            rule.runOnUiThread { vm.timeline.value = listOf(partial, final) }
+            viewport.performScrollToIndex(1)
+            viewport.performTouchInput { swipeUp() }
+            rule.waitForIdle()
+            val fragmentLabel = (0 until 80).map { "第二阶段阅读位置 $it" }.first { label ->
+                rule.onAllNodesWithText(label).fetchSemanticsNodes().any { node ->
+                    node.boundsInRoot.center.y in viewport.fetchSemanticsNode().boundsInRoot.top..viewport.fetchSemanticsNode().boundsInRoot.bottom
+                }
+            }
+            val fragment = rule.onNodeWithText(fragmentLabel)
+            val fragmentBefore = fragment.fetchSemanticsNode().boundsInRoot.top
+            rule.runOnUiThread {
+                vm.timeline.value = TimelineEventReducer.reduce("turn/completed", org.json.JSONObject().put("turn",
+                    org.json.JSONObject().put("id", "anchor-turn").put("status", "completed")), vm.timeline.value)
+            }
+            rule.waitForIdle()
+            fragment.assertIsDisplayed()
+            assertTrue("回合结束改变了片段阅读位置", kotlin.math.abs(fragment.fetchSemanticsNode().boundsInRoot.top - fragmentBefore) <= 2f)
         } finally {
             rule.runOnUiThread { vm.timeline.value = emptyList() }
         }

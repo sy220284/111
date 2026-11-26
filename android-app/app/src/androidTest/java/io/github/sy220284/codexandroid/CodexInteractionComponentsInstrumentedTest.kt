@@ -59,6 +59,19 @@ class CodexInteractionComponentsInstrumentedTest {
 
     @get:Rule val rule = createComposeRule()
 
+    @Test fun markdownFileLinksUseTheSameNativeFileOpenerAsCards() {
+        var opened: String? = null
+        rule.setContent {
+            CodexTheme {
+                androidx.compose.runtime.CompositionLocalProvider(LocalReplyFileOpen provides { opened = it }) {
+                    NativeMessageMarkdown("[下载报告](sandbox:/workspace/report.pdf)")
+                }
+            }
+        }
+        rule.onNodeWithText("下载报告", substring = true).performTouchInput { click(center) }
+        rule.runOnIdle { org.junit.Assert.assertEquals("/workspace/report.pdf", opened) }
+    }
+
     @Test fun isolatedMcpAppRealWebViewRoundTrip() {
         val port = java.util.concurrent.atomic.AtomicReference<android.webkit.WebMessagePort>()
         val view = java.util.concurrent.atomic.AtomicReference<android.webkit.WebView>()

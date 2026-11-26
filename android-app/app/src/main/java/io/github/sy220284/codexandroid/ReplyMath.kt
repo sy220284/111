@@ -48,17 +48,35 @@ internal sealed interface ReplyMath {
             fun parse(): ReplyMath = sequence(0).also { require(pos == source.length) }
             private fun peek(text: String) = source.startsWith(text, pos)
             private fun consume(text: String) { require(peek(text)); pos += text.length }
+            private fun spaces() { while (pos < source.length && source[pos].isWhitespace()) pos++ }
+            private fun argument(depth: Int): ReplyMath { spaces(); return atom(depth) }
+            private fun text(): ReplyMath {
+                spaces(); consume("{")
+                val start = pos
+                while (pos < source.length && source[pos] != '}') {
+                    // Keep unsupported nested/escaped text literal rather than changing its meaning.
+                    require(source[pos] != '{' && source[pos] != '\\')
+                    pos++
+                }
+                val value = source.substring(start, pos)
+                consume("}")
+                return Text(value)
+            }
             private fun sequence(depth: Int, stop: () -> Boolean = { false }): ReplyMath {
                 require(depth <= 16)
                 val parts = mutableListOf<ReplyMath>()
                 while (pos < source.length && source[pos] != '}' && !stop()) {
+                    spaces()
+                    if (pos == source.length || source[pos] == '}' || stop()) break
                     var base = atom(depth)
                     var sup: ReplyMath? = null
                     var sub: ReplyMath? = null
+                    spaces()
                     while (pos < source.length && source[pos] in "^_") {
                         val op = source[pos++]
-                        if (op == '^') { require(sup == null); sup = atom(depth + 1) }
-                        else { require(sub == null); sub = atom(depth + 1) }
+                        if (op == '^') { require(sup == null); sup = argument(depth + 1) }
+                        else { require(sub == null); sub = argument(depth + 1) }
+                        spaces()
                     }
                     if (sup != null || sub != null) base = Script(base, sup, sub)
                     val previous = parts.lastOrNull()
@@ -68,6 +86,7 @@ internal sealed interface ReplyMath {
                 return Sequence(parts)
             }
             private fun groupName(): String {
+                spaces()
                 consume("{")
                 val end = source.indexOf('}', pos)
                 require(end > pos)
@@ -129,12 +148,13 @@ internal sealed interface ReplyMath {
                         while (pos < source.length && source[pos].isLetter()) pos++
                         require(pos > start)
                         when (val command = source.substring(start, pos)) {
-                            "frac", "dfrac", "tfrac" -> Fraction(atom(depth + 1), atom(depth + 1))
+                            "frac", "dfrac", "tfrac" -> Fraction(argument(depth + 1), argument(depth + 1))
                             "sqrt" -> {
+                                spaces()
                                 val index = if (peek("[")) {
                                     consume("["); sequence(depth + 1) { peek("]") }.also { consume("]") }
                                 } else null
-                                Root(atom(depth + 1), index)
+                                Root(argument(depth + 1), index)
                             }
                             "begin" -> matrix(depth + 1)
                             "left" -> {
@@ -144,8 +164,9 @@ internal sealed interface ReplyMath {
                                 Delimited(left, value, delimiter())
                             }
                             "overline", "underline", "hat", "bar", "vec", "dot", "ddot" ->
-                                Accent(command, atom(depth + 1))
-                            "text", "mathrm", "mathbf", "mathit", "operatorname", "mathcal", "mathbb" -> atom(depth + 1)
+                                Accent(command, argument(depth + 1))
+                            "text" -> text()
+                            "mathrm", "mathbf", "mathit", "operatorname", "mathcal", "mathbb" -> argument(depth + 1)
                             "limits", "nolimits", "displaystyle", "textstyle" -> Text("")
                             else -> Text(requireNotNull(symbols[command]))
                         }

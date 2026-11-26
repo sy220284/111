@@ -97,10 +97,10 @@ window.addEventListener("message", e => {
 
 @Composable
 internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObject, source: String,
-    epoch: Long, revision: Long, onDismiss: () -> Unit) {
+    epoch: Long, revision: Long, originCallId: String, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val contract = remember(call, source) { McpAppHostContract(call) }
+    val contract = remember(call, source, originCallId) { McpAppHostContract(call, originCallId) }
     val currentSession by vm.bridge.connectedSession.collectAsState()
     val currentRevision by vm.catalogWarmup.accountRevision.collectAsState()
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
@@ -178,7 +178,8 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
                 method == "ui/request-display-mode" -> send(contract.response(id, JSONObject().put("mode", "fullscreen")))
                 method in setOf("tools/call", "resources/read", "ui/open-link", "ui/message") -> {
                     if (pending != null || busy) send(contract.error(id, -32000, "已有待确认操作"))
-                    else if (method in setOf("tools/call", "resources/read") && !contract.scopedTools)
+                    else if ((method == "tools/call" && !contract.scopedTools) ||
+                        (method == "resources/read" && !contract.scopedTools && !contract.originResource))
                         send(contract.error(id, -32000, "当前核心未提供此托管应用的原调用工具授权通道"))
                     else { if (method == "ui/message") messageText(params); pending = req }
                 }
@@ -262,9 +263,14 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
                             }
                             else -> {
                                 val uri = params.getString("uri")
-                                val registration = contract.registration(rpc("mcpServerStatus/list", contract.catalogRequest(thread)))
-                                require(contract.allowedResource(registration, uri)) { "资源不在应用服务目录中" }
-                                rpc("mcpServer/resource/read", contract.scoped(JSONObject().put("uri", uri), thread))
+                                val registration = if (contract.originResource) null else
+                                    contract.registration(rpc("mcpServerStatus/list", contract.catalogRequest(thread)))
+                                val result = rpc("mcpServer/resource/read", contract.resourceRequest(thread, uri, registration))
+                                if (contract.originResource) require(result.optString("originCallId") == originCallId) {
+                                    "工具资源归属不一致"
+                                }
+                                // originCallId is a native authorization receipt, not MCP resource content.
+                                JSONObject(result.toString()).apply { remove("originCallId") }
                             }
                         }
                         send(contract.response(id, result))

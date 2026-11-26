@@ -4,6 +4,33 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class ReplyReadingNavigationTest {
+    @Test fun fileLinksRetainDestinationAndCopyAcrossMarkdownContainers() {
+        for (path in listOf("./report.pdf", "/workspace/report.pdf", "sandbox:/workspace/report.pdf", "file:///workspace/report.pdf")) {
+            val parts = MessageMarkdown.copyParts("[报告]($path)")
+            assertEquals(path, parts.single().url)
+            assertEquals("[报告]($path)" to CopyContentFormat.Markdown,
+                MessageSelectionCopy.resolve(MessageMarkdown.blocks("[报告]($path)"), "报告"))
+        }
+        assertEquals("reports/a b.pdf", ReplyLinkPolicy.file("./reports/a%20b.pdf"))
+        assertEquals("/workspace/a b.pdf", ReplyLinkPolicy.file("file:///workspace/a%20b.pdf"))
+        assertEquals("C:/workspace/a b.pdf", ReplyLinkPolicy.file("C:\\workspace\\a%20b.pdf"))
+        assertEquals("C:/workspace/a b.pdf", ReplyLinkPolicy.file("file:///C:/workspace/a%20b.pdf"))
+        assertEquals("[报告](./reports/a%20b.pdf)" to CopyContentFormat.Markdown,
+            MessageSelectionCopy.resolve(MessageMarkdown.blocks("[报告](<./reports/a b.pdf>)"), "报告"))
+        for (path in listOf("../secret", "%2e%2e/secret", "javascript:alert(1)", "content://provider/x", "file://host/etc/passwd", "//host/x", "/x%00y")) {
+            assertNull(path, ReplyLinkPolicy.file(path))
+        }
+    }
+    @Test fun completionKeepsEachFragmentsKeyAndTextOrigin() {
+        val first = TimelineItem("p", "agentMessage", "第一章\n".repeat(100), "completed", turnId = "t", phase = "partial_answer")
+        val last = TimelineItem("f", "agentMessage", "正在阅读第二章", "streaming", turnId = "t", phase = "final_answer")
+        val live = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(listOf(first, last)), true, "t", false)
+        val ended = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(listOf(first, last.copy(status = "completed"))), false, null, false)
+        assertEquals(live.map { it.key }, ended.map { it.key })
+        assertEquals(live.map { it.group.single().text }, ended.map { it.group.single().text })
+        assertEquals(first.text + last.text, ended.last().actionItem?.text)
+        assertEquals(1, ended.count { it.showActions })
+    }
     @Test fun nestedMarkupAndSelectionShareOneParse() {
         val source = "**粗体 *斜体*** ~~删除~~ [链接](https://example.com)"
         val parts = MessageMarkdown.copyParts(source)
@@ -18,7 +45,7 @@ class ReplyReadingNavigationTest {
         val last = TimelineItem("f", "agentMessage", "## 第二章", "completed", turnId = "t", phase = "final_answer")
         val rows = ProgressiveReplyProjection.rows(TimelineEventReducer.groups(listOf(first, last)), false, null, false)
         assertEquals(listOf("第一章", "第二章"), ReplyReadingNavigation.outline(rows).map { it.title })
-        assertEquals(0, ReplyReadingNavigation.replacementIndex(rows, "f"))
+        assertEquals(1, ReplyReadingNavigation.replacementIndex(rows, "f"))
         assertEquals(0, ReplyReadingNavigation.replacementIndex(rows, "p"))
         assertNotNull(RichReplyContent.parse("codex-file", "报告|output/report.md"))
     }

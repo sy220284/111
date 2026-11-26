@@ -52,9 +52,9 @@ internal object ReplyInlineMarkdown {
                     is Emphasis -> children(current, prefix + "*", "*" + suffix, styles + "emphasis", url)
                     is Strikethrough -> children(current, prefix + "~~", "~~" + suffix, styles + "strike", url)
                     is Link -> {
-                        val destination = current.destination.takeIf { it.startsWith("https://", true) || it.startsWith("http://", true) }
+                        val destination = ReplyLinkPolicy.destination(current.destination)
                         if (destination == null) children(current, prefix, suffix, styles, url)
-                        else children(current, prefix + "[", "](" + destination + ")" + suffix, styles + "link", destination)
+                        else children(current, prefix + "[", "](" + destination.replace(" ", "%20") + ")" + suffix, styles + "link", destination)
                     }
                     is Image -> {
                         val destination = current.destination.takeIf { it.startsWith("https://", true) || it.startsWith("http://", true) }

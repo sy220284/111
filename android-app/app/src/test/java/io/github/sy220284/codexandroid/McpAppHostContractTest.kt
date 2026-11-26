@@ -6,6 +6,34 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class McpAppHostContractTest {
+    @Test fun htmlAcceptsBoundedUtf8TextAndBlobWithoutAmbiguousEncoding() {
+        val html = "<!doctype html><p>应用</p>"
+        val resource = JSONObject().put("uri", "ui://local/view").put("mimeType", "text/html;profile=mcp-app")
+        val result = JSONObject().put("contents", JSONArray().put(resource))
+        resource.put("text", html)
+        assertEquals(html, McpAppHostContract.html(result, "ui://local/view"))
+        resource.remove("text")
+        resource.put("blob", java.util.Base64.getEncoder().encodeToString(html.toByteArray()))
+        assertEquals(html, McpAppHostContract.html(result, "ui://local/view"))
+        resource.put("text", html)
+        assertThrows(IllegalArgumentException::class.java) { McpAppHostContract.html(result, "ui://local/view") }
+        resource.remove("text")
+        resource.put("blob", "!!!!")
+        assertThrows(IllegalArgumentException::class.java) { McpAppHostContract.html(result, "ui://local/view") }
+        resource.put("blob", "/w==")
+        assertThrows(java.nio.charset.CharacterCodingException::class.java) { McpAppHostContract.html(result, "ui://local/view") }
+        resource.put("blob", "A".repeat(((McpAppHostContract.MAX_HTML + 2) / 3) * 4 + 1))
+        assertThrows(IllegalArgumentException::class.java) { McpAppHostContract.html(result, "ui://local/view") }
+    }
+    @Test fun hostedResourceRefreshUsesExactOriginWithoutEnablingUnattributedTools() {
+        val host = McpAppHostContract(call("codex_apps"), "original-call")
+        assertFalse(host.scopedTools)
+        val request = host.resourceRequest("thread", "ui://local/view")
+        assertEquals("original-call", request.getString("originCallId"))
+        assertEquals("thread", request.getString("threadId"))
+        assertThrows(IllegalArgumentException::class.java) { host.resourceRequest("thread", "ui://other/view") }
+        assertThrows(IllegalArgumentException::class.java) { McpAppHostContract(call("codex_apps")).resourceRequest("thread", "ui://local/view") }
+    }
     private fun call(server: String = "local") = JSONObject().put("server", server).put("tool", "start")
         .put("mcpAppUi", JSONObject().put("resourceUri", "ui://local/view"))
         .put("arguments", JSONObject().put("id", 1)).put("result", JSONObject().put("content", JSONArray()))

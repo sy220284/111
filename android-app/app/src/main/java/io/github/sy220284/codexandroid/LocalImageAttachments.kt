@@ -36,7 +36,7 @@ object LocalImageAttachments {
     private const val MAX_BYTES = 12L * 1024 * 1024
     internal const val MAX_AUDIO_BYTES = 50L * 1024 * 1024
     private const val MAX_VIDEO_BYTES = 100L * 1024 * 1024
-    private const val FOLDER = "codex-turn-images"
+    private const val FOLDER = PortableMediaFormat.ATTACHMENTS
 
     fun directory(context: Context): File = File(context.filesDir, FOLDER)
 
@@ -52,6 +52,7 @@ object LocalImageAttachments {
         val ext = MediaImportFormat.extension(type, name)
         val folder = directory(context).apply { check(exists() || mkdirs()) { "无法建立媒体附件目录" } }
         val output = File(folder, UUID.randomUUID().toString() + "." + ext)
+        require(PortableMediaFormat.original(output.name)) { "媒体格式尚未登记持久化和迁移规则" }
         val kind = LocalMediaAttachmentPolicy.kind(output.path)
         val limit = when (kind) { "audio" -> MAX_AUDIO_BYTES; "video" -> MAX_VIDEO_BYTES; else -> MAX_BYTES }
         try {

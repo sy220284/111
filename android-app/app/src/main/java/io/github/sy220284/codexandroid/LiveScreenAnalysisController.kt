@@ -30,7 +30,7 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel, priv
     val state = MutableStateFlow(State())
     val resultsByOwner = MutableStateFlow<Map<String, State>>(emptyMap())
     private val app get() = vm.getApplication<android.app.Application>()
-    private val store by lazy { AnalysisCheckpointStore(File(app.filesDir, "media-analysis-results")) }
+    private val store by lazy { AnalysisCheckpointStore(File(app.filesDir, PortableMediaFormat.ANALYSES)) }
     private var applying = false
     // Publish the active and per-owner views together on the controller's main-thread scope.
     private fun publish(value: State) {

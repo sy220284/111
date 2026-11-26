@@ -22,6 +22,8 @@ internal data class AnalysisCheckpoint(
     val identity get() = digest(JSONArray(listOf(source, mode, question, sourceTurn)).toString())
     val text get() = parts.joinToString("\n\n")
     val complete get() = total > 0 && parts.size == total
+    fun storageName(screen: Boolean) = storageBase(owner, scope, screen) +
+        (if (screen) "" else "-$identity") + ".json"
     fun encode() = JSONObject().put("owner", owner).put("scope", scope).put("source", source)
         .put("mode", mode).put("question", question).put("parts", JSONArray(parts))
         .put("total", total).put("applied", applied).put("sourceTurn", sourceTurn).toString()
@@ -34,6 +36,7 @@ internal data class AnalysisCheckpoint(
         fun identity(endpoint: String, key: String): String = digest("$endpoint\n$key")
         fun digest(value: String): String = MessageDigest.getInstance("SHA-256")
             .digest(value.toByteArray()).joinToString("") { "%02x".format(it.toInt() and 255) }
+        fun storageBase(owner: String, scope: String, screen: Boolean) = digest("$owner\n$scope\n$screen")
         fun decode(text: String): AnalysisCheckpoint {
             val row = JSONObject(text)
             val parts = row.getJSONArray("parts")
@@ -53,7 +56,7 @@ internal class AnalysisCheckpointStore(private val directory: File) {
         val locks = java.util.concurrent.ConcurrentHashMap<String, Any>()
     }
     private fun file(owner: String, scope: String, screen: Boolean) = File(directory,
-        AnalysisCheckpoint.digest("$owner\n$scope\n$screen") + ".json")
+        AnalysisCheckpoint.storageBase(owner, scope, screen) + ".json")
     private fun readFile(target: File, owner: String, scope: String): AnalysisCheckpoint? {
         if (!target.exists()) return null
         require(target.length() in 1..AnalysisCheckpoint.MAX_RECORD_BYTES) { "分析记录损坏，原文件已保留" }

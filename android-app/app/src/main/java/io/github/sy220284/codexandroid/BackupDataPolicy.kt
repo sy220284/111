@@ -8,8 +8,8 @@ internal object BackupDataPolicy {
         "answer-versions.xml"
     )
     private val historyRoots = setOf("sessions", "archived_sessions")
-    private val privateDirectories = setOf("codex-turn-images", "editor-drafts", "answer-checkpoints", "terminal-transcript")
-    private val imageName = Regex("[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\\.(jpg|png|webp)")
+    private val privateDirectories = setOf(PortableMediaFormat.ATTACHMENTS, PortableMediaFormat.ANALYSES,
+        "editor-drafts", "answer-checkpoints", "terminal-transcript")
     private val hashName = Regex("[0-9a-f]{64}")
 
     fun safeSyntax(name: String): Boolean {
@@ -29,7 +29,9 @@ internal object BackupDataPolicy {
                 if (parts.size == 3) parts[2] in setOf("history.jsonl", "session_index.jsonl")
                 else parts.size >= 4 && parts[2] in historyRoots && parts.last().endsWith(".jsonl")
             }
-            "codex-turn-images" -> parts.size == 3 && imageName.matches(parts[2])
+            PortableMediaFormat.ATTACHMENTS -> (parts.size == 3 && PortableMediaFormat.attachment(parts[2])) ||
+                (parts.size == 4 && parts[2] == "history" && PortableMediaFormat.history(parts[3]))
+            PortableMediaFormat.ANALYSES -> parts.size == 3 && PortableMediaFormat.analysis(parts[2])
             "editor-drafts" -> parts.size == 3 && parts[2].endsWith(".json") && hashName.matches(parts[2].removeSuffix(".json"))
             AnswerCheckpointFormat.ROOT -> parts.size == 4 && when (parts[2]) {
                 AnswerCheckpointFormat.OBJECTS -> AnswerCheckpointFormat.isObjectName(parts[3])
@@ -50,6 +52,7 @@ internal object BackupDataPolicy {
             "projects" -> true
             "codex-home" -> parts.size == 2 || parts[2] in historyRoots
             in privateDirectories -> parts.size == 2 ||
+                (parts[1] == PortableMediaFormat.ATTACHMENTS && parts.size == 3 && parts[2] == "history") ||
                 (parts[1] == "answer-checkpoints" && parts.size == 3 && parts[2] in setOf("objects", "manifests"))
             else -> false
         }

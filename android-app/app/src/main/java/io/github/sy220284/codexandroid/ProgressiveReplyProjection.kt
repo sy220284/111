@@ -114,8 +114,9 @@ internal object ProgressiveReplyProjection {
             val formal = segment.filter(::answer)
             if (process.isNotEmpty()) output += Row(process.first().id, process, forceActivity = true)
             if (progressive && formal.isNotEmpty()) {
-                val joined = AgentReplyContract.aggregate(formal)
-                output += Row(formal.first().id, listOf(joined), showActions = false)
+                // Keep the same item keys and text origins across turn completion. Aggregation
+                // belongs to copy/export actions, never to the reader's scroll coordinates.
+                formal.forEach { output += Row(it.id, listOf(it), showActions = false) }
             } else formal.forEach { output += Row(it.id, listOf(it), showActions = !clipped,
                 actionItem = it.takeIf { clipped }, note = when {
                     clipped -> incompleteNote

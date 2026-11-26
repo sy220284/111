@@ -4,7 +4,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /** Native host for the MCP Apps 2026-01-26 JSON-RPC transport. No arbitrary native RPC names. */
-internal class McpAppHostContract(private val call: JSONObject) {
+internal class McpAppHostContract(private val call: JSONObject, private val originCallId: String = call.optString("id")) {
     private var state = 0
     val version = "2026-01-26"
     val server = call.getString("server")
@@ -12,6 +12,7 @@ internal class McpAppHostContract(private val call: JSONObject) {
     val uri = call.optJSONObject("mcpAppUi")?.optString("resourceUri")?.takeIf(String::isNotBlank)
         ?: call.optString("mcpAppResourceUri")
     val scopedTools = server != "codex_apps" && call.isNull("appContext")
+    val originResource = server == "codex_apps" && environment == null && originCallId.isNotBlank()
     val ready get() = state == 2
     fun notification(method: String, params: JSONObject) = JSONObject().put("jsonrpc", "2.0")
         .put("method", method).put("params", params)
@@ -25,7 +26,8 @@ internal class McpAppHostContract(private val call: JSONObject) {
         }
         state = 1
         val capabilities = JSONObject().put("openLinks", JSONObject()).put("sandbox", JSONObject())
-        if (scopedTools) capabilities.put("serverTools", JSONObject()).put("serverResources", JSONObject())
+        if (scopedTools) capabilities.put("serverTools", JSONObject())
+        if (scopedTools || originResource) capabilities.put("serverResources", JSONObject())
         return JSONObject().put("protocolVersion", version)
             .put("hostInfo", JSONObject().put("name", "111 Android").put("version", "1.0"))
             .put("hostCapabilities", capabilities)
@@ -72,6 +74,14 @@ internal class McpAppHostContract(private val call: JSONObject) {
         val resources = registration.optJSONArray("resources") ?: return false
         return (0 until resources.length()).any { resources.optJSONObject(it)?.optString("uri") == requested }
     }
+    fun resourceRequest(thread: String, requested: String, registration: JSONObject? = null): JSONObject {
+        if (originResource) {
+            require(requested == uri) { "托管应用只能重读原调用的界面资源" }
+            return scoped(JSONObject().put("uri", requested).put("originCallId", originCallId), thread)
+        }
+        require(registration != null && allowedResource(registration, requested)) { "资源不在应用服务目录中" }
+        return scoped(JSONObject().put("uri", requested), thread)
+    }
     companion object {
         const val MAX_HTML = 2 * 1024 * 1024
         const val MAX_MESSAGE = 256 * 1024
@@ -83,9 +93,21 @@ internal class McpAppHostContract(private val call: JSONObject) {
             }
             if (matches.isEmpty()) return null
             require(matches.size == 1)
-            val source = matches.single().opt("text") as? String ?: error("MCP App HTML 资源不是文本")
-            require(source.toByteArray(Charsets.UTF_8).size in 1..MAX_HTML) { "MCP App 资源过大" }
-            return source
+            val resource = matches.single()
+            require(resource.has("text") != resource.has("blob")) { "MCP App HTML 编码不明确" }
+            if (resource.has("text")) {
+                val source = resource.opt("text") as? String ?: error("MCP App HTML 文本无效")
+                require(source.toByteArray(Charsets.UTF_8).size in 1..MAX_HTML) { "MCP App 资源过大" }
+                return source
+            }
+            val encoded = resource.opt("blob") as? String ?: error("MCP App HTML 编码无效")
+            require(encoded.length in 1..((MAX_HTML + 2) / 3) * 4) { "MCP App 资源过大" }
+            val bytes = java.util.Base64.getDecoder().decode(encoded)
+            require(bytes.size in 1..MAX_HTML) { "MCP App 资源过大" }
+            return Charsets.UTF_8.newDecoder()
+                .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                .decode(java.nio.ByteBuffer.wrap(bytes)).toString()
         }
         fun externalLink(url: String): Boolean = try {
             val parsed = java.net.URI(url)

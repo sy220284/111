@@ -28,7 +28,7 @@ internal class MediaAnalysisController(private val vm: CodexViewModel, private v
     val state = MutableStateFlow(State())
     val results = MutableStateFlow<Map<String, State>>(emptyMap())
     private val app get() = vm.getApplication<android.app.Application>()
-    private val store by lazy { AnalysisCheckpointStore(File(app.filesDir, "media-analysis-results")) }
+    private val store by lazy { AnalysisCheckpointStore(File(app.filesDir, PortableMediaFormat.ANALYSES)) }
     private var job: Job? = null
     private fun publish(value: State) {
         val prior = value.owner?.let { results.value[it] }

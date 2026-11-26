@@ -1,5 +1,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
+        <!-- AGP 8.9.2 ForegroundServiceTypesDetector inspects the first source manifest,
+             not the merged manifest. Repeat the real foreground components here so
+             the bound-only probe below cannot hide their declarations from Lint. -->
+        <service android:name=".CodexForegroundService" android:foregroundServiceType="specialUse" />
+        <service android:name=".ScreenShareService" android:foregroundServiceType="mediaProjection" />
         <!-- Fixed capability measurement, excluded from production APK. -->
         <service android:name=".CiIsolationProbeService"
             android:isolatedProcess="true" android:exported="false" />

@@ -23,7 +23,8 @@ import kotlinx.coroutines.flow.first
 
 /** Portable, on-device backup; never accesses a server or contacts a third party. */
 internal object LocalDataArchive {
-    private const val ARCHIVE_MARKER = "111-local-backup-version:2"
+    private const val ARCHIVE_MARKER = "111-local-backup-version:3"
+    private const val PREVIOUS_ARCHIVE_MARKER = "111-local-backup-version:2"
     private const val LEGACY_ARCHIVE_MARKER = "111-local-backup-version:1"
     private val PROJECTS_PREFIX = File("files", "projects").invariantSeparatorsPath
     private const val MAX_FILES = 15000
@@ -63,6 +64,7 @@ internal object LocalDataArchive {
     fun export(context: Context, output: OutputStream, workspaceRoot: File = WorkspaceStorage.root(context)): Int {
         val privateRoot = context.filesDir.canonicalFile
         BackupCheckpointValidation.verifyStore(File(privateRoot, AnswerCheckpointFormat.ROOT))
+        PortableMediaArchive.verify(privateRoot, File(privateRoot, PortableMediaFormat.ATTACHMENTS))
         val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs").canonicalFile
         var count = 0
         var total = 0L
@@ -131,7 +133,7 @@ internal object LocalDataArchive {
                     size += count
                 }
                 val format = String(bytes, 0, size, Charsets.UTF_8)
-                require(size == ARCHIVE_MARKER.length && format in setOf(ARCHIVE_MARKER, LEGACY_ARCHIVE_MARKER) &&
+                require(size == ARCHIVE_MARKER.length && format in setOf(ARCHIVE_MARKER, PREVIOUS_ARCHIVE_MARKER, LEGACY_ARCHIVE_MARKER) &&
                     archive.read() == -1) { "备份格式或版本不受支持" }
                 val legacy = format == LEGACY_ARCHIVE_MARKER
                 archive.closeEntry()
@@ -169,6 +171,7 @@ internal object LocalDataArchive {
             }
             if (count == 0) throw IOException("备份中没有可恢复的数据")
             BackupCheckpointValidation.verify(incoming)
+            PortableMediaArchive.relocate(File(incoming, "files"), context.filesDir)
             val staged = File(context.filesDir, STAGED)
             if (staged.exists() && !staged.deleteRecursively())
                 throw IOException("无法更换已有的恢复数据")
@@ -252,7 +255,10 @@ internal object LocalDataArchive {
                 file to target
             }
             targets = checkedTargets
-            if (!transaction.hasJournal()) BackupCheckpointValidation.verify(staged)
+            if (!transaction.hasJournal()) {
+                BackupCheckpointValidation.verify(staged)
+                PortableMediaArchive.verify(File(staged, "files"), File(context.filesDir, PortableMediaFormat.ATTACHMENTS))
+            }
             if (transaction.hasJournal()) {
                 transaction.rollback(checkedTargets)
                 check(marker.delete()) { "恢复回滚完成但标记未清理" }

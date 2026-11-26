@@ -131,11 +131,11 @@ class TimelineReconcilerTest {
         org.junit.Assert.assertTrue(visible.first { it.key == "tool" }.liveProcess)
         org.junit.Assert.assertFalse(visible.first { it.key == "c" }.liveProcess)
         val ended = rows(live.dropLast(1) + final.copy(status = "completed"), false)
-        assertEquals(listOf("u", "c", "p"), ended.map { it.key })
+        assertEquals(listOf("u", "c", "p", "f"), ended.map { it.key })
         assertEquals(listOf("c", "tool"), ended[1].group.map { it.id })
         org.junit.Assert.assertTrue(ended[1].forceActivity)
         org.junit.Assert.assertFalse(ended[1].liveProcess)
-        assertEquals("第一部分\n\n第二部分", ended.last().group.single().text)
+        assertEquals("第二部分", ended.last().group.single().text)
         assertEquals("第一部分\n\n第二部分", ended.last().actionItem?.text)
         assertEquals("f", ended.last().actionItem?.id)
         assertEquals("t", ended.last().actionItem?.turnId)
@@ -209,10 +209,11 @@ class TimelineReconcilerTest {
         val cache = ProgressiveReplyProjection.Cache()
         val groups = TimelineEventReducer.groups(timeline)
         val before = cache.rows(groups, false, null, false)
-        assertEquals("A\n\nB", before.single().actionItem?.text)
+        assertEquals(listOf("p", "f"), before.map { it.key })
+        assertEquals("A\n\nB", before.last().actionItem?.text)
         val next = cache.rows(groups + listOf(listOf(TimelineItem("next", "user", "新任务", "completed", turnId = "next"))),
             true, "next", false)
-        org.junit.Assert.assertSame(before.single(), next.first())
+        before.indices.forEach { org.junit.Assert.assertSame(before[it], next[it]) }
         val saved = listOf(partial, final).map {
             TimelineEventReducer.historyEntry(params(it).put("completedAtMs", 1))
         }
