@@ -14,6 +14,20 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RuntimeOwnershipInstrumentedTest {
+    private var cloudActivity: androidx.test.core.app.ActivityScenario<MainActivity>? = null
+
+    @org.junit.Before fun prepareCloudDevice() {
+        CloudArm64RuntimeEnvironment.prepare()
+        if (CloudArm64RuntimeEnvironment.enabled()) {
+            cloudActivity = androidx.test.core.app.ActivityScenario.launch(MainActivity::class.java)
+        }
+    }
+
+    @org.junit.After fun closeCloudActivity() {
+        cloudActivity?.close()
+        cloudActivity = null
+    }
+
     @Test fun foregroundServiceReportsReadyOnlyAfterAndroidPromotion() = runBlocking {
         val app = InstrumentationRegistry.getInstrumentation().targetContext
             .applicationContext as CodexApplication
