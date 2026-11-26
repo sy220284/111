@@ -155,6 +155,21 @@ class SurfaceHierarchyContractTest(unittest.TestCase):
         self.assertTrue(report["invalidHierarchy"])
         self.assertIn("Screen.kt:1", report["emptyActionHandlers"])
 
+    def test_sheet_audit_survives_route_transition_refactoring_and_checks_each_case(self):
+        fixture = self.fixture()
+        fixture["UiFeatureCatalog.kt"] += '\nUiFeature("search", FeatureSurface.Sheet, FeatureOwner.Global, false)'
+        fixture["AppNavigation.kt"] = fixture["AppNavigation.kt"].replace(
+            '"threads" -> { openDrawer() }',
+            '"threads", "search" -> { openDrawer() }').replace(
+            'if (page.id != destination) {}', 'if ((requestedPage ?: selected) != destination) {}')
+        ids = {"home", "threads", "search", "usage", "limits"}
+        self.assertEqual([], audit_surface_hierarchy(fixture, ids)["missingSurfaceMappings"])
+        fixture["AppNavigation.kt"] = fixture["AppNavigation.kt"].replace(
+            '"threads", "search" -> { openDrawer() }',
+            '"threads" -> { openDrawer() }\n"search" -> { unrelated = true }')
+        self.assertEqual(["search:弹层入口或组件未接通"],
+                         audit_surface_hierarchy(fixture, ids)["missingSurfaceMappings"])
+
     def test_missing_sheet_dispatch_is_detected(self):
         fixture = self.fixture()
         fixture["AppNavigation.kt"] = fixture["AppNavigation.kt"].replace(

@@ -72,6 +72,53 @@ EMPTY_HANDLER = re.compile(
 )
 
 
+# Inspect the actual when branches; unrelated route-transition conditions must
+# not determine whether the sheet entry is present. Strings/comments do not
+# contribute brace depth.
+_KOTLIN_BRACE_TOKEN = re.compile(r'"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*[\s\S]*?\*/|[{}]')
+_ROUTE_CASE = re.compile(r'(?m)^[ \t]*(?P<names>"[a-z]+"(?:[ \t]*,[ \t]*"[a-z]+")*)[ \t]*->')
+
+def _braced_body(code: str, start: int) -> str:
+    depth = 0
+    for token in _KOTLIN_BRACE_TOKEN.finditer(code, start):
+        value = token.group()
+        if value == "{":
+            depth += 1
+        elif value == "}":
+            depth -= 1
+            if depth == 0:
+                return code[start + 1:token.start()]
+    return ""
+
+def _sheet_route_handlers(navigation: str) -> dict[str, str]:
+    move = re.search(r'\bval\s+move\s*:[^=\n]+=\s*(?:\w+@\s*)?\{', navigation)
+    if move is None:
+        return {}
+    body = _braced_body(navigation, move.end() - 1)
+    dispatch = re.search(r'\bwhen\s*\(\s*destination\s*\)\s*\{', body)
+    if dispatch is None:
+        return {}
+    routes = _braced_body(body, dispatch.end() - 1)
+    # Keep only cases at the top level of the when block, including grouped
+    # names. A nested case, comment or string is not another route.
+    tokens = list(_KOTLIN_BRACE_TOKEN.finditer(routes))
+    cases = []
+    depth = cursor = 0
+    for match in _ROUTE_CASE.finditer(routes):
+        while cursor < len(tokens) and tokens[cursor].end() <= match.start("names"):
+            token = tokens[cursor].group()
+            depth += (token == "{") - (token == "}")
+            cursor += 1
+        if depth == 0 and not (cursor < len(tokens) and tokens[cursor].start() < match.start("names") < tokens[cursor].end()):
+            cases.append(match)
+    result = {}
+    for i, match in enumerate(cases):
+        end = cases[i + 1].start() if i + 1 < len(cases) else len(routes)
+        for name in NAME.findall(match.group("names")):
+            result[name] = routes[match.end():end]
+    return result
+
+
 def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
     code = files.get("UiFeatureCatalog.kt", "")
     navigation = files.get("AppNavigation.kt", "")
@@ -97,9 +144,7 @@ def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
                     "diff", "terminal", "review", "modes", "security"}
     if task_actions & set(settings_ids):
         invalid.append("设置首页混入会话或工作区操作")
-    move_start = navigation.find("val move:")
-    move_end = navigation.find("if (page.id != destination)", move_start)
-    route_handlers = navigation[move_start:move_end] if move_start >= 0 and move_end > move_start else ""
+    route_handlers = _sheet_route_handlers(navigation)
     missing_surfaces = []
     for feature in features:
         name, kind = feature["id"], feature["surface"]
@@ -107,8 +152,8 @@ def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
             expected = SHEET_DISPATCH.get(name)
             if expected is None:
                 missing_surfaces.append(f"{name}:缺少弹层归属")
-            elif (f'"{name}"' not in route_handlers
-                  or expected[0] not in route_handlers or expected[1] not in navigation
+            elif (name not in route_handlers
+                  or expected[0] not in route_handlers[name] or expected[1] not in navigation
                   or (name not in {"threads", "search"} and
                       not re.search(r'if \(activeSheet == "' + re.escape(name) +
                                     r'"\)[^\n]*(?:\n[^\n]*){0,2}?' + re.escape(expected[1]), navigation))):
