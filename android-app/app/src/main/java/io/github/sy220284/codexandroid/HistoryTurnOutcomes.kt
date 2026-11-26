@@ -12,9 +12,8 @@ internal class HistoryTurnOutcomes(
     private var cursor: String? = null
     private var exhausted = false
 
-    suspend fun reconcile(items: List<TimelineItem>): List<TimelineItem> {
-        val wanted = items.map { it.turnId }.filter(String::isNotBlank).toSet()
-        if (wanted.isEmpty()) return items
+    suspend fun load(wanted: Set<String>): Map<String, JSONObject> {
+        if (wanted.isEmpty()) return emptyMap()
         if (wanted.any { turns[it]?.optString("status") == "inProgress" || it !in turns && exhausted }) {
             cursor = null; exhausted = false; seenCursors.clear()
             turns.entries.removeAll { it.value.optString("status") == "inProgress" }
@@ -39,10 +38,15 @@ internal class HistoryTurnOutcomes(
             cursor = next
             if (next == null) exhausted = true else seenCursors.add(next)
         }
+        return turns.filterKeys { it in wanted }
+    }
+
+    suspend fun reconcile(items: List<TimelineItem>): List<TimelineItem> {
+        val outcomes = load(items.map { it.turnId }.filter(String::isNotBlank).toSet())
         // A newly started turn may enter the item page after the metadata cursor was
         // established. Live events own its lifecycle; do not synthesize success for it.
         return items.groupBy { it.turnId }.values.flatMap { group ->
-            val turn = turns[group.first().turnId] ?: return@flatMap group
+            val turn = outcomes[group.first().turnId] ?: return@flatMap group
             val status = turn.getString("status")
             if (status == "inProgress") group
             else TimelineEventReducer.reduce("turn/completed",

@@ -24,7 +24,7 @@ class HistoryTurnOutcomesTest {
         }
         fun answer(id: String) = TimelineItem(id, "agentMessage", "已有内容", "completed",
             turnId = id, phase = "partial_answer")
-        assertEquals(listOf(answer("new")), reader.reconcile(listOf(answer("new"))))
+        assertEquals(answer("new"), reader.reconcile(listOf(answer("new"))).first())
         val older = reader.reconcile(listOf(answer("old")))
         assertEquals(listOf("", "older"), cursors)
         assertEquals("已有内容", older.first().text)

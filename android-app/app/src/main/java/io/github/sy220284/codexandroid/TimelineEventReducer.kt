@@ -95,9 +95,15 @@ internal object TimelineEventReducer {
         return project(item, entry.getString("turnId"), lifecycle)
     }
 
+    fun outcomeId(turnId: String) = "turn-completed:$turnId"
+    fun terminalOutcome(items: List<TimelineItem>, turnId: String): String? = items.lastOrNull {
+        it.id == outcomeId(turnId) || it.id == "turn-error:$turnId"
+    }?.status
+
     fun reduce(method: String, params: JSONObject, current: List<TimelineItem>): List<TimelineItem> {
         val turnId = params.string("turnId")
         var items = IndexedTimeline.from(current)
+        val closed = items.byId(outcomeId(turnId)) != null || items.byId("turn-error:$turnId") != null
         fun put(item: TimelineItem) {
             // All lifecycle paths, including turn/completed backfill, preserve an already known
             // native phase when a later payload omits that optional field.
@@ -110,6 +116,7 @@ internal object TimelineEventReducer {
             items = items.put(next, clientId)
         }
         if (method == "hook/started" || method == "hook/completed") {
+            if (closed) return current
             val hook = HookRunPresentation.project(params) ?: return current
             val prior = items.byId(hook.id)
             if (prior != null && prior.status != "running" && hook.status == "running") return current
@@ -144,17 +151,20 @@ internal object TimelineEventReducer {
                     put(AgentReplyContract.merge(prior, item.copy(status = prior.status), keepText = true))
                 }
             }
-            if (status != "completed") put(TimelineItem("turn-error:$id", "error",
+            if (status == "completed") put(TimelineItem(outcomeId(id), "turnOutcome", "", status, turnId = id))
+            else put(TimelineItem("turn-error:$id", "error",
                 turn.optJSONObject("error")?.optString("message").orEmpty().ifBlank {
                     if (status == "interrupted") "任务已中断，已保留收到的内容" else "任务执行失败，已保留收到的内容"
                 }, status, turnId = id))
-            return IndexedTimeline.from(items.filterNot { it.id == "turn-unverified:$id" }.map {
+            return IndexedTimeline.from(items.filterNot { it.id == "turn-unverified:$id" ||
+                (status == "completed" && it.id == "turn-error:$id") ||
+                (status != "completed" && it.id == outcomeId(id)) }.map {
                 if (it.turnId == id && (it.status in runningStates || it.status == "unverified"))
                     it.withStatus(if (it.kind == "user") "completed" else status) else it
             })
         }
         if (method == "turn/plan/updated") {
-            if (items.byId("turn-error:$turnId") != null) return current
+            if (closed) return current
             val plan = params.optJSONArray("plan").objects().joinToString("\n") {
                 val symbol = when (it.string("status")) { "completed" -> "✓"; "inProgress" -> "•"; else -> "○" }
                 symbol + " " + it.string("step")
@@ -169,7 +179,7 @@ internal object TimelineEventReducer {
             val complete = method == "item/completed"
             val next = project(raw, turnId, if (complete) "completed" else "inProgress")
             val failedTurn = items.byId("turn-error:$turnId") != null
-            if (failedTurn && old == null && !complete) return current
+            if (closed && old == null && !complete) return current
             if (old?.status in terminalStates && !complete && next.kind != "agentMessage") return current
             if (!complete && old != null && old.status != "sending") {
                 // A resumed subscription may have received text before its lifecycle metadata.
@@ -199,7 +209,7 @@ internal object TimelineEventReducer {
         if (id.isBlank()) return current
         val kind = method.substringAfter("item/").substringBefore("/")
         val old = items.byId(id)
-        if (items.byId("turn-error:$turnId") != null || (old != null && old.status in terminalStates)) return current
+        if (closed || (old != null && old.status in terminalStates)) return current
         if (kind == "agentMessage" && AgentReplyContract.restricted(old?.metadata())) return current
         val delta = params.string("delta")
         val field = when (method) {

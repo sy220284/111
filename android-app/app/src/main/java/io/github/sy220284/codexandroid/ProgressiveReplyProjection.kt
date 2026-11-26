@@ -63,7 +63,9 @@ internal object ProgressiveReplyProjection {
 
     private fun sectionRows(section: List<List<TimelineItem>>, running: Boolean,
         hasEarlier: Boolean): List<Row> = buildList {
-        val items = section.flatten()
+        val visibleSection = section.filterNot { it.singleOrNull()?.kind == "turnOutcome" }
+        val items = visibleSection.flatten()
+        if (items.isEmpty()) return@buildList
         val turn = items.first().turnId
         val answers = items.filter(::answer)
         val progressive = answers.any { it.phase == "partial_answer" }
@@ -72,13 +74,14 @@ internal object ProgressiveReplyProjection {
         fun incomplete(item: TimelineItem) = interrupted || item.status in incompleteStates
         fun unverified(item: TimelineItem) = unverified || item.status == "unverified"
         val explicit = answers.any { it.phase in setOf("partial_answer", "final_answer") }
-        val open = running || items.any { it.status in runningStates }
+        val open = section.none { it.singleOrNull()?.kind == "turnOutcome" } &&
+            !interrupted && (running || items.any { it.status in runningStates })
         // Item paging can start inside a turn, even at a steering user message. Never claim a
         // complete answer until the preceding page has established the turn's beginning.
         val clipped = hasEarlier && turn.isNotBlank() && explicit
         val incompleteNote = "加载更早记录后可使用完整回答操作"
         if (turn.isBlank() || open || (!progressive && items.none(::commentary))) {
-            section.forEach { group ->
+            visibleSection.forEach { group ->
                 val single = group.singleOrNull()
                 val formal = single?.let(::answer) == true
                 val allow = !formal || (!open && !clipped && single?.phase != "partial_answer")

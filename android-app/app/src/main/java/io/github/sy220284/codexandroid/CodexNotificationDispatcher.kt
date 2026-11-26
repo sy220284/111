@@ -149,7 +149,13 @@ internal object CodexNotificationDispatcher {
             val execution = threadExecutions.value[threadId]
             val validCompletion = execution?.turnId.isNullOrBlank() ||
                 completedId.isNullOrBlank() || execution?.turnId == completedId
-            if (!validCompletion) return
+            if (!validCompletion) {
+                // An older terminal event may enrich history but must never finish a newer active turn.
+                if (threadId == activeThread.value && threadId != hydratingThread)
+                    timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
+                else liveTimelines.event(threadId, method, params, threadExecutions.value.keys)
+                return
+            }
             threadExecutions.value = ThreadExecutionPolicy.finish(
                 threadExecutions.value, threadId)
             if (turnStatus == "interrupted") queuePausedThreads.value = queuePausedThreads.value + threadId

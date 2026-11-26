@@ -67,6 +67,13 @@ internal object ThreadMarkdownExporter {
                 }
             }
             flush()
+            val outcome = when (turn.optString("status")) {
+                "failed" -> "任务执行失败，以上为已收到内容。"
+                "interrupted" -> "任务已中断，以上为已收到内容。"
+                "inProgress", "unverified" -> "任务结果尚未确认，以上为已收到内容。"
+                else -> null
+            }
+            outcome?.let { emit("回合状态", it) }
         }
         require(messages > 0) { "会话暂无可导出的文字消息" }
         return lines.joinToString("\n").trimEnd() + "\n"

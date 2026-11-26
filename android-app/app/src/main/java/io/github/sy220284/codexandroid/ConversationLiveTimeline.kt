@@ -65,7 +65,8 @@ internal class ConversationLiveTimeline {
                     else merged.copy(phase = phase)
                 } else if (phase == selected.phase) selected else selected.copy(phase = phase,
                     evidence = if (selected.hasEvidence) JSONObject(selected.evidence).put("phase", phase).toString() else "")
-            } + live.filterNot { it.id in existing }
+            } + live.filterNot { it.id in existing || (it.id.startsWith("turn-unverified:") &&
+                TimelineEventReducer.terminalOutcome(saved, it.turnId) != null) }
         }
     }
 }
