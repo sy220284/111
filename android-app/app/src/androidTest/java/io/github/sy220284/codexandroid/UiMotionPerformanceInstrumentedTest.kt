@@ -117,6 +117,7 @@ class UiMotionPerformanceInstrumentedTest {
         val phases = Collections.synchronizedList(mutableListOf<List<Long>>())
         val navigationStage = java.util.concurrent.atomic.AtomicReference("startup")
         val stageSamples = Collections.synchronizedList(mutableListOf<Pair<String, Long>>())
+        val pressureVsync = Collections.synchronizedList(mutableListOf<Long>())
         val phaseIds = listOf(FrameMetrics.INPUT_HANDLING_DURATION, FrameMetrics.ANIMATION_DURATION,
             FrameMetrics.LAYOUT_MEASURE_DURATION, FrameMetrics.DRAW_DURATION, FrameMetrics.SYNC_DURATION,
             FrameMetrics.COMMAND_ISSUE_DURATION, FrameMetrics.SWAP_BUFFERS_DURATION, FrameMetrics.GPU_DURATION)
@@ -137,7 +138,10 @@ class UiMotionPerformanceInstrumentedTest {
             if (total > 0) {
                 samples.add(total to deadline)
                 phases.add(phaseIds.map { metrics.getMetric(it) })
-                stageSamples.add(navigationStage.get() to total)
+                val stage = navigationStage.get()
+                stageSamples.add(stage to total)
+                val vsync = metrics.getMetric(FrameMetrics.INTENDED_VSYNC_TIMESTAMP)
+                if (stage == "stream_pressure" && vsync > 0) pressureVsync.add(vsync)
             }
             lost.addAndGet(dropped)
         }
@@ -293,12 +297,19 @@ class UiMotionPerformanceInstrumentedTest {
             }
         report.put("navigation_stage_metrics", stageReport)
         report.put("long_reply_scroll_anchor_verified", true)
+        val timestamps = synchronized(pressureVsync) { pressureVsync.distinct().sorted() }
+        val spanNs = if (timestamps.size >= 2) timestamps.last() - timestamps.first() else 0L
+        val observedFrameHz = if (spanNs > 0) (timestamps.size - 1) * 1_000_000_000.0 / spanNs else null
         report.put("stream_pressure", JSONObject().put("history_items", 5000)
+            .put("observed_window_frame_hz", observedFrameHz ?: JSONObject.NULL)
+            .put("vsync_samples", timestamps.size)
             .put("target_updates_per_second", rate).put("updates", streamUpdates)
             .put("elapsed_ms", pressureElapsed)
             .put("observed_updates_per_second", streamUpdates * 1000.0 / pressureElapsed.coerceAtLeast(1)))
         report.put("resources", resources.report())
         report.put("device_class", if (physical) "physical_arm64" else "emulator")
+        val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+        File(folder, "ui-motion-performance.json").writeText(report.toString(2))
         val pressure = stageReport.optJSONObject("stream_pressure")
         assertTrue("没有长回复压力帧", pressure != null && pressure.optInt("frames") > 0 && streamUpdates > 0)
         assertTrue("缺少资源采样", report.getJSONObject("resources").getJSONArray("samples").length() >= 2)
@@ -306,8 +317,6 @@ class UiMotionPerformanceInstrumentedTest {
             val measured = stageReport.optJSONObject(stage)
             assertTrue("缺少长回复实际动效帧：" + stage, measured != null && measured.optInt("frames") > 0)
         }
-        val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
-        File(folder, "ui-motion-performance.json").writeText(report.toString(2))
         InstrumentationRegistry.getArguments().getString("expectedRenderer")?.let { expected ->
             assertTrue("Unexpected actual renderer: $report", expected in rendererPipelines)
         }
@@ -315,6 +324,9 @@ class UiMotionPerformanceInstrumentedTest {
         assertTrue("Severe rendering regression: $report", p95 <= 120.0 &&
             verySlow.toDouble() / values.size <= .15)
         if (physical) {
+            assertTrue("Physical stream producer must sustain at least 90% of requested rate",
+                streamUpdates * 1000.0 / pressureElapsed.coerceAtLeast(1) >= rate * .9)
+            assertTrue("Physical run requires real window frame timestamps", observedFrameHz != null)
             val evidence = report.getJSONObject("resources")
             assertTrue("Physical run requires actual unplugged energy or charge-counter evidence",
                 evidence.optBoolean("unplugged") && evidence.optDouble("consumed_mwh", -1.0) > 0.0)
