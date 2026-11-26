@@ -20,6 +20,13 @@ class PolicyTests(unittest.TestCase):
             self.assertTrue(plan([path])["runtime"])
         self.assertFalse(plan(["android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt"])["runtime"])
 
+    def test_security_boundary_changes_trigger_real_runtime(self):
+        base = "android-app/app/src/main/java/io/github/sy220284/codexandroid/"
+        for name in ["BackupDataPolicy.kt", "LocalDataArchive.kt", "LocalRestoreTransaction.kt",
+                     "TerminalSessionContract.kt", "TerminalCommandPolicy.kt", "DeveloperToolStatus.kt",
+                     "RealtimeVoiceController.kt", "DomesticProviderCredentials.kt"]:
+            self.assertTrue(plan([base + name])["runtime"], name)
+
     def test_runtime_forces_full(self):
         self.assertTrue(plan([], runtime=True)["full"])
         self.assertTrue(plan([], runtime=True)["runtime"])

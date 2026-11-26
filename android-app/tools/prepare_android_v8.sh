@@ -144,6 +144,18 @@ TOML
   (cd "$CACHE" && sha256sum -c SHA256SUMS)
 fi
 test -s "$CACHE/$ARCHIVE" && test -s "$CACHE/$BINDING"
+if [ "$TARGET" = aarch64-linux-android ]; then
+  # Verify the pinned trust anchor even on restored Actions cache hits.
+  (cd "$CACHE" && sha256sum -c - <<'SHA'
+422ddb869bda03c250081160231bc8940adab7d63b050ce1c468760dde92085c  librusty_v8_ptrcomp_sandbox_release_aarch64-linux-android.a.gz
+13c9b755752972a7ee9748dbc2aecb1dc9e349baff6c7c019c395ff801779059  src_binding_ptrcomp_sandbox_release_aarch64-linux-android.rs
+SHA
+  )
+else
+  # Cache manifest must describe exactly both expected outputs.
+  (cd "$CACHE" && test "$(wc -l < SHA256SUMS)" -eq 2 &&
+    sha256sum "$ARCHIVE" "$BINDING" | cmp - SHA256SUMS)
+fi
 echo "RUSTY_V8_ARCHIVE=$(realpath "$CACHE/$ARCHIVE")" >> "$GITHUB_ENV"
 echo "RUSTY_V8_SRC_BINDING_PATH=$(realpath "$CACHE/$BINDING")" >> "$GITHUB_ENV"
 echo "Sandbox-enabled Android V8 $VERSION verified for $TARGET"

@@ -219,7 +219,7 @@ jobs:
           echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
 
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-native-arm64-v8a
           run-id: ${{ needs.check-release.outputs.native_run_id }}
@@ -311,7 +311,7 @@ jobs:
         run: bash .github/scripts/prepare-release-assets.sh
 
       - name: 保存唯一正式候选
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-candidate
           path: .release-assets/
@@ -319,7 +319,7 @@ jobs:
           if-no-files-found: error
           retention-days: 30
       - name: 保存中文发布说明
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: release-notes
           path: ${{ runner.temp }}/release-notes.md
@@ -358,7 +358,7 @@ jobs:
         with:
           ref: ${{ needs.check-release.outputs.release_sha }}
           persist-credentials: false
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-candidate
           path: candidate
@@ -368,7 +368,7 @@ jobs:
           PREVIOUS_TAG: ${{ needs.check-release.outputs.previous_tag }}
           RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
         run: bash .github/scripts/verify-release-device.sh candidate device-evidence
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
           name: release-device-evidence
@@ -390,15 +390,15 @@ jobs:
         with:
           ref: ${{ needs.check-release.outputs.release_sha }}
           fetch-depth: 0
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-candidate
           path: .release-assets
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-notes
           path: release-notes
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: release-device-evidence
           path: device-evidence

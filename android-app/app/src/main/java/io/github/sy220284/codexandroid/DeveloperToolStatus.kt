@@ -6,8 +6,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.testTag
-import org.json.JSONArray
-import org.json.JSONObject
 
 /** Read actual CLI versions using the existing local command RPC; no download or install. */
 @Composable
@@ -23,35 +21,13 @@ internal fun DeveloperToolStatus(vm: CodexViewModel) {
     val capabilities = mapOf("git" to "代码版本管理", "rg" to "快速查找项目内容", "curl" to "访问网络资源",
         "python3" to "运行 Python 脚本", "node" to "运行 JavaScript", "npm" to "管理前端依赖",
         "pip (python3 -m pip)" to "管理 Python 依赖", "Git HTTPS" to "远程 Git 传输")
-    val script = """
-        for name in git rg curl python3 node npm; do
-          if command -v "${'$'}name" >/dev/null 2>&1; then
-            output=${'$'}("${'$'}name" --version 2>&1); code=$?
-            output=${'$'}(printf '%s\n' "${'$'}output" | head -n 1)
-            printf '%s\t%s\t%s\n' "${'$'}name" "${'$'}code" "${'$'}output"
-          else
-            printf '%s\t127\t命令未找到\n' "${'$'}name"
-          fi
-        done
-        output=${'$'}(python3 -m pip --version 2>&1); code=$?
-        printf '%s\t%s\t%s\n' 'pip (python3 -m pip)' "${'$'}code" "${'$'}output"
-        if command -v git-remote-https >/dev/null 2>&1; then
-            printf '%s\t0\t%s\n' 'Git HTTPS' '传输组件已注册，连接待验证'
-        else
-            printf '%s\t127\t%s\n' 'Git HTTPS' '传输组件未安装'
-        fi
-    """.trimIndent()
     MaterialPanel(Modifier.fillMaxWidth()) {
         Text("本机开发工具", style = MaterialTheme.typography.titleMedium)
         Text("智能体按任务选择这些工具。检查仅验证本机命令启动和版本，不联网或安装依赖。", color = Ink.muted,
             style = MaterialTheme.typography.bodyMedium)
         CodexSecondaryButton(onClick = {
             checkedSession = session
-            vm.refresh(key, "command/exec", JSONObject()
-                .put("command", JSONArray().put("/system/bin/sh").put("-c").put(script))
-                .put("cwd", vm.workingDirectory)
-                .put("timeoutMs", 30000)
-                .put("sandboxPolicy", JSONObject().put("type", "externalSandbox").put("networkAccess", "restricted")))
+            vm.refresh(key, "command/exec", TerminalSessionContract.developerProbe(vm.workingDirectory))
         }, enabled = engine == EngineStatus.Connected && key !in loading,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("developer-tool-check")) {
             Text(if (key in loading) "检查中" else "检查开发能力")

@@ -128,7 +128,10 @@ class ArtifactSelector:
             "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
         ])
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, native_recipe(workflow, abi))
+        realtime_privacy = self.run([
+            "git", "ls-tree", sha, "--", "android-app/tools/prepare_android_realtime_privacy.py"
+        ])
+        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, realtime_privacy, native_recipe(workflow, abi))
 
     def test_signature(self, sha):
         upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex/codex-rs"])

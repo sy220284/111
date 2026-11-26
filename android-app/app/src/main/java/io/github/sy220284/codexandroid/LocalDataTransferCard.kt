@@ -47,7 +47,7 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
                 CodexIcon(CodexGlyph.SaveAlt, "本机备份", tint = Ink.copper)
                 Text("备份与恢复", style = MaterialTheme.typography.titleMedium)
             }
-            Text("更换安装签名、重装应用前，先导出本机项目、会话和设置。账号凭据需在恢复后重新登录。开发运行组件和私有已安装依赖不随备份迁移，项目依赖按声明重新安装。",
+            Text("更换安装签名或重装应用前，可导出项目、会话、草稿及界面偏好。账号、核心权限、模型服务地址、MCP、插件和运行组件需在新环境中重新配置；项目依赖按声明重新安装。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 CodexSecondaryButton(
@@ -77,7 +77,7 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
     pendingImport?.let { uri ->
         CodexConfirmDialog(
             title = "确认导入本机备份",
-            message = "将检查整个备份文件，下次完整启动时恢复其中的项目、会话与设置。" +
+            message = "将检查整个备份文件，下次完整启动时恢复项目、会话、草稿及界面偏好。旧版备份中涉及核心配置和运行状态的数据会明确列为排除项。" +
                 "同名本机文件会被备份版本替换，请先确认当前任务已结束。" +
                 if (available) "" else "\n\n" + work.blockReason,
             detail = "源文件：" + (uri.lastPathSegment ?: "所选备份"),

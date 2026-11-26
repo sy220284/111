@@ -23,7 +23,8 @@ import kotlinx.coroutines.flow.first
 
 /** Portable, on-device backup; never accesses a server or contacts a third party. */
 internal object LocalDataArchive {
-    private const val ARCHIVE_MARKER = "111-local-backup-version:1"
+    private const val ARCHIVE_MARKER = "111-local-backup-version:2"
+    private const val LEGACY_ARCHIVE_MARKER = "111-local-backup-version:1"
     private val PROJECTS_PREFIX = File("files", "projects").invariantSeparatorsPath
     private const val MAX_FILES = 15000
     private const val MAX_FILE_BYTES = 256L * 1024 * 1024
@@ -34,24 +35,20 @@ internal object LocalDataArchive {
     private const val ROLLBACK = ".codex-restore-rollback"
     private const val RESULT_PREFS = "codex-data-transfer-status"
     private const val RESULT_KEY = "result"
-    private val regeneratedRoots = setOf("native-tools", "developer-runtime", "developer-packages", "developer-system-ca.pem")
+    internal fun validatePath(name: String): Boolean = BackupDataPolicy.allows(name)
 
-    private fun regenerated(name: String): Boolean = name in regeneratedRoots || name.startsWith("developer-system-ca.pem.")
-
-    internal fun validatePath(name: String): Boolean {
-        if (!name.startsWith("files/") && !name.startsWith("shared_prefs/")) return false
-        if (name.contains('\\') || name.startsWith('/') || name.endsWith('/')) return false
+    // A pre-upgrade interrupted restore must be able to roll back exactly the
+    // paths recorded in its journal; this is never used for a new import.
+    private fun legacyRollbackPath(name: String): Boolean {
+        if (!BackupDataPolicy.safeSyntax(name)) return false
         val parts = name.split('/')
-        if (parts.size < 2 || parts.any { it.isBlank() || it == "." || it == ".." }) return false
         if (parts[1].startsWith(".codex-restore") || parts[1] == ".download-workspace-v1") return false
-        if (parts[0] == "files" && regenerated(parts[1])) return false
+        if (parts[0] == "files" && (parts[1] in setOf("native-tools", "developer-runtime", "developer-packages", "developer-system-ca.pem") ||
+                parts[1].startsWith("developer-system-ca.pem."))) return false
         if (parts[0] == "files" && parts[1] == "codex-home" &&
             parts.last().matches(Regex("(?i)(auth|credentials|tokens?)\\.json"))) return false
-        if (parts[0] == "shared_prefs" &&
-            (parts.last().contains("auth", ignoreCase = true) ||
-                parts.last().contains("account", ignoreCase = true) ||
-                parts.last() == "$RESULT_PREFS.xml")) return false
-        return true
+        return !(parts[0] == "shared_prefs" && (parts.last().contains("auth", ignoreCase = true) ||
+            parts.last().contains("account", ignoreCase = true) || parts.last() == "$RESULT_PREFS.xml"))
     }
 
     fun lastResult(context: Context): String = context.getSharedPreferences(
@@ -75,12 +72,10 @@ internal object LocalDataArchive {
             for ((prefix, root) in listOf("files" to privateRoot, PROJECTS_PREFIX to WorkspaceStorage.root(context), "shared_prefs" to prefsRoot)) {
                 if (!root.isDirectory) continue
                 root.walkTopDown().onEnter { directory ->
-                    if (root == privateRoot && directory.parentFile == root &&
-                        (regenerated(directory.name) || directory == WorkspaceStorage.legacyRoot(context))) false
-                    else {
-                        require(!Files.isSymbolicLink(directory.toPath())) { "备份目录包含符号链接：" + directory.name }
-                        !directory.name.startsWith(".codex-restore")
-                    }
+                    val allowed = directory == root || (directory != WorkspaceStorage.legacyRoot(context) &&
+                        BackupDataPolicy.mayContain("$prefix/" + directory.relativeTo(root).invariantSeparatorsPath))
+                    if (allowed) require(!Files.isSymbolicLink(directory.toPath())) { "备份目录包含符号链接：" + directory.name }
+                    allowed
                 }.filter { it != root && (!it.isDirectory || Files.isSymbolicLink(it.toPath())) }.forEach { file ->
                     val name = "$prefix/" + file.relativeTo(root).invariantSeparatorsPath
                     if (!validatePath(name)) return@forEach
@@ -122,6 +117,7 @@ internal object LocalDataArchive {
         var count = 0
         var total = 0L
         val visited = HashSet<String>()
+        var excluded = 0
         try {
             ZipInputStream(BufferedInputStream(input)).use { archive ->
                 val marker = archive.nextEntry
@@ -133,24 +129,28 @@ internal object LocalDataArchive {
                     if (count < 0) break
                     size += count
                 }
-                require(size == ARCHIVE_MARKER.length &&
-                    String(bytes, 0, size, Charsets.UTF_8) == ARCHIVE_MARKER &&
+                val format = String(bytes, 0, size, Charsets.UTF_8)
+                require(size == ARCHIVE_MARKER.length && format in setOf(ARCHIVE_MARKER, LEGACY_ARCHIVE_MARKER) &&
                     archive.read() == -1) { "备份格式或版本不受支持" }
+                val legacy = format == LEGACY_ARCHIVE_MARKER
                 archive.closeEntry()
                 while (true) {
                     val entry = archive.nextEntry ?: break
-                    if (entry.isDirectory || !validatePath(entry.name) ||
+                    if (entry.isDirectory || !BackupDataPolicy.safeSyntax(entry.name) ||
                         !visited.add(entry.name)) {
                         throw IOException("备份包含无效或重复的文件路径：" + entry.name)
                     }
-                    if (++count > MAX_FILES) throw IOException("备份文件数量超过上限")
-                    val target = File(incoming, entry.name).canonicalFile
-                    require(target.path.startsWith(incoming.canonicalPath + File.separator)) {
-                        "备份文件路径越界"
-                    }
-                    if (target.parentFile?.isDirectory != true && target.parentFile?.mkdirs() != true)
-                        throw IOException("无法创建备份文件目录")
-                    target.outputStream().buffered().use { out ->
+                    if (visited.size > MAX_FILES) throw IOException("备份文件数量超过上限")
+                    val allowed = validatePath(entry.name)
+                    if (!allowed && !legacy) throw IOException("备份包含不允许恢复的数据：" + entry.name)
+                    val target = if (allowed) File(incoming, entry.name).canonicalFile else null
+                    if (target != null) {
+                        require(target.path.startsWith(incoming.canonicalPath + File.separator)) { "备份文件路径越界" }
+                        if (target.parentFile?.isDirectory != true && target.parentFile?.mkdirs() != true)
+                            throw IOException("无法创建备份文件目录")
+                        count++
+                    } else excluded++
+                    target?.outputStream()?.buffered().use { out ->
                         val bytes = ByteArray(65536)
                         var fileSize = 0L
                         while (true) {
@@ -160,7 +160,7 @@ internal object LocalDataArchive {
                             total += n
                             if (fileSize > MAX_FILE_BYTES || total > MAX_TOTAL_BYTES)
                                 throw IOException("备份内容超出安全大小上限")
-                            out.write(bytes, 0, n)
+                            out?.write(bytes, 0, n)
                         }
                     }
                     archive.closeEntry()
@@ -175,7 +175,9 @@ internal object LocalDataArchive {
             if (!marker.writeText("pending").let { marker.isFile }) {
                 throw IOException("恢复标记创建失败")
             }
-            saveResult(context, "备份已验证（$count 项）；完全退出并重新打开应用后自动恢复。")
+            saveResult(context, "备份已验证（$count 项）；" +
+                (if (excluded > 0) "旧版备份中的 $excluded 项核心配置、运行状态或非迁移数据已排除；" else "") +
+                "完全退出并重新打开应用后自动恢复。")
             return count
         } catch (failure: Exception) {
             incoming.deleteRecursively()
@@ -218,7 +220,9 @@ internal object LocalDataArchive {
             val prefsRoot = File(context.applicationInfo.dataDir, "shared_prefs")
             val checkedTargets = files.sortedBy { it.relativeTo(staged).invariantSeparatorsPath }.map { file ->
                 val name = file.relativeTo(staged).invariantSeparatorsPath
-                require(validatePath(name)) { "恢复文件路径无效：" + name }
+                require(validatePath(name) || (transaction.hasJournal() && legacyRollbackPath(name))) {
+                    "恢复文件不属于允许迁移的数据，请重新选择备份：" + name
+                }
                 val target = if (name.startsWith("$PROJECTS_PREFIX/")) {
                     val root = WorkspaceStorage.root(context)
                     File(root, name.removePrefix("$PROJECTS_PREFIX/"))
@@ -352,8 +356,8 @@ internal object AppDataTransfer {
             state.value = try {
                 val input = context.contentResolver.openInputStream(source)
                     ?: throw IOException("所选备份文件无法打开")
-                val count = input.use { LocalDataArchive.stageImport(context.applicationContext, it) }
-                DataTransferState(busy = true, pendingRestore = true, result = "已验证 $count 项。关闭并重新打开应用即可恢复。")
+                input.use { LocalDataArchive.stageImport(context.applicationContext, it) }
+                DataTransferState(busy = true, pendingRestore = true, result = LocalDataArchive.lastResult(context))
             } catch (failure: Exception) {
                 DataTransferState(busy = LocalDataArchive.hasPending(context), pendingRestore = LocalDataArchive.hasPending(context),
                     result = "导入检查未完成：" + (failure.message ?: "备份文件无效"))

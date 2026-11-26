@@ -29,7 +29,7 @@ jobs:
       full: ${{ steps.plan.outputs.full }}
       runtime: ${{ steps.plan.outputs.runtime }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -63,7 +63,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: 仅检出 Android UI 源码
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -85,7 +85,7 @@ jobs:
             /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
       - name: 安装 JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: "17"
@@ -96,7 +96,7 @@ jobs:
           test -x "$SDK_MANAGER"
           "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
       - name: 配置 Gradle 缓存
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: "8.11.1"
       - name: 验证 CI 触发范围与原生产物复用不变量
@@ -208,7 +208,7 @@ jobs:
             --report wire-fixtures-audit.json
       - name: 保存测试与 Lint 报告
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-check-reports
           path: |
@@ -229,7 +229,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: 保存独立编译的 UI 与设备测试安装包
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-apks
           path: |
@@ -250,7 +250,7 @@ jobs:
     timeout-minutes: 65
     steps:
       - name: 检出截图采集器
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -262,7 +262,7 @@ jobs:
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
       - name: 取回 UI APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-ui-apks
           path: apks
@@ -271,7 +271,7 @@ jobs:
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
       - name: 在真实 Android 环境验证侧栏导航并生成首页截图
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: 35
           arch: x86_64
@@ -313,7 +313,7 @@ jobs:
             if [ "${{ matrix.width_dp }}" = "393" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-device-evidence-${{ matrix.width_dp }}dp
           path: |
@@ -336,7 +336,7 @@ jobs:
     timeout-minutes: 55
     steps:
       - name: 检出 Android 工程及源码版本标记
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -347,7 +347,7 @@ jobs:
             CODEX_UPSTREAM_COMMIT
             .github/scripts
       - name: 安装 Java 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: "17"
@@ -358,11 +358,11 @@ jobs:
           test -x "$SDK_MANAGER"
           "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
       - name: 安装 Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: "8.11.1"
       - name: 取回 ARM64 原生核心
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-native-arm64-v8a
           run-id: ${{ needs.native.outputs.arm_run_id }}
@@ -406,21 +406,21 @@ jobs:
           sha256sum "$APK"
 
       - name: 上传 ARM64 安卓手机专用 APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-arm64-apk
           path: android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
           retention-days: 30
       - name: 上传同一 APK 的 Git 对应源码
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-arm64-git-corresponding-source
           path: ${{ runner.temp }}/git-corresponding-source.tar.xz
           if-no-files-found: error
           retention-days: 30
       - name: 上传设备仪器测试 APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-instrumentation-apk
           path: android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
@@ -436,7 +436,7 @@ jobs:
     timeout-minutes: 60
     steps:
       - name: 检出同提交 Android 工程与原生配方
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -445,14 +445,14 @@ jobs:
             android-app
             CODEX_UPSTREAM_COMMIT
             .github/scripts
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
         with:
           distribution: temurin
           java-version: "17"
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: "8.11.1"
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-native-x86_64
           run-id: ${{ needs.native.outputs.x86_run_id }}
@@ -474,7 +474,7 @@ jobs:
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
       - name: 执行真实内核启动、终端、回收与恢复
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
         with:
           api-level: 35
           arch: x86_64
@@ -484,7 +484,7 @@ jobs:
           script: bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
       - name: 保存真实内核验收证据
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-real-runtime-evidence
           path: runtime-evidence/
@@ -507,7 +507,7 @@ jobs:
       # Jobs have separate workspaces. The APK and its audit script are both
       # required; the upload artifact contains only the APK, not repository files.
       - name: 检出 APK 安全检查脚本
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -515,7 +515,7 @@ jobs:
             /.github/scripts/audit_apk_contents.py
           sparse-checkout-cone-mode: false
       - name: 取回 ARM64 原生 APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-arm64-apk
           path: apks
@@ -641,7 +641,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -695,7 +695,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: .github/scripts

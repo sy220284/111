@@ -62,7 +62,17 @@
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/TerminalTaskOperations.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteExecutionBinding.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteEnvironmentProtocol.kt",
-      "android-app/app/src/main/AndroidManifest.xml"
+      "android-app/app/src/main/AndroidManifest.xml",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/BackupDataPolicy.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/LocalDataArchive.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/LocalRestoreTransaction.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/TerminalSessionContract.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/TerminalCommandPolicy.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/DeveloperToolStatus.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeVoiceController.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeVoiceLease.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/DomesticProviderCredentials.kt",
+      "android-app/tools/prepare_android_realtime_privacy.py"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
