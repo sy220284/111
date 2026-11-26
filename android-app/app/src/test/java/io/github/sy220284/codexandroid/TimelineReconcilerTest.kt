@@ -160,6 +160,10 @@ class TimelineReconcilerTest {
         val instruction = ProgressiveReplyProjection.appendInstruction("原有指令")
         org.junit.Assert.assertTrue(instruction.startsWith("原有指令\n\n"))
         assertEquals(instruction, ProgressiveReplyProjection.appendInstruction(instruction))
+        val oldInstruction = instruction.substringBeforeLast("\n\n")
+        val migrated = ProgressiveReplyProjection.appendInstruction(oldInstruction)
+        assertEquals(instruction, migrated)
+        assertEquals(migrated, ProgressiveReplyProjection.appendInstruction(migrated))
     }
 
     @Test fun richReplyBlocksRequireCompleteValidatedFences() {
@@ -169,6 +173,8 @@ class TimelineReconcilerTest {
         assertEquals("metrics", block.kind)
         assertEquals(listOf("文件数", "11,404", "已检查"), block.rows.first())
         assertEquals(metrics, block.source)
+        val spaced = fence + " codex-metrics  \n文件数|3\n" + fence
+        assertEquals(spaced, MessageMarkdown.blocks(spaced).single().source)
         assertEquals("code", MessageMarkdown.blocks(metrics.dropLast(3)).single().kind)
         assertEquals("code", MessageMarkdown.blocks(fence + "codex-metrics\n错误行\n" + fence).single().kind)
         val flow = MessageMarkdown.blocks(fence + "codex-flow\n读取源码\n执行检查\n" + fence).single()

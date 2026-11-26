@@ -946,6 +946,15 @@ class CodexInteractionComponentsInstrumentedTest {
     }
 
 
+    @Test fun nativeUserMessageUsesMobileBubble() {
+        rule.setContent {
+            CodexTheme { TimelineActivityGroup(listOf(TimelineItem("native-user", "userMessage", "任务", "completed"))) }
+        }
+        rule.onNodeWithTag("chat-user-message").assertExists()
+        rule.onNodeWithText("任务").assertExists()
+        rule.onNodeWithTag("chat-activity-group").assertDoesNotExist()
+    }
+
     @Test fun liveReplyShowsToolRowsAndNativeRichContent() {
         val fence = "```"
         val tools = listOf(TimelineItem("live-tool", "commandExecution", "读取仓库", "completed", turnId = "turn"))

@@ -33,7 +33,7 @@ internal fun TimelineActivityGroup(
     showMessageActions: Boolean = true, actionItem: TimelineItem? = null,
     forceActivity: Boolean = false, note: String? = null, liveProcess: Boolean = false
 ) {
-    if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "agent", "agentMessage", "plan", "planProgress", "error",
+    if (!forceActivity && group.size == 1 && group.first().kind in setOf("user", "userMessage", "agent", "agentMessage", "plan", "planProgress", "error",
             "imageGeneration", "enteredReviewMode", "exitedReviewMode", "contextCompaction", "collabAgentToolCall", "subAgentActivity", "hookRun")) {
         TimelineStepCard(group.first(), workspaceRoot, onTurnAction, version, onVersion,
             showMessageActions, actionItem, note)
@@ -45,7 +45,6 @@ internal fun TimelineActivityGroup(
     val summary = group.groupingBy { if (ProgressiveReplyProjection.commentary(it)) "过程回复" else PresentationPolicy.timelineKind(it.kind) }.eachCount()
         .entries.joinToString(" · ") { (kind, count) -> if (count == 1) kind else "$kind $count 项" }
     Column(Modifier.fillMaxWidth().testTag("chat-activity-group")
-        .then(if (liveProcess) Modifier.testTag("chat-live-activity") else Modifier)
         .padding(vertical = 2.dp)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
             .clickable { expanded = !expanded }.padding(horizontal = 4.dp, vertical = 6.dp),

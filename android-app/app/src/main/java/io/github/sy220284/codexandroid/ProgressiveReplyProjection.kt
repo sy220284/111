@@ -120,7 +120,13 @@ internal object ProgressiveReplyProjection {
         addAll(output)
     }
 
-    const val instruction = "长任务采用渐进式回复：开始工作时简短说明计划；获得可靠且可独立使用的结果后，及时输出正式答案片段并继续执行；过程更新与正式答案分开，最终回答补齐剩余结果，避免重复已交付内容。只有任务完成或需要用户决策时结束当前回合。"
-    fun appendInstruction(current: String): String =
-        if (current.contains(instruction)) current else if (current.isBlank()) instruction else current.trimEnd() + "\n\n" + instruction
+    private const val baseInstruction = "长任务采用渐进式回复：开始工作时简短说明计划；获得可靠且可独立使用的结果后，及时输出正式答案片段并继续执行；过程更新与正式答案分开，最终回答补齐剩余结果，避免重复已交付内容。只有任务完成或需要用户决策时结束当前回合。"
+    private const val richInstruction = "移动端正式回答在有真实数据时可使用 codex-metrics Markdown 代码围栏，每行标签|数值|可选说明；线性步骤可使用 codex-flow 围栏，每行一个步骤，最多12项。只在确实有助阅读时使用，普通段落、表格及代码仍用标准 Markdown。"
+    const val instruction = baseInstruction + "\n\n" + richInstruction
+
+    fun appendInstruction(current: String): String {
+        val missing = listOf(baseInstruction, richInstruction).filterNot { current.contains(it) }
+        if (missing.isEmpty()) return current
+        return (listOf(current.trimEnd()).filter(String::isNotBlank) + missing).joinToString("\n\n")
+    }
 }

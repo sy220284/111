@@ -96,6 +96,7 @@ internal object MessageMarkdown {
             when {
                 marker != null -> {
                     flush()
+                    val fenceStart = i
                     val opening = marker.groupValues[1]
                     val language = marker.groupValues[2].trim().substringBefore(' ')
                     val content = mutableListOf<String>()
@@ -107,9 +108,10 @@ internal object MessageMarkdown {
                     }
                     val code = content.joinToString("\n")
                     val closed = i < lines.size
-                    val rich = if (closed) RichReplyContent.parse(language, code) else null
+                    val rich = if (closed && marker.groupValues[2].trim() == language)
+                        RichReplyContent.parse(language, code) else null
                     result.add(if (rich != null) MessageBlock(rich.kind, code, label = language,
-                        rows = rich.rows, source = opening + language + "\n" + code + "\n" + opening)
+                        rows = rich.rows, source = lines.subList(fenceStart, i + 1).joinToString("\n"))
                     else MessageBlock("code", code, label = language))
                 }
                 tableHeader(lines, i) -> {
@@ -327,7 +329,7 @@ private fun MessageTable(block: MessageBlock) {
             column in minOf(a.second, b.second)..maxOf(a.second, b.second)
     }
     BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val cellWidth = (maxWidth / count).coerceIn((82 * codexEffectiveFontScale()).dp, 220.dp)
+        val cellWidth = maxOf(maxWidth / count, (82 * codexEffectiveFontScale()).dp)
         Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
             color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
         Column {
