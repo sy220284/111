@@ -39,12 +39,15 @@ internal fun Modifier.codexActionPress(interaction: MutableInteractionSource, en
     val reduced by UiPreferences.reducedMotion.collectAsState()
     val focused by interaction.collectIsFocusedAsState()
     val hovered by interaction.collectIsHoveredAsState()
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         targetValue = if (enabled && pressed && !reduced) .985f else 1f,
         animationSpec = tween(CodexMotion.duration(if (pressed) CodexMotion.press else CodexMotion.release, reduced)),
         label = "control-press"
     )
-    return graphicsLayer { scaleX = scale; scaleY = scale }
+    // Resting lists should not allocate a transform layer for every control.
+    val moving by remember(scale, reduced) { derivedStateOf { !reduced && scale.value != 1f } }
+    val motion = if (moving) Modifier.graphicsLayer { scaleX = scale.value; scaleY = scale.value } else Modifier
+    return this.then(motion)
         .then(if (enabled && (focused || hovered)) Modifier.border(
             if (focused) 2.dp else 1.dp, if (focused) Ink.copper else Ink.controlBorder,
             shape) else Modifier)

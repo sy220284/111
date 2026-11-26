@@ -30,7 +30,7 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
@@ -64,15 +64,23 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         if (reducedMotion) progress.snapTo(1f)
         else progress.animateTo(1f, tween(CodexMotion.navigation))
     }
-    Box(Modifier.fillMaxSize().clipToBounds()) {
-        Box(Modifier.fillMaxSize().graphicsLayer {
-            val visible = if (reducedMotion) 1f else progress.value
-            // A nearly opaque full-screen fade must not allocate a viewport-sized
-            // offscreen texture every frame. Keep the existing fade and motion.
-            compositingStrategy = CompositingStrategy.ModulateAlpha
-            alpha = .94f + .06f * visible
-            translationY = 6.dp.toPx() * (1f - visible)
-        }) { content() }
+    val moving by remember(progress, reducedMotion) {
+        derivedStateOf { !reducedMotion && progress.value < 1f }
+    }
+    val canvas = Ink.canvas
+    // Blend the canvas once, outside the translated content layer. Do not
+    // modulate all descendant draw operations or invalidate their layer cache.
+    val fade = if (moving) Modifier.drawWithContent {
+        drawContent()
+        val veil = .06f * (1f - progress.value)
+        if (veil > 0f) drawRect(canvas, alpha = veil)
+    } else Modifier
+    val entrance = if (moving) Modifier.graphicsLayer {
+        translationY = 6.dp.toPx() * (1f - progress.value)
+    } else Modifier
+    // Release both animated modifiers at rest, including reduced-motion mode.
+    Box(Modifier.fillMaxSize().clipToBounds().then(fade)) {
+        Box(Modifier.fillMaxSize().then(entrance)) { content() }
     }
 }
 
