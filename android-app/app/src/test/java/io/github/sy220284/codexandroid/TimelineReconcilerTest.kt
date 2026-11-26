@@ -108,11 +108,13 @@ class TimelineReconcilerTest {
         org.junit.Assert.assertFalse(batch.append(delta("other", "c")))
         val oldEpoch = TimelineDeltaBatch(delta("answer", "old").put(CORE_SESSION_FIELD, 1L))
         org.junit.Assert.assertFalse(oldEpoch.append(delta("answer", "new").put(CORE_SESSION_FIELD, 2L)))
-        assertEquals(1L, oldEpoch.notification().getLong(CORE_SESSION_FIELD))
+        assertEquals(1L, oldEpoch.notification().wire.getLong(CORE_SESSION_FIELD))
+        assertEquals("ab", batch.notification().delta)
+        assertEquals("a", first.getJSONObject("params").getString("delta"))
         val sequential = TimelineEventReducer.reduce("item/agentMessage/delta", second.getJSONObject("params"),
             TimelineEventReducer.reduce("item/agentMessage/delta", first.getJSONObject("params"), emptyList()))
         assertEquals(sequential, TimelineEventReducer.reduce("item/agentMessage/delta",
-            batch.notification().getJSONObject("params"), emptyList()))
+            batch.notification().params, emptyList(), batch.notification().mergedDelta))
     }
 
     @Test fun progressiveReplyKeepsLiveOrderingAndOneCompleteAnswerAfterTurn() {

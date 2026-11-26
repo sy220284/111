@@ -13,8 +13,9 @@ internal class ConversationLiveTimeline {
         }
     }
 
-    fun event(threadId: String, method: String, params: JSONObject, activeThreads: Set<String>) {
-        val updated = TimelineEventReducer.reduce(method, params, sessions.remove(threadId).orEmpty())
+    fun event(threadId: String, method: String, params: JSONObject, activeThreads: Set<String>,
+        deltaText: String? = null) {
+        val updated = TimelineEventReducer.reduce(method, params, sessions.remove(threadId).orEmpty(), deltaText)
         sessions[threadId] = updated
         val inactive = sessions.keys.filter { it !in activeThreads }
         inactive.dropLast(8).forEach { sessions.remove(it) }

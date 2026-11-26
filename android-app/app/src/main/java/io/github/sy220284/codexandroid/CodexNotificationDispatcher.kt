@@ -11,10 +11,11 @@ import org.json.JSONObject
  * discarded. A separate file keeps orchestration out of the UI ViewModel.
  */
 internal object CodexNotificationDispatcher {
-    suspend fun dispatch(vm: CodexViewModel, message: JSONObject) {
+    suspend fun dispatch(vm: CodexViewModel, notification: CoreNotification) {
         with(vm) {
-        val method = message.optString("method")
-        val params = message.optJSONObject("params") ?: JSONObject()
+        val message = notification.wire
+        val method = notification.method
+        val params = notification.params
         val threadId = params.optString("threadId")
         if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
         // MCP registration and OAuth are agent/runtime responsibilities.
@@ -224,13 +225,16 @@ internal object CodexNotificationDispatcher {
         }
         if (threadId.isNotBlank() && (threadId == hydratingThread || threadId != activeThread.value) &&
             method in TimelineEventReducer.methods) {
-            liveTimelines.event(threadId, method, params, threadExecutions.value.keys)
+            liveTimelines.event(threadId, method, params, threadExecutions.value.keys, notification.mergedDelta)
             return
         }
         if (threadId.isNotBlank() && threadId != activeThread.value) return
         when (method) {
-            in TimelineEventReducer.methods - "turn/completed" ->
-                timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
+            in TimelineEventReducer.methods - "turn/completed" -> {
+                if (notification.mergedDelta != null) {
+                    if (!TimelineEventEngine.applyVisibleDelta(vm, notification)) return
+                } else timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
+            }
             "turn/diff/updated" -> latestDiff.value = params.optString("diff")
             "turn/completed" -> Unit // Applied atomically above, or buffered for the hydrating/offscreen thread.
         }

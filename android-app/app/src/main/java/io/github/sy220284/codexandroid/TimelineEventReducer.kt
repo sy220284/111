@@ -100,7 +100,8 @@ internal object TimelineEventReducer {
         it.id == outcomeId(turnId) || it.id == "turn-error:$turnId"
     }?.status
 
-    fun reduce(method: String, params: JSONObject, current: List<TimelineItem>): List<TimelineItem> {
+    fun reduce(method: String, params: JSONObject, current: List<TimelineItem>,
+        deltaText: String? = null): List<TimelineItem> {
         val turnId = params.string("turnId")
         var items = IndexedTimeline.from(current)
         val closed = items.byId(outcomeId(turnId)) != null || items.byId("turn-error:$turnId") != null
@@ -240,7 +241,7 @@ internal object TimelineEventReducer {
         val old = items.byId(id)
         if (closed || (old != null && old.status in terminalStates)) return current
         if (kind == "agentMessage" && AgentReplyContract.restricted(old?.metadata())) return current
-        val delta = params.string("delta")
+        val delta = deltaText ?: params.string("delta")
         val field = when (method) {
             "item/agentMessage/delta", "item/plan/delta" -> "text"
             "item/reasoning/summaryTextDelta", "item/reasoning/summaryPartAdded" -> "summary"
