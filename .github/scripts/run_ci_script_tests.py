@@ -7,7 +7,7 @@ from pathlib import Path
 
 PLAN = {"test_ci_policy.py", "test_ci_gate.py", "test_ci_scope.py", "test_native_reuse.py",
         "test_retain_check_artifacts.py", "test_repository_steward.py", "test_ci_reuse.py",
-        "test_ci_script_tests.py"}
+        "test_ci_script_tests.py", "test_ci_queue_policy.py"}
 
 def suites(directory, phase):
     files = {p.name for p in directory.glob("test_*.py")}

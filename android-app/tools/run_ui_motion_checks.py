@@ -1,12 +1,31 @@
 #!/usr/bin/env python3
 """Measure real frames with animations enabled; restore the deterministic suite's settings."""
 import json
+import os
+import platform
+import time
 import subprocess
 import shlex
 from pathlib import Path
 from run_ui_device_checks import adb, execute_instrumentation, DEVICE_ROOT, assert_device
 from device_matrix import dimensions
 import argparse
+
+def environment_snapshot():
+    # Read-only, low-overhead snapshots around the measured scene. No trace
+    # or profiler is started while the acceptance frames are being sampled.
+    paths = ("/proc/stat", "/proc/meminfo", "/proc/pressure/cpu",
+             "/proc/pressure/memory", "/proc/pressure/io", "/sys/fs/cgroup/cpu.stat")
+    host = {}
+    for name in paths:
+        path = Path(name)
+        if path.is_file():
+            host[name] = path.read_text(encoding="utf-8")
+    return {"monotonic_ns": time.monotonic_ns(), "host_cpu_count": os.cpu_count(),
+            "host_platform": platform.platform(), "host": host,
+            "guest_cpus": adb("shell", "getconf", "_NPROCESSORS_ONLN"),
+            "guest_meminfo": adb("shell", "cat", "/proc/meminfo"),
+            "guest_build": adb("shell", "getprop", "ro.build.fingerprint")}
 
 def main():
     parser = argparse.ArgumentParser()
@@ -44,8 +63,14 @@ def main():
         print("Host logical CPUs:", __import__("os").cpu_count())
         print("Guest CPUs:", adb("shell", "getconf", "_NPROCESSORS_ONLN"))
         adb("shell", "dumpsys", "gfxinfo", package, "reset")
-        result = execute_instrumentation(["UiMotionPerformanceInstrumentedTest"], "ui-motion.log",
-                                         {"expectedRenderer": "Pipeline=Skia (OpenGL)"})
+        before = environment_snapshot()
+        try:
+            result = execute_instrumentation(["UiMotionPerformanceInstrumentedTest"], "ui-motion.log",
+                                             {"expectedRenderer": "Pipeline=Skia (OpenGL)"})
+        finally:
+            Path("ui-motion-environment.json").write_text(json.dumps({
+                "before": before, "after": environment_snapshot()
+            }, indent=2), encoding="utf-8")
         Path("ui-motion-diagnosis.json").write_text(json.dumps(result, indent=2))
         subprocess.run(["adb", "pull", remote, str(local)], check=True)
         data = json.loads(local.read_text())

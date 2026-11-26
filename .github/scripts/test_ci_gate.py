@@ -1,6 +1,6 @@
 import unittest
 import json
-from ci_reuse import required_groups
+from ci_reuse import required_groups, SCHEMA
 from ci_gate import verify, FULL, ALL
 
 def fixture(full=True, runtime=None, pr=True):
@@ -8,7 +8,7 @@ def fixture(full=True, runtime=None, pr=True):
         runtime = full
     jobs = {k: {"result": "skipped"} for k in ALL}
     groups=required_groups(full,runtime,"pull_request" if pr else "push","refs/pull/1/merge" if pr else "refs/heads/main")
-    jobs["plan"] = {"result": "success", "outputs": {"full": str(full).lower(), "runtime": str(runtime).lower(), "receipt":json.dumps({"schema":1,"source":"head","tree":"tree","required":sorted(groups),"execute":sorted(groups),"reused":{}})}}
+    jobs["plan"] = {"result": "success", "outputs": {"full": str(full).lower(), "runtime": str(runtime).lower(), "receipt":json.dumps({"schema":SCHEMA,"source":"head","tree":"tree","required":sorted(groups),"execute":sorted(groups),"reused":{}})}}
     for k in FULL if full else ():
         jobs[k]["result"] = "success"
     if full and pr: jobs["release-signing-smoke"]["result"] = "success"
@@ -51,7 +51,7 @@ class GateTests(unittest.TestCase):
         record["execute"].remove("ui")
         record["reused"]["ui"]={"run_id":12}
         jobs["plan"]["outputs"]["receipt"]=json.dumps(record)
-        for name in ("verify-ui","ui-emulator","ui-collect","ui-evidence"):
+        for name in ("ui-emulator","ui-collect","ui-evidence"):
             jobs[name]["result"]="skipped"
         self.assertNotIn("ui-emulator",verify(jobs,"pull_request","refs/pull/1/merge"))
         record["reused"]={}
@@ -63,3 +63,15 @@ class GateTests(unittest.TestCase):
         data["plan"]["outputs"]["runtime"] = "false"
         with self.assertRaises(ValueError):
             verify(data, "pull_request", "refs/pull/1/merge")
+
+    def test_reused_compile_source_is_bound_to_receipt(self):
+        jobs=fixture()
+        record=json.loads(jobs["plan"]["outputs"]["receipt"])
+        record["execute"].remove("compile")
+        record["reused"]["compile"]={"run_id":12}
+        jobs["verify-ui"]["result"]="skipped"
+        jobs["plan"]["outputs"]["receipt"]=json.dumps(record)
+        jobs["plan"]["outputs"]["compile_run_id"]="13"
+        with self.assertRaises(ValueError): verify(jobs,"pull_request","refs/pull/1/merge")
+        jobs["plan"]["outputs"]["compile_run_id"]="12"
+        self.assertIn("ui-emulator",verify(jobs,"pull_request","refs/pull/1/merge"))

@@ -25,10 +25,11 @@ permissions:
   actions: read
 
 concurrency:
-  # Keep independent branches from blocking each other; supersede stale PR builds.
-  # Native V8 compilation takes hours; keep builds of distinct revisions alive
-  # so fixing one ABI does not discard another ABI's expensive progress.
+  # Serialize identical native inputs; each consumer checks for the completed
+  # artifact after acquiring the lock. Unlike PR acceptance, never replace a
+  # different waiting consumer merely because another branch requested it.
   group: android-native-codex-${{ inputs.native_key || github.sha }}
+  queue: max
   cancel-in-progress: false
 
 jobs:

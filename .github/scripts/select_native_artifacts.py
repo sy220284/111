@@ -3,7 +3,8 @@
 
 Ignore upstream documentation and unrelated platforms. Reuse only when the
 Android Rust source tree, inherited Cargo configuration, native build recipe,
-and platform adapters match an ancestor with a verified, unexpired artifact.
+and platform adapters match a verified artifact. Sibling commits additionally
+require identical trusted producer workflow and index/selector code.
 """
 import argparse
 import json
@@ -143,7 +144,10 @@ class ArtifactSelector:
             "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
         ])
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, native_recipe(workflow, abi))
+        signature = (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder,
+                     v8_host_adapter, git_builder, native_recipe(workflow, abi))
+        privacy = self.run(["git", "ls-tree", sha, "--", "android-app/tools/prepare_android_realtime_privacy.py"])
+        return signature + (privacy,) if privacy else signature
 
     def test_signature(self, sha):
         upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex/codex-rs"])
@@ -183,7 +187,18 @@ class ArtifactSelector:
         return {item["run_id"]: item for item in json.loads(path.read_text(encoding="utf-8"))
                 if item["repository"] == repository}
 
-    def source(self, repository, run_id, target, branch):
+    def same_producer(self, old, target):
+        # Exact producer/caller and index code, not just a similar job name.
+        paths = (".github/workflows/ci.yml", ".github/workflows/build-native-codex.yml",
+                 ".github/scripts/native_index.py", ".github/scripts/select_native_artifacts.py")
+        try:
+            previous = self.run(["git", "ls-tree", "-r", old, "--", *paths])
+            current = self.run(["git", "ls-tree", "-r", target, "--", *paths])
+        except SelectionError:
+            return False
+        return bool(previous) and previous == current
+
+    def source(self, repository, run_id, target, branch, *, indexed=False):
         run = self.api_json(f"repos/{repository}/actions/runs/{run_id}")
         if (run.get("head_repository") or {}).get("full_name") != repository:
             return None
@@ -193,7 +208,10 @@ class ArtifactSelector:
         if branch != "main" and run.get("head_branch") != branch:
             return None
         old = run.get("head_sha")
-        return old if old and self.is_ancestor(old, target) else None
+        if old and (self.is_ancestor(old, target) or
+                    (indexed and self.same_producer(old, target))):
+            return old
+        return None
 
     def jobs(self, repository, run_id):
         jobs = self.api_json(f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100")
@@ -210,7 +228,7 @@ class ArtifactSelector:
         history = self.historical(repository)
         ids = list(dict.fromkeys(sorted(self.index_runs(repository, "provider-index-" + fingerprint(signature)), reverse=True) + list(history)))
         for run_id in ids:
-            old = self.source(repository, run_id, target, branch)
+            old = self.source(repository, run_id, target, branch, indexed=run_id not in history)
             if not old:
                 continue
             if run_id in history and not self.legacy_source(history[run_id], old):
@@ -232,7 +250,7 @@ class ArtifactSelector:
         ids = list(dict.fromkeys(self.indexed_candidates(repository, current_signatures) + list(history)))
         expected = {f"codex-android-native-{abi}" for abi in abis}
         for run_id in ids:
-            old = self.source(repository, run_id, target, branch)
+            old = self.source(repository, run_id, target, branch, indexed=run_id not in history)
             if not old:
                 continue
             try:

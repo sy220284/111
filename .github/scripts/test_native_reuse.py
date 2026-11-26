@@ -41,7 +41,7 @@ class FakeRunner:
                  run_conclusion='success', failed_job=False,
                  changed_code_mode_adapter=False,
                  legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False, changed_git_builder=False,
-                 changed_parent_cargo=False):
+                 changed_parent_cargo=False, changed_producer=False, changed_privacy=False):
         self.run_conclusion = run_conclusion
         self.failed_job = failed_job
         self.failed_provider = False
@@ -56,6 +56,8 @@ class FakeRunner:
         self.changed_v8_host_adapter = changed_v8_host_adapter
         self.changed_git_builder = changed_git_builder
         self.changed_parent_cargo = changed_parent_cargo
+        self.changed_producer = changed_producer
+        self.changed_privacy = changed_privacy
         self.git_queries = []
         self.called_api = 0
         self.last_workflow_query = []
@@ -74,8 +76,12 @@ class FakeRunner:
             if is_upstream:
                 return "same-tree"
             return "same-patcher"
+        if args[:3] == ["git", "ls-tree", "-r"]:
+            return "different producer" if self.changed_producer and args[3] in ("old","older") else "same producer"
         if args[:2] == ["git", "ls-tree"]:
             sha = args[2]
+            if args[-1] == "android-app/tools/prepare_android_realtime_privacy.py":
+                return "old privacy" if self.changed_privacy and sha.startswith(("old","older")) else "same privacy" if self.changed_privacy else ""
             if args[-1] == "upstream/codex/.cargo":
                 return ("old-parent-cargo" if sha.startswith(("old", "older")) and
                         self.changed_parent_cargo else "same-parent-cargo")
@@ -333,8 +339,16 @@ jobs:
                                                         ["arm64-v8a"]))
         self.assertEqual(runner.called_api, 0)
 
-    def test_unrelated_history_cannot_reuse(self):
+    def test_identical_indexed_sibling_producer_can_reuse(self):
         runner = FakeRunner(ancestor=False)
+        self.assertEqual("21", ArtifactSelector(runner).find("owner/repo", "HEAD", ["arm64-v8a"]))
+
+    def test_privacy_adapter_is_a_native_input(self):
+        runner = FakeRunner(changed_privacy=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD", ["arm64-v8a"]))
+
+    def test_unrelated_history_cannot_reuse(self):
+        runner = FakeRunner(ancestor=False, changed_producer=True)
         self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                         ["arm64-v8a"]))
 

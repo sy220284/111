@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
@@ -70,15 +71,15 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
     val entrance = if (moving) Modifier.graphicsLayer {
         translationY = 6.dp.toPx() * (1f - progress.value)
     } else Modifier
-    // The veil is an independent, non-interactive sibling. Changing its opacity
-    // must not invalidate the parent draw node that owns the entire page.
-    // Both moving layers are released at rest and in reduced-motion mode.
+    // Keep the original veil and translation; draw the translucent rectangle
+    // directly in its own draw node instead of allocating a screen-sized alpha layer.
+    // Draw-phase progress invalidates only this sibling. Release it at rest.
     Box(Modifier.fillMaxSize().clipToBounds()) {
         Box(Modifier.fillMaxSize().then(entrance)) { content() }
         if (moving) {
-            Box(Modifier.matchParentSize().graphicsLayer {
-                alpha = .06f * (1f - progress.value)
-            }.background(canvas))
+            Box(Modifier.matchParentSize().drawBehind {
+                drawRect(canvas, alpha = .06f * (1f - progress.value))
+            })
         }
     }
 }

@@ -82,6 +82,13 @@ class RetentionTests(unittest.TestCase):
         entries=[artifact(3,3,"ui-proof-compact-baseline"),artifact(4,4,"ui-proof-compact-baseline")]
         self.assertEqual([],plan(entries,runs,set(),set(),False,now=now))
 
+    def test_recent_failed_run_group_evidence_is_retained(self):
+        now=datetime(2026,11,26,tzinfo=timezone.utc)
+        runs={1:dict(run(1,"ci"),conclusion="failure",created_at=(now-timedelta(hours=1)).isoformat()),
+              2:dict(run(2,"ci"),conclusion="success",created_at=now.isoformat())}
+        for name in ("ui-apk-integrity","ui-shard-mainstream-baseline-navigation","codex-android-ui-apks"):
+            self.assertEqual([],plan([artifact(1,1,name),artifact(2,2,name)],runs,set(),set(),False,now=now))
+
     def test_rerun_duplicate_retains_newest_artifact(self):
         runs = {1: run(1)}
         self.assertEqual([1], [a["id"] for a in plan(
@@ -90,3 +97,4 @@ class RetentionTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

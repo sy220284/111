@@ -54,11 +54,11 @@ def family(name):
 
 def protected_recent_proof(artifact, run, now):
     """Do not delete direct CI evidence while it may be used by a 48-hour receipt."""
-    if (workflow_path(run)!=".github/workflows/ci.yml" or run.get("conclusion")!="success"
+    if (workflow_path(run)!=".github/workflows/ci.yml" or run.get("conclusion") not in {"success", "failure", "cancelled"}
         or (run.get("head_repository") or {}).get("full_name")!=run["repository"]["full_name"]):
         return False
     name=artifact["name"]
-    if not (name=="ci-acceptance-receipt" or name.startswith(("ui-proof-","codex-android-ui-",
+    if not (name=="ci-acceptance-receipt" or name.startswith(("ui-proof-","ui-shard-","ui-apk-integrity","codex-android-ui-",
             "codex-android-arm64-", "codex-android-real-runtime-evidence", "codex-android-instrumentation-apk"))):
         return False
     age=now-datetime.fromisoformat(run["created_at"].replace("Z","+00:00"))
