@@ -50,7 +50,7 @@ class RemoteDeliveryAdapterTest(unittest.TestCase):
             first = {relative: (root / relative).read_text() for relative in sources}
             run(root, exec_only=True)
             self.assertEqual(first, {relative: (root / relative).read_text() for relative in sources})
-            last = EXEC_CHANGES[-1][0]
+            last = next(path for path in reversed(sources) if path != EXEC_CHANGES[0][0])
             (root / last).write_text("drift")
             with self.assertRaises(ValueError):
                 run(root, exec_only=True)

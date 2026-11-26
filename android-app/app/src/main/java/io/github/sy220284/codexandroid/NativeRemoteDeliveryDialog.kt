@@ -27,6 +27,7 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
     var operation by remember(request) { mutableStateOf<Job?>(null) }
     var saving by remember(request) { mutableStateOf(false) }
     var verifying by remember(request) { mutableStateOf(false) }
+    var receivedBytes by remember(request) { mutableLongStateOf(0L) }
     var verifiedBytes by remember(request) { mutableLongStateOf(0L) }
     var totalBytes by remember(request) { mutableLongStateOf(0L) }
     val session by vm.bridge.connectedSession.collectAsState()
@@ -43,7 +44,7 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
         val payload = data
         if (uri != null && payload != null && owns()) {
             loading = true; saving = true; verifying = false; saved = false; error = null
-            verifiedBytes = 0L; totalBytes = payload.bytes.size.toLong()
+            verifiedBytes = 0L; totalBytes = payload.size
             operation = scope.launch {
                 try {
                     RemoteFileDelivery.save(context.contentResolver, uri, payload,
@@ -61,13 +62,16 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
             Column(Modifier.fillMaxWidth().testTag("remote-file-delivery"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("设备：" + request.binding.id)
                 Text("文件：" + request.target)
-                Text("只读取当前绑定的远端工作区文件，单文件上限 8 MiB。")
+                Text("只读取当前绑定的远端工作区文件，单文件上限 512 MiB。同一进程内重试同一文件可继续读取；切换文件或账号会替换旧暂存。")
                 if (loading) {
                     if (verifying && totalBytes > 0L) {
                         LinearProgressIndicator(progress = { (verifiedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) },
                             modifier = Modifier.fillMaxWidth())
                         Text("正在回读校验 · " + verifiedBytes + " / " + totalBytes + " 字节",
                             style = MaterialTheme.typography.bodySmall)
+                    } else if (!saving && totalBytes > 0L) {
+                        LinearProgressIndicator(progress = { (receivedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
+                        Text("正在读取 · " + receivedBytes + " / " + totalBytes + " 字节", style = MaterialTheme.typography.bodySmall)
                     } else {
                         LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                         Text(if (verifying) "正在校验空文件…" else if (saving) "正在保存文件…" else "正在读取远端文件…",
@@ -75,7 +79,7 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
                     }
                 }
                 data?.let { payload ->
-                    Text(payload.name + " · " + payload.bytes.size + " 字节", style = MaterialTheme.typography.bodyMedium)
+                    Text(payload.name + " · " + payload.size + " 字节", style = MaterialTheme.typography.bodyMedium)
                     var details by remember(payload) { mutableStateOf(false) }
                     CodexTextAction(onClick = { details = !details }) { Text(if (details) "收起校验信息" else "查看校验信息") }
                     if (details) Text("SHA-256: " + payload.sha256, style = MaterialTheme.typography.labelSmall)
@@ -88,10 +92,11 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
             CodexTextAction(onClick = {
                 if (data != null) create.launch(data!!.name)
                 else {
-                    loading = true; error = null
+                    loading = true; error = null; totalBytes = 0L; receivedBytes = 0L
                     operation = scope.launch {
                         try { data = RemoteFileDelivery.load(vm, request.thread, request.binding,
-                            request.target, request.epoch, request.revision) }
+                            request.target, request.epoch, request.revision, context.cacheDir,
+                            onProgress = { received, total -> receivedBytes = received; totalBytes = total }) }
                         catch (cancel: CancellationException) { throw cancel }
                         catch (failure: Exception) { error = failure.message ?: "远端文件读取失败" }
                         finally { loading = false }
@@ -103,7 +108,7 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
                 if (loading) {
                     // Saving is an explicit system-document write. A cancelled write may leave a partial destination.
                     operation?.cancel()
-                    error = if (saving) "已取消保存，所选位置可能有未完成文件，可重新保存。" else "已取消读取，可重新读取。"
+                    error = if (saving) "已取消保存，所选位置可能有未完成文件，可重新保存。" else "已取消读取，同一文件可继续读取。"
                 } else onDismiss()
             }) { Text(if (loading) "取消操作" else "关闭") }
         })
