@@ -40,7 +40,7 @@ android {
         targetSdk = 35
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersionName ?: "0.1.0"
-        nativeTargetAbi?.let { ndk { abiFilters += it } }
+        nativeTargetAbi?.takeIf { providers.gradleProperty("codexSplitAbi").orNull != "true" }?.let { ndk { abiFilters += it } }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
