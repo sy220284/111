@@ -23,12 +23,12 @@ class ShardMergeTests(unittest.TestCase):
     def fixture(self, root):
         root.mkdir()
         for shard in SHARDS:
-            directory = root / f"ui-shard-compact-adaptive-{shard}"
+            directory = root / f"ui-shard-mainstream-adaptive-{shard}"
             screens = directory / "ui-screenshots-adaptive"
             screens.mkdir(parents=True)
             (screens / f"{shard}-android.png").write_bytes(png())
-            ids = [PACKAGE + "." + c + f"#test{i}" for c in shard_classes("compact","adaptive",shard) for i in range(40)]
-            common = dimensions("compact","adaptive") | dict(profile="compact",mode="adaptive",shard=shard,commit="head",android_api=CONFIG["api"],page_size=CONFIG["page_size"],build_fingerprint="fingerprint",android_release="17",physical_size="1080x2340",physical_density_dpi=440,width_dp=360,height_dp=720,run_id=shard)
+            ids = [PACKAGE + "." + c + f"#test{i}" for c in shard_classes("mainstream","adaptive",shard) for i in range(40)]
+            common = dimensions("mainstream","adaptive") | dict(profile="mainstream",mode="adaptive",shard=shard,commit="head",android_api=CONFIG["api"],page_size=CONFIG["page_size"],build_fingerprint="fingerprint",android_release="17",physical_size="1272x2772",physical_density_dpi=480,width_dp=424,height_dp=800,run_id=shard)
             report = common | dict(status="passed",tests=len(ids),test_ids=ids,missing_screens=[],screenshot_collection_exit=0)
             manifest = common | dict(present=[shard],required=[shard],discovered=[shard],missing=[],screenshot_dimensions={shard:{"width_px":1,"height_px":1}})
             (directory/"ui-adaptive-diagnosis.json").write_text(json.dumps(report))
@@ -40,7 +40,7 @@ class ShardMergeTests(unittest.TestCase):
             self.fixture(root)
             if change: change(root)
             with patch("merge_ui_shards.REQUIRED_SCREENS",list(SHARDS)):
-                return merge(root,output,"compact","adaptive","head")
+                return merge(root,output,"mainstream","adaptive","head")
 
     def test_full_union(self):
         result=self.run_case()
@@ -49,22 +49,22 @@ class ShardMergeTests(unittest.TestCase):
 
     def test_missing_shard_is_rejected(self):
         with self.assertRaises(ValueError):
-            self.run_case(lambda root: (root/"ui-shard-compact-adaptive-navigation").rename(root/"wrong"))
+            self.run_case(lambda root: (root/"ui-shard-mainstream-adaptive-navigation").rename(root/"wrong"))
 
     def test_failed_or_stale_shard_is_rejected(self):
         def change(root):
-            path=root/"ui-shard-compact-adaptive-navigation/ui-adaptive-diagnosis.json"
+            path=root/"ui-shard-mainstream-adaptive-navigation/ui-adaptive-diagnosis.json"
             report=json.loads(path.read_text()); report["commit"]="old"; path.write_text(json.dumps(report))
         with self.assertRaises(ValueError):
             self.run_case(change)
 
     def test_missing_screenshot_is_rejected(self):
         with self.assertRaises(ValueError):
-            self.run_case(lambda root: (root/"ui-shard-compact-adaptive-navigation/ui-screenshots-adaptive/navigation-android.png").unlink())
+            self.run_case(lambda root: (root/"ui-shard-mainstream-adaptive-navigation/ui-screenshots-adaptive/navigation-android.png").unlink())
 
     def test_duplicate_run_is_rejected(self):
         def change(root):
-            folder=root/"ui-shard-compact-adaptive-components"
+            folder=root/"ui-shard-mainstream-adaptive-components"
             for path in (folder/"ui-adaptive-diagnosis.json",folder/"ui-screenshots-adaptive/manifest.json"):
                 data=json.loads(path.read_text()); data["run_id"]="navigation"; path.write_text(json.dumps(data))
         with self.assertRaises(ValueError):
@@ -72,7 +72,7 @@ class ShardMergeTests(unittest.TestCase):
 
     def test_duplicate_screenshot_is_rejected(self):
         def change(root):
-            folder=root/"ui-shard-compact-adaptive-components/ui-screenshots-adaptive"
+            folder=root/"ui-shard-mainstream-adaptive-components/ui-screenshots-adaptive"
             (folder/"components-android.png").rename(folder/"navigation-android.png")
             path=folder/"manifest.json"; data=json.loads(path.read_text())
             data.update(present=["navigation"],required=["navigation"],discovered=["navigation"],screenshot_dimensions={"navigation":{"width_px":1,"height_px":1}})

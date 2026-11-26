@@ -439,7 +439,7 @@ jobs:
           retention-days: 14
 
   ui-evidence:
-    name: 六组 UI 用例与证据一致性验收
+    name: 四组 UI 用例与证据一致性验收
     needs: [plan, ui-collect]
     if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.ui-collect.result == 'success' || needs.ui-collect.result == 'failure')
     runs-on: ubuntu-latest
@@ -455,7 +455,7 @@ jobs:
         with:
           pattern: ui-proof-*
           path: ui-proofs
-      - name: 核对六种配置、十二台独立设备的实际用例集合与证据
+      - name: 核对四种配置、八台独立设备的实际用例集合与证据
         if: always() && !cancelled()
         env:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}

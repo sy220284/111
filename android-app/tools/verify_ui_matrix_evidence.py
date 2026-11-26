@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Require actual identical, unique successful test sets across all six clean devices."""
+"""Require actual identical, unique successful test sets across all four configurations and eight independent shards."""
 import json
 import os
 import sys

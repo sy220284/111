@@ -23,7 +23,7 @@ GROUPS = {
 FULL_GROUPS = set(GROUPS) - {"runtime", "sign"}
 JOB_NAMES = {
     "static": {"协议、视觉规范与静态覆盖检查"},
-    "ui": {"Kotlin 编译、协议单元测试与 Android Lint", "六组 UI 用例与证据一致性验收",
+    "ui": {"Kotlin 编译、协议单元测试与 Android Lint", "四组 UI 用例与证据一致性验收",
            *(shard_job_name(p,m,s) for p in PROFILES for m in MODES for s in SHARDS),
            *(collect_job_name(p,m) for p in PROFILES for m in MODES)},
     "package": {"原生核心统一验收", "build", "ARM64 手机安装包二次核验"},

@@ -36,10 +36,10 @@ class DeviceEvidenceTest(unittest.TestCase):
 
     def test_adaptive_dedicated_device_never_changes_home_or_resizes_after_test(self):
         with patch("run_ui_device_checks.prepare_display_change") as prepare, patch("run_ui_device_checks.adb") as adb, patch("run_ui_device_checks.run_fresh_suite", return_value={"status": "passed"}) as suite:
-            self.assertEqual({"status": "passed"}, adaptive("compact", "navigation"))
+            self.assertEqual({"status": "passed"}, adaptive("mainstream", "navigation"))
             prepare.assert_called_once()
             self.assertEqual(3, adb.call_count)
-            suite.assert_called_once_with("compact", "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", "navigation")
+            suite.assert_called_once_with("mainstream", "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", "navigation")
 
     def test_success_requires_positive_count_and_successful_process(self):
         self.assertEqual("passed", parse_instrumentation("OK (142 tests)\n", 0)["status"])
@@ -79,13 +79,13 @@ class DeviceEvidenceTest(unittest.TestCase):
 
     def test_actual_device_parameters_are_required(self):
         from device_matrix import dimensions, CONFIG
-        spec = dimensions("compact", "baseline")
-        replies = ["Physical size: 1080x2340", "Physical density: 440", str(CONFIG["api"]), str(CONFIG["android_release"]), str(CONFIG["page_size"]), "test/android17/fingerprint", "1.0"]
+        spec = dimensions("mainstream", "baseline")
+        replies = ["Physical size: 1272x2772", "Physical density: 480", str(CONFIG["api"]), str(CONFIG["android_release"]), str(CONFIG["page_size"]), "test/android17/fingerprint", "1.0"]
         with patch("run_ui_device_checks.adb", side_effect=replies):
             evidence = assert_device(spec, spec)
-            self.assertEqual(392.73, evidence["width_dp"])
+            self.assertEqual(424.0, evidence["width_dp"])
             self.assertEqual(CONFIG["api"], evidence["android_api"])
-        for index, bad in [(0, "Physical size: 360x800\nOverride size: 1080x2340"), (1, "Physical density: 160\nOverride density: 440"), (2, "35"), (3, "15"), (4, "4096"), (5, ""), (6, "1.5")]:
+        for index, bad in [(0, "Physical size: 360x800\nOverride size: 1272x2772"), (1, "Physical density: 160\nOverride density: 440"), (2, "35"), (3, "15"), (4, "4096"), (5, ""), (6, "1.5")]:
             wrong = replies.copy()
             wrong[index] = bad
             with patch("run_ui_device_checks.adb", side_effect=wrong), self.assertRaises(RuntimeError):
