@@ -96,8 +96,10 @@ internal class LiveScreenAnalysisController(private val vm: CodexViewModel) {
                 val scope = withContext(Dispatchers.IO) {
                     DomesticProviderCredentials.withBoundCredential(app, preset, endpoint) { AnalysisCheckpoint.identity(endpoint, it) }
                 }
-                check(storeRecordAbsent(owner, scope)) { "请先审阅或清除该会话的旧屏幕分析结果" }
+                // Preserve the bound identity even if reading the record fails, so explicit
+                // clearing can still remove that exact unreadable file without another request.
                 state.update { it.copy(scope = scope) }
+                check(storeRecordAbsent(owner, scope)) { "请先审阅或清除该会话的旧屏幕分析结果" }
                 save(state.value)
                 val deadline = SystemClock.elapsedRealtime() + 5 * 60_000L
                 val identityValid = {
