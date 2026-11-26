@@ -5,7 +5,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.update
 
 /**
- * One serial protocol consumer prepares immutable timeline snapshots on Default.
+ * Per-thread ordered workers prepare immutable timeline snapshots on Default.
  * Commit stays on Main, checking the original core session, timeline ownership
  * and snapshot identity. Selected and offscreen tasks use the same engine.
  */

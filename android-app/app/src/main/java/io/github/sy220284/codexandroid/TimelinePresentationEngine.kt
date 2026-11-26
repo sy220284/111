@@ -56,16 +56,25 @@ internal class TimelinePresentationEngine {
     private class PartEngine {
         private val replies = ProgressiveReplyProjection.Cache()
         private val pages = TimelineReplyPages()
+        private var answeredCache = java.util.IdentityHashMap<TimelineItem, Set<String>>()
         fun project(groups: List<List<TimelineItem>>, running: Boolean, turn: String?,
             earlier: Boolean): TimelinePresentationPart {
             val rows = replies.rows(groups, running, turn, earlier)
-            val items = groups.asSequence().flatten()
             val answered = mutableSetOf<String>()
             val formal = mutableSetOf<String>()
-            items.forEach { item ->
-                if (item.kind == "user") answered += AsyncReplyContract.answeredFromInput(item.metadata()?.optJSONArray("content"))
-                if (ProgressiveReplyProjection.answer(item)) formal += item.turnId
+            val nextCache = java.util.IdentityHashMap<TimelineItem, Set<String>>()
+            for (group in groups) {
+                if (group is TimelineGroupSnapshot && group.isActivity) continue
+                for (item in group) {
+                    if (item.kind == "user") {
+                        val ids = answeredCache[item] ?: AsyncReplyContract.answeredFromInput(item.metadata()?.optJSONArray("content"))
+                        nextCache[item] = ids
+                        answered += ids
+                    }
+                    if (ProgressiveReplyProjection.answer(item)) formal += item.turnId
+                }
             }
+            answeredCache = nextCache
             return TimelinePresentationPart(rows, pages.project(rows), answered, formal)
         }
     }
@@ -82,7 +91,7 @@ internal class TimelinePresentationEngine {
         // Never split a native turn. If the running turn is not the last
         // contiguous section (late/steering events), keep the whole projection
         // in the live partition until the ownership boundary becomes clear.
-        val boundary = activeBoundary(groups, frame.running, frame.turnId)
+        val boundary = activeBoundary(grouping, frame.running, frame.turnId)
         val cached = history?.takeIf { it.count == boundary && it.earlier == hasEarlier &&
             it.grouping.sameIdentityPrefix(grouping, boundary) }
         val prefix = cached?.part ?: historyEngine.project(groups.subList(0, boundary), false, null, hasEarlier)
@@ -93,13 +102,12 @@ internal class TimelinePresentationEngine {
             indexed.lastOrNull { it.kind != "turnOutcome" })
     }
 
-    private fun activeBoundary(groups: List<List<TimelineItem>>, running: Boolean, turn: String?): Int {
+    private fun activeBoundary(grouping: TimelineGrouping, running: Boolean, turn: String?): Int {
+        val groups = grouping.groups
         if (groups.isEmpty()) return 0
         val last = groups.last().first().turnId
         if (running && (turn == "" || (!turn.isNullOrBlank() && turn != last))) return 0
-        var boundary = groups.lastIndex
-        if (last.isNotBlank()) while (boundary > 0 && groups[boundary - 1].first().turnId == last) boundary--
-        return boundary
+        return grouping.lastTurnStart
     }
 }
 

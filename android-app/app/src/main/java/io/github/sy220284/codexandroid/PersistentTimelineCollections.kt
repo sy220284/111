@@ -20,21 +20,21 @@ internal class PersistentIndex<K : Comparable<K>, V : Any> private constructor(p
     }
 
     /** Ordered traversal visits each node once, with logarithmic stack space. */
-    fun values(): Iterator<V> = object : Iterator<V> {
+    fun values(reverse: Boolean = false): Iterator<V> = object : Iterator<V> {
         private val stack = java.util.ArrayDeque<Node<K, V>>()
-        init { pushLeft(root) }
-        private fun pushLeft(start: Node<K, V>?) {
+        init { pushEdge(root) }
+        private fun pushEdge(start: Node<K, V>?) {
             var node = start
             while (node != null) {
                 stack.addLast(node)
-                node = node.left
+                node = if (reverse) node.right else node.left
             }
         }
         override fun hasNext() = stack.isNotEmpty()
         override fun next(): V {
             if (!hasNext()) throw NoSuchElementException()
             val node = stack.removeLast()
-            pushLeft(node.right)
+            pushEdge(if (reverse) node.left else node.right)
             return node.value
         }
     }

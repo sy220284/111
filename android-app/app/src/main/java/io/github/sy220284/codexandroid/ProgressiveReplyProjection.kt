@@ -15,9 +15,8 @@ internal object ProgressiveReplyProjection {
     )
 
     private val assistantKinds = setOf("agent", "agentMessage")
-    private val activityKinds = setOf("reasoning", "commandExecution", "fileChange", "mcpToolCall",
-        "dynamicToolCall", "functionCallOutput", "webSearch", "imageView", "sleep", "hookPrompt")
-    private val runningStates = setOf("inProgress", "in_progress", "running", "streaming", "sending")
+    private val activityKinds = TimelineActivityPolicy.kinds
+    private val runningStates = TimelineActivityPolicy.runningStates
     private val incompleteStates = setOf("failed", "interrupted", "cancelled", "stopped", "incomplete")
     fun commentary(item: TimelineItem) = item.kind in assistantKinds && item.phase == "commentary"
     fun answer(item: TimelineItem) = item.kind in assistantKinds && !commentary(item)
@@ -66,39 +65,45 @@ internal object ProgressiveReplyProjection {
     private fun sectionRows(section: List<List<TimelineItem>>, running: Boolean,
         hasEarlier: Boolean): List<Row> = buildList {
         val visibleSection = section.filterNot { it.singleOrNull()?.kind == "turnOutcome" }
-        val items = visibleSection.flatten()
-        if (items.isEmpty()) return@buildList
-        val turn = items.first().turnId
-        val answers = items.filter(::answer)
+        if (visibleSection.isEmpty()) return@buildList
+        val turn = visibleSection.first().first().turnId
+        // Activity groups contain no narrative, error or user items. Never scan a long
+        // homogeneous execution group for facts that cannot occur inside it.
+        val narrative = visibleSection.asSequence()
+            .filterNot { it is TimelineGroupSnapshot && it.isActivity }.flatten().toList()
+        val answers = narrative.filter(::answer)
         val progressive = answers.any { it.phase == "partial_answer" }
-        val interrupted = items.any { it.kind == "error" && it.id == "turn-error:$turn" && it.status in incompleteStates }
-        val unverified = items.any { it.id == "turn-unverified:$turn" }
+        val interrupted = narrative.any { it.kind == "error" && it.id == "turn-error:$turn" && it.status in incompleteStates }
+        val unverified = narrative.any { it.id == "turn-unverified:$turn" }
         fun incomplete(item: TimelineItem) = interrupted || item.status in incompleteStates
         fun unverified(item: TimelineItem) = unverified || item.status == "unverified"
         val explicit = answers.any { it.phase in setOf("partial_answer", "final_answer") }
         val open = section.none { it.singleOrNull()?.kind == "turnOutcome" } &&
-            !interrupted && (running || items.any { it.status in runningStates })
+            !interrupted && (running || visibleSection.any { group ->
+                if (group is TimelineGroupSnapshot) group.hasRunning
+                else group.any { it.status in runningStates }
+            })
         // Item paging can start inside a turn, even at a steering user message. Never claim a
         // complete answer until the preceding page has established the turn's beginning.
         val clipped = hasEarlier && turn.isNotBlank() && explicit
         val incompleteNote = "加载更早记录后可使用完整回答操作"
-        if (turn.isBlank() || open || (!progressive && items.none(::commentary))) {
-            val liveIds = if (open) {
-                val activities = items.filter { it.kind in activityKinds }
-                (activities.filter { it.status in runningStates } +
-                    activities.filterNot { it.status in runningStates }.takeLast(5)).mapTo(hashSetOf()) { it.id }
-            } else emptySet()
-            fun visibleIds(group: List<TimelineItem>) = group.mapNotNullTo(hashSetOf()) { item ->
-                item.id.takeIf { it in liveIds }
-            }
-            visibleSection.forEach { group ->
+        if (turn.isBlank() || open || (!progressive && narrative.none(::commentary))) {
+            val visibility = if (open) TimelineActivityVisibility.byGroup(visibleSection) else emptyMap()
+            val pageSize = TimelineActivityPolicy.GROUP_PAGE_SIZE
+            visibleSection.forEachIndexed { groupIndex, group ->
                 val single = group.singleOrNull()
                 val formal = single?.let(::answer) == true
                 val allow = !formal || (!open && !clipped && single?.phase != "partial_answer")
-                if (open && group.size > 12 && group.all { it.kind in activityKinds }) {
-                    group.chunked(12).forEach { chunk -> add(Row(chunk.first().id, chunk, liveProcess = true,
-                        liveVisibleIds = visibleIds(chunk))) }
-                    return@forEach
+                val isActivity = if (group is TimelineGroupSnapshot) group.isActivity
+                    else group.all { it.kind in activityKinds }
+                val pages = visibility[groupIndex].orEmpty()
+                if (open && group.size > pageSize && isActivity) {
+                    for (start in group.indices step pageSize) {
+                        val chunk = group.subList(start, minOf(start + pageSize, group.size))
+                        add(Row(chunk.first().id, chunk, liveProcess = true,
+                            liveVisibleIds = pages[start / pageSize].orEmpty()))
+                    }
+                    return@forEachIndexed
                 }
                 add(Row(group.first().id, group, showActions = allow,
                     actionItem = single?.takeIf { formal && clipped && !open },
@@ -108,15 +113,16 @@ internal object ProgressiveReplyProjection {
                         formal && !open && single != null && incomplete(single) -> "任务未成功完成，已保留收到的回答"
                         else -> null
                     },
-                    liveProcess = open && group.all { it.kind in activityKinds },
+                    liveProcess = open && isActivity,
                     partialCopy = open && formal && single?.phase == "partial_answer" && single?.status == "completed",
-                    liveVisibleIds = if (open && group.all { it.kind in activityKinds }) visibleIds(group) else null))
+                    liveVisibleIds = if (open && isActivity) pages[0].orEmpty() else null))
             }
             return@buildList
         }
 
         // Keep user steering, plans, errors, generated media and other special items at their
         // original boundaries. Only ordinary execution records are gathered ahead of text.
+        val items = visibleSection.flatten()
         val output = mutableListOf<Row>()
         var segment = mutableListOf<TimelineItem>()
         fun flush() {
