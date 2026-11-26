@@ -19,6 +19,26 @@ internal class PersistentIndex<K : Comparable<K>, V : Any> private constructor(p
         return null
     }
 
+    /** Ordered traversal visits each node once, with logarithmic stack space. */
+    fun values(): Iterator<V> = object : Iterator<V> {
+        private val stack = ArrayDeque<Node<K, V>>()
+        init { pushLeft(root) }
+        private fun pushLeft(start: Node<K, V>?) {
+            var node = start
+            while (node != null) {
+                stack.addLast(node)
+                node = node.left
+            }
+        }
+        override fun hasNext() = stack.isNotEmpty()
+        override fun next(): V {
+            if (!hasNext()) throw NoSuchElementException()
+            val node = stack.removeLast()
+            pushLeft(node.right)
+            return node.value
+        }
+    }
+
     fun put(key: K, value: V): PersistentIndex<K, V> = PersistentIndex(insert(root, key, value))
     fun remove(key: K): PersistentIndex<K, V> = PersistentIndex(erase(root, key))
 
@@ -104,6 +124,7 @@ internal class PersistentSequence<T : Any> private constructor(
         if (index !in 0 until size) throw IndexOutOfBoundsException("Sequence index $index")
         return requireNotNull(this.index[index])
     }
+    override fun iterator(): Iterator<T> = index.values()
     fun append(value: T) = PersistentSequence(index.put(size, value), size + 1)
     fun replace(position: Int, value: T): PersistentSequence<T> {
         if (position !in 0 until size) throw IndexOutOfBoundsException("Sequence index $position")
@@ -113,7 +134,11 @@ internal class PersistentSequence<T : Any> private constructor(
         require(count in 0..minOf(size, other.size))
         if (count == 0 || this === other) return true
         return index.sameIdentityPrefix(other.index, count)
-            ?: (0 until count).all { this[it] === other[it] }
+            ?: run {
+                val left = iterator()
+                val right = other.iterator()
+                (0 until count).all { left.next() === right.next() }
+            }
     }
     override fun equals(other: Any?): Boolean = this === other || if (other is PersistentSequence<*>)
         size == other.size && index.sameSequence(other.index) else super.equals(other)

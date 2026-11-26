@@ -12,6 +12,18 @@ internal class IndexedTimeline private constructor(
         if (index !in 0 until size) throw IndexOutOfBoundsException("Timeline index $index")
         return segments[index / SEGMENT][index % SEGMENT]
     }
+    override fun iterator(): Iterator<TimelineItem> = object : Iterator<TimelineItem> {
+        private val outer = segments.iterator()
+        private var inner: Iterator<TimelineItem> = emptyList<TimelineItem>().iterator()
+        override fun hasNext(): Boolean {
+            while (!inner.hasNext() && outer.hasNext()) inner = outer.next().iterator()
+            return inner.hasNext()
+        }
+        override fun next(): TimelineItem {
+            if (!hasNext()) throw NoSuchElementException()
+            return inner.next()
+        }
+    }
     fun byId(id: String): TimelineItem? = positions[id]?.let(::get)
     fun put(item: TimelineItem, clientId: String = ""): IndexedTimeline {
         val index = positions[item.id] ?: if (item.kind == "user" && clientId.isNotBlank())

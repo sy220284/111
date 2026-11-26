@@ -13,10 +13,15 @@ internal object ReplyInlineMarkdown {
         if (source.isEmpty()) return emptyList()
         val result = mutableListOf<MessageMarkdown.CopyPart>()
         var start = 0
+        var scanned = 0
+        var insideCode = false
         for (match in math.findAll(source)) {
+            // Preserve backtick parity without copying the preceding paragraph.
+            while (scanned < match.range.first) {
+                if (source[scanned++] == 96.toChar()) insideCode = !insideCode
+            }
+            if (insideCode) continue
             val value = ReplyMath.parse(match.groupValues[1]) ?: continue
-            // A math marker inside inline code is literal.
-            if (source.substring(0, match.range.first).count { it == 96.toChar() } % 2 != 0) continue
             result += commonmark(source.substring(start, match.range.first))
             result += MessageMarkdown.CopyPart(ReplyMath.linear(value), styles = setOf("math"), original = match.value)
             start = match.range.last + 1

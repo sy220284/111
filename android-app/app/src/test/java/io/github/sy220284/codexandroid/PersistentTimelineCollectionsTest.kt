@@ -42,6 +42,26 @@ class PersistentTimelineCollectionsTest {
         }
     }
 
+    @Test fun orderedTraversalRetainsSnapshotsAcrossRotations() {
+        val expected = (0 until 10000).toMutableList()
+        var sequence = PersistentSequence.from(expected)
+        val snapshot = sequence
+        repeat(1000) {
+            val index = (it * 31) % expected.size
+            expected[index] = -it
+            sequence = sequence.replace(index, -it)
+        }
+        repeat(1000) {
+            expected.add(it)
+            sequence = sequence.append(it)
+        }
+        assertEquals(expected, sequence.iterator().asSequence().toList())
+        assertEquals((0 until 10000).toList(), snapshot.iterator().asSequence().toList())
+        val iterator = PersistentSequence<Int>().iterator()
+        assertFalse(iterator.hasNext())
+        try { iterator.next(); fail("Expected exhausted iterator") } catch (_: NoSuchElementException) { }
+    }
+
     @Test fun largeActivityUpdateRetainsOtherGroupsAndIds() {
         val prefix = TimelineItem("old", "user", "previous", turnId = "history")
         val items = listOf(prefix) + (0 until 5000).map { i ->

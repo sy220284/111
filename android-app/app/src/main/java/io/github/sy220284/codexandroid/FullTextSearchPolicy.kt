@@ -28,11 +28,22 @@ internal object FullTextSearchPolicy {
         hits: List<Int>, currentMatch: Int): List<Slice> {
         if (queryLength <= 0) return emptyList()
         val endOffset = offset + chunkLength
-        return hits.mapIndexedNotNull { index, found ->
-            val start = maxOf(offset, found)
-            val end = minOf(endOffset, found + queryLength)
-            if (start < end) Slice(start - offset, end - offset, index == currentMatch)
-            else null
+        // find() produces ascending positions. Visit only intersecting matches.
+        var low = 0
+        var high = hits.size
+        while (low < high) {
+            val mid = low + (high - low) / 2
+            if (hits[mid].toLong() + queryLength <= offset.toLong()) low = mid + 1 else high = mid
+        }
+        return buildList {
+            var index = low
+            while (index < hits.size && hits[index] < endOffset) {
+                val found = hits[index]
+                val start = maxOf(offset, found)
+                val end = minOf(endOffset.toLong(), found.toLong() + queryLength).toInt()
+                if (start < end) add(Slice(start - offset, end - offset, index == currentMatch))
+                index++
+            }
         }
     }
 }

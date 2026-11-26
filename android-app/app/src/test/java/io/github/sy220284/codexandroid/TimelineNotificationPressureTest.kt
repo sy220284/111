@@ -42,6 +42,16 @@ class TimelineNotificationPressureTest {
         assertTrue(dispatched < messages.size)
     }
 
+    @Test fun interleavedItemsDoNotPayOneDisplayFramePerNotification() = runTest {
+        val messages = (0 until 5000).map { delta("item-${it % 2}", it.toString()) }
+        val observed = mutableListOf<Pair<String, String>>()
+        collectTimelineNotifications(messages.asFlow()) {
+            observed += it.params.getString("itemId") to it.delta
+        }
+        assertEquals(messages.map { it.getJSONObject("params").let { p -> p.getString("itemId") to p.getString("delta") } }, observed)
+        assertEquals(0L, testScheduler.currentTime)
+    }
+
     @Test fun batchNeverCrossesEpochOrItem() = runTest {
         val messages = listOf(delta("a", "a"), delta("a", "b"), delta("a", "c", 2L),
             delta("b", "d", 2L))

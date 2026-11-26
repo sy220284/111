@@ -2,7 +2,6 @@ package io.github.sy220284.codexandroid
 
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.produceIn
 import org.json.JSONObject
@@ -62,8 +61,7 @@ internal suspend fun collectTimelineNotifications(events: Flow<JSONObject>, disp
         pending = null
         if (!TimelineDeltaBatch.accepts(first)) { dispatch(CoreNotification(first)); continue }
         val batch = TimelineDeltaBatch(first)
-        // Bound ingestion separately from display cadence; never merge across a lifecycle barrier.
-        delay(16)
+        // Drain queued events immediately; display cadence belongs to presentation.
         for (i in 0 until 63) {
             val next = channel.tryReceive().getOrNull() ?: break
             if (!TimelineDeltaBatch.accepts(next) || !batch.append(next)) { pending = next; break }
