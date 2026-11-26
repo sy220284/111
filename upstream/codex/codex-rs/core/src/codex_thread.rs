@@ -1493,6 +1493,13 @@ impl CodexThread {
             .await
     }
 
+    /// A durable, non-secret identity of the thread's selected media request route.
+    pub async fn media_analysis_scope(&self) -> CodexResult<String> {
+        let config = self.config().await;
+        let auth = self.session.services.auth_manager.auth().await;
+        codex_model_provider::media_analysis_scope(&config.model_provider, auth.as_ref())
+    }
+
     /// Captures local settings for thread views and input ownership checks.
     /// The service tier is the configured selection. Use [`Self::config_snapshot`]
     /// when the tier must be validated against the selected model.

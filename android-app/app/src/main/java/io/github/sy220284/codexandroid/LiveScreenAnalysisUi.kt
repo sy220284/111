@@ -9,7 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 @Composable
-internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider: String?,
+internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, model: String?,
                                      question: String, share: ScreenShareSession.State, revision: Long,
                                      enabled: Boolean) {
     val controller = vm.composerContent.liveScreenAnalysis
@@ -19,7 +19,7 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider
     var confirm by remember(owner) { mutableStateOf(false) }
     var review by remember(owner, revision) { mutableStateOf<ScreenAnalysisResults?>(null) }
     val mine = live.owner == owner && live.revision == revision
-    if (provider != null && share.owner == owner && share.capturing && share.revision == revision && !active.running && live.observations.isEmpty()) {
+    if (model != null && share.owner == owner && share.capturing && share.revision == revision && !active.running && live.observations.isEmpty()) {
         CodexTextAction(onClick = { confirm = true }, enabled = enabled) { Text("开启持续分析") }
     }
     if (mine && (live.running || live.observations.isNotEmpty() || live.message.isNotBlank())) {
@@ -35,12 +35,12 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, provider
     } else if (active.running) {
         CodexTextAction(onClick = { controller.stop() }) { Text("停止其他会话的持续分析") }
     }
-    if (confirm && provider != null) CodexConfirmDialog(
+    if (confirm && model != null) CodexConfirmDialog(
         title = "开启持续屏幕分析",
-        message = "持续共享期间，百炼 qwen3.8-omni-flash 将接收发生变化的屏幕采样画面及当前问题，可能产生费用。请避免显示敏感内容。",
+        message = "持续共享期间，当前会话所选模型将接收变化的屏幕采样画面、当前问题及会话上下文，可能产生费用。请避免显示敏感内容。",
         detail = "最多5分钟、12次请求；每次最多3幅画面，串行分析，至少间隔10秒。停止共享或停止分析立即结束，不自动执行任何任务。",
         confirmLabel = "同意并开始",
-        onConfirm = { confirm = false; controller.start(owner, provider, question) },
+        onConfirm = { confirm = false; controller.start(owner, model, question) },
         onDismiss = { confirm = false })
     review?.takeIf { mine }?.let { snapshot ->
         val pending = (snapshot.observations.size - live.results.appliedCount).coerceAtLeast(0)

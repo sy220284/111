@@ -47,7 +47,7 @@ internal object DraftPersistence {
             val names = draft.images.map { absolute ->
                 val name = File(absolute).name
                 require(IMAGE_NAME.matches(name)) {
-                    "未发送草稿包含未受管理的图片：$name"
+                    "未发送草稿包含未受管理的媒体附件：$name"
                 }
                 name
             }.distinct()

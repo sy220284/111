@@ -34,7 +34,7 @@ import java.util.UUID
 object LocalImageAttachments {
     const val MAX_FILES = 3
     private const val MAX_BYTES = 12L * 1024 * 1024
-    private const val MAX_AUDIO_BYTES = 50L * 1024 * 1024
+    internal const val MAX_AUDIO_BYTES = 50L * 1024 * 1024
     private const val MAX_VIDEO_BYTES = 100L * 1024 * 1024
     private const val FOLDER = "codex-turn-images"
 
@@ -54,13 +54,13 @@ object LocalImageAttachments {
             "video/mp4" -> "mp4"
             else -> throw IllegalArgumentException("请选择 JPEG、PNG、WebP、WAV、MP3、M4A、OGG、WebM 音频或 MP4 视频")
         }
-        val folder = directory(context).apply { check(exists() || mkdirs()) { "无法建立图片缓存目录" } }
+        val folder = directory(context).apply { check(exists() || mkdirs()) { "无法建立媒体附件目录" } }
         val output = File(folder, UUID.randomUUID().toString() + "." + ext)
         val kind = LocalMediaAttachmentPolicy.kind(output.path)
         val limit = when (kind) { "audio" -> MAX_AUDIO_BYTES; "video" -> MAX_VIDEO_BYTES; else -> MAX_BYTES }
         try {
             val source = context.contentResolver.openInputStream(uri)
-                ?: throw IllegalStateException("无法打开所选图片")
+                ?: throw IllegalStateException("无法打开所选媒体")
             source.use { input ->
                 output.outputStream().use { destination ->
                     val buffer = ByteArray(8192)
@@ -68,11 +68,12 @@ object LocalImageAttachments {
                     while (true) {
                         val count = input.read(buffer)
                         if (count < 0) break
+                        currentCoroutineContext().ensureActive()
                         total += count
                         require(total <= limit) { "单个附件上限 ${limit / 1024 / 1024} MB" }
                         destination.write(buffer, 0, count)
                     }
-                    require(total > 0L) { "图片内容为空" }
+                    require(total > 0L) { "媒体内容为空" }
                 }
             }
             // Validate the actual file signature after copying, not just
@@ -121,7 +122,7 @@ object LocalImageAttachments {
     suspend fun release(context: Context, path: String) = withContext(Dispatchers.IO) {
         val folder = directory(context).canonicalFile
         val target = File(path).canonicalFile
-        require(target.parentFile == folder) { "图片路径不属于本应用的私有附件目录" }
+        require(target.parentFile == folder) { "媒体路径不属于本应用的私有附件目录" }
         for (owned in LocalMediaAttachmentPolicy.recoveryPaths(target.path)) {
             val file = File(owned).canonicalFile
             require(file.parentFile == folder) { "附件路径不属于私有目录" }

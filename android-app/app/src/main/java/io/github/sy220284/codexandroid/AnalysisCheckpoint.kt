@@ -10,7 +10,8 @@ import java.security.MessageDigest
 /** Only completed provider responses are checkpointed. A retry is always a new user decision. */
 internal data class AnalysisCheckpoint(
     val owner: String, val scope: String, val source: String, val mode: String, val question: String,
-    val parts: List<String> = emptyList(), val total: Int = 0, val applied: Int = 0
+    val parts: List<String> = emptyList(), val total: Int = 0, val applied: Int = 0,
+    val sourceTurn: String = ""
 ) {
     init {
         require(owner.isNotBlank() && scope.matches(Regex("[0-9a-f]{64}")))
@@ -21,7 +22,7 @@ internal data class AnalysisCheckpoint(
     val complete get() = total > 0 && parts.size == total
     fun encode() = JSONObject().put("owner", owner).put("scope", scope).put("source", source)
         .put("mode", mode).put("question", question).put("parts", JSONArray(parts))
-        .put("total", total).put("applied", applied).toString()
+        .put("total", total).put("applied", applied).put("sourceTurn", sourceTurn).toString()
 
     companion object {
         fun identity(endpoint: String, key: String): String = digest("$endpoint\n$key")
@@ -32,7 +33,7 @@ internal data class AnalysisCheckpoint(
             val parts = row.getJSONArray("parts")
             return AnalysisCheckpoint(row.getString("owner"), row.getString("scope"), row.getString("source"),
                 row.getString("mode"), row.getString("question"),
-                (0 until parts.length()).map(parts::getString), row.getInt("total"), row.getInt("applied"))
+                (0 until parts.length()).map(parts::getString), row.getInt("total"), row.getInt("applied"), row.optString("sourceTurn"))
         }
     }
 }
@@ -62,7 +63,7 @@ internal class AnalysisCheckpointStore(private val directory: File) {
         val durable = if (existing != null) {
             val longer = if (existing.parts.size > record.parts.size) existing else record
             val shorter = if (existing.parts.size > record.parts.size) record else existing
-            require(longer.parts.take(shorter.parts.size) == shorter.parts) { "屏幕分析记录不属于同一次采集" }
+            require(longer.sourceTurn == shorter.sourceTurn && longer.parts.take(shorter.parts.size) == shorter.parts) { "屏幕分析记录不属于同一次采集" }
             longer.copy(applied = maxOf(existing.applied, record.applied))
         } else record
         val temporary = File.createTempFile("analysis-", ".tmp", directory)

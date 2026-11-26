@@ -82,14 +82,22 @@ internal object LocalMediaAttachmentPolicy {
                     "每段按时间顺序提供画面与对应音轨；标注 ~ 表示请求采样时间，实际解码帧可能有偏差。" +
                     "请按时间轴逐段分析，再汇总全局。需要时转录音轨并注明时间范围；区分可见、可听和推测内容，不可断言未采样画面。"))
                 timeline.segments.forEachIndexed { i, segment ->
-                    val audioDescription = segment.audioStartUs?.let { "音轨首样本位于原始视频 ${it / 1000.0}ms；音频内部时间须加该偏移。" }
-                        ?: "此段无音频样本。"
-                    input.put(JSONObject().put("type", "text").put("text",
-                        "第 ${i + 1} 段：${segment.startMs}–${segment.endMs}ms；采样时间(ms)：${segment.times.joinToString("、")}。$audioDescription"))
-                    input.put(JSONObject().put("type", "localImage").put("path", VideoTimeline.sheet(path, i)))
-                    if (segment.audioStartUs != null) input.put(JSONObject().put("type", "localAudio").put("path", VideoTimeline.audio(path, i)))
+                    appendVideoSegment(input, path, i, segment, includeImage = true, includeAudio = true)
                 }
             }
         }
+    }
+
+    /** Ordinary sends and auxiliary analysis use the same segment timeline and native input types. */
+    fun appendVideoSegment(input: JSONArray, path: String, index: Int, segment: VideoTimeline.Segment,
+                           includeImage: Boolean, includeAudio: Boolean) {
+        val audioDescription = if (!includeAudio) "本次明确选择仅画面，音轨未发送。" else
+            segment.audioStartUs?.let { "音轨首样本位于原始视频 ${it / 1000.0}ms；音频内部时间须加该偏移。" }
+                ?: "此段无音频样本。"
+        input.put(JSONObject().put("type", "text").put("text",
+            "第 ${index + 1} 段：${segment.startMs}–${segment.endMs}ms；" +
+                (if (includeImage) "采样时间(ms)：${segment.times.joinToString("、")}。" else "本次仅发送音轨，未发送画面。") + audioDescription))
+        if (includeImage) input.put(MediaAnalysisPlan.local("image", VideoTimeline.sheet(path, index)))
+        if (includeAudio && segment.audioStartUs != null) input.put(MediaAnalysisPlan.local("audio", VideoTimeline.audio(path, index)))
     }
 }

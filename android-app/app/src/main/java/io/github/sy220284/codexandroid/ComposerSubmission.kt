@@ -15,6 +15,10 @@ internal fun CodexViewModel.acceptComposerDraft(threadId: String?, submitted: Co
 internal fun CodexViewModel.submitComposerDraft(draft: ComposerDraft, followUp: String,
     expectedThread: String?, expectedTurn: String?, expectedRunning: Boolean, expectedOwner: String) {
     if (!draft.hasInput) return
+    if (composerContent.mediaAnalysis.state.value.busy || composerContent.liveScreenAnalysis.state.value.running) {
+        errors.value = errors.value + ("conversation" to "请先停止或完成媒体分析，原草稿已保留")
+        return
+    }
     if (composerOwner(activeThread.value) != expectedOwner ||
         activeThread.value != expectedThread || running.value != expectedRunning ||
         (expectedRunning && activeTurn.value != expectedTurn)) {

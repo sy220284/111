@@ -107,6 +107,22 @@ pub(crate) fn identity(
     Ok(format!("{:x}", digest.finalize()))
 }
 
+/// Credential-bound scope for durable, private media-analysis results. An
+/// opaque gateway/command-auth route must provide its own verified owner before
+/// this adapter can authorize persistent reuse. No secret crosses the RPC.
+pub fn media_analysis_scope(info: &ModelProviderInfo, auth: Option<&CodexAuth>) -> CoreResult<String> {
+    if info.gateway_oauth.is_some() || info.has_command_auth() || info.is_amazon_bedrock() || info.is_gcp() {
+        return Err(codex_protocol::error::CodexErr::InvalidRequest(
+            "当前认证路由尚未提供可验证的媒体分析归属；请使用普通对话发送媒体".into(),
+        ));
+    }
+    let auth = if crate::provider_uses_first_party_auth_path(info) { auth } else { None };
+    if info.requires_openai_auth && auth.is_none() {
+        return Err(codex_protocol::error::CodexErr::InvalidRequest("当前账号尚未授权".into()));
+    }
+    identity(info, auth)
+}
+
 #[cfg(test)]
 #[path = "models_identity_tests.rs"]
 mod tests;

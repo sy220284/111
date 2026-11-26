@@ -16,7 +16,7 @@ import java.io.File
 @Composable
 internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisController.State,
                                   owner: String, enabled: Boolean,
-                                  onChoose: (String, QwenMediaWire.Mode) -> Unit, onCancel: () -> Unit,
+                                  onChoose: (String, MediaAnalysisMode) -> Unit, onCancel: () -> Unit,
                                   onReview: () -> Unit, onDismiss: () -> Unit) {
     if (state.owner == owner) {
         if (state.busy) {
@@ -50,9 +50,12 @@ internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisContr
             return
         }
     }
+    var advanced by remember(owner) { mutableStateOf(false) }
+    if (paths.isNotEmpty()) CodexTextAction(onClick = { advanced = !advanced }) { Text(if (advanced) "收起媒体处理选项" else "媒体处理选项") }
+    if (!advanced) return
     paths.forEachIndexed { index, path ->
         val kind = LocalMediaAttachmentPolicy.kind(path)
-        if (kind != "image") {
+        if (kind in setOf("image", "audio", "video")) {
             FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.Center) {
                 Text("附件 ${index + 1}", style = MaterialTheme.typography.labelSmall, modifier = Modifier)
                 val metadata by loadCodexUiState<Result<Pair<Long, Boolean>>?>(null, path) {
@@ -61,7 +64,7 @@ internal fun MediaAnalysisActions(paths: List<String>, state: MediaAnalysisContr
                 if (metadata == null) Text("正在读取媒体资料")
                 if (metadata?.isFailure == true) ErrorText("媒体资料无法读取，请移除并重新添加")
                 val details = metadata?.getOrNull()
-                QwenMediaWire.Mode.entries.filter { details != null && QwenMediaWire.accepts(it, kind, details.first, details.second) }.forEach { mode ->
+                (details?.let { MediaAnalysisPlan.modes(kind, it.second) } ?: emptyList()).forEach { mode ->
                     CodexTextAction(onClick = { onChoose(path, mode) }, enabled = enabled && !state.busy) { Text(mode.label) }
                 }
             }
@@ -83,11 +86,11 @@ internal fun MediaAnalysisReview(state: MediaAnalysisController.State, onDismiss
         text = {
             Column(Modifier.heightIn(max = atlasSheetHeight() * .56f)
                 .verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("核对模型分析资料后选择发送形式。")
+                Text("模型：" + state.model + "。核对分析资料后选择发送形式。")
                 SelectionContainer { Text(state.result.orEmpty()) }
             }
         },
         confirmButton = { CodexPrimaryButton(enabled = state.checkpoint?.let { it.applied < it.parts.size } != false,
             onClick = { onApply(false) }) { Text("保留附件") } },
-        dismissButton = { CodexTextAction(onClick = { textOnly = true }) { Text("仅使用文字") } })
+        dismissButton = { CodexTextAction(enabled = state.checkpoint?.let { it.applied < it.parts.size } != false, onClick = { textOnly = true }) { Text("仅使用文字") } })
 }

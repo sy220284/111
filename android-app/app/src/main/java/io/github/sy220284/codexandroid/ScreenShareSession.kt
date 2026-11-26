@@ -11,7 +11,7 @@ internal class ScreenShareSession {
                      val sequence: Long = 0, val stopping: Boolean = false,
                      val analyzing: Boolean = false) {
         val notificationText: String get() = if (analyzing)
-            "正在向百炼发送屏幕采样进行分析，可能产生费用"
+            "正在向当前会话所选模型发送屏幕采样，可能产生费用"
             else "画面仅在本机采集，手动添加后随消息发送"
     }
     data class Frame(val sequence: Long, val timeMs: Long, val bytes: ByteArray)

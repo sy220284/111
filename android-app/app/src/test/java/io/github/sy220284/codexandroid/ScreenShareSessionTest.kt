@@ -11,7 +11,7 @@ class ScreenShareSessionTest {
         assertTrue(session.started(token))
         assertTrue(session.state.value.notificationText.contains("仅在本机"))
         assertTrue(session.analyzing(token, true))
-        assertTrue(session.state.value.notificationText.contains("百炼"))
+        assertTrue(session.state.value.notificationText.contains("当前会话所选模型"))
         assertTrue(session.state.value.notificationText.contains("费用"))
         session.publish(token, byteArrayOf(1))
         assertTrue(session.analyzing(token, false))
