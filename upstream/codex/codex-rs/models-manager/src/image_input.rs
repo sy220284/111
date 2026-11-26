@@ -2,6 +2,7 @@
 //! A catalog's missing or stale modality declaration is not runtime evidence.
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
+use std::io::Read;
 use std::sync::Mutex;
 
 use chrono::{DateTime, Utc};
@@ -44,10 +45,35 @@ impl Rejection {
     }
 }
 
+/// A cached read is valid only on filesystems exposing inode and change time.
+#[cfg(unix)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct EvidenceRevision {
+    device: u64,
+    inode: u64,
+    length: u64,
+    modified: i64,
+    modified_ns: i64,
+    changed: i64,
+    changed_ns: i64,
+}
+
+#[cfg(unix)]
+impl EvidenceRevision {
+    fn from(metadata: &std::fs::Metadata) -> Self {
+        use std::os::unix::fs::MetadataExt;
+        Self { device: metadata.dev(), inode: metadata.ino(), length: metadata.len(),
+            modified: metadata.mtime(), modified_ns: metadata.mtime_nsec(),
+            changed: metadata.ctime(), changed_ns: metadata.ctime_nsec() }
+    }
+}
+
 #[derive(Debug, Default)]
 pub(crate) struct MediaInputEvidence {
     path: Option<PathBuf>,
     memory: Mutex<HashMap<(String, String, MediaInputKind), Rejection>>,
+    #[cfg(unix)]
+    loaded_revision: Mutex<Option<EvidenceRevision>>,
 }
 
 impl MediaInputEvidence {
@@ -60,16 +86,45 @@ impl MediaInputEvidence {
 
     fn load(&self) -> std::io::Result<Vec<Rejection>> {
         let Some(path) = &self.path else { return Ok(Vec::new()); };
-        match std::fs::metadata(path) {
-            Ok(metadata) if metadata.len() > MAX_FILE_BYTES =>
-                return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "media evidence file too large")),
-            Ok(_) => {}
-            Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        // Check the opened object, not only its pathname; bound growth during reading.
+        let file = match std::fs::File::open(path) {
+            Ok(file) => file,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound => {
+                #[cfg(unix)]
+                { *self.loaded_revision.lock().unwrap_or_else(std::sync::PoisonError::into_inner) = None; }
+                return Ok(Vec::new());
+            }
             Err(err) => return Err(err),
+        };
+        let metadata = file.metadata()?;
+        if !metadata.is_file() || metadata.len() > MAX_FILE_BYTES {
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "invalid media evidence file"));
         }
-        let bytes = std::fs::read(path)?;
-        serde_json::from_slice(&bytes)
-            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))
+        #[cfg(unix)]
+        let revision = EvidenceRevision::from(&metadata);
+        #[cfg(unix)]
+        let mut loaded = self.loaded_revision.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        #[cfg(unix)]
+        if loaded.as_ref() == Some(&revision) {
+            return Ok(Vec::new()); // Already merged into this instance's process evidence.
+        }
+
+        let mut bytes = Vec::with_capacity(metadata.len() as usize);
+        (&file).take(MAX_FILE_BYTES + 1).read_to_end(&mut bytes)?;
+        if bytes.len() as u64 > MAX_FILE_BYTES {
+            return Err(std::io::Error::new(std::io::ErrorKind::InvalidData, "media evidence file too large"));
+        }
+        #[cfg(unix)]
+        if EvidenceRevision::from(&file.metadata()?) != revision ||
+            EvidenceRevision::from(&std::fs::metadata(path)?) != revision {
+            return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "media evidence changed during read"));
+        }
+        let records = serde_json::from_slice(&bytes)
+            .map_err(|err| std::io::Error::new(std::io::ErrorKind::InvalidData, err))?;
+        // Failed or concurrent reads never establish a cache receipt.
+        #[cfg(unix)]
+        { *loaded = Some(revision); }
+        Ok(records)
     }
 
     fn merge(records: &mut HashMap<(String, String, MediaInputKind), Rejection>, disk: Vec<Rejection>) {
@@ -256,6 +311,29 @@ mod tests {
         // Another already-open manager must observe a newly persisted rejection.
         assert!(store.rejected("account-a", "new-model", MediaInputKind::Audio));
         assert!(!store.rejected("account-b", "new-model", MediaInputKind::Audio));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn revision_cache_observes_external_atomic_replace_and_in_place_edit() {
+        let temp = tempfile::tempdir().unwrap();
+        let a = MediaInputEvidence::disk(temp.path().to_path_buf());
+        let b = MediaInputEvidence::disk(temp.path().to_path_buf());
+        a.record("scope", "a", MediaInputKind::Image).unwrap();
+        assert!(b.rejected("scope", "a", MediaInputKind::Image));
+        let cached = b.loaded_revision.lock().unwrap().unwrap();
+        assert!(b.load().unwrap().is_empty());
+        assert_eq!(*b.loaded_revision.lock().unwrap(), Some(cached));
+        a.record("scope", "b", MediaInputKind::Audio).unwrap();
+        assert!(b.rejected("scope", "b", MediaInputKind::Audio));
+        assert_ne!(*b.loaded_revision.lock().unwrap(), Some(cached));
+        let path = b.path.as_ref().unwrap();
+        let original = std::fs::read(path).unwrap();
+        std::fs::write(path, b"invalid").unwrap();
+        assert!(b.load().is_err());
+        std::fs::write(path, original).unwrap();
+        assert!(b.load().is_ok());
+        assert!(!b.rejected("another-account", "b", MediaInputKind::Audio));
     }
 
     #[test]
