@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import android.app.Application
 import android.net.Uri
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -67,10 +68,21 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     val composerDrafts = draftStorage.drafts.also { flow ->
         flow.update { ThreadComposerDrafts.reclaimRejectedNewThread(it, ThreadComposerDrafts.NEW_THREAD, composerOwner(null)) }
     }
-    // Transient form drafts belong to the session, not a ModalBottomSheet's window.
-    internal val taskPanelDrafts = MutableStateFlow<Map<String, TaskPanelDraft>>(emptyMap())
+    // Task text is edited on Main and must be visible to Compose in the same
+    // input transaction. An asynchronous Flow projection may lag the IME edit.
+    private val taskPanelDrafts = mutableStateMapOf<String, TaskPanelDraft>()
+    internal fun taskPanelDraft(threadId: String?): TaskPanelDraft =
+        threadId?.let { taskPanelDrafts[it] } ?: TaskPanelDraft()
+
+    @androidx.annotation.MainThread
     internal fun editTaskPanelDraft(threadId: String?, edit: (TaskPanelDraft) -> TaskPanelDraft) {
-        taskPanelDrafts.update { TaskPanelDraftPolicy.change(it, threadId, edit) }
+        check(android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
+        val id = threadId?.takeIf(String::isNotBlank) ?: return
+        val current = taskPanelDrafts.toMap()
+        val next = TaskPanelDraftPolicy.change(current, id, edit)
+        if (next === current) return
+        val draft = next[id]
+        if (draft == null) taskPanelDrafts.remove(id) else taskPanelDrafts[id] = draft
     }
     private val attachmentController by lazy {
         AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors) {

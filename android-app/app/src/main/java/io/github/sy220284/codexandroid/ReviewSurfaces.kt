@@ -25,8 +25,7 @@ fun ReviewScopePanel(
     val loading by vm.loading.collectAsState()
     val errors by vm.errors.collectAsState()
     val data by vm.data.collectAsState()
-    val taskDrafts by vm.taskPanelDrafts.collectAsState()
-    val reviewDraft = taskDrafts[active] ?: TaskPanelDraft()
+    val reviewDraft = vm.taskPanelDraft(active)
     val selection = reviewDraft.reviewScope
     val value = reviewDraft.reviewText
     var confirm by remember { mutableStateOf(false) }

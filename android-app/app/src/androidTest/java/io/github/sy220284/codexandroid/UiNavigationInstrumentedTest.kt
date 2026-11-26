@@ -1225,20 +1225,25 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("queue")
-        rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
-        rule.runOnUiThread {
-            val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
-            rule.activity.currentFocus?.clearFocus()
+        val text = "保留未发送的队列内容"
+        val field = rule.onNodeWithTag("thread-queue-draft")
+        stableClick("thread-queue-draft")
+        field.assertIsFocused().performTextInput(text)
+        field.assertTextContains(text)
+        rule.runOnIdle {
+            assertEquals("输入必须先进入原会话的草稿", text, vm.taskPanelDraft("ci-queue-draft").queueText)
         }
-        rule.waitForIdle()
-        // A visible close button must work regardless of IME focus or Back delivery.
+        // Close through the real owning window while its text field has focus.
+        // Do not send IME commands to the underlying Activity's window token.
         rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-draft").fetchSemanticsNodes().isEmpty()
         }
+        rule.runOnIdle {
+            assertEquals("关闭窗口不得清除草稿", text, vm.taskPanelDraft("ci-queue-draft").queueText)
+        }
         openComposerShortcut("queue")
-        rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
+        field.assertTextContains(text)
         // Finish the real navigation lifecycle before the next Activity is launched.
         rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.waitUntil(5_000L) {
