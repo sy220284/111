@@ -18,7 +18,7 @@ GIT_SOURCE = ("https://mirrors.kernel.org/pub/software/scm/git/git-2.56.1.tar.xz
               "f0b0bf89264b9bd2e1c640363e7529643989da76281600473c50745cd34a607f")
 TERMUX_RECIPE_COMMIT = "8a9e362e0083070452d9d1b1ed84651a57607a1c"
 SYSTEM = {"libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so", "libandroid.so",
-          "libatomic.so", "libaaudio.so", "libOpenSLES.so", "libmediandk.so",
+          "libatomic.so", "libpthread.so", "librt.so", "libaaudio.so", "libOpenSLES.so", "libmediandk.so",
           "libjnigraphics.so", "libEGL.so", "libGLESv2.so", "libvulkan.so"}
 
 
@@ -236,7 +236,11 @@ def prepare(abi, native, assets, prepared, clang, git_source_output):
         if helpers["git-remote-https"] != remote:
             raise ValueError("Git HTTP/HTTPS helper differs")
         for alias, original in sorted(helpers.items()):
-            if original=="libdsh_git.so":
+            if alias == "git":
+                if (prepared / "git/jniLibs" / abi / original).read_bytes() != (prepared / "git/jniLibs" / abi / "libdsh_git.so").read_bytes():
+                    raise ValueError("Git executable alias differs from primary binary")
+                continue
+            if (prepared / "git/jniLibs" / abi / original).read_bytes() == (prepared / "git/jniLibs" / abi / "libdsh_git.so").read_bytes():
                 target="libcodex_git.so"
             elif original==remote:
                 target="libcodex_git_remote_http.so"

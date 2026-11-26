@@ -32,10 +32,8 @@ internal object DeveloperRuntime {
         GitWorkspaceTrust.configure(WorkspaceStorage.root(context), env)
         env["LD_LIBRARY_PATH"] = context.applicationInfo.nativeLibraryDir
         env["CODEX_DEVELOPER_RUNTIME_ROOT"] = root.absolutePath
-        if (File(root, "git/lib").isDirectory) {
-            env["GIT_TEMPLATE_DIR"] = File(root, "git/home/share/git-core/templates").absolutePath
-            env["GIT_CONFIG_SYSTEM"] = File(root, "git/gitconfig").absolutePath
-        }
+        env["GIT_TEMPLATE_DIR"] = File(root, "git/home/share/git-core/templates").absolutePath
+        env["GIT_CONFIG_NOSYSTEM"] = "1"
         env["PYTHONHOME"] = File(root, "python/home").absolutePath
         env["PYTHONDONTWRITEBYTECODE"] = "1"
         env["PYTHONUSERBASE"] = python.absolutePath

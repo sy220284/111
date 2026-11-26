@@ -16,6 +16,7 @@ permissions:
   actions: read
 jobs:
   prepare:
+    name: ${{ inputs.abi == 'arm64-v8a' && 'ARM64 工具链产物核验' || 'x86_64 工具链产物核验' }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     outputs:
@@ -32,6 +33,16 @@ jobs:
         run: |
           set -euo pipefail
           bash tools/runtime/build-111-runtime.sh "$ABI" "$RUNNER_TEMP/runtime"
+      - name: 验证实际 CLI 原生装配和依赖闭环
+        env:
+          ABI: ${{ inputs.abi }}
+        run: |
+          set -euo pipefail
+          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
+          "$SDK_MANAGER" "ndk;27.2.12479018"
+          case "$ABI" in arm64-v8a) TARGET=aarch64-linux-android;; x86_64) TARGET=x86_64-linux-android;; *) exit 2;; esac
+          CLANG="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/${TARGET}29-clang"
+          python3 android-app/tools/prepare_prebuilt_developer_runtime.py "$ABI" --prepared-dir "$RUNNER_TEMP/runtime" --native "$RUNNER_TEMP/cli-native" --assets "$RUNNER_TEMP/cli-assets" --clang "$CLANG" --git-source-output "$RUNNER_TEMP/git-source.tar.xz"
       - name: 生成可复用离线组件并回读
         id: bundle
         env:

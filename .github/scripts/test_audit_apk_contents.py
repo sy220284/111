@@ -34,9 +34,7 @@ class ApkAuditTests(unittest.TestCase):
             payload["assets/domestic-providers.json"] = b"[]"
             for ext in ("zip", "sha256", "version", "provenance.json", "commands.tsv"):
                 payload["assets/development-runtime/development-runtime." + ext] = b"fixture"
-            extra = ("libcodex_node.so", "libcodex_python.so", "libcodex_curl.so", "libcodex_jq.so",
-                     "libcodex_tool_launcher.so", "libcodex_git_remote_http.so")
-            for component in REQUIRED_RUNTIME + extra:
+            for component in REQUIRED_RUNTIME:
                 if component == missing_component:
                     continue
                 machine = 62 if component == wrong_machine_component else (
