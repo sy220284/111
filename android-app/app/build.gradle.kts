@@ -5,6 +5,8 @@ val releaseTargetAbi = providers.gradleProperty("codexReleaseTargetAbi").orNull
 require(releaseTargetAbi == null || releaseTargetAbi == "arm64-v8a") {
     "正式发布目标架构只能是 arm64-v8a"
 }
+val nativeTargetAbi = providers.gradleProperty("codexTargetAbi").orNull ?: releaseTargetAbi
+require(nativeTargetAbi == null || nativeTargetAbi in setOf("arm64-v8a", "x86_64")) { "运行目标架构无效" }
 val signingKeystorePath = System.getenv("CODEX_RELEASE_KEYSTORE_PATH")
 val signingPassword = System.getenv("CODEX_RELEASE_PASSWORD")
 val signingAlias = System.getenv("CODEX_RELEASE_KEY_ALIAS") ?: "111-release"
@@ -38,6 +40,7 @@ android {
         targetSdk = 35
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersionName ?: "0.1.0"
+        nativeTargetAbi?.takeIf { providers.gradleProperty("codexSplitAbi").orNull != "true" }?.let { ndk { abiFilters += it } }
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
     signingConfigs {
@@ -119,11 +122,44 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.test:runner:1.6.2")
+    // Stable AndroidX Test release containing the public InputManager lookup.
+    // Older Espresso versions crash before Compose assertions on Android 17.
+    androidTestImplementation("androidx.test:core:1.7.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation(composeBom)
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
+}
+
+/** Verify the resolved test runtime, including Espresso pulled in by Compose. */
+tasks.register("verifyAndroidTestRuntime") {
+    doLast {
+        val expected = mapOf(
+            "androidx.test:core" to "1.7.0",
+            "androidx.test:runner" to "1.7.0",
+            "androidx.test:monitor" to "1.8.0",
+            "androidx.test.ext:junit" to "1.3.0",
+            "androidx.test.espresso:espresso-core" to "3.7.0",
+            "androidx.test.espresso:espresso-idling-resource" to "3.7.0"
+        )
+        val resolved = configurations.getByName("debugAndroidTestRuntimeClasspath")
+            .incoming.resolutionResult.allComponents.mapNotNull { component ->
+                val id = component.id as? org.gradle.api.artifacts.component.ModuleComponentIdentifier
+                id?.let { "${it.group}:${it.module}" to it.version }
+            }.toMap()
+        val report = layout.buildDirectory.file("reports/android-test-dependencies.txt").get().asFile
+        report.parentFile.mkdirs()
+        report.writeText(expected.keys.sorted().joinToString("\n", postfix = "\n") {
+            "$it:${resolved[it] ?: "未解析"}"
+        })
+        expected.forEach { (module, version) ->
+            check(resolved[module] == version) {
+                "Android 测试依赖不匹配：$module，预期 $version，实际 ${resolved[module]}"
+            }
+        }
+    }
 }
 
 /** Generate reproducible protocol request fixtures from the same Kotlin unit-test run. */
@@ -135,3 +171,4 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     systemProperty("codex.domesticCatalog", domesticCatalog.absolutePath)
     outputs.file(fixtureOutput)
 }
+

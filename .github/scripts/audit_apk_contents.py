@@ -5,6 +5,7 @@ UI-only signing smoke deliberately omits the Codex core. Shipping APKs must
 contain the complete ABI-specific native executables; slimming must never remove them.
 """
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -37,6 +38,7 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
                 raise ApkAuditError("APK 包含重名文件条目")
             required = list(REQUIRED_ANDROID) + [f"lib/{abi}/libhpatchz.so"]
             if mode == "full":
+                required.append("assets/domestic-providers.json")
                 required.extend(f"lib/{abi}/{binary}" for binary in REQUIRED_RUNTIME)
             if mode == "full":
                 required.extend(f"lib/{abi}/{name}" for name in
@@ -64,6 +66,9 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
                 machine = int.from_bytes(header[18:20], byteorder)
                 if machine != MACHINES[abi]:
                     raise ApkAuditError(f"原生库架构错误：{name}（machine={machine}）")
+            bad_entry=archive.testzip()
+            if bad_entry is not None:
+                raise ApkAuditError("APK CRC 校验失败："+bad_entry)
             categories = {"dex": 0, "native": 0, "resources": 0, "assets": 0, "other": 0}
             compressed = {key: 0 for key in categories}
             for name, item in entries.items():
@@ -75,6 +80,7 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
                 compressed[key] += item.compress_size
             return {
                 "apk": str(apk), "abi": abi, "mode": mode,
+                "sha256": sha256(apk),
                 "apk_bytes": apk.stat().st_size,
                 "file_count": len(entries),
                 "uncompressed_bytes": sum(item.file_size for item in entries.values()),
@@ -89,16 +95,28 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
         raise ApkAuditError(f"APK 结构或文件读取失败：{error}") from error
 
 
+def sha256(path):
+    with path.open("rb") as source:
+        return hashlib.file_digest(source,"sha256").hexdigest()
+
+def verify_report(apk,abi,mode,report):
+    data=json.loads(report.read_text(encoding="utf-8"))
+    if (data["abi"] != abi or data["mode"] != mode or data["apk_bytes"] != apk.stat().st_size
+        or data["sha256"] != sha256(apk)):
+        raise ApkAuditError("下载 APK 与完整审计凭证字节不一致")
+    return data
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--apk", type=Path, required=True)
     parser.add_argument("--abi", choices=sorted(MACHINES), required=True)
     parser.add_argument("--mode", choices=("ui-smoke", "full"), default="full")
     parser.add_argument("--report", type=Path)
+    parser.add_argument("--verify-report",type=Path)
     args = parser.parse_args()
     try:
-        result = audit(args.apk, args.abi, args.mode)
-    except ApkAuditError as error:
+        result = verify_report(args.apk,args.abi,args.mode,args.verify_report) if args.verify_report else audit(args.apk,args.abi,args.mode)
+    except (ApkAuditError, OSError, ValueError, KeyError) as error:
         print(f"APK 安全核验失败：{error}", file=sys.stderr)
         return 1
     report = json.dumps(result, ensure_ascii=False, indent=2)
