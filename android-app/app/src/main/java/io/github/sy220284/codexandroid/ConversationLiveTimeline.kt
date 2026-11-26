@@ -62,7 +62,8 @@ internal class ConversationLiveTimeline {
                     // Retain a restriction even if a stale selected snapshot lacked its metadata.
                     if (AgentReplyContract.restricted(other.metadata()) && !AgentReplyContract.restricted(merged.metadata()))
                         AgentReplyContract.merge(merged, other.copy(status = selected.status), keepText = true)
-                    else merged.copy(phase = phase)
+                    else merged.copy(phase = phase, evidence = if (merged.hasEvidence)
+                        JSONObject(merged.evidence).put("phase", phase).toString() else "")
                 } else if (phase == selected.phase) selected else selected.copy(phase = phase,
                     evidence = if (selected.hasEvidence) JSONObject(selected.evidence).put("phase", phase).toString() else "")
             } + live.filterNot { it.id in existing || (it.id.startsWith("turn-unverified:") &&

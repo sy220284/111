@@ -18,6 +18,8 @@ internal class AsyncReplyReceipts {
 internal fun CodexViewModel.submitAsyncReply(thread: String, question: AsyncReplyQuestion,
     answer: String, queue: Boolean) {
     val key = AsyncReplyContract.key(thread, question)
+    val receiptKey = AsyncReplyContract.receiptKey(thread, question)
+    if (composerDrafts.value[receiptKey]?.text == "unverified") return
     if (answer.isBlank() || answer.length > 16384 || activeThread.value != thread ||
         activeTurn.value != question.turnId || !running.value || threadSwitching.value ||
         securitySaveBusy.value || steerBusy.value || "queueWrite" in loading.value ||
@@ -30,11 +32,14 @@ internal fun CodexViewModel.submitAsyncReply(thread: String, question: AsyncRepl
     val payload = AsyncReplyContract.encode(question, answer)
     submitRunningComposer(ComposerDraft(text = payload), if (queue) "queue" else "steer",
         onSettled = { result ->
-            if (result == null) asyncReplyReceipts.uncertain.update { it + key }
+            if (result == null) {
+                asyncReplyReceipts.uncertain.update { it + key }
+                editComposerText(receiptKey, "unverified")
+            }
         }) {
         asyncReplyReceipts.accepted.update { it + key }
         asyncReplyReceipts.uncertain.update { it - key }
-        composerDrafts.update { ThreadComposerDrafts.accepted(it, key, answer, emptyList()) }
+        composerDrafts.update { ThreadComposerDrafts.accepted(it, key, answer, emptyList()) - receiptKey }
     }
 }
 
@@ -42,12 +47,14 @@ internal fun CodexViewModel.submitAsyncReply(thread: String, question: AsyncRepl
 internal fun NativeAsyncReplyCard(vm: CodexViewModel, thread: String, question: AsyncReplyQuestion,
     answered: Boolean, active: Boolean, enabled: Boolean) {
     val key = AsyncReplyContract.key(thread, question)
-    val drafts by vm.composerDrafts.collectEntries(key)
+    val receiptKey = AsyncReplyContract.receiptKey(thread, question)
+    val drafts by vm.composerDrafts.collectEntries(key, receiptKey)
+    var confirmRetry by remember(key) { mutableStateOf(false) }
     val accepted by vm.asyncReplyReceipts.accepted.collectAsState()
     val uncertain by vm.asyncReplyReceipts.uncertain.collectAsState()
     val draft = drafts[key]?.text.orEmpty()
     val resolved = answered || key in accepted
-    val unknown = !resolved && key in uncertain
+    val unknown = !resolved && (key in uncertain || drafts[receiptKey]?.text == "unverified")
     val copy = rememberConversationCopy()
     val editable = active && enabled && !resolved && !unknown
     Surface(Modifier.fillMaxWidth().testTag("async-reply-question"),
@@ -77,7 +84,19 @@ internal fun NativeAsyncReplyCard(vm: CodexViewModel, thread: String, question: 
             } else if (!resolved && draft.isNotBlank()) {
                 Text(draft, style = MaterialTheme.typography.bodyMedium)
                 CodexSecondaryButton(onClick = { copy(draft, CopyContentFormat.Literal) }) { Text("复制未发送回答") }
+                if (unknown && active && enabled) {
+                    CodexSecondaryButton(onClick = { vm.chooseThread(thread, forceReload = true) }) { Text("刷新会话以核对回答") }
+                    CodexSecondaryButton(onClick = { confirmRetry = true }) { Text("确认未送达后重试") }
+                }
             }
         }
     }
+    if (confirmRetry) CodexConfirmDialog(title = "核对发送结果",
+        message = "请先核对会话和任务队列，确认原回答未被接收。解除待核实状态后可重新提交，避免重复回答。",
+        confirmLabel = "确认未送达", destructive = false,
+        onConfirm = {
+            confirmRetry = false
+            vm.asyncReplyReceipts.uncertain.update { it - key }
+            vm.editComposerText(receiptKey, "")
+        }, onDismiss = { confirmRetry = false })
 }

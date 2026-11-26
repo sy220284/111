@@ -282,15 +282,16 @@ internal fun ConversationTimelineViewport(
         }
     }
     if (outlineOpen) {
-        val outline = remember(rows) { ReplyReadingNavigation.outline(rows) }
+        val outline by loadCodexUiState<List<ReplyHeadingEntry>?>(null, rows, dispatcher = kotlinx.coroutines.Dispatchers.Default) { ReplyReadingNavigation.outline(rows) }
         AlertDialog(onDismissRequest = { outlineOpen = false }, title = { Text("回答目录") },
             text = { LazyColumn(Modifier.heightIn(max = 440.dp)) {
-                if (outline.isEmpty()) item { Text("当前回答没有标题") }
-                items(outline) { entry ->
+                if (outline == null) item { Text("正在整理目录") }
+                else if (outline.orEmpty().isEmpty()) item { Text("当前回答没有标题") }
+                items(outline.orEmpty()) { entry ->
                     CodexTextAction(onClick = {
-                        outlineOpen = false; followTail = false; headingTarget = entry
+                        outlineOpen = false; followTail = false
                         val index = rows.indexOfFirst { it.key == entry.rowKey }
-                        if (index >= 0) scope.launch { scroll.scrollToItem(index + if (olderPageVisible) 1 else 0) }
+                        if (index >= 0) scope.launch { scroll.scrollToItem(index + if (olderPageVisible) 1 else 0); headingTarget = entry }
                     }, modifier = Modifier.fillMaxWidth().padding(start = ((entry.level - 1).coerceIn(0, 3) * 8).dp)) {
                         Text(entry.title, Modifier.fillMaxWidth())
                     }

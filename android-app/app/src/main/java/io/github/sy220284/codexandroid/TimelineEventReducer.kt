@@ -113,7 +113,14 @@ internal object TimelineEventReducer {
                 evidence = JSONObject(item.evidence).put("phase", phase).toString())
             val clientId = if (next.kind == "user" && next.evidence.isNotBlank())
                 JSONObject(next.evidence).string("clientId") else ""
-            items = items.put(next, clientId)
+            val boundary = if (prior == null && clientId.isBlank() && next.turnId.isNotBlank())
+                items.indexOfLast { it.turnId == next.turnId } else -1
+            val marker = items.getOrNull(boundary)
+            val beforeMarker = marker?.kind == "turnOutcome" || marker?.id == "turn-error:" + next.turnId
+            if (boundary >= 0 && (boundary < items.lastIndex || beforeMarker && next.kind !in setOf("turnOutcome", "error"))) {
+                val insertion = if (beforeMarker && next.kind !in setOf("turnOutcome", "error")) boundary else boundary + 1
+                items = IndexedTimeline.from(items.take(insertion) + next + items.drop(insertion))
+            } else items = items.put(next, clientId)
         }
         if (method == "hook/started" || method == "hook/completed") {
             if (closed) return current

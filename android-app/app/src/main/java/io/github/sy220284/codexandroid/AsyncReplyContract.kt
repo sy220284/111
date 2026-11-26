@@ -24,6 +24,7 @@ internal object AsyncReplyContract {
         return result.toString()
     }
     fun attributes(item: TimelineItem): List<JSONObject> {
+        if (item.kind !in setOf("agent", "agentMessage")) return emptyList()
         val raw = item.metadata() ?: return emptyList()
         val fragments = raw.optJSONArray("fragments")
         return if (fragments == null) listOf(raw)
@@ -47,6 +48,7 @@ internal object AsyncReplyContract {
         }
     }
     fun key(thread: String, question: AsyncReplyQuestion) = "__async_question__:" + thread + ":" + question.id
+    fun receiptKey(thread: String, question: AsyncReplyQuestion) = key(thread, question) + ":receipt"
     fun encode(question: AsyncReplyQuestion, answer: String): String {
         require(answer.isNotBlank() && answer.length <= 16384)
         val title = utf8Prefix(question.title, 512).replace('\n', ' ').replace('\r', ' ')
