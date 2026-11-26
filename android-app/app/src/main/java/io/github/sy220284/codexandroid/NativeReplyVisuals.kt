@@ -78,16 +78,50 @@ internal fun ReplyDataChart(block: MessageBlock) {
 
 @Composable
 internal fun ReplyBranchGraph(rows: List<List<String>>) {
-    val nodes = rows.flatMap { listOf(it[0], it[2]) }.distinct()
-    nodes.forEach { node ->
-        Surface(Modifier.fillMaxWidth(), color = Ink.recessed, shape = RoundedCornerShape(8.dp)) {
-            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                Text(node, fontWeight = FontWeight.SemiBold)
-                rows.filter { it[0] == node }.forEach { edge ->
-                    Text("↳ " + edge[1] + " → " + edge[2], style = MaterialTheme.typography.bodyMedium)
+    val layout = remember(rows) { ReplyGraph.layout(rows) }
+    val nodeWidth = 148.dp
+    val nodeHeight = 70.dp
+    val horizontalGap = 44.dp
+    val verticalGap = 52.dp
+    val border = Ink.border
+    val edgeColor = Ink.copper
+    var selected by remember(rows) { mutableStateOf<String?>(null) }
+    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())) {
+        Box(Modifier.size((nodeWidth + horizontalGap) * layout.columns + 16.dp,
+            (nodeHeight + verticalGap) * layout.layers + 16.dp)) {
+            Canvas(Modifier.matchParentSize()) {
+                fun point(node: ReplyGraph.Node) = Offset(8.dp.toPx() + node.column * (nodeWidth + horizontalGap).toPx() + nodeWidth.toPx() / 2,
+                    8.dp.toPx() + node.layer * (nodeHeight + verticalGap).toPx() + nodeHeight.toPx() / 2)
+                layout.edges.forEach { edge ->
+                    val from = layout.nodes.first { it.name == edge[0] }
+                    val to = layout.nodes.first { it.name == edge[2] }
+                    val a = point(from); val b = point(to)
+                    val delta = b - a
+                    val length = delta.getDistance().coerceAtLeast(1f)
+                    val direction = delta / length
+                    val start = a + direction * (if (from.layer == to.layer) nodeWidth.toPx()/2 else nodeHeight.toPx()/2)
+                    val end = b - direction * (if (from.layer == to.layer) nodeWidth.toPx()/2 else nodeHeight.toPx()/2)
+                    val color = if (selected == null || selected == from.name || selected == to.name) edgeColor else border
+                    drawLine(color, start, end, 2.dp.toPx())
+                    val side = Offset(-direction.y, direction.x)
+                    drawLine(color, end, end - direction * 10.dp.toPx() + side * 5.dp.toPx(), 2.dp.toPx())
+                    drawLine(color, end, end - direction * 10.dp.toPx() - side * 5.dp.toPx(), 2.dp.toPx())
+                }
+            }
+            layout.nodes.forEach { node ->
+                Surface(Modifier.offset(x = 8.dp + (nodeWidth + horizontalGap) * node.column,
+                    y = 8.dp + (nodeHeight + verticalGap) * node.layer).size(nodeWidth, nodeHeight),
+                    color = Ink.recessed, shape = RoundedCornerShape(10.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, if (selected == node.name) edgeColor else border)) {
+                    CodexTextAction(onClick = { selected = if (selected == node.name) null else node.name },
+                        modifier = Modifier.fillMaxSize()) { Text(node.name, maxLines = 3, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) }
                 }
             }
         }
+    }
+    rows.filter { selected == null || it[0] == selected || it[2] == selected }.forEach { edge ->
+        Text(edge[0] + " → " + edge[2] + if (edge[1].isNotBlank()) " · " + edge[1] else "",
+            style = MaterialTheme.typography.bodySmall, color = Ink.muted)
     }
 }
 
@@ -106,8 +140,26 @@ internal fun ReplyMathLayout(value: ReplyMath, small: Boolean = false) {
             ReplyMathLayout(value.denominator, true)
         }
         is ReplyMath.Root -> Row(verticalAlignment = Alignment.CenterVertically) {
+            value.index?.let { ReplyMathLayout(it, true) }
             Text("√", fontSize = font)
-            Column { HorizontalDivider(color = Ink.parchment); ReplyMathLayout(value.value, small) }
+            Column(Modifier.width(IntrinsicSize.Max)) { HorizontalDivider(color = Ink.parchment); ReplyMathLayout(value.value, small) }
+        }
+        is ReplyMath.Matrix -> Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value.left, fontSize = (if (small) 26 else 36).sp)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                value.rows.forEach { row -> Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    row.forEach { ReplyMathLayout(it, small) }
+                } }
+            }
+            Text(value.right, fontSize = (if (small) 26 else 36).sp)
+        }
+        is ReplyMath.Delimited -> Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value.left, fontSize = font); ReplyMathLayout(value.value, small); Text(value.right, fontSize = font)
+        }
+        is ReplyMath.Accent -> Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(IntrinsicSize.Max)) {
+            if (value.kind != "underline") Text(when (value.kind) { "vec" -> "→"; "hat" -> "^"; "dot" -> "·"; "ddot" -> "··"; else -> "¯" }, fontSize = 13.sp)
+            ReplyMathLayout(value.value, small)
+            if (value.kind == "underline") HorizontalDivider(color = Ink.parchment)
         }
         is ReplyMath.Script -> Row(verticalAlignment = Alignment.CenterVertically) {
             ReplyMathLayout(value.base, small)

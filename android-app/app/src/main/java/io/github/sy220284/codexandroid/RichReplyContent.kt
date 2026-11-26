@@ -7,7 +7,9 @@ internal data class RichReplyContent(val kind: String, val rows: List<List<Strin
         private val chartKinds = setOf("bar", "line", "pie")
         fun parse(language: String, source: String): RichReplyContent? {
             val kind = language.removePrefix("codex-")
+            if (language == "mermaid") return ReplyGraph.parseMermaid(source)
             if (language != "codex-$kind" || kind !in kinds || source.length > 4096) return null
+            if (kind == "math") return if (ReplyMath.parse(source) != null) RichReplyContent(kind, listOf(listOf(source))) else null
             val lines = source.lines().map(String::trim).filter(String::isNotEmpty)
             val limit = if (kind in chartKinds || kind == "graph") 24 else 12
             if (lines.size !in 1..limit) return null
@@ -29,7 +31,6 @@ internal data class RichReplyContent(val kind: String, val rows: List<List<Strin
                     it.all { row -> row[0] != row[2] } && it.flatMap { row -> listOf(row[0], row[2]) }.distinct().size <= 16 }
                 "checklist" -> fields.takeIf { valid(it, 2..2) && it.all { row -> row[0] in setOf("done", "todo", "doing") } }
                 "file" -> fields.takeIf { valid(it, 2..2) && it.all { row -> row[1].none(Char::isISOControl) } }
-                "math" -> lines.map { listOf(it) }.takeIf { valid(it, 1..1) && it.all { row -> ReplyMath.parse(row[0]) != null } }
                 else -> null
             } ?: return null
             return RichReplyContent(kind, rows)

@@ -61,16 +61,21 @@ internal object MessageMarkdown {
         var start = from
         var stable = from
         var opening: String? = null
+        var mathEnding: String? = null
         while (start < source.length) {
             val end = source.indexOf('\n', start)
             if (end < 0) break
             val line = source.substring(start, end).trim()
             val current = opening
-            if (current != null) {
+            if (mathEnding != null) {
+                if (line == mathEnding) mathEnding = null
+            } else if (current != null) {
                 if (line.length >= current.length && line.all { it == current.first() }) opening = null
             } else {
                 val marker = fence.matchEntire(line)
                 if (marker != null) opening = marker.groupValues[1]
+                else if (line == "\$\$") mathEnding = "\$\$"
+                else if (line == "\\[") mathEnding = "\\]"
                 else if (line.isBlank()) stable = end + 1
             }
             start = end + 1
@@ -119,7 +124,7 @@ internal object MessageMarkdown {
                 trimmed == "\$\$" || trimmed == "\\[" -> {
                     val ending = if (trimmed == "\$\$") "\$\$" else "\\]"
                     val end = (i + 1 until lines.size).firstOrNull { lines[it].trim() == ending }
-                    val sourceMath = end?.let { lines.subList(i + 1, it).joinToString(" ") }
+                    val sourceMath = end?.let { lines.subList(i + 1, it).joinToString("\n") }
                     val math = sourceMath?.let { RichReplyContent.parse("codex-math", it) }
                     if (math != null && end != null && sourceMath != null) {
                         flush()
@@ -127,6 +132,13 @@ internal object MessageMarkdown {
                             source = lines.subList(i, end + 1).joinToString("\n")))
                         i = end
                     } else paragraph.add(line)
+                }
+                ((trimmed.startsWith("\$\$") && trimmed.endsWith("\$\$")) ||
+                    (trimmed.startsWith("\\[") && trimmed.endsWith("\\]"))) && trimmed.length > 4 -> {
+                    val equation = trimmed.substring(2, trimmed.length - 2)
+                    val math = RichReplyContent.parse("codex-math", equation)
+                    if (math != null) { flush(); result.add(MessageBlock("math", equation, rows = math.rows, source = line)) }
+                    else paragraph.add(line)
                 }
                 tableHeader(lines, i) -> {
                     flush()
