@@ -450,6 +450,8 @@ jobs:
           bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-exec-server --lib local_file_system_read::tests::android_delivery_ 2>&1 | tee "$RUNNER_TEMP/android-delivery-rust-tests.log"
           grep -F "test local_file_system_read::tests::android_delivery_enforces_the_actual_read_limit ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
           grep -F "test local_file_system_read::tests::android_delivery_rejects_leaf_and_parent_links ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
+          grep -F "test local_file_system_read::tests::android_delivery_chunk_returns_verified_digest_and_bounded_ranges ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
+          grep -F "test local_file_system_read::tests::android_delivery_chunk_rejects_leaf_and_parent_links ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
           bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline -p codex-exec-server-cli --bin codex-exec-server
           mkdir -p "$RUNNER_TEMP/android-delivery-executor"
           install -m 0755 target/debug/codex-exec-server "$RUNNER_TEMP/android-delivery-executor/codex-exec-server"

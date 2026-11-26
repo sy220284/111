@@ -9,12 +9,16 @@ import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 import org.json.JSONObject
 import java.security.MessageDigest
+import java.io.File
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal object RemoteFileDelivery {
-    const val METHOD = "android/remoteFile/read"
-    const val MAX_BYTES = 8 * 1024 * 1024
+    const val METHOD = "android/remoteFile/readChunk"
+    private val lock = Mutex()
+    private var checkpoint: RemoteTransferCheckpoint? = null
     data class Selection(val relative: String, val filename: String)
-    data class Payload(val name: String, val bytes: ByteArray, val sha256: String)
+    data class Payload(val name: String, val size: Long, val sha256: String, internal val entry: RemoteTransferCheckpoint.Entry)
     fun selection(binding: RemoteExecutionBinding, target: String): Selection {
         require(target.length in 1..4096 && target.none(Char::isISOControl)) { "无效远端文件路径" }
         val windows = binding.cwd.startsWith("\\\\") || Regex("^[A-Za-z]:[/\\\\].*").matches(binding.cwd)
@@ -33,10 +37,9 @@ internal object RemoteFileDelivery {
         }
         return Selection(parts.joinToString(if (windows) "\\" else "/"), parts.last())
     }
-    private fun hash(bytes: ByteArray): String = MessageDigest.getInstance("SHA-256").digest(bytes)
-        .joinToString("") { "%02x".format(it.toInt() and 255) }
     suspend fun load(vm: CodexViewModel, thread: String, binding: RemoteExecutionBinding,
-        target: String, epoch: Long, revision: Long): Payload {
+        target: String, epoch: Long, revision: Long, cacheDir: File,
+        onProgress: suspend (Long, Long) -> Unit = { _, _ -> }): Payload = lock.withLock {
         val selected = selection(binding, target)
         fun owns() = vm.activeThread.value == thread && vm.bridge.connectedSession.value == epoch &&
             vm.catalogWarmup.accountRevision.value == revision && vm.remoteBindings.forThread(thread) == binding &&
@@ -54,53 +57,102 @@ internal object RemoteFileDelivery {
         val info = request("environment/info", JSONObject().put("environmentId", binding.id))
         val root = info.getString("cwd")
         check(RemoteExecutionBinding.nativePath(root) == binding.cwd) { "远端工作区已变化" }
-        val result = request(METHOD, JSONObject().put("environmentId", binding.id)
-            .put("workspaceUri", root).put("relativePath", selected.relative))
-        check(result.getString("environmentId") == binding.id) { "文件回执的环境归属不一致" }
-        val reported = selection(binding, RemoteExecutionBinding.nativePath(result.getString("pathUri")))
-        check(reported == selected) { "文件回执的路径不一致" }
-        return withContext(Dispatchers.Default) {
-            val encoded = result.getString("dataBase64")
-            require(encoded.length <= ((MAX_BYTES + 2) / 3) * 4) { "文件超过 8 MiB" }
-            val bytes = Base64.decode(encoded, Base64.NO_WRAP)
-            require(bytes.size <= MAX_BYTES)
-            Payload(selected.filename, bytes, hash(bytes))
-        }.also { check(owns()) { "远端会话已变化" } }
-    }
-    suspend fun save(resolver: ContentResolver, destination: Uri, payload: Payload,
-        onVerified: suspend (Long) -> Unit = {}, onWritten: suspend () -> Unit = {}) = withContext(Dispatchers.IO) {
-        require(destination.scheme == "content") { "请选择系统文档保存位置" }
-        requireNotNull(resolver.openOutputStream(destination, "wt")) { "无法打开保存位置" }.use {
-            var offset = 0
-            while (offset < payload.bytes.size) {
-                coroutineContext.ensureActive()
-                val count = minOf(64 * 1024, payload.bytes.size - offset)
-                it.write(payload.bytes, offset, count)
-                offset += count
-            }
-            it.flush()
+        suspend fun chunk(offset: Long, version: String?): JSONObject {
+            val result = request(METHOD, JSONObject().put("environmentId", binding.id)
+                .put("workspaceUri", root).put("relativePath", selected.relative)
+                .put("offset", offset).put("version", version ?: JSONObject.NULL))
+            check(result.getString("environmentId") == binding.id &&
+                selection(binding, RemoteExecutionBinding.nativePath(result.getString("pathUri"))) == selected &&
+                result.getLong("offset") == offset) { "远端分块回执归属不一致" }
+            return result
         }
-        withContext(Dispatchers.Main.immediate) { onWritten() }
-        val digest = MessageDigest.getInstance("SHA-256")
-        var total = 0
-        var lastReport = 0
-        requireNotNull(resolver.openInputStream(destination)) { "无法回读保存文件" }.use { stream ->
-            val buffer = ByteArray(8192)
-            while (true) {
-                coroutineContext.ensureActive()
-                val count = stream.read(buffer)
-                if (count < 0) break
-                total += count
-                require(total <= payload.bytes.size) { "保存结果大小不符" }
-                digest.update(buffer, 0, count)
-                if (total - lastReport >= 256 * 1024 || total == payload.bytes.size) {
-                    lastReport = total
-                    withContext(Dispatchers.Main.immediate) { onVerified(total.toLong()) }
+        fun decode(result: JSONObject, expected: Long): ByteArray {
+            val encoded = result.getString("dataBase64")
+            require(expected in 0..RemoteTransferCheckpoint.CHUNK_BYTES.toLong() &&
+                encoded.length.toLong() == ((expected + 2) / 3) * 4) { "远端分块大小不一致" }
+            return Base64.decode(encoded, Base64.NO_WRAP).also {
+                require(it.size.toLong() == expected && Base64.encodeToString(it, Base64.NO_WRAP) == encoded) {
+                    "无效远端分块编码"
                 }
             }
         }
-        check(total == payload.bytes.size && digest.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == payload.sha256) {
-            "保存后文件校验失败"
+        val first = chunk(0, null)
+        val size = first.getLong("size")
+        val sha = first.getString("sha256")
+        val version = first.getString("version")
+        require(size in 0..RemoteTransferCheckpoint.MAX_BYTES && RemoteTransferCheckpoint.isDigest(sha) &&
+            RemoteTransferCheckpoint.isDigest(version)) { "远端文件大小或摘要无效" }
+        val owner = org.json.JSONArray().put(revision).put(thread).put(binding.id).put(binding.endpoint)
+            .put(binding.cwd).put(selected.relative).toString()
+        val store = checkpoint ?: RemoteTransferCheckpoint(File(cacheDir, "remote-delivery")).also { checkpoint = it }
+        val entry = withContext(Dispatchers.IO) { store.begin(RemoteTransferCheckpoint.Source(owner, size, sha)) }
+        val firstBytes = withContext(Dispatchers.Default) {
+            decode(first, minOf(size, RemoteTransferCheckpoint.CHUNK_BYTES.toLong()))
+        }
+        onProgress(entry.offset, size)
+        while (entry.offset < size) {
+            coroutineContext.ensureActive()
+            check(owns()) { "远端会话已变化" }
+            val offset = entry.offset
+            val bytes = if (offset == 0L) firstBytes else {
+                val result = chunk(offset, version)
+                check(result.getLong("size") == size && result.getString("version") == version &&
+                    result.isNull("sha256")) { "远端源文件已变化" }
+                withContext(Dispatchers.Default) {
+                    decode(result, minOf(size - offset, RemoteTransferCheckpoint.CHUNK_BYTES.toLong()))
+                }
+            }
+            withContext(Dispatchers.IO) { store.append(entry, offset, bytes) }
+            onProgress(entry.offset, size)
+        }
+        withContext(Dispatchers.IO) {
+            val ctx = coroutineContext
+            store.verify(entry) { ctx.ensureActive() }
+        }
+        check(owns()) { "远端会话已变化" }
+        Payload(selected.filename, size, sha, entry)
+    }
+
+    suspend fun save(resolver: ContentResolver, destination: Uri, payload: Payload,
+        onVerified: suspend (Long) -> Unit = {}, onWritten: suspend () -> Unit = {}) = lock.withLock {
+        withContext(Dispatchers.IO) {
+            require(destination.scheme == "content") { "请选择系统文档保存位置" }
+            val ctx = coroutineContext
+            requireNotNull(checkpoint).verify(payload.entry) { ctx.ensureActive() }
+            requireNotNull(resolver.openOutputStream(destination, "wt")) { "无法打开保存位置" }.use { output ->
+                payload.entry.file.inputStream().use { input ->
+                    val buffer = ByteArray(64 * 1024)
+                    while (true) {
+                        coroutineContext.ensureActive()
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                    }
+                }
+                output.flush()
+            }
+            withContext(Dispatchers.Main.immediate) { onWritten() }
+            val digest = MessageDigest.getInstance("SHA-256")
+            var total = 0L
+            var lastReport = 0L
+            requireNotNull(resolver.openInputStream(destination)) { "无法回读保存文件" }.use { stream ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    coroutineContext.ensureActive()
+                    val count = stream.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    require(total <= payload.size) { "保存结果大小不符" }
+                    digest.update(buffer, 0, count)
+                    if (total - lastReport >= 256 * 1024 || total == payload.size) {
+                        lastReport = total
+                        withContext(Dispatchers.Main.immediate) { onVerified(total) }
+                    }
+                }
+            }
+            check(total == payload.size && RemoteTransferCheckpoint.hex(digest.digest()) == payload.sha256) {
+                "保存后文件校验失败"
+            }
         }
     }
 }
