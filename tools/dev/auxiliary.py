@@ -114,7 +114,8 @@ def remove_pnpm_project_index(store):
 def pnpm_install(stage,offline):
     cmd=stage/"bin/pnpm"
     need(output(cmd,"--version")==LOCK["pnpm"],"pnpm version mismatch")
-    env={"npm_config_store_dir":str(stage/"store"),"CI":"true","PNPM_DISABLE_SELF_UPDATE_CHECK":"1"}
+    env={"npm_config_store_dir":str(stage/"store"),"CI":"true","PNPM_DISABLE_SELF_UPDATE_CHECK":"1",
+         "PATH":str(stage/"bin")+os.pathsep+os.environ["PATH"]}
     if not offline:
         run(cmd,"fetch","--frozen-lockfile","--store-dir",stage/"store",cwd=UPSTREAM,env=env)
         # fetch's virtual store is local to the source checkout, not the portable store.
@@ -139,6 +140,67 @@ def bazel_registry_snapshot(output_root, destination):
     need(not destination.exists(), "Bazel registry snapshot already exists")
     shutil.copytree(source,destination)
 
+def bazel_git_repository_names(external):
+    """Identify materialized Git repositories, not the download cache or registry."""
+    direct=set(re.findall(r'git_repository\(\s*name\s*=\s*"([^"]+)"',
+                          (UPSTREAM/"MODULE.bazel").read_text()))
+    names=[]
+    for p in external.iterdir():
+        name=p.name
+        if name.startswith("rules_rs++crate+crates__") or any(
+                name==n or name.endswith("+git_repository+"+n) or name.endswith("~git_repository~"+n)
+                for n in direct):
+            need(re.fullmatch(r"[A-Za-z0-9_.+~-]+",name) and p.is_dir() and not p.is_symlink(),
+                 "invalid generated Git repository: "+name)
+            names.append(name)
+    need(bool(names),"no materialized Git repositories found")
+    return sorted(names)
+
+
+def bazel_git_snapshots(external, destination):
+    """Archive the exact generated Git repository, including its Bazel BUILD files."""
+    names=bazel_git_repository_names(external)
+    destination.mkdir()
+    workspace=UPSTREAM.resolve()
+    for name in names:
+        source=(external/name).resolve()
+        target=destination/name
+        shutil.copytree(source,target,symlinks=True)
+        for link in source.rglob("*"):
+            if not link.is_symlink():
+                need(link.is_file() or link.is_dir(),"unsupported Git repository entry: "+str(link))
+                continue
+            resolved=link.resolve()
+            copied=target/link.relative_to(source)
+            if resolved.is_relative_to(source):
+                if pathlib.Path(os.readlink(link)).is_absolute():
+                    copied.unlink()
+                    copied.symlink_to(os.path.relpath(target/resolved.relative_to(source),copied.parent))
+            elif resolved.is_relative_to(workspace) and resolved.is_file():
+                # Bazel's git_repository(build_file=...) creates a workspace link.
+                copied.unlink()
+                shutil.copy2(resolved,copied)
+            else:
+                raise ValueError("non-portable Git repository link: "+str(link))
+    (destination/"repositories.json").write_text(json.dumps(names)+"\n")
+
+
+def bazel_git_overrides(destination):
+    need(destination.is_dir() and not destination.is_symlink(),"missing Git repository snapshots")
+    manifest=destination/"repositories.json"
+    need(manifest.is_file() and not manifest.is_symlink(),"missing Git repository manifest")
+    names=json.loads(manifest.read_text())
+    need(isinstance(names,list) and bool(names) and all(isinstance(n,str) and
+         re.fullmatch(r"[A-Za-z0-9_.+~-]+",n) and n not in (".","..") for n in names),
+         "invalid Git repository manifest")
+    need(names==sorted(set(names)) and {p.name for p in destination.iterdir()}==set(names)|{"repositories.json"},
+         "Git repository manifest mismatch")
+    for name in names:
+        path=destination/name
+        need(path.is_dir() and not path.is_symlink(),"invalid Git repository snapshot: "+name)
+        yield "--override_repository="+name+"="+str(path.resolve())
+
+
 def bazel_fetch(stage,offline):
     exe=stage/"bin/bazel"
     need(output(exe,"--version")=="bazel "+LOCK["bazel"],"Bazel version mismatch")
@@ -150,13 +212,18 @@ def bazel_fetch(stage,offline):
         args=[exe,"--batch","--output_user_root="+d,"fetch","--lockfile_mode=error",
               "--repository_cache="+str(cache),"--repo_contents_cache="+str(contents),"--disk_cache=","--jobs=4"]
         registry=stage/"registry-repository"
+        git_repositories=stage/"git-repositories"
         if offline:
             need(registry.is_dir() and not registry.is_symlink(), "missing verified Bazel registry repository")
             args.extend(("--repository_disable_download",
                          "--override_repository="+BAZEL_REGISTRY_REPO+"="+str(registry.resolve())))
+            args.extend(bazel_git_overrides(git_repositories))
         run(*args,*BAZEL_TARGETS,cwd=UPSTREAM)
         if not offline:
             bazel_registry_snapshot(pathlib.Path(d),registry)
+            roots=list(pathlib.Path(d).glob("*/external/"+BAZEL_REGISTRY_REPO))
+            need(len(roots)==1,"Bazel output root missing or ambiguous")
+            bazel_git_snapshots(roots[0].parent,git_repositories)
 
 def llvm_prepare(stage):
     # apt's signed repository metadata authenticates the package bytes; keep

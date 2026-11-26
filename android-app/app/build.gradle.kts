@@ -126,6 +126,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    // JVM scheduler and flow regression tests require virtual time at the same locked coroutine version.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     // Stable AndroidX Test release containing the public InputManager lookup.
     // Older Espresso versions crash before Compose assertions on Android 17.
     androidTestImplementation("androidx.test:core:1.7.0")

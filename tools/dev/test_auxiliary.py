@@ -1,6 +1,7 @@
 import pathlib
 import tempfile
 import unittest
+from unittest.mock import patch
 
 import auxiliary
 
@@ -34,6 +35,44 @@ class PortableAuxiliaryTest(unittest.TestCase):
             (source/"external").symlink_to(root)
             with self.assertRaises(ValueError):
                 auxiliary.bazel_registry_snapshot(root/"output",root/"bad")
+
+    def test_git_repository_snapshots_preserve_internal_links_and_materialize_build_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp)
+            workspace=root/"workspace"; workspace.mkdir()
+            (workspace/"MODULE.bazel").write_text('git_repository(\n    name = "direct_git",\n)')
+            (workspace/"BUILD.bazel").write_text("exports_files([])")
+            external=root/"output"; external.mkdir()
+            name="rules_rs++crate+crates__github.com_example_repo.git_12345678"
+            source=external/name; source.mkdir()
+            (source/"data").write_text("locked")
+            (source/"internal").symlink_to(source/"data")
+            (source/"BUILD.bazel").symlink_to(workspace/"BUILD.bazel")
+            direct=external/"+git_repository+direct_git"; direct.mkdir()
+            (direct/"file").write_text("direct")
+            dest=root/"stage"
+            with patch.object(auxiliary,"UPSTREAM",workspace):
+                auxiliary.bazel_git_snapshots(external,dest)
+                self.assertEqual((dest/name/"internal").read_text(),"locked")
+                self.assertEqual((dest/name/"internal").readlink(),pathlib.Path("data"))
+                self.assertFalse((dest/name/"BUILD.bazel").is_symlink())
+                self.assertEqual((dest/name/"BUILD.bazel").read_text(),"exports_files([])")
+                self.assertEqual(len(list(auxiliary.bazel_git_overrides(dest))),2)
+                (source/"escape").symlink_to(root)
+                with self.assertRaises(ValueError):
+                    auxiliary.bazel_git_snapshots(external,root/"bad")
+            (dest/"extra").mkdir()
+            with self.assertRaises(ValueError):
+                list(auxiliary.bazel_git_overrides(dest))
+
+    def test_pnpm_lifecycle_inherits_component_path(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stage=pathlib.Path(tmp)
+            with patch.object(auxiliary,"output",return_value=auxiliary.LOCK["pnpm"]), patch.object(auxiliary,"run") as run:
+                auxiliary.pnpm_install(stage,True)
+                self.assertEqual(run.call_count,2)
+                for call in run.call_args_list:
+                    self.assertEqual(call.kwargs["env"]["PATH"].split(auxiliary.os.pathsep)[0],str(stage/"bin"))
 
 
 if __name__ == "__main__":

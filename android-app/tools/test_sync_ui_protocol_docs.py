@@ -16,7 +16,10 @@ class ProtocolDocumentSyncTests(unittest.TestCase):
         result = render_document(self.policy)
         self.assertIn("总数 3：直接 1、上下文 0、高级 1、后台 1、平台不适用 0", result)
         self.assertIn("item/tool/call", result)
-        self.assertIn("设备矩阵的紧凑、主流、高分辨率三档与 360dp 窄屏压力场景", result)
+        self.assertIn("按目标提交的实际 CI 设备矩阵", result)
+        self.assertIn("屏宽、系统大字体、TalkBack 及减弱动画验收", result)
+        self.assertIn("历史矩阵不替代当前门禁", result)
+        self.assertNotIn("高分辨率三档", result)
         self.assertIn("| 后台内部 | Host | 否 |", result)
         self.assertEqual(result, render_document(self.policy))
 
