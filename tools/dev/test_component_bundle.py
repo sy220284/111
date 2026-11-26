@@ -45,9 +45,9 @@ class BundleTests(unittest.TestCase):
             for size in (0, 1, 4095, 4096, 4097, 128*4096, 129*4096, 4*1024*1024+7):
                 raw=(bytes(range(256))*((size+255)//256))[:size]
                 file.write_bytes(raw)
-                hashes=[hashlib.sha256(raw[i:i+4096].ljust(4096,b"\\0")).digest() for i in range(0,size,4096)]
+                hashes=[hashlib.sha256(raw[i:i+4096].ljust(4096,b"\0")).digest() for i in range(0,size,4096)]
                 while len(hashes)>1:
-                    hashes=[hashlib.sha256(b"".join(hashes[i:i+128]).ljust(4096,b"\\0")).digest()
+                    hashes=[hashlib.sha256(b"".join(hashes[i:i+128]).ljust(4096,b"\0")).digest()
                             for i in range(0,len(hashes),128)]
                 root=hashes[0] if hashes else bytes(32)
                 descriptor=struct.pack("<BBBBIQ",1,1,12,0,0,size)+root+bytes(208)

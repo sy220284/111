@@ -1,5 +1,6 @@
 """Install and activate the verified 111 development bundles."""
 import importlib.util
+import hashlib
 import shutil
 import zipfile
 from datetime import datetime
@@ -70,7 +71,17 @@ def install(root, directory, pins, head, names, repair=False, sources=None):
             require(bundle.install(name,folder,root/"host",item["pin"])==dest, "unexpected install path")
         receipt = root/"host-manifests"/name/(item["pin"]+".json")
         receipt.parent.mkdir(parents=True,exist_ok=True)
-        receipt.write_bytes((folder/"manifest.json").read_bytes())
+        raw=(folder/"manifest.json").read_bytes()
+        require(hashlib.sha256(raw).hexdigest()==item["pin"],"manifest changed before receipt")
+        fd, filename=tempfile.mkstemp(prefix=".receipt-",dir=receipt.parent)
+        try:
+            with os.fdopen(fd,"wb") as stream:
+                stream.write(raw)
+                stream.flush()
+                os.fsync(stream.fileno())
+            pathlib.Path(filename).replace(receipt)
+        finally:
+            pathlib.Path(filename).unlink(missing_ok=True)
         selection[name] = item
     root.mkdir(parents=True,exist_ok=True)
     fd, filename = tempfile.mkstemp(prefix=".host-selection-",dir=root)
@@ -239,11 +250,16 @@ def reusable(root,name,head,pin):
         return False
     manifest=root/"host-manifests"/name/(pin+".json")
     dest=path_for(root,name,item)
-    if not manifest.is_file() or bundle.digest(manifest)!=pin or not dest.is_dir() or dest.is_symlink():
+    if not manifest.is_file() or manifest.is_symlink() or not dest.is_dir() or dest.is_symlink():
         return False
+    raw=manifest.read_bytes()
+    if hashlib.sha256(raw).hexdigest()!=pin:
+        return False
+    verified=json.loads(raw)
+    require(verified["component"]==name and verified["head"]==head and verified["repository"]==REPOSITORY,"receipt identity mismatch")
     if name in MUTABLE:
         return True
-    return bundle.verified_tree(dest,json.loads(manifest.read_text()))
+    return bundle.verified_tree(dest,verified)
 
 def object_path(root,name,pin):
     require(name in HOST and re.fullmatch(r"[0-9a-f]{64}",pin),"invalid object identity")
