@@ -61,6 +61,18 @@ def check_installed(root, name, spec):
     marker = dest / ".source.json"
     if not marker.is_file() or marker.read_text() != json.dumps(spec, sort_keys=True):
         return False
+    if name == "node":
+        home = dest / "node-current"
+        for command in ("npm", "npx"):
+            launcher = home / "bin" / command
+            if not launcher.is_symlink() or os.readlink(launcher) != "../lib/node_modules/npm/bin/"+command+"-cli.js":
+                return False
+        try:
+            version = json.loads((home / "lib/node_modules/npm/package.json").read_text())["version"]
+            if subprocess.check_output([str(home/"bin/node"), str(home/"bin/npm"), "--version"], text=True, timeout=30).strip() != version:
+                return False
+        except (OSError, ValueError, subprocess.SubprocessError):
+            return False
     if spec["probe"]:
         binary, *args = spec["probe"]
         try:
@@ -101,6 +113,16 @@ def install(root, name, archive):
                         "组件含不支持的特殊文件")
             # Python data filter blocks traversal and links escaping the stage.
             tar.extractall(stage, members=members, filter="data")
+        if name == "node":
+            # The 777 tar producer dereferences links. Restore npm launchers to
+            # their verified package paths so relative require() resolves correctly.
+            home = stage / "node-current"
+            for command in ("npm", "npx"):
+                target = "../lib/node_modules/npm/bin/"+command+"-cli.js"
+                launcher = home / "bin" / command
+                require((launcher.parent / target).is_file(), "777 Node 缺少 npm 包: "+command)
+                launcher.unlink()
+                launcher.symlink_to(target)
         (stage / ".source.json").write_text(json.dumps(spec, sort_keys=True))
         # Never replace an unrelated version or write into a host SDK directory.
         if dest.exists():
@@ -134,7 +156,8 @@ def project_check():
         "android-app/gradle/wrapper/gradle-wrapper.properties": [f"gradle-{p['gradle']}-bin.zip", p["gradleDistributionSha256"]],
         "upstream/codex/codex-rs/rust-toolchain.toml": [p["rust"]],
         "android-app/tools/prepare_android_v8.sh": [p["v8"], p["v8Commit"]],
-        ".github/workflows/ci.yml": [p["buildTools"], p["ndk"], p["jsonschema"]],
+        ".github/workflows/ci.yml": [p["buildTools"], p["ndk"]],
+        "tools/dev/requirements-host.lock": [f"jsonschema=={p['jsonschema']}", f"pillow=={p['pillow']}"],
         "android-app/tools/device-matrix.json": ['"system_image_api": "' + p["deviceImage"] + '"'],
     }
     for relative, terms in files.items():
@@ -159,6 +182,10 @@ def main():
     install_host.add_argument("--source-sha")
     install_host.add_argument("--components", nargs="+", choices=host.HOST, default=list(host.HOST))
     install_host.add_argument("--repair", action="store_true")
+    export = sub.add_parser("host-export")
+    export.add_argument("--run-id", type=int, required=True)
+    export.add_argument("--directory", type=pathlib.Path, required=True)
+    export.add_argument("--components", nargs="+", choices=host.HOST, required=True)
     host_env = sub.add_parser("host-env")
     host_env.add_argument("--components", nargs="+", choices=host.HOST, default=list(host.HOST))
     cargo = sub.add_parser("cargo")
@@ -186,6 +213,9 @@ def main():
             require(args.pins_dir and args.source_sha, "本地安装必须明确受信摘要目录及生产提交")
             result = host.install(root, args.artifacts_dir, args.pins_dir, args.source_sha, args.components, args.repair)
         print(json.dumps(result, indent=2))
+        return 0
+    if args.command == "host-export":
+        print(json.dumps(host.export_run(args.run_id, args.directory.resolve(), args.components), indent=2))
         return 0
     if args.command == "host-env":
         print(json.dumps(host.environment(root, args.components), indent=2))

@@ -265,3 +265,27 @@ def install_run(root,run_id,names,repair=False):
             install(root,directory,directory,head,pending,repair)
     selection=selected(root)
     return {name:str(path_for(root,name,selection[name])) for name in names}
+
+
+def export_run(run_id, destination, names):
+    """Preserve original verified bundles and pins outside expiring Actions storage."""
+    require(not destination.exists() and not destination.is_symlink(), "archive destination already exists")
+    require(set(names)<=set(HOST) and len(set(names))==len(names), "invalid components")
+    head, rows=reviewed_artifacts(run_id,names)
+    destination.parent.mkdir(parents=True,exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix=".archive-",dir=destination.parent) as tmp:
+        stage=pathlib.Path(tmp)/"archive"
+        stage.mkdir()
+        for name,row in sorted(rows.items()):
+            download_artifact(row,stage/name)
+        pins={}
+        for name in names:
+            pin=(stage/("111-toolchain-"+group_for(name)+"-manifest-pins")/(name+".sha256")).read_text().strip()
+            manifest=bundle.load(stage/("111-toolchain-"+name),name,pin)
+            require(manifest["head"]==head,"archive producer mismatch")
+            pins[name]=pin
+        record={"schema":1,"repository":REPOSITORY,"run":run_id,"head":head,"components":pins,
+                "artifacts":{n:{"id":r["id"],"digest":r["digest"]} for n,r in sorted(rows.items())}}
+        (stage/"archive-index.json").write_text(json.dumps(record,indent=2,sort_keys=True)+"\n")
+        stage.rename(destination)
+    return {"directory":str(destination),"sourceSha":head,"indexSha256":bundle.digest(destination/"archive-index.json"),"components":pins}

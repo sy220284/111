@@ -57,6 +57,8 @@ jobs:
           NODE="$(jq -r '.node' "$RUNNER_TEMP/shared.json")"
           LINT="$(jq -r '.actionlint' "$RUNNER_TEMP/shared.json")"
           "$NODE/bin/node" --version
+          PATH="$NODE/bin:$PATH" "$NODE/bin/npm" --version
+          python3 .github/scripts/run_ci_script_tests.py plan
           "$LINT/actionlint" .github/workflows/dev-toolchain.yml .github/workflows/prepare-developer-runtime.yml .github/workflows/ci.yml .github/workflows/release.yml
           # GitHub 已实际运行 queue: max，777 固定 actionlint 尚未认识该新字段。
           # 仅在原生工作流过滤此已确认的解析差异；不屏蔽其它错误。

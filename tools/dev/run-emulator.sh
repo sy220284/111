@@ -41,7 +41,10 @@ import json,sys,shlex
 p=json.load(open(sys.argv[1])); print("hw.cpu.ncore="+str(p["cores"])); print("hw.ramSize="+p["ram"]); print("disk.dataPartition.size="+p["disk"]); print(*shlex.split(p["emulator_options"]),sep="\n")
 PY
 )
-printf '%s\n' "${CONFIG[@]:0:3}" >> "$ANDROID_AVD_HOME/test.avd/config.ini"
+python3 - "$ANDROID_AVD_HOME/test.avd/config.ini" "${CONFIG[@]:0:3}" <<'PY'
+import pathlib,sys
+p=pathlib.Path(sys.argv[1]); updates=dict(x.split("=",1) for x in sys.argv[2:]); lines=[x for x in p.read_text().splitlines() if x.split("=",1)[0].strip() not in updates]; p.write_text("\n".join(lines+[f"{k}={v}" for k,v in updates.items()])+"\n")
+PY
 "$ANDROID_HOME/emulator/emulator" -port 5554 -avd test -accel on "${CONFIG[@]:3}" > "$LOG" 2>&1 &
 PID=$!
 deadline=$((SECONDS+1200))

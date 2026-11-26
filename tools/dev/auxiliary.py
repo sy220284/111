@@ -47,11 +47,8 @@ def verify_python():
 def wheelhouse_prepare(stage):
     verify_python()
     requirements=ROOT/"tools/dev/requirements-host.lock"
-    # A reviewed lock, when present, is the exclusive resolver input.
-    if requirements.is_file():
-        run(sys.executable,"-m","pip","download","--only-binary=:all:","--require-hashes","--dest",stage,"-r",requirements)
-    else:
-        run(sys.executable,"-m","pip","download","--only-binary=:all:","--dest",stage,"Pillow=="+LOCK["pillow"],"jsonschema=="+LOCK["jsonschema"])
+    need(requirements.is_file(),"missing reviewed Python dependency lock")
+    run(sys.executable,"-m","pip","download","--only-binary=:all:","--require-hashes","--dest",stage,"-r",requirements)
     records={}
     for wheel in sorted(stage.glob("*.whl")):
         with zipfile.ZipFile(wheel) as z:
@@ -130,7 +127,7 @@ def llvm_prepare(stage):
     # apt's signed repository metadata authenticates the package bytes; keep
     # the exact dpkg package versions as provenance alongside the binary tree.
     run("sudo","apt-get","update")
-    if subprocess.run(["apt-cache","show","clang-21"],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL).returncode:
+    if any(not re.search(r"(?m)^\s*Candidate:\s+(?!\(none\))\S+",output("apt-cache","policy",name)) for name in ("clang-21","libclang-21-dev","llvm-21","lld-21")):
         with tempfile.TemporaryDirectory() as d:
             key=pathlib.Path(d)/"llvm.asc"
             download("https://apt.llvm.org/llvm-snapshot.gpg.key",key)

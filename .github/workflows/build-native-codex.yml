@@ -133,7 +133,7 @@ jobs:
   v8:
     name: V8 官方源码产物 · ${{ matrix.abi }}
     needs: [reuse, provider-contract, host-android, host-rust, host-llvm]
-    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }} && needs.host-llvm.result == 'success'
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) && needs.host-llvm.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
