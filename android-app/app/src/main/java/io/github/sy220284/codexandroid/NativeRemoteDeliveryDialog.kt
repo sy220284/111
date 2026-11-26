@@ -65,17 +65,13 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
                 Text("只读取当前绑定的远端工作区文件，单文件上限 512 MiB。同一进程内重试同一文件可继续读取；切换文件或账号会替换旧暂存。")
                 if (loading) {
                     if (verifying && totalBytes > 0L) {
-                        LinearProgressIndicator(progress = { (verifiedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) },
-                            modifier = Modifier.fillMaxWidth())
-                        Text("正在回读校验 · " + verifiedBytes + " / " + totalBytes + " 字节",
-                            style = MaterialTheme.typography.bodySmall)
+                        AtlasOperationProgress(label = "正在回读校验 · $verifiedBytes / $totalBytes 字节",
+                            progress = (verifiedBytes.toFloat() / totalBytes).coerceIn(0f, 1f))
                     } else if (!saving && totalBytes > 0L) {
-                        LinearProgressIndicator(progress = { (receivedBytes.toFloat() / totalBytes).coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth())
-                        Text("正在读取 · " + receivedBytes + " / " + totalBytes + " 字节", style = MaterialTheme.typography.bodySmall)
+                        AtlasOperationProgress(label = "正在读取 · $receivedBytes / $totalBytes 字节",
+                            progress = (receivedBytes.toFloat() / totalBytes).coerceIn(0f, 1f))
                     } else {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-                        Text(if (verifying) "正在校验空文件…" else if (saving) "正在保存文件…" else "正在读取远端文件…",
-                            style = MaterialTheme.typography.bodySmall)
+                        AtlasOperationProgress(label = if (verifying) "正在校验空文件…" else if (saving) "正在保存文件…" else "正在读取远端文件…")
                     }
                 }
                 data?.let { payload ->

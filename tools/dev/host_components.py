@@ -243,7 +243,7 @@ def reusable(root,name,head,pin):
         return False
     if name in MUTABLE:
         return True
-    return bundle.manifest_digest(bundle.inventory(dest))==json.loads(manifest.read_text())["treeSha256"]
+    return bundle.verified_tree(dest,json.loads(manifest.read_text()))
 
 def object_path(root,name,pin):
     require(name in HOST and re.fullmatch(r"[0-9a-f]{64}",pin),"invalid object identity")
