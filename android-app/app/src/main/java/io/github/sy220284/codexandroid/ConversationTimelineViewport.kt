@@ -193,7 +193,7 @@ internal fun ConversationTimelineViewport(
                     }
                 }
             }
-        } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize(), contentPadding = PaddingValues(16.dp),
+        } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("conversation-timeline"), contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (olderPageVisible) item(key = "timeline-older-pages") {
                 CodexSecondaryButton(

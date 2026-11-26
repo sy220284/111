@@ -4,7 +4,7 @@ package io.github.sy220284.codexandroid
 internal object ReplyGraph {
     data class Node(val name: String, val layer: Int, val column: Int)
     data class Layout(val nodes: List<Node>, val edges: List<List<String>>, val columns: Int, val layers: Int)
-    fun layout(edges: List<List<String>>): Layout {
+    fun layout(edges: List<List<String>>, direction: String = "TD"): Layout {
         val names = edges.flatMap { listOf(it[0], it[2]) }.distinct()
         val levels = linkedMapOf<String, Int>()
         val queue = ArrayDeque<String>()
@@ -22,12 +22,19 @@ internal object ReplyGraph {
         val nodes = levels.entries.groupBy { it.value }.flatMap { (level, group) ->
             group.mapIndexed { index, entry -> Node(entry.key, level, index) }
         }
-        return Layout(nodes, edges, (nodes.maxOfOrNull { it.column } ?: 0) + 1,
-            (nodes.maxOfOrNull { it.layer } ?: 0) + 1)
+        val maxLayer = nodes.maxOfOrNull { it.layer } ?: 0
+        val positioned = nodes.map { n -> when (direction) {
+            "BT" -> n.copy(layer = maxLayer - n.layer)
+            "LR" -> n.copy(layer = n.column, column = n.layer)
+            "RL" -> n.copy(layer = n.column, column = maxLayer - n.layer)
+            else -> n
+        } }
+        return Layout(positioned, edges, (positioned.maxOfOrNull { it.column } ?: 0) + 1,
+            (positioned.maxOfOrNull { it.layer } ?: 0) + 1)
     }
     private val header = Regex("^(?:flowchart|graph)\\s+(?:TD|TB|BT|LR|RL)\\s*;?$")
     private val node = Regex("""^([A-Za-z_][A-Za-z0-9_]{0,63})(?:\["?([^"\[\]<>]{1,100})"?\]|\("?([^"()<>]{1,100})"?\)|\{"?([^"{}<>]{1,100})"?\})?$""")
-    private val edge = Regex("""^(.+?)\s*(?:-->|---|==>|-\.->)\s*(?:\|([^|<>]{1,100})\|\s*)?(.+)$""")
+    private val edge = Regex("""^(.+?)\s*(?:-->|==>|-\.->)\s*(?:\|([^|<>]{1,100})\|\s*)?(.+)$""")
     fun parseMermaid(source: String): RichReplyContent? {
         if (source.length > 4096) return null
         val lines = source.lines().map { it.trim().removeSuffix(";") }.filter(String::isNotBlank)

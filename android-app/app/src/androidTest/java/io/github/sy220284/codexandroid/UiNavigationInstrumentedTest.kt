@@ -1096,6 +1096,48 @@ class UiNavigationInstrumentedTest {
         }
     }
 
+    @Test fun progressiveLongReplyKeepsReadingAnchorAndReturnsToTail() {
+        val vm = (rule.activity.application as CodexApplication).session
+        val history = (0 until 36).map { i ->
+            TimelineItem("scroll-history-$i", "agentMessage", "历史阅读锚点 $i", "completed", turnId = "scroll-turn-$i")
+        }
+        val tail = TimelineItem("scroll-tail", "agentMessage", "当前阶段成果", "inProgress", turnId = "scroll-live")
+        try {
+            rule.runOnUiThread { vm.timeline.value = history + tail }
+            val viewport = rule.onNodeWithTag("conversation-timeline")
+            viewport.performScrollToIndex(12)
+            rule.waitForIdle()
+            val anchor = rule.onNodeWithText("历史阅读锚点 12")
+            anchor.assertIsDisplayed()
+            // Real touch input takes ownership of the viewport, rather than relying on a programmatic jump.
+            viewport.performTouchInput { swipeDown(startY = centerY, endY = centerY + 100f, durationMillis = 500) }
+            rule.waitForIdle()
+            val visible = history.map { it.text }.firstOrNull { label ->
+                rule.onAllNodesWithText(label).fetchSemanticsNodes().any { node ->
+                    node.boundsInRoot.center.y in viewport.fetchSemanticsNode().boundsInRoot.top..viewport.fetchSemanticsNode().boundsInRoot.bottom
+                }
+            } ?: error("未取得真实可见的阅读锚点")
+            val reading = rule.onNodeWithText(visible)
+            reading.assertIsDisplayed()
+            val before = reading.fetchSemanticsNode().boundsInRoot.top
+            repeat(12) { n ->
+                rule.runOnUiThread { vm.timeline.value = history + tail.copy(text = "当前阶段成果 " + "增量内容 ".repeat(n + 1)) }
+                rule.waitForIdle()
+            }
+            reading.assertIsDisplayed()
+            val after = reading.fetchSemanticsNode().boundsInRoot.top
+            assertTrue("连续回复期间阅读位置偏移：$before -> $after", kotlin.math.abs(before - after) <= 2f)
+            rule.onNodeWithTag("timeline-return-latest").assertIsDisplayed().performClick()
+            rule.waitForIdle()
+            rule.onNodeWithText("当前阶段成果", substring = true).assertIsDisplayed()
+            rule.runOnUiThread { vm.timeline.value = history + tail.copy(text = "最终交付已收到", status = "completed") }
+            rule.waitForIdle()
+            rule.onNodeWithText("最终交付已收到").assertIsDisplayed()
+        } finally {
+            rule.runOnUiThread { vm.timeline.value = emptyList() }
+        }
+    }
+
     @Test fun emptyChatHasNoSuggestionCardsAndKeepsComposerAccessible() {
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         rule.onNodeWithText("今天想做什么？").assertIsDisplayed()

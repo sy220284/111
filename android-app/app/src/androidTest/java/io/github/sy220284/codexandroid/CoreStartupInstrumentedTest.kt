@@ -130,6 +130,23 @@ class CoreStartupInstrumentedTest {
         }
     }
 
+    @Test fun androidRemoteDeliveryRejectsLocalAndUnknownEnvironment() = runBlocking<Unit> {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90000) {
+                bridge.connect()
+                for ((id, expected) in listOf("local" to "remote environment required", "missing-delivery-test" to "unknown remote environment")) {
+                    val failure = runCatching {
+                        bridge.request("android/remoteFile/read", JSONObject().put("environmentId", id)
+                            .put("workspaceUri", "file:///tmp").put("relativePath", "file.txt"))
+                    }.exceptionOrNull()
+                    org.junit.Assert.assertTrue("真实核心没有返回预期拒绝：$failure", failure?.message?.contains(expected) == true)
+                }
+            }
+        } finally { bridge.close() }
+    }
+
     @Test fun nativeDeltaPatcherLoadsAndRejectsCorruptPatch() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val library = File(app.applicationInfo.nativeLibraryDir, "libhpatchz.so")

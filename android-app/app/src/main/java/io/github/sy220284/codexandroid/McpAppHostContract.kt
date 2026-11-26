@@ -58,7 +58,10 @@ internal class McpAppHostContract(private val call: JSONObject) {
         if (!scopedTools || name.isBlank()) return false
         val tool = registration.optJSONObject("tools")?.optJSONObject(name) ?: return false
         if (tool.optString("name") != name) return false
-        val ui = tool.optJSONObject("_meta")?.optJSONObject("ui")
+        val meta = tool.optJSONObject("_meta")
+        if (!tool.isNull("_meta") && meta == null) return false
+        val ui = meta?.optJSONObject("ui")
+        if (meta != null && !meta.isNull("ui") && ui == null) return false
         if (ui == null || ui.isNull("visibility")) return true
         val visibility = ui.optJSONArray("visibility") ?: return false
         return (0 until visibility.length()).any { visibility.optString(it) == "app" }

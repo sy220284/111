@@ -77,8 +77,9 @@ internal fun ReplyDataChart(block: MessageBlock) {
 }
 
 @Composable
-internal fun ReplyBranchGraph(rows: List<List<String>>) {
-    val layout = remember(rows) { ReplyGraph.layout(rows) }
+internal fun ReplyBranchGraph(rows: List<List<String>>, source: String) {
+    val direction = source.lineSequence().map(String::trim).firstOrNull { it.startsWith("flowchart ") || it.startsWith("graph ") }?.substringAfter(' ')?.trim()?.removeSuffix(";") ?: "TD"
+    val layout = remember(rows, direction) { ReplyGraph.layout(rows, direction) }
     val nodeWidth = 148.dp
     val nodeHeight = 70.dp
     val horizontalGap = 44.dp
@@ -99,8 +100,10 @@ internal fun ReplyBranchGraph(rows: List<List<String>>) {
                     val delta = b - a
                     val length = delta.getDistance().coerceAtLeast(1f)
                     val direction = delta / length
-                    val start = a + direction * (if (from.layer == to.layer) nodeWidth.toPx()/2 else nodeHeight.toPx()/2)
-                    val end = b - direction * (if (from.layer == to.layer) nodeWidth.toPx()/2 else nodeHeight.toPx()/2)
+                    val radius = minOf(nodeWidth.toPx() / (2 * kotlin.math.abs(direction.x).coerceAtLeast(0.0001f)),
+                        nodeHeight.toPx() / (2 * kotlin.math.abs(direction.y).coerceAtLeast(0.0001f)))
+                    val start = a + direction * radius
+                    val end = b - direction * radius
                     val color = if (selected == null || selected == from.name || selected == to.name) edgeColor else border
                     drawLine(color, start, end, 2.dp.toPx())
                     val side = Offset(-direction.y, direction.x)
