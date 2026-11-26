@@ -152,9 +152,11 @@ def main():
     sub.add_parser("plan")
     sub.add_parser("check")
     install_host = sub.add_parser("host-install")
-    install_host.add_argument("--artifacts-dir", type=pathlib.Path, required=True)
-    install_host.add_argument("--pins-dir", type=pathlib.Path, required=True)
-    install_host.add_argument("--source-sha", required=True)
+    host_source = install_host.add_mutually_exclusive_group(required=True)
+    host_source.add_argument("--artifacts-dir", type=pathlib.Path)
+    host_source.add_argument("--run-id", type=int)
+    install_host.add_argument("--pins-dir", type=pathlib.Path)
+    install_host.add_argument("--source-sha")
     install_host.add_argument("--components", nargs="+", choices=host.HOST, default=list(host.HOST))
     install_host.add_argument("--repair", action="store_true")
     host_env = sub.add_parser("host-env")
@@ -177,7 +179,13 @@ def main():
     root = args.root.resolve()
     require(root != pathlib.Path("/") and root != pathlib.Path.home(), "工具链根目录不安全")
     if args.command == "host-install":
-        print(json.dumps(host.install(root, args.artifacts_dir, args.pins_dir, args.source_sha, args.components, args.repair), indent=2))
+        if args.run_id is not None:
+            require(not args.pins_dir and not args.source_sha, "远端安装仅接受验收运行 ID")
+            result = host.install_run(root, args.run_id, args.components, args.repair)
+        else:
+            require(args.pins_dir and args.source_sha, "本地安装必须明确受信摘要目录及生产提交")
+            result = host.install(root, args.artifacts_dir, args.pins_dir, args.source_sha, args.components, args.repair)
+        print(json.dumps(result, indent=2))
         return 0
     if args.command == "host-env":
         print(json.dumps(host.environment(root, args.components), indent=2))
