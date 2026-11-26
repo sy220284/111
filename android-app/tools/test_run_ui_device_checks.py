@@ -1,10 +1,23 @@
 #!/usr/bin/env python3
 import unittest
+import shlex
 from unittest.mock import patch
-from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens, completed_test_ids, prepare_display_change, adaptive
+from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens, completed_test_ids, prepare_display_change, adaptive, instrumentation_command, PACKAGE, RUNNER
 
 
 class DeviceEvidenceTest(unittest.TestCase):
+    def test_instrumentation_arguments_survive_android_shell_parsing(self):
+        renderer = "Pipeline=Skia (Vulkan)"
+        literal = "one 'two' ; $(echo unexpected) & three"
+        command = instrumentation_command(["UiMotionPerformanceInstrumentedTest"],
+                                          {"expectedRenderer": renderer, "literal": literal})
+        self.assertEqual(["adb", "shell"], command[:2])
+        self.assertEqual(3, len(command))
+        self.assertEqual(["am", "instrument", "-w", "-r", "-e", "class",
+                          PACKAGE + ".UiMotionPerformanceInstrumentedTest",
+                          "-e", "expectedRenderer", renderer, "-e", "literal", literal, RUNNER],
+                         shlex.split(command[2]))
+
     def test_display_preparation_waits_for_the_actual_resumed_activity(self):
         with patch("run_ui_device_checks.adb", side_effect=[
             "Status: ok\nComplete",

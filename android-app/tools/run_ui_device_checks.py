@@ -4,6 +4,7 @@ import argparse
 import json
 import re
 import subprocess
+import shlex
 import os
 import time
 import uuid
@@ -68,12 +69,19 @@ def adb(*args):
     return subprocess.check_output(["adb", *args], text=True).strip()
 
 
-def execute_instrumentation(classes, log_path, arguments=None):
-    command = ["adb", "shell", "am", "instrument", "-w", "-r", "-e", "class",
+def instrumentation_command(classes, arguments=None):
+    command = ["am", "instrument", "-w", "-r", "-e", "class",
                ",".join(PACKAGE + "." + c for c in classes)]
     for key, value in (arguments or {}).items():
         command.extend(["-e", key, str(value)])
     command.append(RUNNER)
+    # adb shell joins host arguments before the Android shell parses them.
+    # Quote the entire remote argv once, including spaces and parentheses.
+    return ["adb", "shell", shlex.join(command)]
+
+
+def execute_instrumentation(classes, log_path, arguments=None):
+    command = instrumentation_command(classes, arguments)
     with Path(log_path).open("w", encoding="utf-8") as evidence:
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True, errors="replace") as process:

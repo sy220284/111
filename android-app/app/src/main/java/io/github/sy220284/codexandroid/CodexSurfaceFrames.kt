@@ -43,9 +43,11 @@ fun CodexOverlayFrame(
     fullScreen: Boolean = false,
     containerColor: Color = Ink.elevated,
     contentColor: Color = Ink.parchment,
+    onBackRequest: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val dismiss by rememberUpdatedState(onDismissRequest)
+    val back by rememberUpdatedState(onBackRequest)
     var dismissed by remember { mutableStateOf(false) }
     val closeWithAction: (() -> Unit) -> Unit = { action ->
         if (!dismissed) {
@@ -60,7 +62,8 @@ fun CodexOverlayFrame(
             dismiss()
         }
     }
-    Dialog(onDismissRequest = close, properties = DialogProperties(
+    // In-window detail navigation consumes Back without marking the window dismissed.
+    Dialog(onDismissRequest = { back?.invoke() ?: close() }, properties = DialogProperties(
         usePlatformDefaultWidth = false, dismissOnClickOutside = !fullScreen)) {
         ProvideCodexViewport {
         BoxWithConstraints((if (fullScreen) Modifier.fillMaxSize() else Modifier.wrapContentSize())
