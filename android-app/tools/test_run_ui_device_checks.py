@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import unittest
+from tempfile import TemporaryDirectory
 from unittest.mock import patch
-from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens
+from run_ui_device_checks import parse_instrumentation, assert_device, clear_device_screens, run_fresh_suite
 
 
 class DeviceEvidenceTest(unittest.TestCase):
@@ -36,6 +37,19 @@ class DeviceEvidenceTest(unittest.TestCase):
         with patch("run_ui_device_checks.adb", side_effect=["Physical size: 360x800", "Physical density: 160"]):
             with self.assertRaises(RuntimeError):
                 assert_device(393, 800)
+
+    def test_screenshot_failure_does_not_change_functional_result(self):
+        for status in ("passed", "failed"):
+            with TemporaryDirectory() as destination, \
+                    patch("run_ui_device_checks.assert_device", return_value=1.0), \
+                    patch("run_ui_device_checks.adb"), \
+                    patch("run_ui_device_checks.clear_device_screens"), \
+                    patch("run_ui_device_checks.execute_instrumentation", return_value={"status": status, "tests": 4}), \
+                    patch("run_ui_device_checks.collect_screens", return_value=(["home"], 1)):
+                result = run_fresh_suite(393, 800, 1.0, "unused.log", destination)
+                self.assertEqual(status, result["status"])
+                self.assertEqual("incomplete", result["screenshot_observation"]["status"])
+                self.assertEqual(["home"], result["missing_screens"])
 
     def test_stale_screens_must_be_removed(self):
         with patch("run_ui_device_checks.adb", side_effect=["home-android35.png", "", "home-android35.png"]):

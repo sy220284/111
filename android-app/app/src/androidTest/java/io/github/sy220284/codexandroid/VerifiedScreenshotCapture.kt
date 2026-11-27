@@ -17,6 +17,17 @@ internal fun hasClipboardOverlayWindow(dump: String): Boolean =
  * 因此单独依赖该接口会错误拒绝正常的 Compose 弹层。
  */
 internal fun captureVerifiedDisplayScreenshot(fileName: String) {
+    // Evidence collection is observational. Keep invalid images out of the
+    // gallery and report the failure without changing functional assertions.
+    try {
+        captureOwnedDisplayScreenshot(fileName)
+    } catch (failure: Exception) {
+        android.util.Log.w("UiScreenshotObservation", "SCREENSHOT_FAILED $fileName", failure)
+        println("SCREENSHOT_FAILED $fileName: " + failure.message)
+    }
+}
+
+private fun captureOwnedDisplayScreenshot(fileName: String) {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     val automation = instrumentation.uiAutomation
     val target = instrumentation.targetContext
@@ -77,10 +88,14 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
         val directory = requireNotNull(target.getExternalFilesDir(null)) {
             "设备未提供测试截图目录"
         }
-        File(directory, fileName).outputStream().use { output ->
-            check(image.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-                "无法写入 UI 截图：$fileName"
+        val pending = File(directory, "$fileName.part")
+        try {
+            pending.outputStream().use { output ->
+                check(image.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                    "无法写入 UI 截图：$fileName"
+                }
             }
-        }
+            check(pending.renameTo(File(directory, fileName))) { "无法提交 UI 截图：$fileName" }
+        } finally { pending.delete() }
     } finally { image.recycle() }
 }
