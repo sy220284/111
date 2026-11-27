@@ -144,6 +144,14 @@ fun LocalImageAttachmentStrip(
 ) {
     if (paths.isEmpty()) return
     var previewPath by remember { mutableStateOf<String?>(null) }
+    // The preview registry owns availability; thumbnail decoding is presentation only.
+    val previews = paths.filter { LocalMediaAttachmentPolicy.kind(it) != "audio" }
+        .flatMap { owner ->
+            val pictures = if (LocalMediaAttachmentPolicy.kind(owner) == "video")
+                LocalMediaAttachmentPolicy.recoveryPaths(owner).filter { it.endsWith(".jpg") && File(it).isFile }
+                else listOf(owner)
+            pictures.map { it to owner }
+        }.toMap()
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
         Text("${if (paths.all { LocalMediaAttachmentPolicy.kind(it) == "image" }) "待发送图片" else "待发送媒体"} · ${paths.size}/${LocalImageAttachments.MAX_FILES}",
             style = MaterialTheme.typography.labelMedium, color = Ink.muted)
@@ -163,7 +171,7 @@ fun LocalImageAttachmentStrip(
                         Row(Modifier.padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 Modifier.size(48.dp).clip(RoundedCornerShape(9.dp))
-                                    .clickable(enabled = kind != "audio" && thumbnail != null) { previewPath = preview }
+                                    .clickable(enabled = preview in previews) { previewPath = preview }
                                     .semantics { contentDescription = if (kind == "image") "预览附件图片 ${idx + 1}" else "媒体附件 ${idx + 1}" },
                                 contentAlignment = Alignment.Center
                             ) {
@@ -188,13 +196,6 @@ fun LocalImageAttachmentStrip(
                 }
             }
         }
-        val previews = paths.filter { LocalMediaAttachmentPolicy.kind(it) != "audio" }
-            .flatMap { owner ->
-                val pictures = if (LocalMediaAttachmentPolicy.kind(owner) == "video")
-                    LocalMediaAttachmentPolicy.recoveryPaths(owner).filter { it.endsWith(".jpg") && File(it).isFile }
-                    else listOf(owner)
-                pictures.map { it to owner }
-            }.toMap()
         previewPath?.takeIf { it in previews }?.let { path ->
             AttachmentPreviewDialog(previews.keys.toList(), path,
                 onDismiss = { previewPath = null }, onRemove = {

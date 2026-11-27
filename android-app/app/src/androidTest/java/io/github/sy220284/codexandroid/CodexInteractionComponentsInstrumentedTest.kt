@@ -651,6 +651,35 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.runOnIdle { org.junit.Assert.assertEquals("已确认名称", committed) }
     }
 
+    @Test fun attachmentPreviewAvailabilityDoesNotDependOnThumbnailDecoding() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val unreadable = java.io.File.createTempFile("preview-unreadable", ".png", context.cacheDir)
+        try {
+            unreadable.writeText("invalid image fixture")
+            rule.setContent {
+                CodexTheme {
+                    LocalImageAttachmentStrip(listOf(unreadable.absolutePath), onRemove = {})
+                }
+            }
+            // No decodable thumbnail can ever appear; the preview must still open
+            // and provide the existing explicit recovery path.
+            rule.onNodeWithContentDescription("预览附件图片 1").assertIsEnabled()
+                .performTouchInput { click() }
+            rule.onNodeWithTag("attachment-preview-position").assertTextEquals("图片 1 / 1")
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithText("图片读取失败").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithText("重新读取").assertIsDisplayed().performClick()
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithText("图片读取失败").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithContentDescription("关闭图片预览").performClick()
+            rule.onNodeWithTag("attachment-preview").assertDoesNotExist()
+        } finally {
+            unreadable.delete()
+        }
+    }
+
     @Test fun attachmentPreviewSupportsZoomSwitchResetAndRemove() {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val first = java.io.File.createTempFile("preview-first", ".png", context.cacheDir)
@@ -710,7 +739,8 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.waitUntil(5000L) {
                 rule.onAllNodesWithContentDescription("预览附件图片 1").fetchSemanticsNodes().isNotEmpty()
             }
-            rule.onNodeWithContentDescription("预览附件图片 1").performTouchInput { click() }
+            rule.onNodeWithContentDescription("预览附件图片 1").assertIsEnabled()
+                .performTouchInput { click() }
             assertDisplayedImage(1, android.graphics.Color.RED)
             captureComponentEvidence("audit-attachment-preview-android.png")
             rule.onNodeWithTag("attachment-zoom-in").performClick()
