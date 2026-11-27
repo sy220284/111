@@ -1,5 +1,6 @@
 """Bounded immutable artifact download with real byte progress and classified errors."""
 import os
+import sys
 import re
 import signal
 import subprocess
@@ -36,7 +37,7 @@ def download(endpoint, destination, expected, *, stall=180, maximum=900, interva
         if time.monotonic() >= deadline:
             raise TransferUnavailable("Artifact download exceeded total budget")
         destination.unlink(missing_ok=True)
-        print(f"Downloading {endpoint} ({expected} bytes), attempt {attempt}/{attempts}", flush=True)
+        print(f"Downloading {endpoint} ({expected} bytes), attempt {attempt}/{attempts}", file=sys.stderr, flush=True)
         with tempfile.TemporaryFile() as errors, destination.open("xb") as output:
             process = subprocess.Popen(command or ["gh", "api", endpoint], stdout=output, stderr=errors, start_new_session=True)
             def interrupted(signum, frame):
@@ -58,7 +59,7 @@ def download(endpoint, destination, expected, *, stall=180, maximum=900, interva
                         break
                     if now - last_log >= interval:
                         rate = size / max(0.001, now - start)
-                        print(f"Downloaded {size}/{expected} bytes ({100*size/expected:.1f}%), {rate/1048576:.2f} MiB/s", flush=True)
+                        print(f"Downloaded {size}/{expected} bytes ({100*size/expected:.1f}%), {rate/1048576:.2f} MiB/s", file=sys.stderr, flush=True)
                         last_log = now
                     if now - last_change >= stall or now >= deadline:
                         failure = "Artifact transfer stalled or exceeded time budget"
@@ -71,7 +72,7 @@ def download(endpoint, destination, expected, *, stall=180, maximum=900, interva
             errors.seek(0)
             detail = errors.read(16384).decode("utf-8", errors="replace").strip()
         if process.returncode == 0 and failure is None and destination.stat().st_size == expected:
-            print(f"Downloaded {expected}/{expected} bytes", flush=True)
+            print(f"Downloaded {expected}/{expected} bytes", file=sys.stderr, flush=True)
             return
         size = destination.stat().st_size
         destination.unlink(missing_ok=True)
@@ -87,7 +88,7 @@ def download(endpoint, destination, expected, *, stall=180, maximum=900, interva
         if failure is None and not re.search(r"HTTP (?:408|429|5\d\d)\b|timeout|timed out|connection|network|EOF|rate limit|reset|temporar", detail, re.I):
             raise RuntimeError(f"Artifact request failed ({process.returncode}): {detail}")
         message = failure or detail
-        print(f"::warning::Artifact transfer attempt {attempt} failed: {message}", flush=True)
+        print(f"::warning::Artifact transfer attempt {attempt} failed: {message}", file=sys.stderr, flush=True)
         if attempt == attempts or time.monotonic() >= deadline:
             raise TransferUnavailable(message)
         time.sleep(min(attempt * 2, max(0, deadline - time.monotonic())))

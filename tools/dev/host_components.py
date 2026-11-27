@@ -1,5 +1,6 @@
 """Install and activate the verified 111 development bundles."""
 import importlib.util
+import sys
 import hashlib
 import shutil
 import zipfile
@@ -249,7 +250,7 @@ def download_artifact(row,destination):
         download(f"repos/{REPOSITORY}/actions/artifacts/{row['id']}/zip", archive, row["size_in_bytes"])
         require(archive.stat().st_size==row["size_in_bytes"] and bundle.digest(archive)==row["digest"][7:],
                 "artifact ZIP digest mismatch: "+row["name"])
-        print(f"Verifying and extracting {row['name']}", flush=True)
+        print(f"Verifying and extracting {row['name']}", file=sys.stderr, flush=True)
         with zipfile.ZipFile(archive) as zipped:
             files=zipped.infolist()
             require(len(files)<=105 and sum(i.file_size for i in files)<=32*1024**3,"artifact exceeds bounds")
@@ -266,9 +267,9 @@ def download_artifact(row,destination):
                         target.write(chunk)
                         copied += len(chunk)
                         if time.monotonic() >= next_log:
-                            print(f"Extracting {name}: {copied}/{info.file_size} bytes", flush=True)
+                            print(f"Extracting {name}: {copied}/{info.file_size} bytes", file=sys.stderr, flush=True)
                             next_log = time.monotonic() + 15
-                print(f"Extracted {name}: {info.file_size} bytes", flush=True)
+                print(f"Extracted {name}: {info.file_size} bytes", file=sys.stderr, flush=True)
     finally:
         archive.unlink(missing_ok=True)
 

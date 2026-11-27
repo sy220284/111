@@ -1,4 +1,6 @@
 import sys
+import contextlib
+import io
 import tempfile
 import unittest
 from pathlib import Path
@@ -25,3 +27,13 @@ class TransferTests(unittest.TestCase):
                 download("fixture", out, 3, interval=.05, maximum=3,
                          command=[sys.executable,"-c","import sys;print('HTTP 403',file=sys.stderr);sys.exit(1)"])
             self.assertFalse(out.exists())
+
+    def test_transfer_logs_do_not_pollute_machine_output(self):
+        with tempfile.TemporaryDirectory() as d:
+            out = Path(d)/"artifact"
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                download("fixture", out, 3, interval=.05, maximum=3,
+                         command=[sys.executable,"-c","import sys;sys.stdout.buffer.write(b'abc')"])
+            self.assertEqual(stdout.getvalue(), "")
+            self.assertIn("Downloaded 3/3 bytes", stderr.getvalue())

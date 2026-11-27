@@ -253,7 +253,7 @@ def verify_stream(folder, manifest, output=None):
                 archive.update(block)
                 if output is not None:
                     output.write(block)
-        print(f"Verified {manifest['component']} part {spec['name']}: {count} bytes", flush=True)
+        print(f"Verified {manifest['component']} part {spec['name']}: {count} bytes", file=sys.stderr, flush=True)
         require(count == spec["size"] and part_hash.hexdigest() == spec["sha256"],
                 "corrupt part: " + spec["name"])
     require(archive.hexdigest() == manifest["archiveSha256"], "archive digest mismatch")
@@ -293,12 +293,12 @@ def install(name, folder, root, expected):
                     seen.add(path)
                     yield member
                     if time.monotonic() >= next_log:
-                        print(f"Installing {name}: {len(seen)} entries, {total}/{m['unpackedBytes']} bytes", flush=True)
+                        print(f"Installing {name}: {len(seen)} entries, {total}/{m['unpackedBytes']} bytes", file=sys.stderr, flush=True)
                         next_log = time.monotonic() + 15
             tar.extractall(stage, members=checked_members(), filter="data")
-        print(f"Verifying extracted {name} tree", flush=True)
+        print(f"Verifying extracted {name} tree", file=sys.stderr, flush=True)
         require(verified_tree(stage, m, seal=True), "extracted tree digest mismatch")
-        print(f"Verified extracted {name} tree", flush=True)
+        print(f"Verified extracted {name} tree", file=sys.stderr, flush=True)
         if dest.exists() or dest.is_symlink():
             require(not dest.is_symlink(), "unsafe installed component")
             shutil.rmtree(dest)
