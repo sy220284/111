@@ -67,6 +67,7 @@ window.addEventListener("message", e => {
         // depending on WebView's synthetic MessageEvent.source representation.
         // Untrusted HTML is not instantiated until this transfer succeeds.
         val bootstrap = "111-native-port:" + java.util.UUID.randomUUID()
+        val document = shell(source, bootstrap).toByteArray(Charsets.UTF_8)
         view.settings.apply {
             javaScriptEnabled = true
             allowFileAccess = false
@@ -86,7 +87,11 @@ window.addEventListener("message", e => {
             }
         }
         view.webViewClient = object : WebViewClient() {
-            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse = denied()
+            override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse =
+                if (owns() && request.isForMainFrame && request.url.toString() == PAGE)
+                    WebResourceResponse("text/html", "UTF-8", 200, "OK",
+                        mapOf("Cache-Control" to "no-store"), ByteArrayInputStream(document))
+                else denied()
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                 request.isForMainFrame || request.url.toString() != "about:srcdoc"
             override fun onPageFinished(view: WebView, url: String) {
@@ -104,10 +109,11 @@ window.addEventListener("message", e => {
                 view.postWebMessage(WebMessage(bootstrap, arrayOf(pair[1])), Uri.parse(HOST))
             }
         }
-        // Chromium uses about:blank as the visible/callback URL when historyUrl is
-        // null, even with an HTTPS base origin. Bind both to the trusted shell so
-        // onPageFinished can authenticate it before transferring the native port.
-        view.loadDataWithBaseURL(PAGE, shell(source, bootstrap), "text/html", "UTF-8", PAGE)
+        // Serve only this exact HTTPS document locally. Data-document loads can
+        // retain an opaque origin despite their displayed URL; a real intercepted
+        // navigation establishes the origin that authenticates the port transfer.
+        // Every other request receives a local denial, including subresources.
+        view.loadUrl(PAGE)
     }
 
 }
