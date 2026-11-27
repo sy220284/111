@@ -1,0 +1,81 @@
+111 仓库分支清理备份 2026-11-27 19:4x（清理前 100 分支→清理后 35）
+判定口径：git层is-ancestor铁证24 + PR状态MERGED铁证64（squash合并去重后64）+ dependabot废弃1
+保留：main / #132 ci/node24-actions-upgrade / #133 upgrade/111-tech-stack-20261127 / CLOSED未合并4条待TA确认 / NOPR无PR关联5条（11-20先例保留）
+
+=== 删除清单（分支名 SHA 判定） ===
+audit/dsh-go-ui-journey-20261123 334849dd988d6db2cae7c66811b6d7a90f93d3a1 [PR59:MERGED]
+audit/full-feature-workflow-global-safety-20261123 e8970f4aa7720efb235cf28921bea995485e9d3d [PR71:MERGED]
+audit/protocol-action-ledger-20261122 c39f26bcc04701b9ab1c7bb5105709074709e818 [PR37:MERGED]
+chore/ui-360-411dp-validation e21f5bc081c5003c7fea204d3a23b7bba3e1d4f6 [PR14:MERGED]
+ci/latest-check-artifacts-20261124 75b38fe964799498ab7b336536a3188277ac5c4f [PR93:MERGED]
+ci/repository-steward-20261124 7b100c76cc6cb06df5a2e182f51c1124e3ed1259 [PR94:MERGED]
+core/r4-event-backpressure-safety-20261122 091b124b412f8a995f0df95e426466beadb3c0d5 [PR36:MERGED]
+core/r5-rpc-process-transport-20261122 d76c0efdac844bca46c0983ace73f2800cee8c40 [PR38:MERGED]
+core/r6-protocol-direction-20261122 c1c1a3190f24fb7e618708e8023cdee93ac791f4 [PR40:MERGED]
+core/r7-preserve-unsent-image-drafts-20261122 d8d30dd357458507ab608265525e350f4339cbde [PR41:MERGED]
+docs/chinese-filenames-20261124 31a1674555ada2058ee09ec1a8bf19425dcafc8f [PR76:MERGED]
+docs/pr-optimization-knowledge-base-20261123 8140580888334119164f2ddbfc78e2692bcdca1e [PR65:MERGED]
+docs/r8-verified-draft-data-safety-20261122 1c42f63c3002c29ec656047160105bb1fc640634 [PR43:MERGED]
+docs/refresh-pr-history-after-portrait-20261123 25265f147a8ee4f18381dd28ac61e79ee2a1306a [PR67:MERGED]
+docs/rewrite-agents-from-777 0085fccd0e40c4caec9be547866a16857a8c8a2f [PR127:MERGED]
+feat/111-ui-protocol-closure-20261123 2d22203a479d9a99fab0a4ebf1cdb9ca3fee3606 [PR52:MERGED]
+feat/account-auth-ui-four-skills-20261120 ac36f3e3d8e752df2d35c435e1082efb79e978f7 [PR9:MERGED]
+feat/android-abi-split-20261120 3cb455745f709275182f6681cd3e7ac417e6f972 [PR6:MERGED]
+feat/android-all-pages-navigation-test-20261120 46d39155580633b9309af099f39e3c915a2958b1 [PR10:MERGED]
+feat/android-release-pipeline-20261120 114cc303f0ff79733b0991316a27f7a13beb66b1 [PR12:MERGED]
+feat/core-ui-coverage-four-skills-20261120 ee9151cb31d94bf0f46558dfd9a194a2763bef0e [PR11:MERGED]
+feat/four-skills-visible-ui-20261123 823d632e6a376f25f6dcf87712de1837b8c4527a [PR56:MERGED]
+feat/integrate-codex-ui-login-20261120 d20db73e1e1685516f625cee2989b7422c7cecac [PR8:MERGED]
+feat/intent-navigation-protocol-ui-20261121 c01302587358f3804e8092eaa69f7ac109d4f773 [PR16:MERGED]
+feat/multi-thread-task-center-r2-20261122 6353463bcafbb03b1b9bee0fae527484c5893e95 [PR47:MERGED]
+feat/protocol-real-params-contract-20261122 2eb08f48bf1d3aa671a1e92f45e526f4f1ffd17b [PR45:MERGED]
+feat/reuse-verified-native-artifacts-20261120 07ed77612592baac41291fb64ec9ff5aac3e8f62 [PR13:MERGED]
+feat/terminal-session-task-continuity-20261121 c6df3c6c96eac30140bb91ea2c4ac5762e83f0d8 [PR17:MERGED]
+feat/ui-four-skills-redesign-20261120 d365b107acf8379194dc63b480fb683b711c7621 [PR5:MERGED]
+feature/app-auto-update-delta-20261121 ca59633f5a9a0c51bae0345dfb505d74f80f4ca9 [PR20:MERGED]
+fix/align-777-self-update-cache-20261123 e5e8833f3e88e0b8fd68bebc78fc4445043b7b7f [PR57:MERGED]
+fix/ci-dedup-release-retention-20261123 105b79534a57581d025b6905cf754a8b1f2bd578 [PR51:MERGED]
+fix/ime-real-visibility-acceptance-20261123 45cd2fddbd458bcacd73bf002649ab1a3fddad7f [PR68:MERGED]
+fix/mcp-auth-routing-and-feedback 2b512becd723daccfeec324dd02cef2b5c907958 [PR70:MERGED]
+fix/mcp-required-field-ui-20261122 c21cb6c3dae7e65df0984b8d5006dc4a587522f0 [PR42:MERGED]
+fix/protocol-validator-and-ui-20261122 efcc6c6dc7cd8fe9a237e431204a261ee7f28d72 [PR39:MERGED]
+fix/rpc-response-envelope-validation-20261122 dee751a6790d03585339a4d0fb8eb15175683d36 [PR46:MERGED]
+fix/security-permission-profile-selection f965afa6d7c3d61904b620bd78bba7da4fbabb86 [PR69:MERGED]
+fix/self-update-evidence-vivo-20261123 067f125894fa08fe010e4e1a8572d87da918a1c9 [PR53:MERGED]
+fix/self-update-installer-lifecycle-20261123 a06237bb0ded78f4933fffd8feb9ea058e3a8020 [PR54:MERGED]
+fix/self-update-installer-task-20261122 c2e503dd516fb0f8778ab56324a71615f0a6261b [PR48:MERGED]
+fix/settings-navigation-device-test fc80251ef229a3eeb5129f1c00310b85e0c66bc1 [PR23:MERGED]
+fix/shared-rpc-global-operations-foreground-readiness-20261123 b5d5644771ccefd3d2b1dfc697dfff55703ed451 [PR72:MERGED]
+fix/ui-native-test-settings-navigation-20261121 0ac231f82b288c24180a87456fcb92c7b3289233 [PR25:MERGED]
+fix/ui-navigation-request-safety-20261121 6c296d9f0f412572cb7ad090b140bdec91073c40 [PR24:MERGED]
+fix/v8-input-contract-ci-queue-20261127 b3ff8161b2b23c84f2f4a9430ce440ace243dfb0 [PR121:MERGED]
+fix/verify-home-screenshot-after-compose-20261120 d8220925d55b5b18627dd4fac5b89bf2297b2449 [PR15:MERGED]
+fix/workspace-menu-360dp-keyboard e3d9d570cff46305fafbebb511e4fb48127380ff [PR22:MERGED]
+optimize/ci-android-scope-20261122 ef1bfc8ca5e16241a6315348b720bd59f8373dee [PR50:MERGED]
+refactor/turn-submission-state-validation-20261122 9de9c23844c5b9696922b22952753b6403c9e57d [PR49:MERGED]
+refactor/user-agent-protocol-boundary-20261122 db18621c8d32322c0f97bc9f7ba5e3f45e38a4f2 [PR44:MERGED]
+ui/all-screens-polish-contract-20261121 5aa3b6972b6e276eefbb6c989ae897aee4f5533d [PR27:MERGED]
+ui/chinese-copy-details-20261123 ad4571799df08008fcb45a5ebdbd3e4e7b9d5dd0 [PR73:MERGED]
+ui/desktop-workspace-mobile-20261121 dd6a2338f2b4c65a1a1632b1e9416c62b1c25687 [PR26:MERGED]
+ui/elegant-white-workbench-20261121 3d8e8e408dad6ea25d6256253d8fd3998e8259e2 [PR18:MERGED]
+ui/full-flow-visual-20261122 b59ea0f5093a281f50dce6720bf22cfa1e9cd7ad [PR28:MERGED]
+ui/full-protocol-components-20261121 21a7cbdbf5d332cec11e182bc3f7682571e59ce6 [PR21:MERGED]
+ui/reference-layout-navigation-20261121 7ff4baa4efe7e84fc3e210527bba7041c00c9ad9 [PR19:MERGED]
+ui/sidebar-conversation-workflow-20261122 1afc9f9080779f58e2a0ebda8a8d2678790bd5fb [PR29:MERGED]
+ux/dsh-go-ui-benchmark-20261123 47241e2177ed4d049b82709722a8a3acf57134b7 [PR58:MERGED]
+ux/environment-first-run-20261123 7801eca9679f1bd834efc07c9e3a1499abc15d55 [PR60:MERGED]
+ux/main-entry-settings-dsh-20261123 7c1a6bf173ea5de894fb093a0e3b090f37f14e46 [PR61:MERGED]
+ux/main-settings-verified-scope-20261123 720295d1a991ddae8d68237071515a3118134980 [PR62:MERGED]
+ux/mobile-workspace-consolidation-20261123 c420fe8df6ca00b226794188d075475637d59586 [PR55:MERGED]
+
+=== 保留未删（待确认/保留） ===
+CLOSED保留: dependabot/uv/upstream/codex/sdk/python/uv-da3ea552d5 PR1:CLOSED
+CLOSED保留: feat/codex-turn-contract-device-login-20261120 PR7:CLOSED
+CLOSED保留: fix/android-code-mode-host-bundle-20261122 PR31:CLOSED
+CLOSED保留: ui/chatgpt-inspired-mobile-shell-20261122 PR30:CLOSED
+CLOSED保留: ui/sidebar-session-list-only-20261124 PR82:CLOSED
+NOPR保留: diagnostic/codex-99-98-20261125
+NOPR保留: diagnostic/codex-unified-20261125
+NOPR保留: feat/ui-four-skills-protocol-experience-20261123
+NOPR保留: test/codex-unified-integration-20261125
+NOPR保留: test/verify-real-ime-and-full-display-screenshots-20261123
