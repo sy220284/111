@@ -433,7 +433,8 @@ fun CodexShell(vm: CodexViewModel) {
                     } },
                     sidebarState, pendingThreadAction?.let { target ->
                         pages.firstOrNull { it.id == target }?.title ?: "当前操作"
-                    }, active = drawerOwnsInput)
+                    }, active = drawerOwnsInput,
+                        publishDirectory = !drawer.isAnimationRunning && drawer.currentValue == drawer.targetValue)
                     }
                 }
             }
@@ -503,7 +504,7 @@ private fun Sidebar(
     status: EngineStatus, approvals: Int, newThreadBlockReason: String?, onNewThread: () -> Unit,
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     sidebarState: SidebarUiState,
-    continuationLabel: String?, active: Boolean
+    continuationLabel: String?, active: Boolean, publishDirectory: Boolean
 ) {
     val activeWorkspace by vm.activeWorkspace.collectAsState()
     val accountData by vm.data.collectEntries("limits")
@@ -576,7 +577,8 @@ private fun Sidebar(
         Box(Modifier.fillMaxWidth().weight(1f)) {
             SidebarSessions(vm, onOpenThread,
                 modifier = Modifier.fillMaxSize(), uiState = sidebarState,
-                continuationLabel = continuationLabel, active = active)
+                continuationLabel = continuationLabel, active = active,
+                publishDirectory = publishDirectory)
         }
         HorizontalDivider(color = Ink.border.copy(alpha = .65f))
         Row(

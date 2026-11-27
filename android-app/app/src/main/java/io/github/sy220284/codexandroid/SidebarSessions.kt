@@ -45,7 +45,7 @@ internal class SidebarUiState(initialIndex: Int = 0, initialOffset: Int = 0) {
 internal fun SidebarSessions(
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     modifier: Modifier = Modifier, uiState: SidebarUiState? = null,
-    continuationLabel: String? = null, active: Boolean = true
+    continuationLabel: String? = null, active: Boolean = true, publishDirectory: Boolean = true
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
     val searchHistory by vm.sessions.recentSearches.state.collectAsState()
@@ -125,7 +125,7 @@ internal fun SidebarSessions(
     val directoryInput = SessionDirectoryInput(SessionDirectoryScope(session, accountRevision, section?.id,
         fullText, archived, query, state.projectOnly, workspace, remote), response, sectionRows,
         answerVersions, searchResult, pins)
-    val directory by collectSessionDirectory(vm, directoryInput)
+    val directory by collectSessionDirectory(vm, directoryInput, publishDirectory)
     val rows = if (directoryInput.available) directory?.getOrNull()?.rows.orEmpty() else emptyList()
     val visiblePins = if (directoryInput.available) directory?.getOrNull()?.pinned.orEmpty() else emptySet()
     var selection by remember { mutableStateOf(false) }

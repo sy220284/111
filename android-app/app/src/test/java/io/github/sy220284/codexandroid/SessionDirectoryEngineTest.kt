@@ -22,6 +22,18 @@ class SessionDirectoryEngineTest {
         val remote = RemoteExecutionBinding("workstation", "wss://example.com", "/p")
         assertTrue(engine.project(input.copy(scope = scope.copy(query = "乙"))) { remote }.rows.isEmpty())
     }
+    @Test fun retainedCacheNeverReusesAnotherAccountOrSessionDirectory() {
+        val raw = JSONObject().put("data", JSONArray().put(JSONObject().put("id", "first").put("name", "甲")))
+        val scope = SessionDirectoryScope(1L, 1L, null, false, false, "", false, "/p", null)
+        val input = SessionDirectoryInput(scope, raw, null, AnswerVersionState(), null, emptySet())
+        val cache = SessionDirectoryEngine.Cache()
+        assertEquals(listOf("first"), cache.project(input) { null }.rows.map(SessionListPolicy::id))
+        val next = JSONObject().put("data", JSONArray().put(JSONObject().put("id", "second").put("name", "乙")))
+        val switched = input.copy(scope = scope.copy(session = 2L, account = 2L), response = next)
+        assertEquals(listOf("second"), cache.project(switched) { null }.rows.map(SessionListPolicy::id))
+        assertEquals(listOf("first"), cache.project(input) { null }.rows.map(SessionListPolicy::id))
+    }
+
     @Test fun directoryFiltersAndOrdersPinnedRowsWithoutMutatingOriginal() {
         val rows = JSONArray()
             .put(JSONObject().put("id", "a").put("name", "工作甲").put("cwd", "/p").put("updatedAt", 1))

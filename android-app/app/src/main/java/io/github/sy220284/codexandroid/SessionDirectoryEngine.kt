@@ -85,21 +85,25 @@ internal object SessionDirectoryEngine {
 }
 
 @Composable
-internal fun collectSessionDirectory(vm: CodexViewModel, input: SessionDirectoryInput): State<Result<SessionDirectoryPresentation>?> {
+internal fun collectSessionDirectory(
+    vm: CodexViewModel, input: SessionDirectoryInput, publishDirectory: Boolean = true
+): State<Result<SessionDirectoryPresentation>?> {
     val latest by rememberUpdatedState(input)
-    // Cache belongs to the account/session controller, not the drawer composition.
-    val engine = vm.sessions.directoryCache
+    val canPublish by rememberUpdatedState(publishDirectory)
+    // Scope changes (account, session, filter) start with no old presentation.
+    // Only same-scope directory updates wait for a moving drawer to settle.
     return produceCodexUiState<Result<SessionDirectoryPresentation>?>(null, vm, input.scope) {
-        snapshotFlow { latest }.collectLatest { request ->
+        snapshotFlow { latest to canPublish }.collectLatest { (request, publish) ->
             if (!request.available) value = null
-            else {
+            else if (publish) {
+                val engine = vm.sessions.directoryCache
                 val prepared = codexLoadResult {
                     // Project-only rows consult persistent remote ownership, so that work belongs on IO.
                     withContext(if (request.scope.projectOnly) Dispatchers.IO else Dispatchers.Default) {
                         engine.project(request, vm.remoteBindings::forThread)
                     }
                 }
-                if (latest == request) value = prepared
+                if (latest == request && canPublish) value = prepared
             }
         }
     }

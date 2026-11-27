@@ -122,6 +122,7 @@ class UiMotionPerformanceInstrumentedTest {
     @Test fun realNavigationFramesAndRepeatedGestures() {
         val samples = Collections.synchronizedList(mutableListOf<FrameSample>())
         val stageStarts = mutableListOf<Pair<Long, String>>()
+        val drawerRoundStarts = mutableListOf<Long>()
         fun beginStage(stage: String) {
             stageStarts.add(System.nanoTime() to stage)
         }
@@ -172,6 +173,7 @@ class UiMotionPerformanceInstrumentedTest {
                 attached = true
             }
             repeat(4) {
+                drawerRoundStarts.add(System.nanoTime())
                 beginStage("drawer_open")
                 physicalTap("打开侧边导航")
                 beginStage("drawer_close_settings_entrance")
@@ -272,6 +274,17 @@ class UiMotionPerformanceInstrumentedTest {
                     .put("very_slow_frames", ordered.count { it > 100_000_000L }))
             }
         report.put("navigation_stage_metrics", stageReport)
+        val drawerRounds = JSONArray()
+        for ((index, start) in drawerRoundStarts.withIndex()) {
+            val end = stageStarts.first { (at, stage) -> at >= start && stage == "drawer_close_settings_entrance" }.first
+            val roundFrames = frames.filter { it.intendedVsyncNs in start until end }.map { it.durationNs }.sorted()
+            drawerRounds.put(JSONObject().put("round", index + 1)
+                .put("kind", if (index == 0) "first_open" else "reopen")
+                .put("frames", roundFrames.size)
+                .put("p95_ms", if (roundFrames.isEmpty()) JSONObject.NULL else
+                    roundFrames[(kotlin.math.ceil(roundFrames.size * .95).toInt() - 1).coerceAtLeast(0)] / 1_000_000.0))
+        }
+        report.put("drawer_open_rounds", drawerRounds)
         report.put("long_reply_scroll_anchor_verified", true)
         val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
         File(folder, "ui-motion-performance.json").writeText(report.toString(2))
