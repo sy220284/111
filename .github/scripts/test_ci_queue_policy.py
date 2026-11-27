@@ -51,8 +51,16 @@ class QueueTests(unittest.TestCase):
         def changed(repo,path):
             if path=="actions/runs/1": return dict(old,status="in_progress")
             return api(repo,path)
-        self.assertEqual([],reconcile(REPO,12,changed,pages,lambda *x:calls.append(x),True))
+        def active_pages(repo,path,field):
+            return [old,new] if field=="workflow_runs" else [{"status":"in_progress"}]
+        self.assertEqual([],reconcile(REPO,12,changed,active_pages,lambda *x:calls.append(x),True))
         self.assertEqual(1,len(calls))
+
+    def test_running_metadata_but_idle_jobs_can_be_cancelled(self):
+        old,new=run(1,OLD,"in_progress"),run(2,NEW)
+        self.assertTrue(eligible(REPO,old,pr(),new,[{"status":"completed"},{"status":"pending"}]))
+        self.assertFalse(eligible(REPO,old,pr(),new,[]))
+        self.assertFalse(eligible(REPO,old,pr(),new,[{"status":"in_progress"}]))
 
     def test_force_push_supersedes_same_pr_without_ancestry(self):
         old,new=run(1,OLD),run(2,NEW)

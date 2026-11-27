@@ -6,6 +6,7 @@ import re
 
 WAITING = {"queued", "pending", "waiting", "requested"}
 CI = ".github/workflows/ci.yml"
+UNFINISHED = WAITING | {"in_progress"}
 
 
 def own_run(repo, run):
@@ -19,7 +20,7 @@ def eligible(repo, run, pr, newer, jobs):
     if (pr.get("state") != "open" or pr["base"]["ref"] != "main"
         or (head.get("repo") or {}).get("full_name") != repo
         or not own_run(repo, run) or not own_run(repo, newer)
-        or run.get("status") not in WAITING
+        or run.get("status") not in UNFINISHED
         or run.get("head_branch") != head["ref"] or newer.get("head_branch") != head["ref"]
         or newer.get("head_sha") != head["sha"] or run.get("head_sha") == head["sha"]
         or newer["id"] <= run["id"]
@@ -29,7 +30,8 @@ def eligible(repo, run, pr, newer, jobs):
         return False
     # An overall "queued" run can actually have active native or device jobs.
     # Completed evidence is left intact; a running or unknown job blocks cancellation.
-    return all(j.get("status") in WAITING | {"completed"} for j in jobs)
+    return (bool(jobs) or run.get("status") in WAITING) and all(
+        j.get("status") in WAITING | {"completed"} for j in jobs)
 
 
 def reconcile(repo, pr_number, api, pages, cancel, apply=False):
@@ -46,7 +48,9 @@ def reconcile(repo, pr_number, api, pages, cancel, apply=False):
     newer = max(latest, key=lambda r:r["id"])
     selected = []
     for old in rows:
-        if not eligible(repo, old, pr, newer, []):
+        # In-progress run metadata alone cannot establish whether it occupies a Runner.
+        # Defer eligibility until its live job index has been read.
+        if not eligible(repo, old, pr, newer, [{"status": "queued"}]):
             continue
         # PR identity + current head determine obsolescence, including rebase/force-push.
         if not all(re.fullmatch("[0-9a-f]{40}", r.get("head_sha", "")) for r in (old, newer)):
@@ -61,7 +65,11 @@ def reconcile(repo, pr_number, api, pages, cancel, apply=False):
             # Refresh the run after the job and head checks to narrow the
             # unavoidable REST cancellation race. No force-cancel is used.
             latest_run=api(repo,f"actions/runs/{old['id']}")
-            if latest_run.get("status") not in WAITING or latest_run.get("run_attempt") != current.get("run_attempt"):
+            if latest_run.get("status") not in UNFINISHED or latest_run.get("run_attempt") != current.get("run_attempt"):
+                continue
+            final_jobs = list(pages(repo,f"actions/runs/{old['id']}/jobs?filter=all","jobs"))
+            final_pr = api(repo,f"pulls/{pr_number}")
+            if not eligible(repo,latest_run,final_pr,candidate,final_jobs):
                 continue
             cancel(repo,old["id"])
         selected.append(old["id"])
