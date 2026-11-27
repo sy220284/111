@@ -33,7 +33,7 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
-    @Test fun nativeFeatureDirectoryAndPersistentSwitchRoundTrip() = runBlocking {
+    @Test fun nativeFeatureDirectoryAndPersistentSwitchRoundTrip() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val config = File(app.filesDir, "codex-home/config.toml")
         val original = config.takeIf { it.isFile }?.readBytes()
@@ -88,7 +88,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun nativeCoreDiscoversAndCallsAndroidPreviewMcp() = runBlocking {
+    @Test fun nativeCoreDiscoversAndCallsAndroidPreviewMcp() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         val host = ModelPreviewMcpServer { args, meta ->
@@ -308,7 +308,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun localProjectRegistryAndThreadBindingWorkOnRealCore() = runBlocking {
+    @Test fun localProjectRegistryAndThreadBindingWorkOnRealCore() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         val workspace = WorkspaceStorage.root(app)
@@ -342,7 +342,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun androidPtySupportsInteractiveInputAndResize() = runBlocking {
+    @Test fun androidPtySupportsInteractiveInputAndResize() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -390,7 +390,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun localThreadCanStartAndBeReadWithoutCloudLogin() = runBlocking {
+    @Test fun localThreadCanStartAndBeReadWithoutCloudLogin() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -413,7 +413,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession() = runBlocking {
+    @Test fun realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         var child: Process? = null
         val bridge = CodexConnection(app) { builder -> builder.start().also { child = it } }
@@ -443,7 +443,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange() = runBlocking {
+    @Test fun reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val allowExitReceipt = java.util.concurrent.CountDownLatch(1)
         val boundedWait = CompletableDeferred<Unit>()
@@ -529,7 +529,7 @@ class CoreStartupInstrumentedTest {
 
     /** Real Codex command RPC, not only a ProcessBuilder version probe. The dedicated
      * test device uses a disposable workspace and digest-locked, pure-language packages. */
-    @Test fun bundledDeveloperPackagesAndHttpsUseRealCore() = runBlocking {
+    @Test fun bundledDeveloperPackagesAndHttpsUseRealCore() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         val work = File(WorkspaceStorage.root(app), "runtime-probe-" + UUID.randomUUID())
@@ -585,7 +585,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -619,7 +619,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
+    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -663,7 +663,7 @@ class CoreStartupInstrumentedTest {
             bridge.close()
         }
     }
-    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -709,7 +709,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {

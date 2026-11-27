@@ -128,6 +128,12 @@ class FakeRunner:
 
 
 class NativeReuseTests(unittest.TestCase):
+    def test_timeout_is_scheduling_only(self):
+        from select_native_artifacts import provider_recipe
+        self.assertEqual(native_recipe(COMPILER_JOB), native_recipe(COMPILER_JOB.replace("timeout-minutes: 115", "timeout-minutes: 180")))
+        provider = "\n  provider-contract:\n    runs-on: ubuntu-latest\n    timeout-minutes: 90\n    steps:\n      - run: cargo test\n"
+        self.assertEqual(provider_recipe(provider), provider_recipe(provider.replace("timeout-minutes: 90", "timeout-minutes: 60")))
+
     def test_trigger_and_upload_changes_do_not_invalidate_binary(self):
         edited = COMPILER_JOB.replace("paths: [x]", "paths: [y]")
         edited = edited.replace("retention-days: 90", "retention-days: 30")

@@ -42,3 +42,8 @@ class PolicyTests(unittest.TestCase):
         self.assertNotIn("github.event.pull_request.head.sha", concurrency)
         self.assertIn("ref: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
         self.assertIn("python3 .github/scripts/ci_gate.py", workflow)
+    def test_new_runtime_and_release_inputs(self):
+        self.assertTrue(plan([".github/scripts/run-android-runtime-tests.sh"])["runtime"])
+        self.assertTrue(plan(["android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/RuntimeOwnershipInstrumentedTest.kt"])["runtime"])
+        self.assertTrue(matches("android-app/gradle/wrapper/gradle-wrapper.properties", "release"))
+        self.assertFalse(plan(["android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/UiNavigationInstrumentedTest.kt"])["runtime"])
