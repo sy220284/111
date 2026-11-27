@@ -43,7 +43,7 @@
   "sdk_platform": "35",
   "runtime_profile": "mainstream",
   "minimum_ui_tests": 150,
-  "emulator_options": "-no-window -gpu swiftshader -feature -Vulkan -no-snapshot -noaudio -no-boot-anim",
+  "emulator_options": "-no-window -gpu swiftshader -feature -Vulkan,-Uwb -no-snapshot -noaudio -no-boot-anim",
   "cores": 4,
   "disk": "8192M",
   "mesa_threads": 4

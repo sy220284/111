@@ -155,8 +155,19 @@ def bazel_registry_snapshot(output_root, destination, name=BAZEL_REGISTRY_REPO):
 
 def bazel_git_repository_names(external):
     """Select locked Git workspaces, not crates.io packages or Bazel marker files."""
-    direct=set(re.findall(r'git_repository\(\s*name\s*=\s*"([^"]+)"',
-                          (UPSTREAM/"MODULE.bazel").read_text()))
+    module=(UPSTREAM/"MODULE.bazel").read_text()
+    direct=set(re.findall(r'git_repository\(\s*name\s*=\s*"([^"]+)"',module))
+    # Local module extensions can declare Git repositories outside the root MODULE
+    # (for example V8's ICU, dragonbox and FP16). Bazel's download cache does not
+    # retain git fetches. Match actual canonical repositories to these declarations.
+    extension_repos=set()
+    for package,filename,extension in re.findall(
+            r'use_extension\(\s*"//([^":]*):([^"]+)"\s*,\s*"([^"]+)"',module):
+        source=(UPSTREAM/package/filename).resolve(strict=True)
+        need(source.is_relative_to(UPSTREAM.resolve()) and source.is_file(),
+             "invalid local Bazel module extension: "+str(source))
+        for name in re.findall(r'git_repository\(\s*name\s*=\s*"([^"]+)"',source.read_text()):
+            extension_repos.update(("+"+extension+"+"+name,"~"+extension+"~"+name))
     locked=set()
     for lock_path, prefix in (
         ("codex-rs/Cargo.lock","rules_rs++crate+crates__"),
@@ -179,7 +190,7 @@ def bazel_git_repository_names(external):
     names=[]
     for p in external.iterdir():
         name=p.name
-        if name in locked or any(
+        if name in locked or name in extension_repos or any(
                 name==n or name.endswith("+git_repository+"+n) or name.endswith("~git_repository~"+n)
                 for n in direct):
             need(re.fullmatch(r"[A-Za-z0-9_.+~-]+",name) and p.is_dir(),

@@ -67,6 +67,11 @@ class PortableAuxiliaryTest(unittest.TestCase):
             workspace=root/"workspace"; workspace.mkdir()
             (workspace/"MODULE.bazel").write_text('git_repository(\n    name = "direct_git",\n)')
             (workspace/"BUILD.bazel").write_text("exports_files([])")
+            module=workspace/"MODULE.bazel"
+            module.write_text(module.read_text()+'\nuse_extension("//third_party/v8:dependencies.bzl", "dependencies")\n')
+            extension=workspace/"third_party/v8/dependencies.bzl"
+            extension.parent.mkdir(parents=True)
+            extension.write_text('def _dependencies_impl(ctx):\n    git_repository(\n        name = "v8_icu",\n        commit = "d578f2e8b7bd5938e21cfb6bf15c079e0aa5b738",\n    )\n    http_archive(\n        name = "not_git",\n    )\n')
             for lock_path in ("codex-rs/Cargo.lock","tools/argument-comment-lint/Cargo.lock"):
                 lock=workspace/lock_path
                 lock.parent.mkdir(parents=True)
@@ -85,6 +90,10 @@ class PortableAuxiliaryTest(unittest.TestCase):
             (source/"BUILD.bazel").symlink_to(workspace/"BUILD.bazel")
             direct=external/"+git_repository+direct_git"; direct.mkdir()
             (direct/"file").write_text("direct")
+            ext=external/"+dependencies+v8_icu"; ext.mkdir()
+            (ext/"file").write_text("icu")
+            (ext/"BUILD.bazel").symlink_to(workspace/"BUILD.bazel")
+            (external/"+dependencies+not_git").mkdir()
             dest=root/"stage"
             with patch.object(auxiliary,"UPSTREAM",workspace):
                 auxiliary.bazel_git_snapshots(external,dest,root)
@@ -92,7 +101,10 @@ class PortableAuxiliaryTest(unittest.TestCase):
                 self.assertEqual((dest/name/"internal").readlink(),pathlib.Path("data"))
                 self.assertFalse((dest/name/"BUILD.bazel").is_symlink())
                 self.assertEqual((dest/name/"BUILD.bazel").read_text(),"exports_files([])")
-                self.assertEqual(len(list(auxiliary.bazel_git_overrides(dest))),2)
+                self.assertEqual(len(list(auxiliary.bazel_git_overrides(dest))),3)
+                self.assertEqual((dest/ext.name/"file").read_text(),"icu")
+                self.assertFalse((dest/ext.name/"BUILD.bazel").is_symlink())
+                self.assertFalse((dest/"+dependencies+not_git").exists())
                 self.assertFalse((dest/"rules_rs++crate+crates__rama-http-0.3.0-alpha.4").exists())
                 (source/"escape").symlink_to(root)
                 with self.assertRaises(ValueError):
