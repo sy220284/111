@@ -47,7 +47,10 @@ class TimelineItem private constructor(
         if (this === other) return true
         if (other !is TimelineItem || id != other.id || kind != other.kind ||
             status != other.status || turnId != other.turnId || phase != other.phase) return false
-        if (stream != null && other.stream != null && stream.definitelyDifferent(other.stream)) return false
+        if (stream != null && other.stream != null) {
+            if (stream === other.stream) return true
+            if (stream.definitelyDifferent(other.stream)) return false
+        }
         return text == other.text && evidence == other.evidence
     }
     override fun hashCode(): Int {

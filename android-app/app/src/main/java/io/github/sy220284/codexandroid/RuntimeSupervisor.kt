@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.Flow
 
 /** One process owner for foreground protection, failure recovery and idle release.
  * No periodic polling while the engine is healthy or the process is idle. */
@@ -41,9 +43,9 @@ internal class RuntimeSupervisor(
         scope.launch {
             val eligible = combine(foreground, work, vm.bridge.status) { visible, snapshot, status ->
                 RuntimeRecoveryPolicy.shouldRecover(visible, snapshot, (status as? EngineStatus.Unavailable)?.recoverable == true)
-            }
+            }.distinctUntilChanged()
             combine(foreground, work) { visible, snapshot ->
-                (visible || snapshot.requiresForegroundProtection) && !snapshot.dataTransferBusy && !snapshot.restarting
+                (visible || snapshot.requiresForegroundProtection) && snapshot.canStartNewTask && !snapshot.restarting
             }.distinctUntilChanged().collectLatest { demand ->
                 if (!demand) return@collectLatest
                 var interval = 1_000L
@@ -51,8 +53,13 @@ internal class RuntimeSupervisor(
                     while (true) {
                         eligible.first { it }
                         vm.recoveryDelayMs.value = interval
-                        delay(interval)
+                        val due = RuntimeRecoveryPolicy.waitForRetry(eligible, interval)
                         vm.recoveryDelayMs.value = null
+                        if (!due) {
+                            // A manual reconnect, a core retirement or a pause ends this countdown.
+                            interval = 1_000L
+                            continue
+                        }
                         if (!RuntimeRecoveryPolicy.shouldRecover(foreground.value, vm.globalWorkSnapshot(),
                                 (vm.bridge.status.value as? EngineStatus.Unavailable)?.recoverable == true)) continue
                         vm.connect().join()
@@ -74,9 +81,12 @@ internal class RuntimeSupervisor(
 }
 
 internal object RuntimeRecoveryPolicy {
+    suspend fun waitForRetry(eligible: Flow<Boolean>, delayMillis: Long): Boolean =
+        withTimeoutOrNull(delayMillis) { eligible.first { !it } } == null
+
     fun shouldRecover(visible: Boolean, snapshot: GlobalWorkSnapshot, unavailable: Boolean): Boolean =
         unavailable && (visible || snapshot.requiresForegroundProtection) &&
-            !snapshot.dataTransferBusy && !snapshot.coreStarting && !snapshot.restarting
+            snapshot.canStartNewTask && !snapshot.coreStarting && !snapshot.restarting
 }
 
 /** Shared by automatic supervision and the explicit, foreground-only retry. */

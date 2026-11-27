@@ -103,7 +103,7 @@ fun ScreenColumn(
         val spacing = CodexViewportPolicy.pageSpacing(maxWidth.value.coerceAtLeast(1f),
             maxHeight.value.coerceAtLeast(1f), compact)
         Column(
-            modifier = Modifier.fillMaxHeight().widthIn(max = 840.dp).fillMaxWidth()
+            modifier = Modifier.fillMaxHeight().widthIn(max = CodexContentMaxWidth).fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.horizontal.dp, vertical = spacing.vertical.dp),
             verticalArrangement = Arrangement.spacedBy(spacing.gap.dp),

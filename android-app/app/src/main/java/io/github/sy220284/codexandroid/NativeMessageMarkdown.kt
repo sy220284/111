@@ -231,11 +231,14 @@ internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
             }
         }
     }
-    val ready = document?.takeIf { source.startsWith(it.prefix) }
-    val tail = source.substring(ready?.prefix?.length ?: 0)
-    val blocks = ready?.blocks.orEmpty() +
-        (if (tail.isEmpty()) emptyList() else listOf(PreparedReplyBlock.tail(tail)))
-    PreparedMarkdownPage(ReplyRenderPage(blocks, 0))
+    val page = remember(source, document) {
+        val ready = document?.takeIf { source.startsWith(it.prefix) }
+        val tail = source.substring(ready?.prefixLength ?: 0)
+        val blocks = TimelineJoinedList(ready?.blocks.orEmpty(),
+            TimelineReplyPages.textChunks(tail).map(PreparedReplyBlock::tail))
+        ReplyRenderPage(blocks, 0)
+    }
+    PreparedMarkdownPage(page)
 }
 
 @OptIn(ExperimentalFoundationApi::class)

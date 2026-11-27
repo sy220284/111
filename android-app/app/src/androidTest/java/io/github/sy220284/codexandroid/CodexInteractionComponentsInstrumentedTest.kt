@@ -3,6 +3,9 @@ package io.github.sy220284.codexandroid
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.requiredWidth
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
@@ -63,6 +66,32 @@ class CodexInteractionComponentsInstrumentedTest {
     }
 
     @get:Rule val rule = createComposeRule()
+
+    @Test fun expandedWindowLimitsContentWidthWithoutNarrowingPhoneLayout() {
+        var phoneWidth = 0
+        var wideWidth = 0
+        var narrowExpected = 0
+        var wideExpected = 0
+        rule.setContent {
+            val density = LocalDensity.current
+            SideEffect {
+                narrowExpected = with(density) { 320.dp.roundToPx() }
+                wideExpected = with(density) { CodexContentMaxWidth.roundToPx() }
+            }
+            Box(Modifier.requiredWidth(1_000.dp)) {
+                CodexPageWidth {
+                    Box(Modifier.fillMaxWidth().onSizeChanged { wideWidth = it.width })
+                }
+                CodexPageWidth(Modifier.width(320.dp)) {
+                    Box(Modifier.fillMaxWidth().onSizeChanged { phoneWidth = it.width })
+                }
+            }
+        }
+        rule.runOnIdle {
+            assertEquals(narrowExpected, phoneWidth)
+            assertEquals(wideExpected, wideWidth)
+        }
+    }
 
     @Test fun frameStateStopsWithTheUiAndResumesAtTheLatestValue() {
         val flow = MutableStateFlow(0)

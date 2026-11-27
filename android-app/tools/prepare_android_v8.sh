@@ -32,7 +32,21 @@ python3 "$GITHUB_WORKSPACE/.github/scripts/v8_artifacts.py" inputs --target "$TA
 test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
   echo "Raw V8 cache reuse is disabled; use a verified complete native artifact: $CACHE" >&2; exit 1;
 }
-    : " ${ANDROID_NDK_HOME:?NDK must be installed} "
+    : "${ANDROID_NDK_HOME:?NDK must be installed}" "${LLVM_HOME:?missing official LLVM}"
+    ANDROID_API=29
+    NDK_LLVM="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64"
+    BIN="$NDK_LLVM/bin"
+    SYSROOT="$NDK_LLVM/sysroot"
+    LINKER="$BIN/${TARGET}${ANDROID_API}-clang"
+    test -x "$LINKER"
+    # libclang otherwise uses Cargo's unversioned Rust triple. NDK r30
+    # rejects it when reading Bionic headers, even after Ninja succeeded.
+    BINDGEN_TARGET_ARGS=("--target=${TARGET}${ANDROID_API}" "--sysroot=$SYSROOT")
+    printf '#include <sys/cdefs.h>
+static_assert(__ANDROID_MIN_SDK_VERSION__ == %s);
+' "$ANDROID_API" |
+        "$LLVM_HOME/bin/clang" "${BINDGEN_TARGET_ARGS[@]}" -x c++ -std=c++20 -fsyntax-only -
+    echo "Verified Android bindgen headers for ${TARGET}${ANDROID_API}"
     ROOT="$RUNNER_TEMP/rusty-v8-android"
     SRC="$ROOT/rusty_v8-src"
     WRAPPER="$ROOT/wrapper"
@@ -68,13 +82,9 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     # rather than letting its unconditional downloader block Android builds.
     python3 "$GITHUB_WORKSPACE/android-app/tools/adapt_android_v8_build.py" "$SRC/build.rs"
     mkdir -p "$WRAPPER/.cargo"
-    BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
-    LINKER="$BIN/$TARGET"29-clang
-    test -x "$LINKER"
     printf '[target.%s]\nlinker = "%s"\n' "$TARGET" "$LINKER" > "$WRAPPER/.cargo/config.toml"
-    SYSROOT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
     export LIBCLANG_PATH="$LLVM_HOME/lib"
-    export "BINDGEN_EXTRA_CLANG_ARGS_$(printf '%s' "$TARGET" | tr '-' '_')=--sysroot=$SYSROOT -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/$TARGET"
+    export "BINDGEN_EXTRA_CLANG_ARGS_$(printf '%s' "$TARGET" | tr '-' '_')=${BINDGEN_TARGET_ARGS[*]} -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/$TARGET"
     export "CARGO_TARGET_$(printf '%s' "$TARGET" | tr '[:lower:]-' '[:upper:]_')_LINKER=$LINKER"
     # The pinned rusty_v8 revision provisions the GN version from its own
     # dependency manifest. A host GN override makes that input nondeterministic.
@@ -132,6 +142,7 @@ TOML
       sha256sum "$SRC/Cargo.lock" | cut -d' ' -f1
       git -C "$SRC" submodule status --recursive
       cat "$TOOL_PROVENANCE"
+      printf 'bindgen_target=%s\n' "${TARGET}${ANDROID_API}"
       printf 'sccache_version=%s\nsccache_sha256=%s\n' "$("$SCCACHE" --version)" "$(sha256sum "$SCCACHE" | cut -d' ' -f1)"
       cat "$GN_OUT/args.gn"
     } > "$CACHE/SOURCE_PROVENANCE"

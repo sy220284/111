@@ -585,7 +585,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
-            /tools/build/
+            tools/build
             android-app/tools
           persist-credentials: false
       - name: 安装固定 CI 工具

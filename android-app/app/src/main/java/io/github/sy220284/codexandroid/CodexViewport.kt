@@ -3,7 +3,14 @@ package io.github.sy220284.codexandroid
 import android.graphics.Rect
 import android.view.View
 import android.view.ViewTreeObserver
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
@@ -70,3 +77,14 @@ internal fun codexEffectiveFontScale(): Float {
     val appScale by UiPreferences.fontScale.collectAsStateWithLifecycle()
     return LocalDensity.current.fontScale * appScale
 }
+
+
+/** Keep the same reading and input column as the existing full-screen reader. */
+@Composable
+internal fun CodexPageWidth(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(Modifier.widthIn(max = CodexContentMaxWidth).fillMaxSize(), content = content)
+    }
+}
+
+internal val CodexContentMaxWidth = 840.dp

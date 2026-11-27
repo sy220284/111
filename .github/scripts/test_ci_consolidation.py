@@ -55,6 +55,11 @@ class ConsolidationTests(unittest.TestCase):
         self.assertNotIn("runtime-cache", user["shared"])
         self.assertEqual("arm64-v8a", product["packageArchive"]["version"])
 
+    def test_ui_evidence_checkout_uses_directories_in_cone_mode(self):
+        source = (ROOT / ".github/workflows/ci.yml").read_text()
+        job = source.split("\n  ui-evidence:\n", 1)[1].split("\n  build:\n", 1)[0]
+        self.assertIn("sparse-checkout: |\n            tools/build\n            android-app/tools", job)
+
     def test_shared_android_build_and_runtime_ownership(self):
         ci = (ROOT / ".github/workflows/ci.yml").read_text()
         release = (ROOT / ".github/workflows/release.yml").read_text()

@@ -2,6 +2,7 @@
 val releaseVersionName = providers.gradleProperty("codexReleaseVersionName").orNull
 val releaseVersionCode = providers.gradleProperty("codexReleaseVersionCode").orNull?.toIntOrNull()
 val releaseTargetAbi = providers.gradleProperty("codexReleaseTargetAbi").orNull
+val android17Candidate = providers.gradleProperty("codexAndroid17Candidate").orNull == "true"
 val r8Candidate = providers.gradleProperty("codexR8Candidate").orNull == "true"
 require(releaseTargetAbi == null || releaseTargetAbi == "arm64-v8a") {
     "正式发布目标架构只能是 arm64-v8a"
@@ -16,6 +17,7 @@ val releaseTasksRequested = gradle.startParameter.taskNames.any {
     it.contains("assembleRelease") || it.contains("bundleRelease") || it.contains("packageRelease")
 }
 if (releaseTasksRequested) {
+    require(!android17Candidate) { "Android 17 兼容性候选使用 Debug 构建" }
     require(releaseVersionName?.matches(Regex("""\d+\.\d+\.\d+-111\.\d+""")) == true) {
         "正式构建必须传入 -PcodexReleaseVersionName=0.1.0-111.N"
     }
@@ -42,6 +44,7 @@ android {
         applicationId = "io.github.sy220284.codexandroid"
         minSdk = 29
         targetSdk = 35
+        if (android17Candidate) targetSdk = 37
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersionName ?: "0.1.0"
         nativeTargetAbi?.takeIf { providers.gradleProperty("codexSplitAbi").orNull != "true" }?.let { ndk { abiFilters += it } }
@@ -110,6 +113,10 @@ kotlin {
     compilerOptions {
         jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
     }
+}
+
+androidComponents.beforeVariants(androidComponents.selector().withBuildType("release")) { variant ->
+    if (android17Candidate) variant.enable = false
 }
 
 dependencies {

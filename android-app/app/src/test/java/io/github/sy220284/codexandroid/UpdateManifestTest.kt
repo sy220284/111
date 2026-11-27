@@ -39,6 +39,15 @@ class UpdateManifestTest {
         assertNull(UpdateManifest.versionCode("1.0.0-111.0"))
     }
 
+    @Test fun archiveMustBeTheExactNewerVersionDeclaredByTheRelease() {
+        val current = "0.1.0-111.4"
+        assertTrue(UpdateManifest.matchesUpgrade(current, 4L, current, 4L, 3L))
+        assertFalse(UpdateManifest.matchesUpgrade(current, 4L, "0.1.0-111.3", 4L, 3L))
+        assertFalse(UpdateManifest.matchesUpgrade(current, 4L, current, 5L, 3L))
+        assertFalse(UpdateManifest.matchesUpgrade(current, 4L, current, 4L, 4L))
+        assertFalse(UpdateManifest.matchesUpgrade(current, 4L, current, 4L, 5L))
+    }
+
     @Test fun unknownAlgorithmUsesFullApk() {
         assertNull(UpdateManifest.parse(manifest("unknown")).patchFor("0.1.0-111.3", a))
     }

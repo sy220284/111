@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -24,6 +25,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val listState = rememberLazyListState()
+    val showLocalNetworkAccess = LocalNetworkAccess.applies(LocalContext.current)
     var showAbout by remember { mutableStateOf(false) }
     val status by vm.bridge.status.collectAsStateWithLifecycle()
     val data by vm.data.collectEntries("account")
@@ -124,6 +126,11 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
             if ("update" in group.routes) {
+                if (showLocalNetworkAccess) {
+                    item(key = "settings-local-network") {
+                        Box(Modifier.padding(top = 9.dp)) { LocalNetworkAccessCard() }
+                    }
+                }
                 item(key = "settings-update") { Box(Modifier.padding(top = 9.dp)) { AppUpdateCard(vm = vm) } }
                 item(key = "settings-transfer") { Box(Modifier.padding(top = 9.dp)) { LocalDataTransferCard(vm) } }
             }
