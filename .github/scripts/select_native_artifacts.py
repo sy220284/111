@@ -155,9 +155,11 @@ class ArtifactSelector:
         if remote_delivery:
             signature += (remote_delivery,)
         if "\n  v8:\n" in workflow:
-            from v8_artifacts import producer_recipe
-            signature += (producer_recipe(workflow),
-                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py",".github/actions/ci-android/action.yml",".github/actions/ci-rust/action.yml",".github/scripts/ci-android-sdk.sh",".github/scripts/ci-llvm.sh","upstream/codex/codex-rs/Cargo.lock"]))
+            from v8_artifacts import producer_recipe, compiler_action_recipe
+            setup = tuple(compiler_action_recipe(self.run(["git", "show", f"{sha}:{p}"]))
+                          for p in (".github/actions/ci-android/action.yml", ".github/actions/ci-rust/action.yml"))
+            signature += (producer_recipe(workflow), setup,
+                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py",".github/scripts/ci-android-sdk.sh",".github/scripts/ci-llvm.sh","upstream/codex/codex-rs/Cargo.lock"]))
         return signature
 
     def test_signature(self, sha):
@@ -170,6 +172,9 @@ class ArtifactSelector:
                              "android-app/tools/prepare_android_remote_delivery.py",
                              "android-app/tools/test_prepare_android_remote_delivery.py"])
         rust_setup = self.run(["git", "ls-tree", sha, "--", ".github/actions/ci-rust/action.yml"])
+        if rust_setup and "uses: ./.github/actions/ci-rust" in workflow:
+            from v8_artifacts import compiler_action_recipe
+            rust_setup = compiler_action_recipe(self.run(["git", "show", f"{sha}:.github/actions/ci-rust/action.yml"]))
         return (upstream, parent_cargo, provider_recipe(workflow), delivery, rust_setup)
 
     def is_ancestor(self, old, new):

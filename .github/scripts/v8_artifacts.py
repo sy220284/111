@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import tempfile
+import tomllib
 import sys
 import zipfile
 from datetime import datetime
@@ -25,10 +26,10 @@ WORKFLOW = ".github/workflows/build-native-codex.yml"
 INPUTS = ("android-app/tools/prepare_android_v8.sh",
           "android-app/tools/adapt_android_v8_build.py",
           "android-app/tools/v8_toolchain_provenance.py",
-          "upstream/codex/codex-rs/Cargo.lock",
           ".github/scripts/ci-android-sdk.sh")
-KEY_INPUTS = (*INPUTS, ".github/actions/ci-android/action.yml",
-              ".github/actions/ci-rust/action.yml", ".github/scripts/ci-llvm.sh")
+LOCK_PATH = "upstream/codex/codex-rs/Cargo.lock"
+KEY_INPUTS = (*INPUTS, ".github/scripts/ci-llvm.sh")
+SETUP_ACTIONS = (".github/actions/ci-android/action.yml", ".github/actions/ci-rust/action.yml")
 PRODUCER = ".github/scripts/v8_artifacts.py"
 LIMIT = 3 * 1024**3
 
@@ -41,11 +42,42 @@ def producer_recipe(workflow):
     return job_recipe(workflow, "v8")
 
 
+def v8_lock_identity(text):
+    # The official V8 repository has its own pinned Cargo.lock. Only the
+    # application V8 package record can constrain that independently built V8.
+    records = [p for p in tomllib.loads(text)["package"] if p["name"] == "v8"]
+    if len(records) != 1 or records[0]["version"] != VERSION:
+        raise ValueError("Application V8 package differs from the pinned source")
+    return hashlib.sha256(json.dumps(records[0], sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+
+def compiler_action_recipe(text):
+    # Cache transport and Gradle-only setup are not native compiler inputs.
+    # Preserve other steps and unknown actions verbatim.
+    result = []
+    block = []
+    def append(step):
+        if any(re.match(r"^\s+uses:\s*(?:actions/cache(?:/restore|/save)?|gradle/actions/setup-gradle)@", line)
+               for line in step):
+            return
+        result.extend(step)
+    for line in text.splitlines():
+        if re.match(r"^    - ", line):
+            append(block)
+            block = [line]
+        else:
+            block.append(line)
+    append(block)
+    return "\n".join(result)
+
+
 def key(target, sha="HEAD"):
     if target not in TARGETS:
         raise ValueError("Unsupported V8 target")
     recipe = producer_recipe(git("show", f"{sha}:{WORKFLOW}"))
     inputs = [git("rev-parse", f"{sha}:{p}") for p in KEY_INPUTS]
+    inputs.append(v8_lock_identity(git("show", f"{sha}:{LOCK_PATH}")))
+    inputs.extend(compiler_action_recipe(git("show", f"{sha}:{p}")) for p in SETUP_ACTIONS)
     return hashlib.sha256(json.dumps([target, recipe, inputs], separators=(",",":")).encode()).hexdigest()
 
 
@@ -82,7 +114,7 @@ def expected_inputs(root, target):
         raise ValueError("Unsupported V8 target")
     # V8 is built from the pristine committed lock. Android adaptation changes
     # Cargo.lock later; never calculate the V8 receipt from that mutable tree.
-    subprocess.run(["git", "-C", str(root), "diff", "--quiet", "HEAD", "--", *INPUTS], check=True)
+    subprocess.run(["git", "-C", str(root), "diff", "--quiet", "HEAD", "--", *INPUTS, LOCK_PATH], check=True)
     env = dict(os.environ, RUSTUP_TOOLCHAIN="1.99.1")
     rust = subprocess.check_output(["rustc", "--version"], env=env)
     if not re.fullmatch(rb"rustc 1\.99\.1(?: [^\r\n]+)?\n", rust):
@@ -93,7 +125,8 @@ def expected_inputs(root, target):
         raise ValueError("Unexpected NDK revision")
     result = (f"source={SOURCE}\nversion={VERSION}\ntarget={target}\n".encode() + rust
               + b"Pkg.Revision=27.2.12479018\n" + host_identity())
-    return result + "".join(f"{sha256(root/p)}  {p}\n" for p in INPUTS).encode()
+    lock = v8_lock_identity((root/LOCK_PATH).read_text())
+    return result + f"v8-package={lock}\n".encode() + "".join(f"{sha256(root/p)}  {p}\n" for p in INPUTS).encode()
 
 def verify(folder, target, expected):
     files = names(target)

@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
-from v8_artifacts import names, verify, extract, direct_producer, producer_recipe, current_artifact, expected_inputs, INPUTS, host_identity, restore
+from v8_artifacts import names, verify, extract, direct_producer, producer_recipe, current_artifact, expected_inputs, INPUTS, LOCK_PATH, VERSION, v8_lock_identity, compiler_action_recipe, host_identity, restore
 
 TARGET="aarch64-linux-android"
 KEY="a"*64
@@ -142,6 +142,9 @@ class V8ArtifactsTests(unittest.TestCase):
                 path = root / name
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_text("original")
+            lock = root / LOCK_PATH
+            lock.parent.mkdir(parents=True, exist_ok=True)
+            lock.write_text(f'[[package]]\nname = "v8"\nversion = "{VERSION}"\n')
             ndk = root / "ndk"
             ndk.mkdir()
             (ndk / "source.properties").write_text("Pkg.Revision = 27.2.12479018\n")
@@ -180,3 +183,16 @@ class V8ArtifactsTests(unittest.TestCase):
         ci = (root / ".github/workflows/ci.yml").read_text()
         self.assertIn("github.event_name == 'pull_request' && 'latest' || github.sha", ci)
         self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", ci)
+
+
+    def test_v8_package_identity_ignores_unrelated_crates(self):
+        lock = f'[[package]]\nname="v8"\nversion="{VERSION}"\nsource="registry+https://example.invalid"\nchecksum="abc"\n'
+        self.assertEqual(v8_lock_identity(lock), v8_lock_identity(lock + '[[package]]\nname="unrelated"\nversion="3.0.0"\n'))
+        self.assertNotEqual(v8_lock_identity(lock), v8_lock_identity(lock.replace('checksum="abc"', 'checksum="xyz"')))
+        with self.assertRaises(ValueError):
+            v8_lock_identity(lock.replace(VERSION, "0.0.1"))
+
+    def test_cache_transport_is_not_compiler_input(self):
+        action = "runs:\n  using: composite\n  steps:\n    - uses: dtolnay/rust-toolchain@sha\n      with:\n        toolchain: 1.99.1\n    - uses: actions/cache@sha\n      with:\n        key: old-cache\n"
+        self.assertEqual(compiler_action_recipe(action), compiler_action_recipe(action.replace("old-cache","new-cache")))
+        self.assertNotEqual(compiler_action_recipe(action), compiler_action_recipe(action.replace("1.99.1","1.99.2")))

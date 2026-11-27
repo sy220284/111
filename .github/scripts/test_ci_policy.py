@@ -14,7 +14,7 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(plan(["AGENTS.md"], force=True)["full"])
     def test_user_toolchain_distribution_does_not_trigger_build_or_release(self):
         for path in (".github/workflows/dev-toolchain.yml",".github/workflows/prepare-host-toolchain.yml",
-                     ".github/workflows/prepare-aux-toolchain.yml","tools/dev/ci_host.py","tools/dev/auxiliary.py"):
+                     ".github/workflows/prepare-aux-toolchain.yml","tools/dev/ci_host.py","tools/dev/auxiliary.py","tools/dev/new-user-tool.py","tools/dev/run-build-offline.sh"):
             self.assertFalse(plan([path])["full"],path)
             self.assertFalse(matches(path,"release"),path)
         for path in (".github/actions/ci-android/action.yml","tools/build/component-bundle.py","tools/runtime/runtime-lock.json"):
