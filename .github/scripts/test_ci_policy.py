@@ -5,7 +5,7 @@ from ci_policy import plan, maintenance_only, matches, changed
 
 class PolicyTests(unittest.TestCase):
     def test_unknown_is_full(self):
-        for path in ["new-file", "android-app/app/src/main/Main.kt", ".github/release-version", ".github/scripts/prepare-release-assets.sh", "docs/设计系统.md", "docs/ui-assets/a.svg", ".github/workflows/ci.yml", "upstream/codex/codex-rs/core/src/lib.rs"]:
+        for path in ["new-file", "android-app/app/src/main/Main.kt", ".github/release-version", "upstream/codex/codex-rs/core/src/lib.rs"]:
             self.assertTrue(plan([path])["full"])
     def test_only_known_maintenance_is_exempt(self):
         self.assertTrue(maintenance_only(["AGENTS.md", "README.md", "docs/普通说明.md"]))
@@ -17,7 +17,7 @@ class PolicyTests(unittest.TestCase):
                      ".github/workflows/prepare-aux-toolchain.yml","tools/dev/ci_host.py","tools/dev/auxiliary.py","tools/dev/new-user-tool.py","tools/dev/run-build-offline.sh"):
             self.assertFalse(plan([path])["full"],path)
             self.assertFalse(matches(path,"release"),path)
-        for path in (".github/actions/ci-android/action.yml","tools/build/component-bundle.py","tools/runtime/runtime-lock.json"):
+        for path in ("tools/runtime/runtime-lock.json","android-app/tools/prepare_android_v8.sh"):
             self.assertTrue(plan([path])["full"],path)
 
     def test_release_inputs(self):
@@ -30,10 +30,26 @@ class PolicyTests(unittest.TestCase):
         self.assertTrue(plan(["android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt"])["runtime"])
         self.assertFalse(plan(["AGENTS.md"])["runtime"])
 
-    def test_device_matrix_changes_require_real_core(self):
-        for path in ["android-app/tools/device-matrix.json", "android-app/tools/device_matrix.py", ".github/scripts/run-android-runtime-tests.sh"]:
-            self.assertTrue(plan([path])["runtime"])
-            self.assertTrue(plan([path])["full"])
+    def test_nonproduct_changes_only_run_basic_checks(self):
+        paths = ["docs/设计系统.md", "docs/ui-assets/a.svg", ".github/workflows/ci.yml",
+                 ".github/workflows/build-native-codex.yml", ".github/actions/ci-android/action.yml",
+                 ".github/scripts/prepare-release-assets.sh", ".github/scripts/ci_policy.py",
+                 ".github/ci/scope.json", "tools/build/component-bundle.py",
+                 "android-app/tools/device-matrix.json", "android-app/tools/device_matrix.py",
+                 ".github/scripts/run-android-runtime-tests.sh", "android-app/tools/check_architecture_boundaries.py",
+                 "android-app/tools/run_static_audit.py", "android-app/tools/test_run_static_audit.py",
+                 "android-app/app/src/androidTest/java/Test.kt", "android-app/app/src/test/java/Test.kt"]
+        for path in paths:
+            with self.subTest(path=path):
+                self.assertFalse(plan([path])["runtime"])
+                self.assertFalse(plan([path])["full"])
+        self.assertFalse(plan(paths)["full"])
+        self.assertTrue(plan(paths + ["android-app/app/src/main/Main.kt"])["full"])
+        self.assertTrue(plan(paths + ["upstream/codex/codex-rs/core/src/lib.rs"])["runtime"])
+        self.assertTrue(plan(paths, force=True)["full"])
+        self.assertTrue(plan(paths, runtime=True)["full"])
+        self.assertTrue(plan(["android-app/tools/prepare_android_remote_delivery.py"])["full"])
+        self.assertTrue(plan(["android-app/tools/developer_tool_launcher.c"])["full"])
 
     def test_security_boundary_changes_trigger_real_runtime(self):
         base = "android-app/app/src/main/java/io/github/sy220284/codexandroid/"

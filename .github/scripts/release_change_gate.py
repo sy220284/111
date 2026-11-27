@@ -6,7 +6,7 @@ import sys
 
 from select_native_artifacts import ArtifactSelector, SelectionError
 
-from ci_policy import matches
+from ci_policy import matches, maintenance_only
 
 
 def changes_apk_inputs(paths: list[str]) -> bool:
@@ -15,6 +15,8 @@ def changes_apk_inputs(paths: list[str]) -> bool:
 
 def should_release(changed_paths: list[str], base: str, head: str,
                    selector: ArtifactSelector) -> bool:
+    if maintenance_only(changed_paths):
+        return False
     if changes_apk_inputs(changed_paths):
         return True
     # Native recipe changes need release; workflow triggers, test files and
