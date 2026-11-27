@@ -1,7 +1,7 @@
 import unittest
 from pathlib import Path
 from unittest.mock import patch
-from ci_queue_policy import eligible, reconcile, pages, active_runs
+from ci_queue_policy import eligible, reconcile, pages, active_runs, cutover
 
 REPO = "o/r"
 OLD = "a"*40
@@ -72,6 +72,45 @@ class QueueTests(unittest.TestCase):
         def request(repo,path):
             return pr(state="closed") if path=="pulls/12" else run(sha=NEW)
         self.assertEqual([1],reconcile(REPO,None,request,lambda *x:[run(sha=NEW)]))
+
+    def test_explicit_main_cutover_cancels_old_ci_only(self):
+        control = dict(run(id=99, sha=NEW), head_branch="main", event="push",
+                       path=".github/workflows/reconcile-ci-queue.yml",
+                       created_at="2026-11-27T11:00:00Z")
+        old = dict(run(), created_at="2026-11-27T10:00:00Z", pull_requests=[])
+        rows = [
+            old, old, dict(old, id=2, event="push", head_branch="main"),
+            dict(old, id=3, event="workflow_dispatch"),
+            dict(old, id=4, head_sha=NEW),
+            dict(old, id=5, created_at="2026-11-27T11:00:01Z"),
+            dict(old, id=6, path=".github/workflows/release.yml"),
+            dict(old, id=7, head_repository={"full_name":"fork/r"}),
+            dict(old, id=8, status="completed"),
+        ]
+        live = {r["id"]:r for r in rows} | {99:control}
+        def request(repo, path):
+            if path == "git/ref/heads/main":
+                return {"object":{"sha":NEW}}
+            return live[int(path.rsplit("/",1)[1])]
+        calls=[]
+        self.assertEqual([1,2,3], cutover(REPO,NEW,99,request,lambda *x:rows,lambda *x:calls.append(x)))
+        self.assertEqual([], calls)
+        self.assertEqual([1,2,3], cutover(REPO,NEW,99,request,lambda *x:rows,lambda *x:calls.append(x),True))
+        self.assertEqual([(REPO,1),(REPO,2),(REPO,3)],calls)
+        live[99] = dict(control, head_sha=OLD)
+        with self.assertRaises(ValueError):
+            cutover(REPO,NEW,99,request,lambda *x:rows)
+        with self.assertRaises(ValueError):
+            cutover(REPO,OLD,99,request,lambda *x:rows)
+
+    def test_cutover_is_explicit_main_only_and_forces_full_acceptance(self):
+        root = Path(__file__).resolve().parents[2]
+        ci = (root / ".github/workflows/ci.yml").read_text()
+        queue = (root / ".github/workflows/reconcile-ci-queue.yml").read_text()
+        trigger = "github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '主线强制切换新版')"
+        self.assertIn("CI_FORCE: ${{ github.event_name == 'workflow_dispatch' || (" + trigger + ") }}",ci)
+        self.assertIn(trigger,queue)
+        self.assertIn('--cutover-sha "$CUTOVER_SHA" --cutover-run "$GITHUB_RUN_ID"',queue)
 
 if __name__ == "__main__":
     unittest.main()

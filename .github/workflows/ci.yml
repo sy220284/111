@@ -70,7 +70,7 @@ jobs:
           CI_REF: ${{ github.ref }}
           CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
-          CI_FORCE: ${{ github.event_name == 'workflow_dispatch' }}
+          CI_FORCE: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main' && startsWith(github.event.head_commit.message, '主线强制切换新版')) }}
           CI_RUNTIME: ${{ github.event_name == 'workflow_dispatch' && inputs.runtime_x86 }}
         run: |
           set -euo pipefail
