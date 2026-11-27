@@ -23,6 +23,13 @@ import java.util.Collections
 class UiMotionPerformanceInstrumentedTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
 
+    private data class FrameSample(
+        val intendedVsyncNs: Long,
+        val durationNs: Long,
+        val deadlineNs: Long,
+        val phasesNs: List<Long>,
+    )
+
     private fun findVisible(root: AccessibilityNodeInfo, label: String, clickable: Boolean, textOnly: Boolean): Rect? {
         val matches = root.isVisibleToUser && (root.text?.toString() == label ||
             (!textOnly && root.contentDescription?.toString() == label))
@@ -113,10 +120,11 @@ class UiMotionPerformanceInstrumentedTest {
     }
 
     @Test fun realNavigationFramesAndRepeatedGestures() {
-        val samples = Collections.synchronizedList(mutableListOf<Pair<Long, Long>>())
-        val phases = Collections.synchronizedList(mutableListOf<List<Long>>())
-        val navigationStage = java.util.concurrent.atomic.AtomicReference("startup")
-        val stageSamples = Collections.synchronizedList(mutableListOf<Pair<String, Long>>())
+        val samples = Collections.synchronizedList(mutableListOf<FrameSample>())
+        val stageStarts = mutableListOf<Pair<Long, String>>()
+        fun beginStage(stage: String) {
+            stageStarts.add(System.nanoTime() to stage)
+        }
         val phaseIds = listOf(FrameMetrics.INPUT_HANDLING_DURATION, FrameMetrics.ANIMATION_DURATION,
             FrameMetrics.LAYOUT_MEASURE_DURATION, FrameMetrics.DRAW_DURATION, FrameMetrics.SYNC_DURATION,
             FrameMetrics.COMMAND_ISSUE_DURATION, FrameMetrics.SWAP_BUFFERS_DURATION, FrameMetrics.GPU_DURATION)
@@ -127,9 +135,8 @@ class UiMotionPerformanceInstrumentedTest {
             val total = metrics.getMetric(FrameMetrics.TOTAL_DURATION)
             val deadline = metrics.getMetric(FrameMetrics.DEADLINE)
             if (total > 0) {
-                samples.add(total to deadline)
-                phases.add(phaseIds.map { metrics.getMetric(it) })
-                stageSamples.add(navigationStage.get() to total)
+                samples.add(FrameSample(metrics.getMetric(FrameMetrics.INTENDED_VSYNC_TIMESTAMP),
+                    total, deadline, phaseIds.map { metrics.getMetric(it) }))
             }
             lost.addAndGet(dropped)
         }
@@ -165,12 +172,12 @@ class UiMotionPerformanceInstrumentedTest {
                 attached = true
             }
             repeat(4) {
-                navigationStage.set("drawer_open")
+                beginStage("drawer_open")
                 physicalTap("打开侧边导航")
-                navigationStage.set("drawer_close_settings_entrance")
+                beginStage("drawer_close_settings_entrance")
                 physicalTap("设置")
                 waitForLabel("设置", textOnly = true)
-                navigationStage.set("settings_back_chat_entrance")
+                beginStage("settings_back_chat_entrance")
                 instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
                 Thread.sleep(650)
                 waitForLabel("打开侧边导航", clickable = true)
@@ -180,17 +187,17 @@ class UiMotionPerformanceInstrumentedTest {
                 TimelineItem("motion-history-$i", "agentMessage", "滚动阅读记录 $i", "completed", turnId = "motion-turn-$i")
             }
             val tail = TimelineItem("motion-tail", "agentMessage", "流式阶段末尾", "inProgress", turnId = "motion-live")
-            navigationStage.set("reply_stream_initial")
+            beginStage("reply_stream_initial")
             scenario.onActivity { (it.application as CodexApplication).session.timeline.value = history + tail }
             val tailRect = waitForLabel("流式阶段末尾", textOnly = true)
-            navigationStage.set("reply_scroll_drag")
+            beginStage("reply_scroll_drag")
             val distance = (tailRect.centerY() * .35f).coerceAtLeast(120f)
             physicalSwipe(tailRect.exactCenterX(), tailRect.exactCenterY() - distance, tailRect.exactCenterY() - 16f)
             waitForLabel("返回最新进度", clickable = true)
             val anchor = history.map { it.text }.firstNotNullOfOrNull { label ->
                 visibleLabel(label)?.let { label to it }
             } ?: error("长回复滚动后没有可见历史锚点")
-            navigationStage.set("reply_stream_while_reading")
+            beginStage("reply_stream_while_reading")
             repeat(10) { n ->
                 scenario.onActivity { (it.application as CodexApplication).session.timeline.value =
                     history + tail.copy(text = "流式阶段末尾 " + "新增内容 ".repeat(n + 1)) }
@@ -199,9 +206,9 @@ class UiMotionPerformanceInstrumentedTest {
             val after = waitForLabel(anchor.first, textOnly = true)
             assertTrue("实际滚动阅读位置偏移：" + anchor.second + " -> " + after,
                 kotlin.math.abs(after.top - anchor.second.top) <= 2)
-            navigationStage.set("reply_scroll_return")
+            beginStage("reply_scroll_return")
             physicalTap("返回最新进度")
-            navigationStage.set("reply_stream_finish")
+            beginStage("reply_stream_finish")
             scenario.onActivity { (it.application as CodexApplication).session.timeline.value =
                 history + tail.copy(text = "流式最终成果", status = "completed") }
             waitForLabel("流式最终成果", textOnly = true)
@@ -217,12 +224,14 @@ class UiMotionPerformanceInstrumentedTest {
             if (tracing) android.os.Debug.stopMethodTracing()
         }
         val frames = synchronized(samples) { samples.toList() }
-        val values = frames.map { it.first }
+        val values = frames.map { it.durationNs }
         val sorted = values.sorted()
         val p95 = if (sorted.isEmpty()) Double.POSITIVE_INFINITY else
             sorted[(kotlin.math.ceil(sorted.size * .95).toInt() - 1).coerceAtLeast(0)] / 1_000_000.0
         val budget = 1_000_000_000.0 / refreshRate
-        val missed = frames.count { (duration, deadline) -> duration > (if (deadline > 0) deadline.toDouble() else budget) }
+        val missed = frames.count { frame ->
+            frame.durationNs > (if (frame.deadlineNs > 0) frame.deadlineNs.toDouble() else budget)
+        }
         val verySlow = values.count { it > 100_000_000L }
         val report = JSONObject().put("scenario", "drawer_settings_back_4_rounds")
             .put("refresh_hz", refreshRate.toDouble()).put("frames", values.size)
@@ -230,21 +239,27 @@ class UiMotionPerformanceInstrumentedTest {
             .put("deadline_misses", missed).put("very_slow_frames", verySlow)
             .put("listener_dropped", lost.get())
             .put("p95_ms", if (p95.isFinite()) p95 else JSONObject.NULL)
-            .put("frame_ns", JSONArray(values)).put("deadline_ns", JSONArray(frames.map { it.second }))
+            .put("frame_ns", JSONArray(values)).put("deadline_ns", JSONArray(frames.map { it.deadlineNs }))
+            .put("intended_vsync_ns", JSONArray(frames.map { it.intendedVsyncNs }))
+            .put("stage_starts", JSONArray(stageStarts.map { (timestamp, stage) ->
+                JSONObject().put("time_ns", timestamp).put("stage", stage)
+            }))
         // Diagnose CPU/UI versus renderer costs without weakening the original gate.
-        val phaseSamples = synchronized(phases) { phases.toList() }
         val phaseReport = JSONObject()
         phaseNames.forEachIndexed { index, name ->
-            val sortedPhase = phaseSamples.map { it[index] }.filter { it >= 0 }.sorted()
+            val sortedPhase = frames.map { it.phasesNs[index] }.filter { it >= 0 }.sorted()
             if (sortedPhase.isNotEmpty()) phaseReport.put(name, JSONObject()
                 .put("samples", sortedPhase.size)
                 .put("p95_ms", sortedPhase[(kotlin.math.ceil(sortedPhase.size * .95).toInt() - 1).coerceAtLeast(0)] / 1_000_000.0))
         }
         report.put("phase_metrics", phaseReport)
-        // Callback-time stage labels are diagnostic only. All frames still
-        // determine the original, unchanged overall performance gate.
+        // A slow frame can finish after the next gesture begins. Attribute it
+        // by its intended vsync on the same monotonic clock as the stage markers.
         val stageReport = JSONObject()
-        synchronized(stageSamples) { stageSamples.toList() }.groupBy({ it.first }, { it.second })
+        frames.groupBy({ frame ->
+            stageStarts.lastOrNull { (timestamp, _) -> timestamp <= frame.intendedVsyncNs }?.second
+                ?: "startup"
+        }, FrameSample::durationNs)
             .forEach { (stage, durations) ->
                 val ordered = durations.sorted()
                 stageReport.put(stage, JSONObject()
@@ -254,12 +269,12 @@ class UiMotionPerformanceInstrumentedTest {
             }
         report.put("navigation_stage_metrics", stageReport)
         report.put("long_reply_scroll_anchor_verified", true)
+        val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+        File(folder, "ui-motion-performance.json").writeText(report.toString(2))
         for (stage in listOf("reply_scroll_drag", "reply_scroll_return")) {
             val measured = stageReport.optJSONObject(stage)
             assertTrue("缺少长回复实际动效帧：" + stage, measured != null && measured.optInt("frames") > 0)
         }
-        val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
-        File(folder, "ui-motion-performance.json").writeText(report.toString(2))
         InstrumentationRegistry.getArguments().getString("expectedRenderer")?.let { expected ->
             assertTrue("Unexpected actual renderer: $report", expected in rendererPipelines)
         }

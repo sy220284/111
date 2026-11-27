@@ -29,9 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
@@ -65,34 +64,21 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         if (reducedMotion) progress.snapTo(1f)
         else progress.animateTo(1f, tween(CodexMotion.navigation))
     }
-    val moving by remember(progress, reducedMotion) {
-        derivedStateOf { !reducedMotion && progress.value < 1f }
-    }
     val canvas = Ink.canvas
-    val entrance = if (moving) Modifier.graphicsLayer {
-        // Rasterize the page once while translating it. A display list alone
-        // still rerasterizes every glyph and card at each animation frame.
-        // Drop the texture when the route settles; content invalidations still
-        // redraw the layer, so a streaming reply never becomes a stale bitmap.
-        compositingStrategy = CompositingStrategy.Offscreen
-        translationY = 6.dp.toPx() * (1f - progress.value)
-    } else Modifier
-    // Keep the original veil and translation; draw the translucent rectangle
-    // directly in its own draw node instead of allocating a screen-sized alpha layer.
-    // Draw-phase progress invalidates only this sibling. Release it at rest.
-    Box(Modifier.fillMaxSize().clipToBounds()) {
-        Box(Modifier.fillMaxSize().then(entrance)) { content() }
-        if (moving) {
-            Box(Modifier.matchParentSize().drawBehind {
-                drawRect(canvas, alpha = .06f * (1f - progress.value))
-            })
+    Box(Modifier.fillMaxSize().clipToBounds().drawWithContent {
+        drawContent()
+        val remaining = if (reducedMotion) 0f else 1f - progress.value
+        if (remaining > 0f) drawRect(canvas, alpha = .06f * remaining)
+    }) {
+        // Update only the native layer transform. The veil is a separate draw
+        // operation, so translating the page needs no full-size alpha buffer.
+        Box(Modifier.fillMaxSize().graphicsLayer {
+            translationY = if (reducedMotion) 0f else 6.dp.toPx() * (1f - progress.value)
+        }) {
+            content()
         }
     }
 }
-
-/** Cache stable content only while the drawer is covering/moving over it. */
-internal fun Modifier.codexDrawerRaster(active: Boolean): Modifier =
-    if (active) graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen } else this
 
 /** State-driven reveal, never a perpetual decorative animation. */
 @Composable

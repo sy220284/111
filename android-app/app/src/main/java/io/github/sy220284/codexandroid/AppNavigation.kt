@@ -300,7 +300,6 @@ fun CodexShell(vm: CodexViewModel) {
         val content: @Composable () -> Unit = {
             Scaffold(
                 modifier = Modifier.testTag("work-shell")
-                    .codexDrawerRaster(drawerOwnsInput)
                     .pageHorizontalSwipe(!drawerOwnsInput, canSwipeOpenDrawer, ::openDrawer),
                 containerColor = Color.Transparent,
                 contentWindowInsets = WindowInsets.safeDrawing,
@@ -413,7 +412,7 @@ fun CodexShell(vm: CodexViewModel) {
                     drawerContentColor = Ink.parchment
                 ) {
                     // Retain drawer geometry while closed, but do not run its list or data collectors.
-                    Box(Modifier.fillMaxWidth().fillMaxHeight().codexDrawerRaster(drawerOwnsInput)) {
+                    Box(Modifier.fillMaxWidth().fillMaxHeight()) {
                         if (drawerOwnsInput) Sidebar(Modifier.fillMaxHeight(), selected,
                     { id ->
                         if (id == "status") {
