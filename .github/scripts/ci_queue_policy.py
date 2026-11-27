@@ -1,95 +1,68 @@
 #!/usr/bin/env python3
-"""Cancel only superseded, idle PR acceptance; preserve current and running work."""
+"""Cancel only CI belonging to the exact same obsolete or closed same-repo PR."""
 import argparse
-import json
-import re
+import subprocess
+from retain_check_artifacts import active_runs, api, gh
 
-WAITING = {"queued", "pending", "waiting", "requested"}
-CI = ".github/workflows/ci.yml"
-UNFINISHED = WAITING | {"in_progress"}
+UNFINISHED = {"queued", "pending", "waiting", "requested", "in_progress"}
 
-
-def own_run(repo, run):
-    return (run.get("event") == "pull_request"
-            and (run.get("head_repository") or {}).get("full_name") == repo
-            and run.get("path", "").split("@", 1)[0] == CI)
-
-
-def eligible(repo, run, pr, newer, jobs):
+def eligible(repo, run, pr):
     head = pr["head"]
-    if (pr.get("state") != "open" or pr["base"]["ref"] != "main"
-        or (head.get("repo") or {}).get("full_name") != repo
-        or not own_run(repo, run) or not own_run(repo, newer)
-        or run.get("status") not in UNFINISHED
-        or run.get("head_branch") != head["ref"] or newer.get("head_branch") != head["ref"]
-        or newer.get("head_sha") != head["sha"] or run.get("head_sha") == head["sha"]
-        or newer["id"] <= run["id"]
-        or newer.get("status") not in WAITING | {"in_progress", "completed"}
-        or {p["number"] for p in run.get("pull_requests", [])} != {pr["number"]}
-        or {p["number"] for p in newer.get("pull_requests", [])} != {pr["number"]}):
-        return False
-    # An overall "queued" run can actually have active native or device jobs.
-    # Completed evidence is left intact; a running or unknown job blocks cancellation.
-    return (bool(jobs) or run.get("status") in WAITING) and all(
-        j.get("status") in WAITING | {"completed"} for j in jobs)
+    return ((head.get("repo") or {}).get("full_name") == repo
+            and run.get("event") == "pull_request"
+            and (run.get("head_repository") or {}).get("full_name") == repo
+            and run.get("path", "").split("@", 1)[0] == ".github/workflows/ci.yml"
+            and run.get("status") in UNFINISHED
+            and run.get("head_branch") == head["ref"]
+            and {p["number"] for p in run.get("pull_requests", [])} == {pr["number"]}
+            and (pr["state"] == "closed" or
+                 pr["state"] == "open" and run.get("head_sha") != head["sha"]))
 
-
-def reconcile(repo, pr_number, api, pages, cancel, apply=False):
-    pr = api(repo, f"pulls/{pr_number}")
-    if pr.get("state") != "open" or (pr["head"].get("repo") or {}).get("full_name") != repo:
+def reconcile(repo, number, request=api, active=active_runs, cancel=None, apply=False):
+    pr = request(repo, f"pulls/{number}") if number else None
+    if pr and (pr["head"].get("repo") or {}).get("full_name") != repo:
         return []
-    from urllib.parse import quote
-    branch = quote(pr["head"]["ref"], safe="")
-    rows = list(pages(repo, f"actions/workflows/ci.yml/runs?branch={branch}&event=pull_request", "workflow_runs"))
-    latest = [r for r in rows if own_run(repo, r) and r.get("head_sha") == pr["head"]["sha"]
-              and {p["number"] for p in r.get("pull_requests", [])} == {pr_number}]
-    if not latest:
-        return []
-    newer = max(latest, key=lambda r:r["id"])
     selected = []
-    for old in rows:
-        # In-progress run metadata alone cannot establish whether it occupies a Runner.
-        # Defer eligibility until its live job index has been read.
-        if not eligible(repo, old, pr, newer, [{"status": "queued"}]):
+    seen = set()
+    for run in active(repo, pr["head"]["ref"] if pr else None):
+        rid = run["id"]
+        if rid in seen:
             continue
-        # PR identity + current head determine obsolescence, including rebase/force-push.
-        if not all(re.fullmatch("[0-9a-f]{40}", r.get("head_sha", "")) for r in (old, newer)):
+        seen.add(rid)
+        if run.get("event") != "pull_request" or run.get("path", "").split("@", 1)[0] != ".github/workflows/ci.yml":
             continue
-        current = api(repo,f"actions/runs/{old['id']}")
-        candidate = api(repo,f"actions/runs/{newer['id']}")
-        jobs = list(pages(repo,f"actions/runs/{old['id']}/jobs?filter=all","jobs"))
-        live_pr = api(repo,f"pulls/{pr_number}")
-        if not eligible(repo,current,live_pr,candidate,jobs):
+        prs = run.get("pull_requests", [])
+        if len(prs) != 1 or number and prs[0]["number"] != number:
+            continue
+        n = prs[0]["number"]
+        candidate = request(repo, f"pulls/{n}")
+        if not eligible(repo, run, candidate):
+            continue
+        live = request(repo, f"actions/runs/{rid}")
+        candidate = request(repo, f"pulls/{n}")
+        if not eligible(repo, live, candidate):
             continue
         if apply:
-            # Refresh the run after the job and head checks to narrow the
-            # unavoidable REST cancellation race. No force-cancel is used.
-            latest_run=api(repo,f"actions/runs/{old['id']}")
-            if latest_run.get("status") not in UNFINISHED or latest_run.get("run_attempt") != current.get("run_attempt"):
+            try:
+                cancel(repo, rid)
+            except subprocess.CalledProcessError:
+                # Cancellation can race natural completion. Any still-active error is real.
+                if request(repo, f"actions/runs/{rid}").get("status") != "completed":
+                    raise
                 continue
-            final_jobs = list(pages(repo,f"actions/runs/{old['id']}/jobs?filter=all","jobs"))
-            final_pr = api(repo,f"pulls/{pr_number}")
-            if not eligible(repo,latest_run,final_pr,candidate,final_jobs):
-                continue
-            cancel(repo,old["id"])
-        selected.append(old["id"])
+        selected.append(rid)
     return selected
 
-
 def main():
-    from retain_check_artifacts import api, pages, gh
-    p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument("--repo",required=True)
-    p.add_argument("--pr",type=int)
-    p.add_argument("--apply",action="store_true")
-    a=p.parse_args()
-    prs=[a.pr] if a.pr else [x["number"] for x in pages(a.repo,"pulls?state=open")]
+    p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument("--repo", required=True)
+    p.add_argument("--pr", type=int)
+    p.add_argument("--apply", action="store_true")
+    a = p.parse_args()
     def cancel(repo, rid):
-        gh("api","--method","POST",f"repos/{repo}/actions/runs/{rid}/cancel")
-    for number in prs:
-        ids=reconcile(a.repo,number,api,pages,cancel,a.apply)
-        print(json.dumps({"pr":number,"mode":"cancel_requested" if a.apply else "dry_run","runs":ids}))
-
+        gh("api", "--method", "POST", f"repos/{repo}/actions/runs/{rid}/cancel")
+    ids = reconcile(a.repo, a.pr, cancel=cancel, apply=a.apply)
+    print(f"{'已请求取消' if a.apply else '待取消'} {len(ids)} 个过期验收：{ids}", flush=True)
 
 if __name__ == "__main__":
     main()

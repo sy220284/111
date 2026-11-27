@@ -10,13 +10,13 @@ import subprocess
 import tempfile
 from urllib.parse import urlencode
 from host_components import api, complete_index, download_artifact, install, environment, timestamp, require, JOB_NAMES, GROUPS
-from build_recipe import normalize
+from build_recipe import job_recipe
 
 WORKFLOWS = {".github/workflows/dev-toolchain.yml", ".github/workflows/ci.yml",
              ".github/workflows/build-native-codex.yml", ".github/workflows/release.yml"}
-RECIPE = (".github/workflows/prepare-host-toolchain.yml", ".github/actions/install-host-toolchain",
-          "tools/dev/ci_host.py", "tools/dev/component-bundle.py", "tools/dev/host_components.py",
-          "tools/dev/toolchain-lock.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py", "tools/dev/transfer_progress.py", "tools/dev/build_recipe.py")
+# Keep actual production and verification inputs, not download/monitoring consumers.
+RECIPE = ("tools/dev/component-bundle.py", "tools/dev/host_components.py",
+          "tools/dev/toolchain-lock.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py")
 HEX = re.compile(r"[0-9a-f]{64}")
 SHA = re.compile(r"[0-9a-f]{40}")
 
@@ -29,14 +29,13 @@ def key(group, source="HEAD"):
     if group == "android":
         paths += ["android-app"]
     elif group == "rust":
-        paths += ["upstream/codex/codex-rs", ".github/workflows/build-native-codex.yml", "android-app/tools/prepare_android_mxc.py"]
+        paths += ["upstream/codex/codex-rs", "upstream/codex/.cargo", "android-app/tools/prepare_android_mxc.py"]
     else:
-        paths += [".github/workflows/prepare-aux-toolchain.yml", "tools/dev/auxiliary.py", "tools/dev/run-emulator.sh", ".github/actions/run-emulator", "tools/dev/requirements-host.lock"]
+        paths += ["tools/dev/auxiliary.py"]
         if group=="wheelhouse":
-            paths += ["android-app/tools/requirements-ui-visual.txt","upstream/codex/.github/actions/publish-dotslash/requirements.txt"]
-        if group=="emulator": paths += ["android-app/tools/device-matrix.json","android-app/tools/device_matrix.py"]
+            paths += ["tools/dev/requirements-host.lock","android-app/tools/requirements-ui-visual.txt","upstream/codex/.github/actions/publish-dotslash/requirements.txt"]
+        if group=="emulator": paths += ["android-app/tools/device-matrix.json","android-app/tools/device_matrix.py","tools/dev/run-emulator.sh",".github/actions/run-emulator"]
         if group=="patcher": paths += [".github/scripts/prepare-android-patcher.sh",".github/scripts/create-android-update-fixture.sh"]
-        if group=="llvm": paths += ["android-app/tools/prepare_android_v8.sh"]
     raw=subprocess.check_output(["git","ls-tree","-r","-z",source,"--",*paths])
     result=[]
     for row in raw.split(b"\0"):
@@ -46,17 +45,17 @@ def key(group, source="HEAD"):
         name=pathlib.PurePosixPath(path).name
         common=not path.startswith(("android-app/","upstream/codex/codex-rs/"))
         android=group=="android" and ("/gradle/" in path or name.endswith((".gradle",".gradle.kts")) or
-            name in ("gradle.properties","gradle.lockfile","settings.gradle.kts","libs.versions.toml","gradlew") or "/buildSrc/" in path)
+            name in ("gradle.properties","gradle.lockfile","settings.gradle.kts","libs.versions.toml","gradlew","gradlew.bat") or "/buildSrc/" in path)
         rust=group=="rust" and (name in ("Cargo.toml","Cargo.lock","rust-toolchain","rust-toolchain.toml") or
             "/.cargo/" in path or path.endswith("prepare_android_mxc.py"))
         aux=group not in ("android","rust") and (path.startswith("android-app/tools/") or
             (group=="wheelhouse" and path=="upstream/codex/.github/actions/publish-dotslash/requirements.txt"))
         if common and not path.startswith("upstream/codex/") or android or rust or aux:
-            if path.startswith(".github/workflows/") and path.endswith(".yml"):
-                meta = "workflow:" + hashlib.sha256(normalize(git("show", f"{source}:{path}")).encode()).hexdigest()
             result.append([path,meta])
     require(result,"no fingerprint inputs")
-    return hashlib.sha256(json.dumps([group,"linux-x86_64-ubuntu-24.04",sorted(result)],separators=(",",":")).encode()).hexdigest()
+    workflow = ".github/workflows/prepare-host-toolchain.yml" if group in ("android", "rust") else ".github/workflows/prepare-aux-toolchain.yml"
+    producer = job_recipe(git("show", f"{source}:{workflow}"), group if group in ("android", "rust") else "prepare")
+    return hashlib.sha256(json.dumps([group,"linux-x86_64-ubuntu-24.04",producer,sorted(result)],separators=(",",":")).encode()).hexdigest()
 
 def names(group, fingerprint):
     return ["111-toolchain-"+n for n in GROUPS[group]]+["111-toolchain-"+group+"-manifest-pins-"+fingerprint]

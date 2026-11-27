@@ -73,6 +73,32 @@ class V8ArtifactsTests(unittest.TestCase):
             self.assertFalse(check(r=dict(run,head_repository={"full_name":"fork/r"})))
             self.assertFalse(check(ancestor=False))
 
+    def test_recovered_artifact_has_same_strict_direct_producer_contract(self):
+        at="2026-11-26T08:00:00Z"
+        artifact={"name":"v8-recovery-"+KEY,"id":3,"expired":False,"digest":"sha256:"+"1"*64,
+                  "size_in_bytes":100,"created_at":at,"workflow_run":{"id":12}}
+        run={"head_repository":{"full_name":"o/r"},"path":".github/workflows/ci.yml","event":"pull_request",
+             "head_sha":SOURCE,"run_attempt":1,"status":"completed"}
+        job={"name":"native / 编译 arm64-v8a 核心","head_sha":SOURCE,"run_attempt":1,
+             "status":"completed","conclusion":"success","started_at":at,"completed_at":at,
+             "steps":[{"name":"从固定官方源码重建并核验 V8 产物","conclusion":"success"}]}
+        def check(j):
+            def api(repo,path):
+                return run if path.endswith("/12") else {"total_count":1,"jobs":[j]}
+            return direct_producer("o/r",artifact,TARGET,KEY,SOURCE,api,lambda *x:True,lambda *x:KEY)
+        with patch.dict(os.environ,{"GITHUB_RUN_ID":"0"}):
+            self.assertTrue(check(job))
+            self.assertFalse(check(dict(job,conclusion="failure")))
+            self.assertFalse(check(dict(job,steps=[{"name":"从固定官方源码重建并核验 V8 产物","conclusion":"skipped"}])))
+
+    def test_restore_checks_recovery_if_original_missing(self):
+        with tempfile.TemporaryDirectory() as d, \
+             patch("v8_artifacts.api", side_effect=[{"artifacts":[]},{"artifacts":[{"id":7,"workflow_run":{"id":12}}]}]), \
+             patch("v8_artifacts.direct_producer", return_value=True), \
+             patch("v8_artifacts.download_verified") as download:
+            self.assertTrue(restore("o/r",TARGET,SOURCE,Path(d)/"result",KEY,b"inputs"))
+            self.assertEqual(download.call_count,1)
+
     def test_v8_recipe_is_independent_of_core(self):
         workflow="jobs:\n  v8:\n    steps: compile\n  native:\n    steps: core\n"
         self.assertEqual(producer_recipe(workflow),producer_recipe(workflow.replace("steps: core","steps: changed")))

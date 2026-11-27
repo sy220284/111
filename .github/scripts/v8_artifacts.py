@@ -15,7 +15,7 @@ from datetime import datetime
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/dev'))
 from transfer_progress import download, TransferUnavailable
-from build_recipe import normalize
+from build_recipe import job_recipe
 
 TARGETS = {"aarch64-linux-android": ("arm64-v8a", "arm64"),
            "x86_64-linux-android": ("x86_64", "x64")}
@@ -27,10 +27,9 @@ INPUTS = ("android-app/tools/prepare_android_v8.sh",
           "android-app/tools/v8_toolchain_provenance.py",
           "upstream/codex/codex-rs/Cargo.lock",
           "tools/dev/toolchain-lock.json")
-KEY_INPUTS = (*INPUTS, ".github/actions/install-host-toolchain/action.yml",
-              ".github/workflows/prepare-host-toolchain.yml",
-              ".github/workflows/prepare-aux-toolchain.yml", "tools/dev/ci_host.py",
-              "tools/dev/auxiliary.py")
+# Actual V8 source/lock and production recipe; transfer and watchdog code is not a compiler input.
+KEY_INPUTS = (*INPUTS, "tools/dev/auxiliary.py", "tools/dev/component-bundle.py",
+              "tools/dev/host_components.py", "tools/dev/run-without-network.sh")
 PRODUCER = ".github/scripts/v8_artifacts.py"
 LIMIT = 3 * 1024**3
 
@@ -40,22 +39,20 @@ def git(*args):
 
 
 def producer_recipe(workflow):
-    marker = "\n  v8:\n"
-    if marker not in workflow:
-        raise ValueError("Missing independent V8 producer")
-    job = re.split(r"(?m)^  [a-z][a-z0-9-]*:\s*$", workflow.split(marker,1)[1], maxsplit=1)[0]
-    # Only the producer environment and step recipe affect the produced bytes.
-    return normalize("\n".join(line for line in job.splitlines() if not re.match(r"^    (?:name|needs|if):", line)))
+    return job_recipe(workflow, "v8")
 
 
 def key(target, sha="HEAD"):
     if target not in TARGETS:
         raise ValueError("Unsupported V8 target")
     recipe = producer_recipe(git("show", f"{sha}:{WORKFLOW}"))
-    inputs = [hashlib.sha256(normalize(git("show", f"{sha}:{p}")).encode()).hexdigest()
-              if p.endswith(".yml") else git("rev-parse", f"{sha}:{p}")
-              for p in (*KEY_INPUTS, PRODUCER, "tools/dev/build_recipe.py", "tools/dev/transfer_progress.py", "tools/dev/build_progress.py")]
-    return hashlib.sha256(json.dumps([target, recipe, inputs], separators=(",",":")).encode()).hexdigest()
+    # The host production recipes remain part of the input contract; unrelated
+    # consumer code, transport budgets and other workflow jobs do not.
+    host = git("show", f"{sha}:.github/workflows/prepare-host-toolchain.yml")
+    aux = git("show", f"{sha}:.github/workflows/prepare-aux-toolchain.yml")
+    inputs = [git("rev-parse", f"{sha}:{p}") for p in KEY_INPUTS]
+    return hashlib.sha256(json.dumps([target, recipe, job_recipe(host,"android"),
+        job_recipe(host,"rust"), job_recipe(aux,"prepare"), inputs], separators=(",",":")).encode()).hexdigest()
 
 
 def names(target):
@@ -163,7 +160,7 @@ def direct_producer(repo, artifact, target, expected_key, source, api_call=api, 
             if status not in (0,1):
                 raise ValueError("Cannot establish V8 source ancestry")
             return status == 0
-    if (artifact.get("expired") or artifact.get("name") != "v8-binary-"+expected_key
+    if (artifact.get("expired") or artifact.get("name") not in ("v8-binary-"+expected_key, "v8-recovery-"+expected_key)
         or not re.fullmatch(r"sha256:[0-9a-f]{64}",artifact.get("digest") or "")
         or type(artifact.get("id")) is not int or not 0 < artifact.get("size_in_bytes",0) <= LIMIT):
         return False
@@ -182,11 +179,14 @@ def direct_producer(repo, artifact, target, expected_key, source, api_call=api, 
     response = api_call(repo,f"actions/runs/{rid}/attempts/{attempt}/jobs?per_page=100")
     if response["total_count"] > len(response["jobs"]):
         raise ValueError("Incomplete V8 job index")
+    recovery = artifact["name"].startswith("v8-recovery-")
+    job_name = ("编译 "+TARGETS[target][0]+" 核心") if recovery else ("V8 官方源码产物 · "+TARGETS[target][0])
+    step_name = "从固定官方源码重建并核验 V8 产物" if recovery else "从官方源码编译 V8"
     matches = [j for j in response["jobs"]
-               if j.get("name","").rsplit(" / ",1)[-1] == "V8 官方源码产物 · "+TARGETS[target][0]
+               if j.get("name","").rsplit(" / ",1)[-1] == job_name
                and j.get("head_sha") == old and j.get("run_attempt") == attempt
                and j.get("status") == "completed" and j.get("conclusion") == "success"
-               and any(s.get("name") == "从官方源码编译 V8" and s.get("conclusion") == "success"
+               and any(s.get("name") == step_name and s.get("conclusion") == "success"
                        for s in j.get("steps",[]))]
     return len(matches) == 1 and timestamp(matches[0]["started_at"]) <= timestamp(artifact["created_at"]) <= timestamp(matches[0]["completed_at"])
 
@@ -229,27 +229,28 @@ def restore(repo,target,source,folder,expected_key,expected):
     # Query immutable indexed artifacts; only original successful source
     # producers qualify, even while other jobs in that workflow are running.
     rejected = 0
-    for page in range(1,11):
-        response=api(repo,f"actions/artifacts?name=v8-binary-{expected_key}&per_page=100&page={page}")
-        rows=response["artifacts"]
-        for artifact in rows:
-            if not direct_producer(repo,artifact,target,expected_key,source):
-                continue
-            try:
-                download_verified(repo, artifact, folder, target, expected)
-            except (ValueError, zipfile.BadZipFile, TransferUnavailable) as exc:
-                # An invalid or unavailable immutable ID is excluded locally.
-                # Never delete a shared artifact while other jobs may read it.
-                rejected += 1
-                print(f"::warning::Rejected V8 artifact {artifact['id']}: {exc}", flush=True)
-                if rejected >= 2:
-                    return False
-                continue
-            print(f"Verified V8 source artifact {artifact['id']} from run {artifact['workflow_run']['id']}")
-            return True
-        if len(rows)<100:
-            return False
-    raise ValueError("V8 index exceeds safe scan limit")
+    for prefix in ("v8-binary-", "v8-recovery-"):
+        for page in range(1, 11):
+            response = api(repo, f"actions/artifacts?name={prefix}{expected_key}&per_page=100&page={page}")
+            rows = response["artifacts"]
+            for artifact in rows:
+                if not direct_producer(repo, artifact, target, expected_key, source):
+                    continue
+                try:
+                    download_verified(repo, artifact, folder, target, expected)
+                except (ValueError, zipfile.BadZipFile, TransferUnavailable) as exc:
+                    rejected += 1
+                    print(f"::warning::Rejected V8 artifact {artifact['id']}: {exc}", flush=True)
+                    if rejected >= 2:
+                        return False
+                    continue
+                print(f"Verified V8 artifact {artifact['id']} from run {artifact['workflow_run']['id']}")
+                return True
+            if len(rows) < 100:
+                break
+        else:
+            raise ValueError("V8 index exceeds safe scan limit")
+    return False
 
 
 def main():
