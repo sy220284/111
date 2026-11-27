@@ -712,3 +712,5 @@
 - V8 开始源码工作前核验真实使用的独立 LLVM、libclang、ninja 和 pkg-config，记录版本、组件包清单与字节摘要；来源凭证取自已验证组件，不查询消费宿主的 dpkg 安装状态。辅助来源脚本加入构建输入指纹。
 
 - MCP 隔离宿主的 HTTPS baseUrl 与 historyUrl 同为固定可信页；按精确页面完成回执转交 MessagePort，避免空 historyUrl 被 Chromium 记为 about:blank 后握手失联。真实 WebView 回归同时检查页面身份、父页/存储/网络隔离及原生往返。长回复设备回归须等待后台投影真正呈现，并定位 LazyColumn 自身语义节点后执行真实触控与阅读锚点断言。
+
+- MCP 原生端口首次转交使用每页独立随机令牌及精确目标来源；只有可信父页通过令牌且收到唯一端口后才创建不透明源 iframe，避免依赖合成 MessageEvent.source 的平台表现。iframe消息继续核对真实窗口及null源。设备用例保留有界控制台和引导确认诊断，生产不记录应用脚本内容。

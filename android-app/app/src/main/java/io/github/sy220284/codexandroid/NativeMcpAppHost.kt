@@ -27,7 +27,8 @@ internal object McpAppSandbox {
     const val PAGE = HOST + "/"
     const val VIEW = "https://111-mcp-app.invalid/view"
     const val CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
-    fun shell(source: String): String {
+    fun shell(source: String, bootstrap: String): String {
+        require(bootstrap.matches(Regex("111-native-port:[0-9a-f-]{36}")))
         val protected = "<!doctype html><meta http-equiv=\"Content-Security-Policy\" content=\"$CSP\">" + source
         val encoded = android.util.Base64.encodeToString(protected.toByteArray(Charsets.UTF_8), android.util.Base64.NO_WRAP)
         return """
@@ -38,8 +39,9 @@ internal object McpAppSandbox {
 "use strict";
 let port, frame;
 window.addEventListener("message", e => {
- if (!port && e.data === "111-native-port" && e.ports.length === 1 && e.source === null) {
+ if (!port && !frame && e.data === "$bootstrap" && e.ports.length === 1) {
    port=e.ports[0];
+   port.postMessage("111-bootstrap-connected:$bootstrap");
    frame=document.createElement("iframe");
    frame.setAttribute("sandbox","allow-scripts");
    port.onmessage=msg=>{try {frame.contentWindow.postMessage(JSON.parse(msg.data),"*");}catch(_){}};
@@ -58,8 +60,13 @@ window.addEventListener("message", e => {
 
     /** A shared real WebView entry point for production and instrumented isolation tests. */
     fun attach(view: WebView, source: String, owns: () -> Boolean,
-        connected: (WebMessagePort) -> Unit, receive: (String) -> Unit) {
+        connected: (WebMessagePort) -> Unit, receive: (String) -> Unit,
+        diagnostics: ((String) -> Unit)? = null) {
         var attached = false
+        // Authenticate the one-time transfer to this trusted document without
+        // depending on WebView's synthetic MessageEvent.source representation.
+        // Untrusted HTML is not instantiated until this transfer succeeds.
+        val bootstrap = "111-native-port:" + java.util.UUID.randomUUID()
         view.settings.apply {
             javaScriptEnabled = true
             allowFileAccess = false
@@ -73,6 +80,10 @@ window.addEventListener("message", e => {
         }
         view.webChromeClient = object : WebChromeClient() {
             override fun onPermissionRequest(request: PermissionRequest) { request.deny() }
+            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                diagnostics?.invoke("${message.messageLevel()}:${message.lineNumber()}:" + message.message().take(512))
+                return if (diagnostics != null) true else super.onConsoleMessage(message)
+            }
         }
         view.webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse = denied()
@@ -84,17 +95,19 @@ window.addEventListener("message", e => {
                 val pair = view.createWebMessageChannel()
                 pair[0].setWebMessageCallback(object : WebMessagePort.WebMessageCallback() {
                     override fun onMessage(port: WebMessagePort, message: WebMessage) {
-                        if (owns()) receive(message.data.orEmpty())
+                        if (!owns()) return
+                        if (message.data == "111-bootstrap-connected:$bootstrap") diagnostics?.invoke("bootstrap-connected")
+                        else receive(message.data.orEmpty())
                     }
                 })
                 connected(pair[0])
-                view.postWebMessage(WebMessage("111-native-port", arrayOf(pair[1])), Uri.parse(HOST))
+                view.postWebMessage(WebMessage(bootstrap, arrayOf(pair[1])), Uri.parse(HOST))
             }
         }
         // Chromium uses about:blank as the visible/callback URL when historyUrl is
         // null, even with an HTTPS base origin. Bind both to the trusted shell so
         // onPageFinished can authenticate it before transferring the native port.
-        view.loadDataWithBaseURL(PAGE, shell(source), "text/html", "UTF-8", PAGE)
+        view.loadDataWithBaseURL(PAGE, shell(source, bootstrap), "text/html", "UTF-8", PAGE)
     }
 
 }

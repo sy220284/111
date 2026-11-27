@@ -77,6 +77,7 @@ class CodexInteractionComponentsInstrumentedTest {
         val view = java.util.concurrent.atomic.AtomicReference<android.webkit.WebView>()
         val receipt = java.util.concurrent.atomic.AtomicReference<org.json.JSONObject>()
         val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+        val diagnostics = java.util.concurrent.ConcurrentLinkedQueue<String>()
         val html = """
             <!doctype html><script>
             (async function(){
@@ -92,6 +93,9 @@ class CodexInteractionComponentsInstrumentedTest {
             })();
             </script>
         """.trimIndent()
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            McpAppSandbox.shell(html, "invalid-bootstrap-token")
+        }
         try {
             rule.setContent {
                 androidx.compose.ui.viewinterop.AndroidView(factory = { context ->
@@ -110,7 +114,7 @@ class CodexInteractionComponentsInstrumentedTest {
                                 }
                                 "test/ack" -> finished.set(true)
                             }
-                        })
+                        }, diagnostics = { if (diagnostics.size < 32) diagnostics.add(it) })
                     }
                 })
             }
@@ -120,9 +124,10 @@ class CodexInteractionComponentsInstrumentedTest {
                 var page: String? = null
                 rule.runOnIdle { page = view.get()?.url }
                 throw AssertionError("MCP 往返未完成：page=$page, nativePort=${port.get() != null}, " +
-                    "isolationReceipt=${receipt.get() != null}", timeout)
+                    "isolationReceipt=${receipt.get() != null}, diagnostics=${diagnostics.joinToString(" | ")}", timeout)
             }
             val isolated = requireNotNull(receipt.get())
+            org.junit.Assert.assertTrue(diagnostics.contains("bootstrap-connected"))
             org.junit.Assert.assertTrue(isolated.getBoolean("parentDenied"))
             org.junit.Assert.assertTrue(isolated.getBoolean("storageDenied"))
             org.junit.Assert.assertTrue(isolated.getBoolean("networkDenied"))
