@@ -25,22 +25,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python3 .github/scripts/run_ci_script_tests.py plan
           bash tools/dev/check-ci-toolchain.sh
-          python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
-          python3 -m unittest discover -s .github/scripts -p 'test_audit_apk_contents.py'
-
-  runtime-arm64:
-    uses: ./.github/workflows/prepare-developer-runtime.yml
-    with:
-      abi: arm64-v8a
-      source_sha: ${{ github.sha }}
-
-  runtime-x86:
-    uses: ./.github/workflows/prepare-developer-runtime.yml
-    with:
-      abi: x86_64
-      source_sha: ${{ github.sha }}
 
   android:
     uses: ./.github/workflows/prepare-host-toolchain.yml

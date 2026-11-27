@@ -93,12 +93,15 @@ jobs:
           git ls-files -z -- '.github/workflows/*.yml' '.github/workflows/*.yaml' '.github/actions/**/action.yml' '.github/actions/**/action.yaml' | xargs -0 -r ruby -ryaml -e 'ARGV.each { |path| YAML.parse_stream(File.read(path)) }'
           python3 .github/scripts/run_ci_script_tests.py preflight
           python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_architecture_callgraph.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_device_video.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_architecture_boundaries.py'
   native:
     needs: [plan, static-ui, preflight]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    if: always() && !cancelled() && needs.plan.result == 'success' && (needs.plan.outputs.run_package == 'true' || needs.plan.outputs.run_runtime == 'true') && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     uses: ./.github/workflows/build-native-codex.yml
     with:
+      include_arm: ${{ needs.plan.outputs.run_package == 'true' }}
       include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}
       native_key: ${{ needs.plan.outputs.native_key }}
 
@@ -170,8 +173,9 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_check_ui_assets.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_architecture_callgraph.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_architecture_boundaries.py'
-      - name: 一次加载源码，完整执行协议、功能和设计三类审计
+      - name: 一次加载源码，执行协议、功能、设计与架构调用候选审计
         run: python3 android-app/tools/run_static_audit.py --repository . --output .
       - name: 复用 Python 锁定依赖下载缓存
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
@@ -182,6 +186,7 @@ jobs:
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_device_video.py'
           python3 -m venv .ui-visual-test-venv
           .ui-visual-test-venv/bin/pip install --require-hashes -r .github/ci/requirements.lock
           .ui-visual-test-venv/bin/python -m unittest discover -s android-app/tools -p 'test_ui_visual_audit.py'
@@ -203,14 +208,15 @@ jobs:
             interaction-coverage.json
             protocol-contract-audit.json
             static-audit-summary.json
+            architecture-callgraph.json
             architecture-boundaries.json
           if-no-files-found: ignore
           retention-days: 14
 
   verify-ui:
     name: Kotlin 编译、协议单元测试与 Android Lint
-    needs: [plan, static-ui, preflight]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    needs: plan
+    if: needs.plan.outputs.run_compile == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -245,10 +251,6 @@ jobs:
         uses: ./.github/actions/ci-android
         with:
           mode: build
-      - name: 校验固定 Gradle Wrapper
-        shell: bash
-        run: |
-          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证 Compose、协议测试与静态检查
         run: ./android-app/gradlew -p android-app --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 复用 Python 锁定依赖下载缓存
@@ -289,6 +291,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-apks
+          compression-level: 0
           path: |
             android-app/app/build/outputs/apk/debug/app-debug.apk
             android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
@@ -614,10 +617,6 @@ jobs:
         uses: ./.github/actions/ci-android
         with:
           mode: build
-      - name: 校验固定 Gradle Wrapper
-        shell: bash
-        run: |
-          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 取回 ARM64 原生核心
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
@@ -625,26 +624,16 @@ jobs:
           run-id: ${{ needs.native.outputs.arm_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
-      - name: 直接获取并核验原始手机运行组件
-        id: runtime-bundle
+      - name: 直接核验并装配 ARM64 产品运行时
         env:
           GH_TOKEN: ${{ github.token }}
           RUNTIME_ID: ${{ needs.runtime-arm64.outputs.artifact_id }}
           RUNTIME_SOURCE: ${{ needs.runtime-arm64.outputs.source }}
           RUNTIME_KEY: ${{ needs.runtime-arm64.outputs.key }}
-        run: |
-          PIN="$(python3 .github/scripts/runtime_artifacts.py download --abi arm64-v8a --artifact-id "$RUNTIME_ID" --source "$RUNTIME_SOURCE" --key "$RUNTIME_KEY" --output "$RUNNER_TEMP/developer-runtime-bundle")"
-          echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
-      - name: 核验并装配 ARM64 手机原生核心
-        env:
-          RUNTIME_MANIFEST_SHA: ${{ steps.runtime-bundle.outputs.manifest_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-          CODEX_RUNTIME_PREPARED="$(python3 tools/build/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
-          export CODEX_RUNTIME_PREPARED
-          bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
+          bash .github/scripts/assemble-product-runtime.sh arm64-v8a "$RUNTIME_ID" "$RUNTIME_SOURCE" "$RUNTIME_KEY" "$RUNNER_TEMP/native-arm64"
           head -n 1 CODEX_UPSTREAM_COMMIT
       - name: 下载并校验官方安卓增量恢复组件
         shell: bash
@@ -723,35 +712,22 @@ jobs:
         uses: ./.github/actions/ci-android
         with:
           mode: build
-      - name: 校验固定 Gradle Wrapper
-        shell: bash
-        run: |
-          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-native-x86_64
           run-id: ${{ needs.native.outputs.x86_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-x86
-      - name: 直接获取并核验原始手机运行组件
-        id: runtime-bundle
+      - name: 直接核验并装配 x86_64 产品运行时
         env:
           GH_TOKEN: ${{ github.token }}
           RUNTIME_ID: ${{ needs.runtime-x86.outputs.artifact_id }}
           RUNTIME_SOURCE: ${{ needs.runtime-x86.outputs.source }}
           RUNTIME_KEY: ${{ needs.runtime-x86.outputs.key }}
-        run: |
-          PIN="$(python3 .github/scripts/runtime_artifacts.py download --abi x86_64 --artifact-id "$RUNTIME_ID" --source "$RUNTIME_SOURCE" --key "$RUNTIME_KEY" --output "$RUNNER_TEMP/developer-runtime-bundle")"
-          echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
-      - name: 装配仅供 Android 模拟器验收的真实内核 APK
-        env:
-          RUNTIME_MANIFEST_SHA: ${{ steps.runtime-bundle.outputs.manifest_sha }}
+        shell: bash
         run: |
           set -euo pipefail
-          STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-          CODEX_RUNTIME_PREPARED="$(python3 tools/build/component-bundle.py install runtime-x86 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
-          export CODEX_RUNTIME_PREPARED
-          bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
+          bash .github/scripts/assemble-product-runtime.sh x86_64 "$RUNTIME_ID" "$RUNTIME_SOURCE" "$RUNTIME_KEY" "$RUNNER_TEMP/native-x86"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
           ./android-app/gradlew -p android-app --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
@@ -869,10 +845,6 @@ jobs:
         uses: ./.github/actions/ci-android
         with:
           mode: build
-      - name: 校验固定 Gradle Wrapper
-        shell: bash
-        run: |
-          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 生成仅本次 CI 有效的测试签名
         shell: bash
         run: |

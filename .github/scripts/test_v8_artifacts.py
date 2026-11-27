@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
-from v8_artifacts import names, verify, extract, direct_producer, producer_recipe, current_artifact, expected_inputs, INPUTS, LOCK_PATH, VERSION, v8_lock_identity, compiler_action_recipe, host_identity, restore
+from v8_artifacts import names, verify, extract, direct_producer, producer_recipe, current_artifact, expected_inputs, INPUTS, LOCK_PATH, VERSION, v8_lock_identity, compiler_action_recipe, host_identity, restore, historical_artifacts
 
 TARGET="aarch64-linux-android"
 KEY="a"*64
@@ -196,3 +196,14 @@ class V8ArtifactsTests(unittest.TestCase):
         action = "runs:\n  using: composite\n  steps:\n    - uses: dtolnay/rust-toolchain@sha\n      with:\n        toolchain: 1.99.1\n    - uses: actions/cache@sha\n      with:\n        key: old-cache\n"
         self.assertEqual(compiler_action_recipe(action), compiler_action_recipe(action.replace("old-cache","new-cache")))
         self.assertNotEqual(compiler_action_recipe(action), compiler_action_recipe(action.replace("1.99.1","1.99.2")))
+
+    def test_probe_only_selects_original_descriptor_without_download(self):
+        with patch("v8_artifacts.api", return_value={"artifacts":[{"id":9}]}), \
+             patch("v8_artifacts.direct_producer", return_value=True), \
+             patch("v8_artifacts.download_verified") as download:
+            self.assertEqual({"id":9}, next(historical_artifacts("o/r", TARGET, SOURCE, KEY)))
+            download.assert_not_called()
+
+    def test_current_artifact_may_be_absent_when_historical_producer_exists(self):
+        self.assertIsNone(current_artifact("o/r", 17, KEY,
+            lambda *_: {"total_count":0,"artifacts":[]}, allow_missing=True))
