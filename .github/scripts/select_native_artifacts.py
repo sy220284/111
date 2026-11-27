@@ -157,7 +157,7 @@ class ArtifactSelector:
         if "\n  v8:\n" in workflow:
             from v8_artifacts import producer_recipe
             signature += (producer_recipe(workflow),
-                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py","tools/dev/toolchain-lock.json","tools/dev/auxiliary.py","tools/dev/component-bundle.py","tools/dev/host_components.py","upstream/codex/codex-rs/Cargo.lock"]))
+                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py",".github/actions/ci-android/action.yml",".github/actions/ci-rust/action.yml",".github/scripts/ci-android-sdk.sh",".github/scripts/ci-llvm.sh","upstream/codex/codex-rs/Cargo.lock"]))
         return signature
 
     def test_signature(self, sha):

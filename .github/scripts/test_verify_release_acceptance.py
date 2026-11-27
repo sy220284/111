@@ -21,7 +21,7 @@ class ReleaseAcceptanceTests(unittest.TestCase):
             "device-ready": ("release", "check-release"),
             "device": ("release", "check-release", "device-ready"),
             "publish": ("release", "check-release", "device"),
-            "cleanup": ("publish", "release-result"),
+            "cleanup": ("publish",),
         }
         for name, upstream in requirements.items():
             with self.subTest(job=name):
@@ -30,13 +30,18 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                 for dependency in upstream:
                     self.assertIn("needs." + dependency + ".result == 'success'", condition)
         terminal = jobs["release-result"]
-        self.assertIn("needs: [check-release, release, device-ready, device, publish]", terminal)
-        self.assertIn("!cancelled()", terminal)
-        self.assertIn("needs.check-release.outputs.should_release == 'true'", terminal)
-        for name in ("release", "device-ready", "device", "publish"):
-            self.assertIn("needs." + name + ".result", terminal)
-        self.assertIn('for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$PUBLISHED"', terminal)
-        self.assertIn('exit 1', terminal)
+        from release_outcome import CHAIN, verdict
+        dependencies = re.search(r"^    needs: \[(.+)\]$",terminal,re.M).group(1).split(", ")
+        self.assertEqual({"preflight","check-release",*CHAIN},set(dependencies))
+        self.assertIn("!cancelled()",terminal)
+        self.assertIn("python3 .github/scripts/release_outcome.py",terminal)
+        fixture={"preflight":{"result":"skipped"},"check-release":{"result":"success","outputs":{"decision":"publish"}},
+                 **{key:{"result":"success"} for key in CHAIN}}
+        self.assertIn("已完成",verdict(fixture,"workflow_run","refs/heads/main",True))
+        for key in CHAIN:
+            with self.subTest(job=key):
+                with self.assertRaises(ValueError):
+                    verdict(fixture|{key:{"result":"skipped"}},"workflow_run","refs/heads/main",True)
 
     def test_all_real_android_jobs_are_required(self):
         for workflow, names in REQUIRED_JOBS.items():

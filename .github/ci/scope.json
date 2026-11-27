@@ -8,7 +8,22 @@
       ".github/scripts/test_retain_check_artifacts.py",
       ".github/scripts/repository_steward.py",
       ".github/scripts/test_repository_steward.py",
-      "upstream/codex/README.md"
+      "upstream/codex/README.md",
+      ".github/workflows/dev-toolchain.yml",
+      ".github/workflows/prepare-host-toolchain.yml",
+      ".github/workflows/prepare-aux-toolchain.yml",
+      ".github/actions/install-host-toolchain/action.yml",
+      "tools/dev/ci_host.py",
+      "tools/dev/host_components.py",
+      "tools/dev/auxiliary.py",
+      "tools/dev/ai-toolchain.py",
+      "tools/dev/ai-toolchain.sh",
+      "tools/dev/audit_maven_metadata.py",
+      "tools/dev/check-ci-toolchain.sh",
+      "tools/dev/requirements-host.lock",
+      "tools/dev/test_auxiliary.py",
+      "tools/dev/test_host_components.py",
+      "tools/dev/test_toolchain.py"
     ],
     "prefixes": [
       "docs/",
@@ -35,14 +50,21 @@
       ".github/workflows/prepare-developer-runtime.yml",
       "android-app/gradle/wrapper/gradle-wrapper.jar",
       "android-app/gradle/wrapper/gradle-wrapper.properties",
-      "android-app/gradle/libs.versions.toml"
+      "android-app/gradle/libs.versions.toml",
+      "tools/dev/toolchain-lock.json",
+      "tools/dev/component-bundle.py",
+      "tools/dev/run-emulator.sh",
+      "tools/dev/run-build-offline.sh",
+      "tools/dev/run-without-network.sh",
+      "tools/dev/build_progress.py",
+      "tools/dev/build_recipe.py",
+      "tools/dev/transfer_progress.py"
     ],
     "prefixes": [
       "android-app/app/src/main/",
       "android-app/app/src/release/",
       "android-app/gradle/",
-      "tools/runtime/",
-      "tools/dev/"
+      "tools/runtime/"
     ]
   },
   "acceptance": {
@@ -116,13 +138,20 @@
       "android-app/build.gradle.kts",
       "android-app/gradle/libs.versions.toml",
       "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/LiveServiceInstrumentedTest.kt",
-      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/V8ComponentAssertions.kt"
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/V8ComponentAssertions.kt",
+      "tools/dev/toolchain-lock.json",
+      "tools/dev/component-bundle.py",
+      "tools/dev/run-emulator.sh",
+      "tools/dev/run-build-offline.sh",
+      "tools/dev/run-without-network.sh",
+      "tools/dev/build_progress.py",
+      "tools/dev/build_recipe.py",
+      "tools/dev/transfer_progress.py"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
       "upstream/codex/.cargo/",
       "tools/runtime/",
-      "tools/dev/",
       "android-app/app/src/main/jniLibs/",
       "android-app/app/src/main/assets/"
     ]
