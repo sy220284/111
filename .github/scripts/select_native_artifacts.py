@@ -64,6 +64,9 @@ def native_recipe(workflow, abi=None):
     if not start or not end or start.start() >= end.start():
         raise SelectionError("无法识别原生编译配置边界；需核对后再复用")
     recipe = job[start.start():end.start()].strip()
+    # Retain the existing index encoding for scheduling-only limits. The value
+    # is a schema marker, not an input to the compiler (historical main: 360).
+    recipe = re.sub(r"(?m)^    timeout-minutes: \d+$", "    timeout-minutes: 360", recipe)
     # Checkout transport and CI-index-only paths do not alter native inputs.
     recipe = re.sub(r"(?m)^          (?:ref: .*github\.event\.pull_request\.head\.sha.*|fetch-depth: 0)\n|^            \.github/(?:scripts|ci)\n", "", recipe)
     dynamic = "        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}"
@@ -100,6 +103,8 @@ def provider_recipe(workflow):
     job = workflow.split(marker, 1)[1]
     job = re.split(r"(?m)^  [a-z][a-z0-9-]*:\s*$", job, maxsplit=1)[0]
     steps = job[job.index("    runs-on:"):].split("\n      - name: 生成 Rust 回归凭证", 1)[0]
+    # The existing provider index encoded the historical 90-minute budget.
+    steps = re.sub(r"(?m)^    timeout-minutes: \d+$", "    timeout-minutes: 90", steps)
     return re.sub(r"(?m)^          (?:ref: .*github\.event\.pull_request\.head\.sha.*|fetch-depth: 0)\n|^            \.github/(?:scripts|ci)\n", "", steps).strip()
 
 

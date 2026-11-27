@@ -81,12 +81,15 @@
       "android-app/gradle.properties",
       "android-app/settings.gradle.kts",
       "android-app/build.gradle.kts",
-      "android-app/gradle/libs.versions.toml"
+      "android-app/gradle/libs.versions.toml",
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/CoreStartupInstrumentedTest.kt",
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/RuntimeOwnershipInstrumentedTest.kt",
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/LiveServiceInstrumentedTest.kt",
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/V8ComponentAssertions.kt"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
       "upstream/codex/.cargo/",
-      "android-app/app/src/androidTest/",
       "android-app/app/src/main/jniLibs/",
       "android-app/app/src/main/assets/"
     ]
