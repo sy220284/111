@@ -37,6 +37,9 @@ def main():
                   os.environ.get("CI_FORCE") == "true", os.environ.get("CI_RUNTIME") == "true")
     from ci_reuse import GROUPS, make_plan, native_key, required_groups
     source = os.environ["CI_HEAD"]
+    actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    if actual != source:
+        raise ValueError("CI 候选提交与实际检出源码不一致")
     force = os.environ.get("CI_FORCE") == "true"
     required = required_groups(result["full"], result["runtime"], os.environ["CI_EVENT"], os.environ["CI_REF"])
     receipt = make_plan(os.environ["GITHUB_REPOSITORY"], source, required, force)

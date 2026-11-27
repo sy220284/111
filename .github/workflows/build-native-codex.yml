@@ -39,7 +39,7 @@ jobs:
   reuse:
     name: 复用已验证原生内核（源码及编译配置一致）
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     outputs:
       arm_run_id: ${{ steps.detect.outputs.arm_run_id }}
       x86_run_id: ${{ steps.detect.outputs.x86_run_id }}
@@ -132,8 +132,9 @@ jobs:
 
   v8:
     name: V8 官方源码产物 · ${{ matrix.abi }}
-    needs: [reuse, provider-contract, host-android, host-rust, host-llvm]
-    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) && needs.host-llvm.result == 'success' }}
+    # V8 official sources do not depend on provider model-contract results.
+    needs: [reuse, host-android, host-rust, host-llvm]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && needs.host-llvm.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -143,7 +144,7 @@ jobs:
       queue: max
       cancel-in-progress: false
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -213,7 +214,7 @@ jobs:
     needs: [reuse, provider-contract, v8, host-android, host-rust]
     if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && needs.v8.result == 'success' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -409,7 +410,7 @@ jobs:
     needs: [reuse, host-rust]
     if: needs.reuse.outputs.provider_reuse != 'true' && needs.host-rust.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 60
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_BUILD_JOBS: "2"
@@ -481,8 +482,9 @@ jobs:
   verified:
     name: 原生核心统一验收
     needs: [reuse, native, provider-contract, v8]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       arm_run_id: ${{ needs.reuse.outputs.arm_run_id }}
       x86_run_id: ${{ needs.reuse.outputs.x86_run_id }}

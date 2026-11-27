@@ -18,6 +18,7 @@ jobs:
   fingerprint:
     name: ${{ inputs.group }} 工具链输入指纹
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       key: ${{ steps.key.outputs.key }}
     steps:

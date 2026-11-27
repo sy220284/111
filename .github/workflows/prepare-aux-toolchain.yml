@@ -18,6 +18,7 @@ jobs:
   fingerprint:
     name: ${{ inputs.group }} 辅助工具输入指纹
     runs-on: ubuntu-24.04
+    timeout-minutes: 5
     outputs:
       key: ${{ steps.key.outputs.key }}
     steps:
@@ -37,7 +38,7 @@ jobs:
     name: 111 辅助组件 · ${{ inputs.group }}
     needs: fingerprint
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 90
     concurrency:
       group: 111-host-${{ inputs.group }}-${{ needs.fingerprint.outputs.key }}
       cancel-in-progress: false

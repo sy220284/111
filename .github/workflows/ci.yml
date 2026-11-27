@@ -141,7 +141,7 @@ jobs:
     needs: [plan, host-wheelhouse]
     if: needs.plan.outputs.run_static == 'true' && needs.host-wheelhouse.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 12
+    timeout-minutes: 10
     steps:
       - name: 仅检出 Android UI 源码
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -204,7 +204,7 @@ jobs:
       - name: 验证自更新证据判定与安装完成条件
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
       - name: 保存静态协议与 UI 规范报告
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-static-reports
@@ -227,7 +227,7 @@ jobs:
     needs: [plan, static-ui, preflight, host-android, host-wheelhouse]
     if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && needs.host-wheelhouse.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 25
     steps:
       - name: 仅检出 Android UI 源码
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -288,7 +288,7 @@ jobs:
             --fixtures android-app/app/build/protocol-fixtures/requests.json \
             --report wire-fixtures-audit.json
       - name: 保存测试与 Lint 报告
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-check-reports
@@ -332,7 +332,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.device_shards) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 65
+    timeout-minutes: 35
     steps:
       - name: 检出截图采集器
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -453,7 +453,7 @@ jobs:
             # A bounded diagnostic may fail or time out; keep its actual exit code.
             if [ "${{ matrix.motion }}" = "true" ]; then bash -c 'status=0; timeout --kill-after=10s 360s python3 android-app/tools/run_ui_motion_checks.py --profile "${{ matrix.profile }}" || status=$?; printf "%s\\n" "$status" > ui-motion-exit; echo "Performance observation exit=$status (non-blocking)"'; fi
       - name: 保存独立分流的原始日志、截图与验收凭证
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-${{ matrix.shard }}
@@ -487,7 +487,7 @@ jobs:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.device_matrix) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 12
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -542,7 +542,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 90
       - name: 保存 UI 设备测试与真实屏幕截图
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-device-evidence-api${{ matrix.api }}-${{ matrix.profile }}-${{ matrix.mode }}
@@ -571,7 +571,7 @@ jobs:
           retention-days: 14
 
       - name: 保存供全矩阵核对的小型验收凭证
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: ui-proof-${{ matrix.profile }}-${{ matrix.mode }}
@@ -613,7 +613,7 @@ jobs:
     needs: [plan, native, runtime-arm64, host-android, host-patcher]
     if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success' && needs.host-android.result == 'success' && needs.host-patcher.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 55
+    timeout-minutes: 35
     steps:
       - name: 检出 Android 工程及源码版本标记
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -721,7 +721,7 @@ jobs:
     needs: [plan, native, runtime-x86, host-android, host-emulator, host-patcher]
     if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.host-android.result == 'success' && needs.plan.outputs.run_runtime == 'true' && needs.host-emulator.result == 'success' && needs.host-patcher.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - name: 检出同提交 Android 工程与原生配方
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -795,7 +795,7 @@ jobs:
             python3 android-app/tools/device_matrix.py --verify-resources runtime-evidence/device-resources.json
             bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
       - name: 保存真实内核验收证据
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-real-runtime-evidence
@@ -810,7 +810,7 @@ jobs:
     # Independent integrity verification; the final gate still requires runtime when selected.
     if: needs.build.result == 'success' && needs.plan.outputs.run_package == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       # Jobs have separate workspaces. The APK and its audit script are both
       # required; the upload artifact contains only the APK, not repository files.
@@ -877,7 +877,7 @@ jobs:
     needs: [plan, static-ui, preflight, host-android, host-patcher]
     if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_sign == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && needs.host-patcher.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -970,7 +970,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_compat == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -1020,7 +1020,7 @@ jobs:
   quality:
     name: 111 合并验收
     needs: [plan, host-android, host-wheelhouse, host-emulator, host-patcher, native, runtime-arm64, runtime-x86, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -1058,4 +1058,10 @@ jobs:
           path: ci-acceptance-receipt.json
           if-no-files-found: error
           retention-days: 30
-
+      - name: 记录任务耗时、取消与资源使用
+        if: ${{ !cancelled() }}
+        timeout-minutes: 2
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/ci_metrics.py

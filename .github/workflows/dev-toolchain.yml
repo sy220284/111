@@ -6,7 +6,13 @@ on:
     paths:
       - 'tools/dev/**'
       - 'tools/runtime/**'
-      - 'android-app/**'
+      - 'android-app/**/build.gradle.kts'
+      - 'android-app/**/settings.gradle.kts'
+      - 'android-app/**/gradle.properties'
+      - 'android-app/**/gradle.lockfile'
+      - 'android-app/gradle/**'
+      - 'android-app/gradlew*'
+      - 'android-app/tools/**'
       - 'upstream/codex/codex-rs/Cargo.lock'
       - 'upstream/codex/codex-rs/rust-toolchain.toml'
       - '.github/workflows/dev-toolchain.yml'
@@ -25,6 +31,10 @@ permissions:
   contents: read
   actions: read
 
+concurrency:
+  group: dev-toolchain-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'latest' }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
   maven-metadata-audit:
     name: Maven Central 缺失元数据独立摘要审查
@@ -39,7 +49,7 @@ jobs:
   shared:
     name: 777 固定共享产物与工作流检查
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:

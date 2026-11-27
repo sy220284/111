@@ -10,7 +10,7 @@ jobs:
   reference:
     name: DSH Go v1.3.0 安装、静态检查与首屏截图
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 35
     steps:
       - name: 检出首次使用页面采集器
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4

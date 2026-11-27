@@ -18,7 +18,7 @@ jobs:
   prepare:
     name: ${{ inputs.abi == 'arm64-v8a' && 'ARM64 工具链产物核验' || 'x86_64 工具链产物核验' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 30
     outputs:
       manifest_sha: ${{ steps.bundle.outputs.manifest_sha }}
     steps:
