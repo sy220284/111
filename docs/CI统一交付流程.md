@@ -158,7 +158,7 @@ V8 独立构建仅受应用锁文件中的 V8 包记录、V8 官方固定源码�
 
 ### 基础技术栈候选与版本边界
 
-本候选将 Android 编译环境升级至 AGP 9.5.1、Gradle 9.9.2、Kotlin 2.4.21（AGP 内置 Kotlin）、JDK 25、compileSdk 37（官方 SDK 包 platforms;android-37.0） / Build Tools 37.0.0、NDK r30（30.0.16248370）、LLVM 23；Compose BOM 为 2026.11.01，Activity 1.13.0、Core 1.19.1、Lifecycle 2.11.1。Gradle Wrapper 采用官方发布文件及 SHA-256，依赖图和校验元数据必须由真实解析生成、复查并在严格模式完整构建。官方 Codex 当前 Rust 1.99.1 / V8 152.2.0 保持配套。minSdk 29、JVM 17 和 targetSdk 35 保持：目标 SDK 37 必须在局域网权限、后台语音、横屏/大屏、原生加载及安装更新完成产品适配并验收后切换。构建 SDK 37 与模拟器独立平台参数、37.2 16KiB 镜像不混用。工具链生产工作流同步 JDK、SDK、NDK、LLVM、Wrapper 和严格依赖基线，独立断网验收不变。具体产品影响见 [技术栈升级与产品适配评估](基础技术栈升级与产品适配评估-20261127.md)。
+本候选将 Android 编译环境升级至 AGP 9.5.1、Gradle 9.9.2、Kotlin 2.4.21（AGP 内置 Kotlin）、JDK 25、compileSdk 37.2（官方 SDK 包 platforms;android-37.2） / Build Tools 37.0.0、NDK r30（30.0.16248370）、LLVM 23；Compose BOM 为 2026.11.01，Activity 1.13.0、Core 1.19.1、Lifecycle 2.11.1。Gradle Wrapper 采用官方发布文件及 SHA-256，依赖图和校验元数据必须由真实解析生成、复查并在严格模式完整构建。官方 Codex 当前 Rust 1.99.1 / V8 152.2.0 保持配套。minSdk 29、JVM 17 和 targetSdk 35 保持：目标 SDK 37 必须在局域网权限、后台语音、横屏/大屏、原生加载及安装更新完成产品适配并验收后切换。构建 SDK 37 与模拟器独立平台参数、37.2 16KiB 镜像不混用。工具链生产工作流同步 JDK、SDK、NDK、LLVM、Wrapper 和严格依赖基线，独立断网验收不变。具体产品影响见 [技术栈升级与产品适配评估](基础技术栈升级与产品适配评估-20261127.md)。
 
 ### 2026-11-27 候选工具链补充
 
@@ -176,3 +176,8 @@ Compose 1.13 要求 compileSdk 37.1 以上，候选改为 37.2；保留目标 SD
 ### 原生依赖与宿主绑定边界
 
 Android 适配完成后，按最终锁定工作区完整 `cargo fetch --locked`（覆盖目标及宿主依赖），再离线核对并适配已检出的 MXC；正式核心编译仍使用 `--locked --offline`。V8 和完整 Rust 工作区使用独立的源码缓存命名空间，双 ABI 共用完整依赖缓存。V8 最终 Android 绑定显式使用带 API 29 的目标及 NDK sysroot；GN 内部 Linux 宿主 bindgen 不继承这些 Android 参数，双架构仍执行原有 ELF、V8 来源及设备门禁。
+
+
+### 构建失败前移及候选专项
+
+同一 `prepare-native-dependencies.sh` 先由共享工作区预检执行，成功并保存完整依赖缓存后才启动 V8（手动 V8-only 不依赖产品工作区）；核心消费者核验原始 V8 之后按同一配方准备最终锁，锁定离线编译和最终门禁保持。Gradle UI、签名、完整包及正式发布统一使用严格依赖入口：仅遇到已实证的 Compose 插件解析失败，检查 Maven Central 官方 module 的已审查 SHA-256 后有限重解析一次；其他编译或校验错误原样失败，不改版本、不切换仓库。x86 真内核作业在完整 target 35 验收后单独安装 target 37 APK，真实核对系统 LAN 授权、撤销、回环请求异常恢复及 V8 启动；真实局域网、横屏/折叠及音频中断仍须设备验证。PR 的 R8 生产移至完整 ARM64 运行时装配后，保留真实签名、mapping、完整 APK 审计及候选大小，正式 Release 仍关闭 R8；候选真实 ARM64 运行需专用真机。

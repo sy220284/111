@@ -136,11 +136,34 @@ jobs:
             echo "只编译缺失或已改变的 ABI：$MISSING"
           fi
 
+  core-dependencies:
+    name: Android 核心锁定依赖预检及共享缓存准备
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && !(github.event_name == 'workflow_dispatch' && inputs.v8_only) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          filter: blob:none
+          sparse-checkout: |
+            .github/scripts
+            .github/actions/ci-rust
+            upstream/codex
+            android-app/tools
+      - name: 准备共享完整工作区依赖缓存
+        uses: ./.github/actions/ci-rust
+        with:
+          cache-scope: workspace
+      - name: 在 V8 长编译前完成最终锁及离线依赖核验
+        run: bash .github/scripts/prepare-native-dependencies.sh
+
   v8:
     name: V8 官方源码产物 · ${{ matrix.abi }}
     # V8 official sources do not depend on provider model-contract results.
-    needs: reuse
-    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' }}
+    needs: [reuse, core-dependencies]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && (needs.core-dependencies.result == 'success' || (github.event_name == 'workflow_dispatch' && inputs.v8_only && needs.core-dependencies.result == 'skipped')) }}
     strategy:
       fail-fast: false
       matrix:
@@ -228,8 +251,8 @@ jobs:
     name: 编译 ${{ matrix.abi }} 核心
     # Do not spend hours compiling Android binaries for a source revision that
     # has already failed the native host contract. A verified receipt also qualifies.
-    needs: [reuse, provider-contract, v8]
-    if: ${{ !cancelled() && !(github.event_name == 'workflow_dispatch' && inputs.v8_only) && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && needs.v8.result == 'success' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
+    needs: [reuse, core-dependencies, provider-contract, v8]
+    if: ${{ !cancelled() && !(github.event_name == 'workflow_dispatch' && inputs.v8_only) && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && needs.core-dependencies.result == 'success' && needs.v8.result == 'success' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
@@ -325,39 +348,8 @@ jobs:
           path: .android-v8-cache/${{ matrix.rust_target }}/*
           if-no-files-found: error
           retention-days: 90
-      - name: 将 Android 平台接入上游现有 OpenSSL 源码编译配置
-        shell: bash
-        run: |
-          set -euo pipefail
-          cat >> upstream/codex/codex-rs/core/Cargo.toml <<'TOML'
-          # Android target uses the same source-built OpenSSL strategy as Linux musl.
-          # This addition only applies to the CI checkout; upstream snapshot stays intact.
-          [target.aarch64-linux-android.dependencies]
-          openssl-sys = { workspace = true, features = ["vendored"] }
-
-          [target.x86_64-linux-android.dependencies]
-          openssl-sys = { workspace = true, features = ["vendored"] }
-          TOML
-          grep -A 2 'target.aarch64-linux-android.dependencies' upstream/codex/codex-rs/core/Cargo.toml
-      - name: 应用 Android 适配并完整准备锁定的 Rust 依赖
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd upstream/codex/codex-rs
-          python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_code_mode.py" \
-            "$GITHUB_WORKSPACE/upstream/codex/codex-rs/install-context/src/lib.rs" \
-            --host-source "$GITHUB_WORKSPACE/upstream/codex/codex-rs/code-mode-host/src/main.rs" \
-            --features-source "$GITHUB_WORKSPACE/upstream/codex/codex-rs/features/src/lib.rs"
-          python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_code_mode.py
-          python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_realtime_privacy.py
-          python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_realtime_privacy.py" \
-            "$GITHUB_WORKSPACE/upstream/codex/codex-rs/codex-api/src/endpoint/realtime_websocket/methods.rs"
-          python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_remote_delivery.py
-          python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_remote_delivery.py" "$GITHUB_WORKSPACE/upstream/codex/codex-rs"
-          # Prepare the final locked graph, including host tools, before offline compilation.
-          cargo fetch --locked
-          cargo fetch --locked --offline
-          python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_mxc.py" --cargo-home "${CARGO_HOME:-$HOME/.cargo}"
+      - name: 应用同一 Android 适配并核对完整锁定依赖
+        run: bash .github/scripts/prepare-native-dependencies.sh
       - name: 使用 Android Bionic 编译 App Server 与 Code Mode Host
         shell: bash
         run: |
@@ -530,7 +522,7 @@ jobs:
 
   verified:
     name: 原生核心统一验收
-    needs: [reuse, native, provider-contract, v8]
+    needs: [reuse, core-dependencies, native, provider-contract, v8]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -543,6 +535,7 @@ jobs:
           V8_ONLY: ${{ github.event_name == 'workflow_dispatch' && inputs.v8_only }}
           REUSE: ${{ needs.reuse.result }}
           REUSED: ${{ needs.reuse.outputs.reuse }}
+          CORE_DEPS: ${{ needs.core-dependencies.result }}
           NATIVE: ${{ needs.native.result }}
           V8: ${{ needs.v8.result }}
           TEST: ${{ needs.provider-contract.result }}
@@ -555,6 +548,7 @@ jobs:
           set -euo pipefail
           test "$REUSE" = success
           if [ "$V8_ONLY" = true ]; then
+            test "$CORE_DEPS" = skipped
             test "$V8" = success
             test "$NATIVE" = skipped
             test "$TEST" = skipped
@@ -563,5 +557,6 @@ jobs:
           fi
           if [ "$INCLUDE_ARM" = true ]; then test -n "$ARM"; else test -z "$ARM"; fi
           if [ "$INCLUDE_X86" = true ]; then test -n "$X86"; else test -z "$X86"; fi
+          if [ "$REUSED" = true ]; then test "$CORE_DEPS" = skipped; else test "$CORE_DEPS" = success; fi
           if [ "$REUSED" = true ]; then test "$NATIVE" = skipped; test "$V8" = skipped; else test "$NATIVE" = success; test "$V8" = success; fi
           if [ "$PROVIDER_REUSED" = true ]; then test "$TEST" = skipped; else test "$TEST" = success; fi

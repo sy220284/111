@@ -175,8 +175,7 @@ class V8ArtifactsTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / ".github/workflows/build-native-codex.yml").read_text()
         native = workflow.split("\n  native:\n", 1)[1].split("\n  provider-contract:\n", 1)[0]
-        self.assertLess(native.index("v8_artifacts.py consume"), native.index("cat >> upstream/codex/codex-rs/core/Cargo.toml"))
-        self.assertLess(native.index("v8_artifacts.py consume"), native.index("prepare_android_remote_delivery.py\" \"$GITHUB_WORKSPACE"))
+        self.assertLess(native.index("v8_artifacts.py consume"), native.index("prepare-native-dependencies.sh"))
         self.assertIn("overwrite: true", workflow.split("\n  native:\n", 1)[0])
         producer = (root / "android-app/tools/prepare_android_v8.sh").read_text()
         self.assertIn("v8_artifacts.py\" inputs --target", producer)
@@ -189,12 +188,19 @@ class V8ArtifactsTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / ".github/workflows/build-native-codex.yml").read_text()
         native = workflow.split("\n  native:\n", 1)[1].split("\n  provider-contract:\n", 1)[0]
-        self.assertNotIn("cargo fetch --locked --target", native)
-        self.assertLess(native.index('prepare_android_remote_delivery.py" "$GITHUB_WORKSPACE'), native.index("cargo fetch --locked\n"))
-        self.assertLess(native.index("cargo fetch --locked\n"), native.index("cargo fetch --locked --offline"))
-        self.assertLess(native.index("cargo fetch --locked --offline"), native.index("cargo build --locked --offline"))
+        preparation = (root / ".github/scripts/prepare-native-dependencies.sh").read_text()
+        self.assertNotIn("cargo fetch --locked --target", preparation)
+        self.assertLess(preparation.index('prepare_android_remote_delivery.py" "$GITHUB_WORKSPACE'), preparation.index("cargo fetch --locked\n"))
+        self.assertLess(preparation.index("cargo fetch --locked\n"), preparation.index("cargo fetch --locked --offline"))
+        self.assertLess(native.index("prepare-native-dependencies.sh"), native.index("cargo build --locked --offline"))
+        early = workflow.split("\n  core-dependencies:\n", 1)[1].split("\n  v8:\n", 1)[0]
+        producer = workflow.split("\n  v8:\n", 1)[1].split("\n  native:\n", 1)[0]
+        self.assertIn("prepare-native-dependencies.sh", early)
+        self.assertIn("needs: [reuse, core-dependencies]", producer)
+        self.assertIn("needs.core-dependencies.result == 'success'", producer)
+        self.assertIn("cache-scope: workspace", early)
         self.assertIn("cache-scope: workspace", native)
-        self.assertIn("cache-scope: v8", workflow.split("\n  native:\n", 1)[0])
+        self.assertIn("cache-scope: v8", producer)
         shell = (root / "android-app/tools/prepare_android_v8.sh").read_text()
         self.assertNotIn('export "BINDGEN_EXTRA_CLANG_ARGS', shell)
         self.assertIn("export RUSTY_V8_ANDROID_BINDGEN_TARGET=", shell)

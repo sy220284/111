@@ -48,3 +48,43 @@ for NAME in bundledDeveloperToolsActuallyExecute bundledDeveloperPackagesAndHttp
   grep -Fq "test=$NAME" "$OUT/instrumentation.log"
 done
 echo "真实 Android 内核、故障恢复、终端和前台服务回执通过" | tee "$OUT/result.txt"
+
+# Run the target-37 compatibility candidate on the same dedicated emulator, separately
+# from the complete target-35 runtime verdict. No user device or data is touched.
+if [ "$#" -ne 4 ] && [ "$#" -ne 6 ]; then
+  echo "Expected baseline APKs and an optional complete target-37 APK pair" >&2
+  exit 2
+fi
+if [ "$#" -eq 6 ]; then
+  CANDIDATE="$5"
+  CANDIDATE_TEST="$6"
+  test -s "$CANDIDATE"; test -s "$CANDIDATE_TEST"
+  mkdir -p "$OUT/target37"
+  sha256sum "$CANDIDATE" "$CANDIDATE_TEST" > "$OUT/target37/apks.sha256"
+  adb shell am force-stop "$PKG"
+  adb uninstall "$PKG.test"
+  adb uninstall "$PKG"
+  adb install "$CANDIDATE"
+  adb install "$CANDIDATE_TEST"
+  adb shell appops set "$PKG" MANAGE_EXTERNAL_STORAGE allow
+  adb shell dumpsys package "$PKG" > "$OUT/target37/package.txt"
+  grep -Eq 'targetSdk=37([[:space:]]|$)' "$OUT/target37/package.txt"
+  PERMISSION=android.permission.ACCESS_LOCAL_NETWORK
+  permission_state() {
+    adb shell dumpsys package "$PKG" | grep -F "$PERMISSION: granted=$1"
+  }
+  # OS permission lifecycle, with real loopback network recovery and a real V8
+  # startup while LAN is denied. Physical LAN routing still needs device testing.
+  permission_state false | tee "$OUT/target37/initial-denied.txt"
+  run_suite 'CoreStartupInstrumentedTest#realNetworkFailureAndTimeoutRecoverOnSameCore' "$OUT/target37/denied-loopback.log"
+  run_suite 'CoreStartupInstrumentedTest#bundledCodeModeHostCanInitializeV8OnAndroid' "$OUT/target37/denied-v8.log"
+  adb shell am force-stop "$PKG"
+  adb shell pm grant "$PKG" "$PERMISSION"
+  permission_state true | tee "$OUT/target37/granted.txt"
+  run_suite 'CoreStartupInstrumentedTest#realNetworkFailureAndTimeoutRecoverOnSameCore' "$OUT/target37/granted-loopback.log"
+  adb shell am force-stop "$PKG"
+  adb shell pm revoke "$PKG" "$PERMISSION"
+  permission_state false | tee "$OUT/target37/revoked.txt"
+  run_suite 'CoreStartupInstrumentedTest#realNetworkFailureAndTimeoutRecoverOnSameCore' "$OUT/target37/revoked-loopback.log"
+  echo "targetSdk 37 系统授权/撤销及真实核心本机回环网络验收通过" | tee "$OUT/target37/result.txt"
+fi
