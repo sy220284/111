@@ -296,7 +296,7 @@ pub(crate) async fn read_file_limited(
         // Dedicated, non-sandboxed remote workspace delivery: never follow links
         // or allocate according to an untrusted file's unbounded current length.
         if params.follow_symlinks != Some(false) || params.sandbox.is_some() {
-            return Err(invalid_request("delivery requires no-follow and no sandbox override"));
+            return Err(invalid_request("delivery requires no-follow and no sandbox override".to_string()));
         }
         let path = params.path.to_abs_path().map_err(|e| invalid_request(e.to_string()))?;
         let bytes = crate::local_file_system_read::read_file_limited(

@@ -24,6 +24,12 @@ PID=""
 cleanup() {
   result=$?
   trap - EXIT
+  if [ "$result" -ne 0 ] && [ -n "$PID" ]; then
+    echo "Android device failure: collecting system service and crash diagnostics" >&2
+    timeout 10 adb -s "$ANDROID_SERIAL" shell getprop sys.boot_completed >&2 || true
+    timeout 10 adb -s "$ANDROID_SERIAL" shell pidof system_server >&2 || true
+    timeout 15 adb -s "$ANDROID_SERIAL" logcat -d -b crash -b system -b events -t 350 >&2 || true
+  fi
   if [ -n "$PID" ]; then
     timeout 15 adb -s "$ANDROID_SERIAL" emu kill >/dev/null 2>&1 || kill "$PID" 2>/dev/null || true
     wait "$PID" 2>/dev/null || true
@@ -47,13 +53,47 @@ p=pathlib.Path(sys.argv[1]); updates=dict(x.split("=",1) for x in sys.argv[2:]);
 PY
 "$ANDROID_HOME/emulator/emulator" -port 5554 -avd test -accel on "${CONFIG[@]:3}" > "$LOG" 2>&1 &
 PID=$!
+# A boot property alone can remain set while system_server restarts. Require
+# real Binder calls and the same system_server PID over a stability window.
+device_shell() { timeout 15 adb -s "$ANDROID_SERIAL" shell "$@"; }
+ready_pid() {
+  local before after pkg settings
+  [ "$(device_shell getprop sys.boot_completed | tr -d '\r')" = 1 ] || return 1
+  before="$(device_shell pidof system_server | tr -d '\r')" || return 1
+  [[ "$before" =~ ^[0-9]+$ ]] || return 1
+  pkg="$(device_shell cmd package path android | tr -d '\r')" || return 1
+  [[ "$pkg" == package:* ]] || return 1
+  settings="$(device_shell settings get global window_animation_scale | tr -d '\r')" || return 1
+  [[ "$settings" =~ ^(null|[0-9]+(\.[0-9]+)?)$ ]] || return 1
+  device_shell cmd activity get-current-user >/dev/null || return 1
+  after="$(device_shell pidof system_server | tr -d '\r')" || return 1
+  [ "$before" = "$after" ] || return 1
+  printf '%s\n' "$before"
+}
 deadline=$((SECONDS+1200))
+stable_since=0
+last_pid=""
+ready=false
 while [ "$SECONDS" -lt "$deadline" ]; do
   kill -0 "$PID"
-  if [ "$(timeout 10 adb -s "$ANDROID_SERIAL" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)" = 1 ]; then break; fi
+  if current="$(ready_pid)"; then
+    if [ "$current" != "$last_pid" ]; then
+      last_pid="$current"
+      stable_since=$SECONDS
+    elif [ "$((SECONDS-stable_since))" -ge 30 ]; then
+      ready=true
+      break
+    fi
+  else
+    last_pid=""
+  fi
   sleep 2
 done
-test "$(timeout 10 adb -s "$ANDROID_SERIAL" shell getprop sys.boot_completed | tr -d '\r')" = 1
+if [ "$ready" != true ]; then
+  echo "Android system services failed to become stable before the boot deadline" >&2
+  exit 1
+fi
+echo "Android system services ready; system_server=$last_pid"
 test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 37
 test "$(adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
 adb shell input keyevent 82

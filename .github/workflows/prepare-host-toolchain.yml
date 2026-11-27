@@ -82,7 +82,7 @@ jobs:
           tasks=(:app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest :app:lintRelease :app:assembleRelease)
           test -s android-app/app/gradle.lockfile
           test -s android-app/gradle/verification-metadata.xml
-          ./android-app/gradlew -p android-app "${tasks[@]}" -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --dependency-verification strict --no-daemon --stacktrace
+          ./android-app/gradlew -p android-app "${tasks[@]}" -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --dependency-verification strict --no-daemon --stacktrace --info
           git diff --exit-code -- android-app/app/gradle.lockfile android-app/gradle/verification-metadata.xml
           echo "committed" > "$RUNNER_TEMP/baseline-status"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

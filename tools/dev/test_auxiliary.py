@@ -40,16 +40,24 @@ class PortableAuxiliaryTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp)
             dest=root/"stage"; dest.mkdir()
-            for name in auxiliary.BAZEL_REGISTRY_REPOS:
-                source=root/"output"/"hash"/"external"/name
+            external=root/"output"/"hash"/"external"
+            future="rules_rs++crate+future_workspace_https___index.crates.io_"
+            expected=sorted((*auxiliary.BAZEL_REGISTRY_REPOS,future))
+            for name in expected:
+                source=external/name
                 source.mkdir(parents=True)
                 (source/"config.json").write_text(name)
+            (external/"rules_rs++crate+crates__heck-0.5.0").mkdir()
+            names=auxiliary.bazel_registry_names(external)
+            self.assertEqual(names,expected)
+            for name in names:
                 auxiliary.bazel_registry_snapshot(root/"output",dest/name,name)
-            self.assertEqual(len(list(auxiliary.bazel_registry_overrides(dest))),2)
-            for name in auxiliary.BAZEL_REGISTRY_REPOS:
+            (dest/"repositories.json").write_text(auxiliary.json.dumps(names))
+            self.assertEqual(len(list(auxiliary.bazel_registry_overrides(dest))),len(expected))
+            for name in expected:
                 self.assertEqual((dest/name/"config.json").read_text(),name)
-            (dest/auxiliary.BAZEL_REGISTRY_REPOS[1]/"config.json").unlink()
-            (dest/auxiliary.BAZEL_REGISTRY_REPOS[1]).rmdir()
+            (dest/future/"config.json").unlink()
+            (dest/future).rmdir()
             with self.assertRaisesRegex(ValueError,"incomplete Bazel registry set"):
                 list(auxiliary.bazel_registry_overrides(dest))
 

@@ -129,11 +129,20 @@ def pnpm_install(stage,offline):
         run(cmd,"exec","prettier","--version",cwd=UPSTREAM,env=env)
 
 BAZEL_REGISTRY_REPO="rules_rs++crate+crates_https___index.crates.io_"
-BAZEL_REGISTRY_REPOS=(BAZEL_REGISTRY_REPO,"rules_rs++crate+argument_comment_lint_crates_https___index.crates.io_")
+BAZEL_REGISTRY_REPOS=(BAZEL_REGISTRY_REPO,"rules_rs++crate+argument_comment_lint_crates_https___index.crates.io_","rules_rs++crate+rrprd_https___index.crates.io_")
+BAZEL_REGISTRY_NAME=re.compile(r"rules_rs\+\+crate\+[A-Za-z0-9_]+_https___index\.crates\.io_")
+
+def bazel_registry_names(external):
+    """Discover all generated crates.io registry config repositories from the actual fetch."""
+    names=sorted(p.name for p in external.iterdir() if BAZEL_REGISTRY_NAME.fullmatch(p.name))
+    need(set(BAZEL_REGISTRY_REPOS)<=set(names),"required Bazel registries missing")
+    need(all((external/name).is_dir() and not (external/name).is_symlink() for name in names),
+         "invalid generated Bazel registry")
+    return names
 
 def bazel_registry_snapshot(output_root, destination, name=BAZEL_REGISTRY_REPO):
     """Retain the exact generated registry repository not cached by Bazel downloads."""
-    need(name in BAZEL_REGISTRY_REPOS,"unexpected Bazel registry")
+    need(BAZEL_REGISTRY_NAME.fullmatch(name),"unexpected Bazel registry")
     roots=list(output_root.glob("*/external/"+name))
     need(len(roots)==1 and roots[0].is_dir() and not roots[0].is_symlink(), "Bazel registry repository missing or ambiguous")
     source=roots[0]
@@ -228,8 +237,14 @@ def bazel_git_overrides(destination):
 
 def bazel_registry_overrides(directory):
     need(directory.is_dir() and not directory.is_symlink(),"missing verified Bazel registries")
-    need({p.name for p in directory.iterdir()}==set(BAZEL_REGISTRY_REPOS),"incomplete Bazel registry set")
-    for name in BAZEL_REGISTRY_REPOS:
+    manifest=directory/"repositories.json"
+    need(manifest.is_file() and not manifest.is_symlink(),"missing Bazel registry manifest")
+    names=json.loads(manifest.read_text())
+    need(isinstance(names,list) and all(isinstance(n,str) and BAZEL_REGISTRY_NAME.fullmatch(n) for n in names),
+         "invalid Bazel registry manifest")
+    need(names==sorted(set(names)) and set(BAZEL_REGISTRY_REPOS)<=set(names) and
+         {p.name for p in directory.iterdir()}==set(names)|{"repositories.json"},"incomplete Bazel registry set")
+    for name in names:
         path=directory/name
         need(path.is_dir() and not path.is_symlink(),"invalid Bazel registry: "+name)
         yield "--override_repository="+name+"="+str(path.resolve())
@@ -253,10 +268,12 @@ def bazel_fetch(stage,offline):
         run(*args,*BAZEL_TARGETS,cwd=UPSTREAM)
         if not offline:
             registries.mkdir()
-            for name in BAZEL_REGISTRY_REPOS:
-                bazel_registry_snapshot(pathlib.Path(d),registries/name,name)
             roots=list(pathlib.Path(d).glob("*/external/"+BAZEL_REGISTRY_REPO))
             need(len(roots)==1,"Bazel output root missing or ambiguous")
+            names=bazel_registry_names(roots[0].parent)
+            for name in names:
+                bazel_registry_snapshot(pathlib.Path(d),registries/name,name)
+            (registries/"repositories.json").write_text(json.dumps(names)+"\n")
             bazel_git_snapshots(roots[0].parent,git_repositories,pathlib.Path(d))
 
 def llvm_prepare(stage):

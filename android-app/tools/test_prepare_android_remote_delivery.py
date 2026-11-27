@@ -18,6 +18,10 @@ class RemoteDeliveryAdapterTest(unittest.TestCase):
                      "android_read_delivery_file", "metadata.is_symlink", "bytes.len() as u64 > MAX_BYTES"):
             self.assertIn(text, PROCESSOR)
 
+    def test_exec_server_error_uses_owned_string(self):
+        adapted = "\n".join(new for _, _, new in EXEC_CHANGES)
+        self.assertIn('invalid_request("delivery requires no-follow and no sandbox override".to_string())', adapted)
+
     def test_dedicated_remote_method_and_read_bound(self):
         adapted = "\n".join(new for _, _, new in EXEC_CHANGES)
         for text in ("fs/androidDeliveryRead", "file.take(max_bytes + 1)",

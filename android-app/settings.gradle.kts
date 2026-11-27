@@ -1,7 +1,11 @@
 pluginManagement {
     // Resolve the implementation modules directly from their authoritative repositories.
     // Plugin portal and Maven Central marker POMs can differ for the same coordinate.
-    repositories { google(); mavenCentral() }
+    repositories {
+        // Kotlin implementation modules and metadata are authoritative on Maven Central.
+        google { content { excludeGroupByRegex("org\\.jetbrains\\.kotlin(\\..*)?") } }
+        mavenCentral()
+    }
     resolutionStrategy {
         eachPlugin {
             when (requested.id.id) {
