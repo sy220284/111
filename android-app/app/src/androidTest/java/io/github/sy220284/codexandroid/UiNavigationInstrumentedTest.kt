@@ -1149,7 +1149,9 @@ class UiNavigationInstrumentedTest {
             rule.waitUntil(10_000L) {
                 rule.onAllNodesWithText("第二阶段阅读位置", substring = true).fetchSemanticsNodes().isNotEmpty()
             }
-            viewport.performScrollToIndex(1)
+            // A logical message can span several lazy pages. Find the actual
+            // final fragment instead of treating logical row 1 as physical page 1.
+            viewport.performScrollToNode(hasText("第二阶段阅读位置 0"))
             viewport.performTouchInput { swipeUp() }
             rule.waitForIdle()
             val fragmentLabel = (0 until 80).map { "第二阶段阅读位置 $it" }.first { label ->
