@@ -5,12 +5,14 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import androidx.core.app.ServiceCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -161,11 +163,20 @@ class CodexForegroundService : Service() {
         }
         val note = builder.build()
         if (foreground) {
+            // Check this service's actual merged manifest entry, independently of
+            // unrelated bound-only services present in debug/test builds.
             if (Build.VERSION.SDK_INT >= 34) {
-                startForeground(ID, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-            } else {
-                startForeground(ID, note)
+                val info = packageManager.getServiceInfo(
+                    ComponentName(this, CodexForegroundService::class.java),
+                    android.content.pm.PackageManager.ComponentInfoFlags.of(0L)
+                )
+                check(info.foregroundServiceType == ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE) {
+                    "前台任务服务类型与安装包声明不一致"
+                }
             }
+            ServiceCompat.startForeground(this, ID, note,
+                if (Build.VERSION.SDK_INT >= 34) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE
+                else ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST)
         } else {
             getSystemService(NotificationManager::class.java).notify(ID, note)
         }

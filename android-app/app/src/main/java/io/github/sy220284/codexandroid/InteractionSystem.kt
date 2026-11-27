@@ -29,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
@@ -63,12 +64,19 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         if (reducedMotion) progress.snapTo(1f)
         else progress.animateTo(1f, tween(CodexMotion.navigation))
     }
-    Box(Modifier.fillMaxSize().clipToBounds()) {
+    val canvas = Ink.canvas
+    Box(Modifier.fillMaxSize().clipToBounds().drawWithContent {
+        drawContent()
+        val remaining = if (reducedMotion) 0f else 1f - progress.value
+        if (remaining > 0f) drawRect(canvas, alpha = .06f * remaining)
+    }) {
+        // Update only the native layer transform. The veil is a separate draw
+        // operation, so translating the page needs no full-size alpha buffer.
         Box(Modifier.fillMaxSize().graphicsLayer {
-            val visible = if (reducedMotion) 1f else progress.value
-            alpha = .94f + .06f * visible
-            translationY = 6.dp.toPx() * (1f - visible)
-        }) { content() }
+            translationY = if (reducedMotion) 0f else 6.dp.toPx() * (1f - progress.value)
+        }) {
+            content()
+        }
     }
 }
 

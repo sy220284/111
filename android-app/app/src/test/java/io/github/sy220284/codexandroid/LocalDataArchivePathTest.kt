@@ -18,6 +18,34 @@ class LocalDataArchivePathTest {
         assertTrue(LocalDataArchive.validatePath("files/projects/demo/developer-runtime/main.py"))
     }
 
+    @Test fun onlyExplicitPortableDataCanCrossTrustBoundary() {
+        for (path in listOf(
+            "files/codex-home/config.toml", "files/codex-home/config.toml.bak",
+            "files/codex-home/rules/default.rules", "files/codex-home/skills/demo/SKILL.md",
+            "files/codex-home/log/codex.log", "files/codex-home/sessions/2026/config.toml",
+            "files/codex-home/state_5.sqlite", "files/approval-audit.json",
+            "files/unknown-future-runtime/payload", "shared_prefs/codex-remote.xml",
+            "shared_prefs/visual-preferences.xml/extra", "shared_prefs/new-runtime.xml"
+        )) assertFalse(path, LocalDataArchive.validatePath(path))
+        for (path in listOf(
+            "files/codex-home/archived_sessions/rollout.jsonl",
+            "files/codex-home/session_index.jsonl", "files/codex-home/history.jsonl",
+            "shared_prefs/visual-preferences.xml", "files/projects/demo/config.toml",
+            "files/codex-turn-images/12345678-1234-1234-1234-123456789abc.png"
+        )) assertTrue(path, LocalDataArchive.validatePath(path))
+        assertFalse(BackupDataPolicy.mayContain("files/codex-home/skills"))
+        assertTrue(BackupDataPolicy.mayContain("files/codex-home/sessions/2026"))
+    }
+
+    @Test fun snapshotNamesMatchTheActualWriter() {
+        val id = "12345678-1234-1234-1234-123456789abc"
+        val name = AnswerCheckpointFormat.manifestName(id)
+        assertTrue(LocalDataArchive.validatePath("files/answer-checkpoints/manifests/" + name))
+        assertTrue(LocalDataArchive.validatePath("files/answer-checkpoints/objects/" + "a".repeat(64)))
+        assertFalse(LocalDataArchive.validatePath("files/answer-checkpoints/manifests/" + "a".repeat(64) + ".json"))
+        assertFalse(LocalDataArchive.validatePath("files/answer-checkpoints/objects/" + id))
+    }
+
     @Test fun blocksTraversalAndCredentials() {
         for (path in listOf(
             "/tmp/passwd", "files/../shared_prefs/settings.xml",

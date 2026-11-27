@@ -1,0 +1,79 @@
+name: 111 开发工具链产物与离线验收
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: dev-toolchain-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  shared:
+    name: 777 固定共享产物与工作流检查
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 安装真实共享产物并执行回归
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/run_ci_script_tests.py plan
+          bash tools/dev/check-ci-toolchain.sh
+          python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
+          python3 -m unittest discover -s .github/scripts -p 'test_audit_apk_contents.py'
+
+  runtime-arm64:
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: arm64-v8a
+      source_sha: ${{ github.sha }}
+
+  runtime-x86:
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: x86_64
+      source_sha: ${{ github.sha }}
+
+  android:
+    uses: ./.github/workflows/prepare-host-toolchain.yml
+    with:
+      group: android
+      source_sha: ${{ github.sha }}
+
+  rust:
+    uses: ./.github/workflows/prepare-host-toolchain.yml
+    with:
+      group: rust
+      source_sha: ${{ github.sha }}
+
+  wheelhouse:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: wheelhouse
+      source_sha: ${{ github.sha }}
+
+  emulator:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: emulator
+      source_sha: ${{ github.sha }}
+
+  llvm:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: llvm
+      source_sha: ${{ github.sha }}
+
+  patcher:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: patcher
+      source_sha: ${{ github.sha }}

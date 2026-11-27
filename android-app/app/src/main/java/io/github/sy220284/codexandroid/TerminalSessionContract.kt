@@ -7,6 +7,42 @@ import java.util.Base64
 
 /** A command is confirmed in the UI before this protocol request is sent. */
 object TerminalSessionContract {
+    /** Android currently runs the core under the app UID. This policy is a
+     * protocol declaration, not a verified OS-level sandbox. */
+    private fun sandbox(networkEnabled: Boolean) = JSONObject()
+        .put("type", "externalSandbox")
+        .put("networkAccess", if (networkEnabled) "enabled" else "restricted")
+
+    internal const val ACCESS_NOTICE = "终端与本机运行核心共享应用权限，可访问工作区外的应用可读写文件；请仅运行可信命令。"
+
+    /** Fixed, user-initiated tool probe: no caller-supplied script, no stdin. */
+    internal fun developerProbe(cwd: String): JSONObject {
+        require(cwd.isNotBlank()) { "工作目录不可为空" }
+        val script = listOf(
+            "for name in git rg jq curl python3 node npm pip; do",
+            "  if command -v \"\$name\" >/dev/null 2>&1; then",
+            "    output=\$(\"\$name\" --version 2>&1); code=\$?",
+            "    output=\$(printf '%s\\n' \"\$output\" | head -n 1)",
+            "    printf '%s\\t%s\\t%s\\n' \"\$name\" \"\$code\" \"\$output\"",
+            "  else",
+            "    printf '%s\\t127\\t命令未找到\\n' \"\$name\"",
+            "  fi",
+            "done",
+            "output=\$(python3 -m pip --version 2>&1); code=\$?",
+            "printf '%s\\t%s\\t%s\\n' 'pip (python3 -m pip)' \"\$code\" \"\$output\"",
+            "if command -v git-remote-https >/dev/null 2>&1; then",
+            "  printf '%s\\t0\\t%s\\n' 'Git HTTPS' '传输组件已注册，连接待验证'",
+            "else",
+            "  printf '%s\\t127\\t%s\\n' 'Git HTTPS' '传输组件未安装'",
+            "fi"
+        ).joinToString("\n")
+        return JSONObject()
+            .put("command", JSONArray().put("/system/bin/sh").put("-c").put(script))
+            .put("cwd", cwd)
+            .put("timeoutMs", 30000)
+            .put("sandboxPolicy", sandbox(false))
+    }
+
     fun execute(command: String, cwd: String, processId: String, tty: Boolean = false, networkEnabled: Boolean = false): JSONObject {
         require(command.isNotBlank()) { "请输入要执行的命令" }
         require(cwd.isNotBlank()) { "工作目录不可为空" }
@@ -24,9 +60,7 @@ object TerminalSessionContract {
                     put("size", JSONObject().put("rows", 24).put("cols", 80))
                 }
             }
-            .put("sandboxPolicy", JSONObject()
-                .put("type", "externalSandbox")
-                .put("networkAccess", if (networkEnabled) "enabled" else "restricted"))
+            .put("sandboxPolicy", sandbox(networkEnabled))
     }
 
     fun write(processId: String, line: String): JSONObject {

@@ -32,6 +32,16 @@ class TerminalSessionContractTest {
             .getJSONObject("sandboxPolicy").getString("networkAccess"))
     }
 
+    @Test fun developerProbeHasFixedCommandAndBoundedNonInteractiveExecution() {
+        val request = TerminalSessionContract.developerProbe("/workspace")
+        assertEquals("/workspace", request.getString("cwd"))
+        assertEquals(30000, request.getInt("timeoutMs"))
+        assertEquals("restricted", request.getJSONObject("sandboxPolicy").getString("networkAccess"))
+        assertFalse(request.has("streamStdin"))
+        assertFalse(request.has("tty"))
+        assertTrue(request.getJSONArray("command").getString(2).contains("python3 -m pip --version"))
+    }
+
     @Test fun interactiveTerminalUsesRealPtyAndSupportsResize() {
         val exec = TerminalSessionContract.execute("sh", "/sandbox/work", "pty-1", tty = true)
         assertTrue(exec.getBoolean("tty"))

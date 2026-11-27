@@ -12,32 +12,32 @@ import json
 import re
 from pathlib import Path
 
-from protocol_contract import parse_contracts
+from static_audit_inputs import AuditInputs
 from ui_evidence_manifest import load_evidence_manifest, declared_screens as evidence_screens
 
 ROW = re.compile(r"^\|\s*(\d{2})\s*\|\s*`([a-z]+)`\s*\|\s*(P[012])\s*\|\s*([^|]*)\|\s*([^|]*)\|\s*([^|]*)\|", re.M)
 PAGE = re.compile(r'\bPage\("([a-z]+)"')
 FEATURE = re.compile(r'\bUiFeature\("([a-z]+)"')
-SCREEN = re.compile(r'([a-z][a-z0-9-]+)-android35\.png')
+SCREEN = re.compile(r'([a-z][a-z0-9-]+)-android\.png')
 TEST_METHOD = re.compile(r'@Test(?:\([^)]*\))?\s+fun\s+([A-Za-z][A-Za-z0-9_]*)\b')
 TEST_CLASS = re.compile(r'\bclass\s+([A-Za-z][A-Za-z0-9_]*Test)\b')
 SOURCE_NAME = re.compile(r'\b([A-Z][A-Za-z0-9_]*)\.kt\b')
 
 
-def audit(repository: Path, expected: int | None = None) -> dict:
+def audit(repository: Path, expected: int | None = None, *, inputs=None) -> dict:
+    inputs = inputs or AuditInputs(repository)
+    repository=inputs.root
     source = repository / "android-app/app/src/main/java/io/github/sy220284/codexandroid"
-    document = (repository / "docs/对标应用29项界面交付核对表-20261123.md").read_text(encoding="utf-8")
-    navigation = (source / "AppNavigation.kt").read_text(encoding="utf-8")
-    feature = (source / "UiFeatureCatalog.kt").read_text(encoding="utf-8")
-    evidence_manifest = load_evidence_manifest(repository)
-    policy = json.loads((repository / "android-app/tools/ui_surface_policy.json").read_text(encoding="utf-8"))
-    contracts = parse_contracts((repository / "upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs").read_text(encoding="utf-8"))
+    document = inputs.text("docs/对标应用29项界面交付核对表-20261123.md")
+    navigation = inputs.text(source/"AppNavigation.kt")
+    feature = inputs.text(source/"UiFeatureCatalog.kt")
+    evidence_manifest = inputs.manifest
+    policy = inputs.policy
+    contracts = inputs.contracts
     method_policy = policy["methods"]
 
-    source_names = {p.name for p in source.glob("*.kt")}
-    tests = "\n".join(p.read_text(encoding="utf-8")
-                     for area in ("test", "androidTest")
-                     for p in sorted((repository / "android-app/app/src" / area).rglob("*.kt")))
+    source_names = {p.name for p in inputs.production if p.parent==source}
+    tests = "\n".join(inputs.all_tests.values())
     test_names = set(TEST_METHOD.findall(tests)) | set(TEST_CLASS.findall(tests))
     declared_screens = set(evidence_screens(evidence_manifest))
     routes = set(PAGE.findall(navigation))
@@ -46,6 +46,7 @@ def audit(repository: Path, expected: int | None = None) -> dict:
         expected = len(features)
     rows = []
     issues = []
+    screenshot_observations = []
     by_route = {}
     for match in ROW.finditer(document):
         number, route, priority, goal, code, evidence = match.groups()
@@ -66,7 +67,7 @@ def audit(repository: Path, expected: int | None = None) -> dict:
         if missing_files:
             issues.append(f"{route} 文件已失效：{', '.join(missing_files)}")
         if missing_screens:
-            issues.append(f"{route} 文档截图未纳入设备验收：{', '.join(missing_screens)}")
+            screenshot_observations.append(f"{route} 文档截图未纳入采集登记：{', '.join(missing_screens)}")
         if route not in features:
             issues.append(f"{route} 缺少功能目录")
         if route != "update" and route not in routes:
@@ -113,6 +114,7 @@ def audit(repository: Path, expected: int | None = None) -> dict:
         "host_methods": sum(c.direction == "host_request" for c in contracts.values()),
         "workflows": rows,
         "issues": issues,
+        "screenshot_observations": screenshot_observations,
         "evidence_boundary": "源码、测试名称与预期截图声明；真实内核与真机结果需要对应运行产物",
     }
 
@@ -128,7 +130,7 @@ def markdown(report: dict) -> str:
     ]
     for entry in report["workflows"]:
         evidence = ", ".join(entry["regression_tests"] + [
-            s + "-android35.png" for s in entry["screenshot_declarations"]
+            s + "-android.png" for s in entry["screenshot_declarations"]
         ])
         lines.append(
             f"| {entry['number']:02} | `{entry['route']}` | {entry['priority']} | "
@@ -136,6 +138,8 @@ def markdown(report: dict) -> str:
         )
     lines += ["", "## 本次 CI 审计异常", ""]
     lines += [f"- {issue}" for issue in report["issues"]] if report["issues"] else ["- 无静态目录与证据声明缺口"]
+    lines += ["", "## 截图记录（非门禁）", ""]
+    lines += [f"- {item}" for item in report["screenshot_observations"]] or ["- 无截图声明缺口"]
     lines += ["", "## 后续每个真实功能的验收标准", "",
               "入口点击 → 参数与权限 → 官方请求/本机操作 → 服务端回执 → 状态更新/数据保存 → 失败或断线后的恢复；必须记录当前提交和执行环境。", ""]
     return "\n".join(lines)

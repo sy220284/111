@@ -2,10 +2,20 @@ package io.github.sy220284.codexandroid
 
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.produceIn
 import org.json.JSONObject
+
+/** The decoded notification keeps the wire envelope untouched. Batched text is
+ * passed directly to the reducer, without reconstructing JSON. */
+internal data class CoreNotification(
+    val wire: JSONObject,
+    val method: String = wire.optString("method"),
+    val params: JSONObject = wire.optJSONObject("params") ?: JSONObject(),
+    val mergedDelta: String? = null
+) {
+    val delta: String get() = mergedDelta ?: params.optString("delta")
+}
 
 /** Adjacent native deltas are appended in bounded chunks before materializing a snapshot.
  * A different thread, turn, item, summary segment or lifecycle event ends the batch. */
@@ -25,8 +35,7 @@ internal class TimelineDeltaBatch(private val first: JSONObject) {
         text.append(incoming.optString("delta"))
         return true
     }
-    fun notification(): JSONObject = JSONObject(first.toString()).put("params",
-        JSONObject(params.toString()).put("delta", text.toString()))
+    fun notification(): CoreNotification = CoreNotification(first, method, params, text.toString())
     companion object {
         private val methods = setOf("item/agentMessage/delta", "item/plan/delta",
             "item/reasoning/summaryTextDelta", "item/commandExecution/outputDelta", "item/fileChange/outputDelta")
@@ -39,24 +48,40 @@ internal class TimelineDeltaBatch(private val first: JSONObject) {
     }
 }
 
-/** Serial dispatch preserves lifecycle ordering. Channel capacity and collection time are bounded. */
+/** Independent thread delta lanes share bounded backpressure. Every non-delta
+ * notification and core-epoch transition is an explicit global ordering barrier. */
 @OptIn(FlowPreview::class)
-internal suspend fun collectTimelineNotifications(events: Flow<JSONObject>, dispatch: suspend (JSONObject) -> Unit) = coroutineScope {
+internal suspend fun collectTimelineNotifications(events: Flow<JSONObject>, dispatch: suspend (CoreNotification) -> Unit) = coroutineScope {
     val channel = events.produceIn(this)
+    val scheduler = ThreadEventScheduler<String>(this)
+    var epoch: Long? = null
     var pending: JSONObject? = null
     while (true) {
         val first = pending ?: channel.receiveCatching().let { result ->
-            if (result.isClosed) { result.exceptionOrNull()?.let { throw it }; return@coroutineScope }
+            if (result.isClosed) {
+                result.exceptionOrNull()?.let { throw it }
+                scheduler.drain()
+                return@coroutineScope
+            }
             result.getOrThrow()
         }
         pending = null
-        if (!TimelineDeltaBatch.accepts(first)) { dispatch(first); continue }
+        val nextEpoch = first.optLong(CORE_SESSION_FIELD, -1L)
+        if (epoch != nextEpoch) {
+            scheduler.drain()
+            epoch = nextEpoch
+        }
+        if (!TimelineDeltaBatch.accepts(first)) {
+            scheduler.barrier { dispatch(CoreNotification(first)) }
+            continue
+        }
         val batch = TimelineDeltaBatch(first)
-        delay(8)
+        // Drain queued events immediately; display cadence belongs to presentation.
         for (i in 0 until 63) {
             val next = channel.tryReceive().getOrNull() ?: break
             if (!TimelineDeltaBatch.accepts(next) || !batch.append(next)) { pending = next; break }
         }
-        dispatch(batch.notification())
+        val notification = batch.notification()
+        scheduler.submit(notification.params.getString("threadId")) { dispatch(notification) }
     }
 }

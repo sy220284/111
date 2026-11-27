@@ -10,6 +10,9 @@ import org.json.JSONObject
 
 /** Conversation commands execute on their captured thread with foreground protection. */
 internal class ConversationActionController(private val vm: CodexViewModel) {
+    private suspend fun withContextMediaHistory(root: File, clientId: String?): List<String> =
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { MediaHistoryStore.read(root, clientId) }
+
     private fun available(id: String, foregroundOnly: Boolean = true): Boolean = with(vm) {
         val foregroundReady = id == activeThread.value && !running.value && !threadSwitching.value &&
             !firstThreadStarting.value && !loadingEarlier.value && !timelineCompacting
@@ -66,6 +69,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
             errors.value = errors.value + ("conversation" to "其他回答版本仍在执行，请完成后再重新回答")
             return@with
         }
+        val owner = captureTaskOwner() ?: return@with
         val key = "threadFork:$id"
         val cwd = activeWorkspace.value
         loading.value = loading.value + key
@@ -74,8 +78,9 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
             var forkId: String? = null
             try {
                 val replay = MessageReplayCoordinator { method, params ->
-                    if (method == "thread/fork") modelPreviews.request(method, params)
-                    else bridge.request(method, params)
+                    owner.requireCurrent(vm)
+                    if (method == "thread/fork") modelPreviews.request(method, params, expectedSession = owner.epoch, sendPermit = { owner.current(vm) }).also { owner.requireCurrent(vm) }
+                    else owner.request(vm, method, params)
                 }
                 val original = replay.readOriginal(id, turnId)
                 val app = getApplication<Application>()
@@ -85,8 +90,11 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 val input = answerWorkspaces.remap(original.input, prepared.originalWorkspace, copy.absolutePath)
                 val staged = LocalImageAttachments.directory(app).canonicalFile
                 val images = replay.validateInput(input).filter { File(it).canonicalFile.parentFile == staged }
-                LocalImageAttachments.preserveForHistory(app, images)
-                val config = bridge.request("config/read", JSONObject().put("cwd", copy.absolutePath))
+                val originals = withContextMediaHistory(staged, original.clientId)
+                if (originals.isNotEmpty() && originals.all { File(it).isFile })
+                    LocalImageAttachments.preserveForHistory(app, originals, clientId)
+                else LocalImageAttachments.preserveForHistory(app, images)
+                val config = owner.request(vm, "config/read", JSONObject().put("cwd", copy.absolutePath))
                 val permission = AnswerWorkspaceStore.permission(File(workingDirectory), copy.absolutePath, ComposerPermissionPolicy.selected(config))
                 check(activeThread.value == id && !running.value && !threadSwitching.value &&
                     !securitySaveBusy.value && !connectionRestarter.busy.value &&
@@ -94,6 +102,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 // The locked Rust protocol has experimental beforeTurnId; the
                 // connection already negotiates experimentalApi. One native
                 // fork excludes the selected turn without any history mutation.
+                owner.requireCurrent(vm)
                 val target = replay.forkBefore(id, turnId, copy.absolutePath, permission)
                 forkId = target
                 answerVersions.add(id, turnId, target)
@@ -101,11 +110,11 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                     JSONObject().put("threadId", target).put("input", input)
                         .put("clientUserMessageId", clientId).put("cwd", copy.absolutePath)
                         .put("runtimeWorkspaceRoots", org.json.JSONArray().put(copy.absolutePath)), permission)
-                val launched = start(target, "retry:$target", "turn/start", images, foregroundOnly = false,
+                val launched = start(target, "retry:$target", "turn/start", images, foregroundOnly = false, owner = owner,
                     onAccepted = { response ->
                         answerVersions.bind(target, response.getJSONObject("turn").getString("id"))
                         if (activeThread.value == id && !threadSwitching.value) chooseThread(target)
-                    }) { bridge.request("turn/start", params) }
+                    }) { lease -> lease.request(vm, "turn/start", params) }
                 if (!launched) {
                     actionFeedback.emit(ActionFeedbackReceipt("已保留原回答和新版本，重新回答尚未启动，请核对权限和连接后重试", isError = true))
                 }
@@ -134,22 +143,22 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
     }
 
     fun compact(id: String) {
-        start(id, "threadCompact:$id", "thread/compact/start") {
-            vm.bridge.request("thread/compact/start", JSONObject().put("threadId", id))
+        start(id, "threadCompact:$id", "thread/compact/start") { owner ->
+            owner.request(vm, "thread/compact/start", JSONObject().put("threadId", id))
         }
     }
 
     fun review(id: String, target: JSONObject) {
-        start(id, "review:$id", "review/start") {
-            vm.bridge.request("review/start", JSONObject().put("threadId", id)
+        start(id, "review:$id", "review/start") { owner ->
+            owner.request(vm, "review/start", JSONObject().put("threadId", id)
                 .put("delivery", "inline").put("target", target))
         }
     }
 
     private fun start(id: String, key: String, method: String, images: List<String> = emptyList(),
-        foregroundOnly: Boolean = true, onAccepted: (JSONObject) -> Unit = {},
-        execute: suspend () -> JSONObject): Boolean = with(vm) {
-        if (!available(id, foregroundOnly) || key in loading.value) return@with false
+        foregroundOnly: Boolean = true, owner: TaskRequestOwner? = vm.captureTaskOwner(), onAccepted: (JSONObject) -> Unit = {},
+        execute: suspend (TaskRequestOwner) -> JSONObject): Boolean = with(vm) {
+        if (owner == null || !owner.current(vm) || !available(id, foregroundOnly) || key in loading.value) return@with false
         loading.value = loading.value + key
         data.value = data.value - key
         errors.value = errors.value - key
@@ -163,9 +172,11 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
             var dispatched = false
             try {
                 CodexForegroundService.startAndAwaitReady(getApplication<Application>())
-                remoteBindings.forThread(id)?.let { ensureRemoteThread(id, it) }
+                owner.requireCurrent(vm)
+                remoteBindings.forThread(id)?.let { ensureRemoteThread(id, it, expectedSession = owner.epoch, sendPermit = { owner.current(vm) }) }
+                owner.requireCurrent(vm)
                 dispatched = true
-                val response = execute()
+                val response = execute(owner)
                 if (method == "review/start" || method == "turn/start") {
                     val turn = response.getJSONObject("turn")
                     if (method == "review/start") require(response.getString("reviewThreadId") == id) { "审查响应所属会话不一致" }

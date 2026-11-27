@@ -13,14 +13,20 @@ object TurnRequestContract {
     fun input(text: String, localImages: List<String> = emptyList(),
               references: List<ComposerReference> = emptyList()): JSONArray {
         require(text.isNotBlank() || localImages.isNotEmpty() || references.isNotEmpty()) { "任务内容不能为空" }
-        require(localImages.size <= LocalImageAttachments.MAX_FILES && localImages.all { it.startsWith("/") }) { "图片附件路径或数量无效" }
+        require(localImages.size <= LocalImageAttachments.MAX_FILES && localImages.all { it.startsWith("/") }) { "媒体附件路径或数量无效" }
         val files = references.filter { it.kind == "file" }
         val prompt = listOf(text.trim(), files.takeIf { it.isNotEmpty() }?.joinToString(
             separator = "\n", prefix = "请读取这些已引用的本地文件：\n") { JSONObject.quote(it.path) }.orEmpty())
             .filter { it.isNotBlank() }.joinToString("\n\n")
+        // A single turn must not multiply the bounded video/audio payload by three.
+        val videoInputs = localImages.filter { LocalMediaAttachmentPolicy.kind(it) == "video" }
+        val derivedBytes = videoInputs.sumOf { path -> LocalMediaAttachmentPolicy.ownedPaths(path)
+            .filter { it.endsWith(".jpg") || it.endsWith(".m4a") }.sumOf { java.io.File(it).length() } }
+        val audioBytes = localImages.filter { LocalMediaAttachmentPolicy.kind(it) == "audio" }.sumOf { java.io.File(it).length() }
+        require(derivedBytes + audioBytes <= 60L * 1024 * 1024) { "本轮视频解析和音频附件总量超过60 MB，请分轮发送" }
         val result = JSONArray()
         if (prompt.isNotBlank()) result.put(JSONObject().put("type", "text").put("text", prompt))
-        localImages.forEach { result.put(JSONObject().put("type", "localImage").put("path", it)) }
+        localImages.forEach { LocalMediaAttachmentPolicy.append(result, it) }
         references.filter { it.kind == "skill" }.forEach {
             result.put(JSONObject().put("type", "skill").put("name", it.name).put("path", it.path))
         }
@@ -41,6 +47,7 @@ object TurnRequestContract {
         require(threadId.isNotBlank()) { "缺少会话标识" }
         require(mode == "default" || mode == "plan") { "未知工作方式：$mode" }
         ComposerModelPolicy.requireEffort(catalog, modelId, effort)
+        ComposerModelPolicy.requireMediaInput(catalog, modelId, LocalMediaAttachmentPolicy.modalities(localImages))
         val args = JSONObject().put("threadId", threadId).put("input", input(text, localImages, references))
         // Default execution inherits the live thread's model and current effort.
         // Only an explicit picker change should override its model.
@@ -59,6 +66,7 @@ object TurnRequestContract {
         }
         require(selected.isNotBlank()) { "计划模式需要先读取可用模型目录" }
         val model = requireNotNull(ComposerModelPolicy.model(visibleCatalog, selected)) { "计划模式所选模型已不可用，请重新选择" }
+        ComposerModelPolicy.requireMediaInput(visibleCatalog, selected, LocalMediaAttachmentPolicy.modalities(localImages))
         val configuredEffort = effectiveConfig?.optString("plan_mode_reasoning_effort")?.takeIf { it.isNotBlank() && it != "null" }
         val matchingEffort = configuredEffort?.takeIf { it in ComposerModelPolicy.efforts(visibleCatalog, selected) }
         require(effort.isNotBlank() || configuredEffort == null || matchingEffort != null || modelId.isNotBlank()) {

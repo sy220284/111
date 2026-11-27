@@ -553,6 +553,15 @@ impl CodexThread {
             .await
     }
 
+    /// Explicit sampling of a fresh persistent root needs a real rollout, not the
+    /// preparation checkpoint (which only flushes an existing writer).
+    /// Propagate persistence errors before admitting a model request.
+    pub async fn materialize_rollout_for_sampling(&self) -> std::io::Result<()> {
+        self.session
+            .try_ensure_rollout_materialized(PersistContext::Standard)
+            .await
+    }
+
     #[doc(hidden)]
     pub async fn ensure_rollout_materialized(&self) {
         self.session
@@ -1491,6 +1500,13 @@ impl CodexThread {
             .models_manager
             .get_model_info(model, config)
             .await
+    }
+
+    /// A durable, non-secret identity of the thread's selected media request route.
+    pub async fn media_analysis_scope(&self) -> CodexResult<String> {
+        let config = self.config().await;
+        let auth = self.session.services.auth_manager.auth().await;
+        codex_model_provider::media_analysis_scope(&config.model_provider, auth.as_ref())
     }
 
     /// Captures local settings for thread views and input ownership checks.

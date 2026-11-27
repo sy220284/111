@@ -15,6 +15,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
@@ -64,6 +66,8 @@ internal fun ConversationComposer(
     providerLabel: String = ""
 ) {
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    val focusManager = LocalFocusManager.current
+    val keyboard = LocalSoftwareKeyboardController.current
     var expandedEditor by remember { mutableStateOf(false) }
     var inputFocused by remember { mutableStateOf(false) }
     val outline by animateColorAsState(
@@ -73,6 +77,11 @@ internal fun ConversationComposer(
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(3.dp)) {
         statusContent?.invoke()
         AtlasComposerShortcuts(draft, shortcuts) { shortcut ->
+            // End the old text-input session before clearing its command or
+            // transferring focus to another window. The next tap can start a
+            // fresh IME session after the shortcut surface closes.
+            focusManager.clearFocus(force = true)
+            keyboard?.hide()
             if (ComposerShortcutPolicy.query(draft) != null) onDraftChange("")
             shortcut.onOpen()
         }

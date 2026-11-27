@@ -9,6 +9,8 @@ use codex_app_server_protocol::JSONRPCErrorError;
 use codex_app_server_protocol::ThreadSampleParams;
 use codex_app_server_protocol::ThreadSampleResponse;
 use codex_app_server_protocol::TurnStatus;
+use codex_app_server_protocol::UserInput as ApiUserInput;
+use codex_protocol::openai_models::InputModality;
 use codex_core::CodexThread;
 use codex_core::ForkSnapshot;
 use codex_core::ThreadManager;
@@ -82,8 +84,10 @@ pub(crate) async fn generate_sample(
     tasks: &TaskTracker,
     rpc_gate: Arc<ConnectionRpcGate>,
 ) -> SampleResult {
-    let deadline = Instant::now() + SAMPLE_TIMEOUT;
-    if task.params.expected_turn_id.trim().is_empty() || task.params.prompt.trim().is_empty() {
+    let deadline = Instant::now() + if task.params.media.is_empty() { SAMPLE_TIMEOUT } else { Duration::from_secs(120) };
+    let fresh_media = !task.params.media.is_empty() && task.params.expected_turn_id.is_empty()
+        && !task.params.allow_in_progress_turn;
+    if (!fresh_media && task.params.expected_turn_id.trim().is_empty()) || task.params.prompt.trim().is_empty() {
         return Err(invalid_request(
             "thread/sample requires a nonblank expectedTurnId and prompt",
         ));
@@ -116,7 +120,9 @@ impl SampleTask {
             cancellation,
         } = self;
         let id = parent.startup_metadata().thread_id;
-        if !params.allow_in_progress_turn && parent.agent_status().await == AgentStatus::Running {
+        let fresh_media = !params.media.is_empty() && params.expected_turn_id.is_empty()
+            && !params.allow_in_progress_turn;
+        if !params.allow_in_progress_turn && (parent.agent_status().await == AgentStatus::Running || parent.has_active_turn().await) {
             return Err(invalid_request("sample source must be idle"));
         }
         let snapshot = parent.config_snapshot().await;
@@ -127,6 +133,13 @@ impl SampleTask {
         }
         let parent_history = parent.conversation_history_snapshot().await;
         let revision = parent_history.history_version();
+        if fresh_media {
+            let scope = params.media_scope.as_deref().ok_or_else(|| invalid_request("media sample requires a credential scope"))?;
+            if parent.media_analysis_scope().await.map_err(|e| invalid_request(e.to_string()))? != scope {
+                return Err(invalid_request("media sample credential scope changed"));
+            }
+            parent.materialize_rollout_for_sampling().await.map_err(|e| internal_error(e.to_string()))?;
+        }
         parent
             .flush_rollout()
             .await
@@ -138,7 +151,20 @@ impl SampleTask {
             })
             .await
             .map_err(|error| invalid_request(error.to_string()))?;
-        let latest_turn_in_progress = match snapshot.history_mode {
+        let latest_turn_in_progress = if fresh_media {
+            let empty = match snapshot.history_mode {
+                ThreadHistoryMode::Legacy => {
+                    let full = parent.load_history(false).await.map_err(|e| invalid_request(e.to_string()))?;
+                    build_legacy_api_turns_from_rollout_items(&full.items).is_empty()
+                }
+                ThreadHistoryMode::Paginated => store.list_turns(ListTurnsParams {
+                    thread_id: id, include_archived: false, cursor: None, page_size: 1,
+                    sort_direction: SortDirection::Desc, items_view: StoredTurnItemsView::NotLoaded,
+                }).await.map_err(|e| invalid_request(e.to_string()))?.turns.is_empty(),
+            };
+            if !empty { return Err(invalid_request("empty media source requires a thread without turns")); }
+            Some(false)
+        } else { match snapshot.history_mode {
             ThreadHistoryMode::Legacy => build_legacy_api_turns_from_rollout_items(&history.items)
                 .last()
                 .filter(|turn| turn.id == params.expected_turn_id)
@@ -159,7 +185,7 @@ impl SampleTask {
                 .first()
                 .filter(|turn| turn.turn_id == params.expected_turn_id)
                 .map(|turn| turn.status == StoredTurnStatus::InProgress),
-        };
+        }};
         let Some(source_in_progress) =
             latest_turn_in_progress.filter(|running| !running || params.allow_in_progress_turn)
         else {
@@ -187,6 +213,25 @@ impl SampleTask {
                 &options.config.to_models_manager_config(),
             )
             .await;
+        let media_scope = params.media_scope.as_deref();
+        if !params.media.is_empty() {
+            let scope = media_scope.ok_or_else(|| invalid_request("media sample requires a credential scope"))?;
+            if parent.media_analysis_scope().await.map_err(|e| invalid_request(e.to_string()))? != scope {
+                return Err(invalid_request("media sample credential scope changed"));
+            }
+            validate_media(&params.media, &model.input_modalities)?;
+            options.config.model_provider.request_max_retries = Some(0);
+            options.config.model_provider.stream_max_retries = Some(0);
+            // A media analysis is a single model response, never an agent action.
+            // Keep managed policy checks; disable optional hooks and MCP startup.
+            options.config.features.set_enabled(Feature::CodexHooks, false)
+                .map_err(|e| invalid_request(e.to_string()))?;
+            options.config.features.set_enabled(Feature::PluginHooks, false)
+                .map_err(|e| invalid_request(e.to_string()))?;
+            options.thread_extension_init.insert(codex_core::McpServersDisabled);
+        } else if media_scope.is_some() {
+            return Err(invalid_request("media scope requires local media input"));
+        }
         options.config.ephemeral = true;
         if params.allow_in_progress_turn {
             // Mid-turn copy receives a custom interruption marker THREAD_SNAPSHOT_NOTE
@@ -262,10 +307,20 @@ impl SampleTask {
             Box::pin(fork.thread.restore_thread_settings(*settings))
                 .await
                 .map_err(|error| internal_error(error.to_string()))?;
-            let mut input = TurnInputRequest::user_input(vec![UserInput::Text {
+            if let Some(scope) = media_scope {
+                if fork.thread.media_analysis_scope().await.map_err(|e| invalid_request(e.to_string()))? != scope {
+                    return Err(invalid_request("media sample credential scope changed"));
+                }
+            }
+            if !params.allow_in_progress_turn && (parent.has_active_turn().await || parent.conversation_history_snapshot().await.history_version() != revision) {
+                return Err(invalid_request("sample source changed before dispatch"));
+            }
+            let mut parts = vec![UserInput::Text {
                 text: params.prompt,
                 text_elements: Vec::new(),
-            }])
+            }];
+            parts.extend(params.media.into_iter().map(ApiUserInput::into_core));
+            let mut input = TurnInputRequest::user_input(parts)
             .with_thread_settings(ThreadSettingsOverrides {
                 model: params.model,
                 effort: effort.map(Some),
@@ -353,9 +408,45 @@ impl SampleTask {
         {
             return Err(invalid_request("sample source changed"));
         }
+        if let Some(scope) = media_scope {
+            if parent.media_analysis_scope().await.map_err(|e| invalid_request(e.to_string()))? != scope {
+                return Err(invalid_request("media sample credential scope changed"));
+            }
+        }
         response.source_turn_id = params.expected_turn_id;
         Ok(response)
     }
+}
+
+/// Reuse the native media wire types; no URLs, skills, mentions or file-reading
+/// tools may be smuggled into an auxiliary analysis request.
+fn validate_media(media: &[ApiUserInput], modalities: &[InputModality]) -> Result<(), JSONRPCErrorError> {
+    if media.len() > 32 {
+        return Err(invalid_request("media sample exceeds input count"));
+    }
+    let mut count = 0;
+    let mut bytes = 0u64;
+    for part in media {
+        let (path, modality) = match part {
+            ApiUserInput::Text { text, .. } if text.len() <= 8192 => continue,
+            ApiUserInput::LocalImage { path, .. } => (path, InputModality::Image),
+            ApiUserInput::LocalAudio { path } => (path, InputModality::Audio),
+            _ => return Err(invalid_request("media sample accepts only local image/audio and bounded text")),
+        };
+        if !modalities.contains(&modality) {
+            return Err(invalid_request("selected model does not accept the requested media modality"));
+        }
+        let metadata = std::fs::metadata(path).map_err(|_| invalid_request("local media is unavailable"))?;
+        if !path.is_absolute() || !metadata.is_file() || metadata.len() == 0 {
+            return Err(invalid_request("invalid local media file"));
+        }
+        count += 1;
+        bytes = bytes.saturating_add(metadata.len());
+    }
+    if count == 0 || bytes > 60 * 1024 * 1024 {
+        return Err(invalid_request("media sample requires local media within 60 MiB"));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Default)]

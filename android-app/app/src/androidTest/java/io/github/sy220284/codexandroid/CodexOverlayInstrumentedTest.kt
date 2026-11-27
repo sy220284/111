@@ -58,7 +58,7 @@ class CodexOverlayInstrumentedTest {
         rule.onNodeWithText("正文最后一项").performScrollTo().assertIsDisplayed()
         rule.onNodeWithTag("long-detail-confirm").assertIsDisplayed()
         rule.onNodeWithTag("codex-detail-close").assertIsDisplayed()
-        captureVerifiedDisplayScreenshot("audit-detail-long-context-android35.png")
+        captureVerifiedDisplayScreenshot("audit-detail-long-context-android.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         rule.runOnIdle { assertEquals(1, accepted) }
@@ -173,7 +173,7 @@ class CodexOverlayInstrumentedTest {
         }
         rule.onNodeWithText("命令执行 · 执行依据").assertExists()
         rule.waitForIdle()
-        captureVerifiedDisplayScreenshot("evidence-sheet-android35.png")
+        captureVerifiedDisplayScreenshot("evidence-sheet-android.png")
         rule.onNodeWithText("执行成功").assertExists()
         rule.onNodeWithText("done").assertExists()
         rule.onNodeWithText("exitCode", substring = true).assertDoesNotExist()

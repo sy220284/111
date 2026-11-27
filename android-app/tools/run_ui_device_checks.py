@@ -4,23 +4,24 @@ import argparse
 import json
 import re
 import subprocess
+import shlex
 import os
 import time
 import uuid
 from collect_ui_screenshots import parse_discovered_screens
 from pathlib import Path
+from device_matrix import CONFIG, PROFILES, dimensions, SHARDS, shard_classes
 
 PACKAGE = "io.github.sy220284.codexandroid"
 RUNNER = PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner"
-SUITE = ["UiNavigationInstrumentedTest", "UiPopulatedSubpagesInstrumentedTest",
-         "CodexInteractionComponentsInstrumentedTest", "CodexOverlayInstrumentedTest",
-         "EngineSettingInstrumentedTest", "SelfUpdateInstallerIntentInstrumentedTest"]
-VARIANTS = {360: (720, "1.3"), 393: (720, "1.3"), 411: (915, "1.5")}
+
 DEVICE_ROOT = "/sdcard/Android/data/" + PACKAGE + "/files"
 
 
 def category(error):
-    if "CalledFromWrongThreadException" in error:
+    if "Application Not Responding:" in error and "截图被其他程序或系统窗口遮挡" in error:
+        return "system_window_anr"
+    if "CalledFromWrongThreadException" in error or "multithreaded access to SnapshotStateObserver" in error:
         return "ui_thread"
     if "ComposeTimeoutException" in error or "TimeoutException" in error:
         return "state_or_layout_timeout"
@@ -47,110 +48,228 @@ def parse_instrumentation(log, exit_code):
     return result
 
 
+def completed_test_ids(log):
+    """Read the runner's successful completion records, not start messages."""
+    current = {}
+    tests = []
+    for line in log.splitlines():
+        match = re.fullmatch(r"INSTRUMENTATION_STATUS: (class|test)=(.+)", line.strip())
+        if match:
+            current[match[1]] = match[2]
+        elif line.strip().startswith("INSTRUMENTATION_STATUS_CODE:"):
+            if line.strip() == "INSTRUMENTATION_STATUS_CODE: 0":
+                if set(current) != {"class", "test"}:
+                    raise ValueError("Incomplete JUnit completion record")
+                tests.append(current["class"]+"#"+current["test"])
+            current = {}
+    return sorted(tests)
+
 def adb(*args):
     return subprocess.check_output(["adb", *args], text=True).strip()
 
 
-def execute_instrumentation(classes, log_path):
-    command = ["adb", "shell", "am", "instrument", "-w", "-r", "-e", "class",
-               ",".join(PACKAGE + "." + c for c in classes), RUNNER]
+def instrumentation_command(classes, arguments=None):
+    command = ["am", "instrument", "-w", "-r", "-e", "class",
+               ",".join(PACKAGE + "." + c for c in classes)]
+    for key, value in (arguments or {}).items():
+        command.extend(["-e", key, str(value)])
+    command.append(RUNNER)
+    # adb shell joins host arguments before the Android shell parses them.
+    # Quote the entire remote argv once, including spaces and parentheses.
+    return ["adb", "shell", shlex.join(command)]
+
+
+def execute_instrumentation(classes, log_path, arguments=None, timeout=None):
+    command = instrumentation_command(classes, arguments)
+    timed_out = False
     with Path(log_path).open("w", encoding="utf-8") as evidence:
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True, errors="replace") as process:
-            for line in process.stdout:
-                evidence.write(line)
-                print(line, end="", flush=True)
+            if timeout is None:
+                for line in process.stdout:
+                    evidence.write(line)
+                    print(line, end="", flush=True)
+            else:
+                try:
+                    output, _ = process.communicate(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    timed_out = True
+                    process.kill()
+                    output, _ = process.communicate()
+                evidence.write(output)
+                print(output, end="", flush=True)
             code = process.wait()
-    return parse_instrumentation(Path(log_path).read_text(encoding="utf-8"), code)
+    log = Path(log_path).read_text(encoding="utf-8")
+    result = parse_instrumentation(log, code)
+    if timed_out:
+        result.update(status="failed", category="diagnostic_timeout", timeout_seconds=timeout)
+    result["test_ids"] = completed_test_ids(log)
+    if result["status"] == "passed" and (len(result["test_ids"]) != result["tests"] or len(set(result["test_ids"])) != result["tests"]):
+        result.update(status="failed", evidence_category="missing_or_duplicate_test_ids")
+    return result
 
 
 def clear_device_screens():
     command = f'if [ -d "{DEVICE_ROOT}" ]; then ls -1 "{DEVICE_ROOT}"; fi'
     for screen in parse_discovered_screens(adb("shell", command)):
-        adb("shell", "rm", "-f", DEVICE_ROOT + "/" + screen + "-android35.png")
+        adb("shell", "rm", "-f", DEVICE_ROOT + "/" + screen + "-android.png")
     if parse_discovered_screens(adb("shell", command)):
         raise RuntimeError("Previous device screenshots were not cleared")
 
 
-def assert_device(width, height, font=None):
+def assert_device(spec, physical_spec):
     size = adb("shell", "wm", "size")
     density = adb("shell", "wm", "density")
     actual_size = re.findall(r"(?:Override|Physical) size: (\d+x\d+)", size)
     actual_density = re.findall(r"(?:Override|Physical) density: (\d+)", density)
-    if not actual_size or actual_size[-1] != f"{width}x{height}" or not actual_density or actual_density[-1] != "160":
-        raise RuntimeError("Device configuration does not match evidence label")
+    physical_size = re.search(r"Physical size: (\d+x\d+)", size)
+    physical_density = re.search(r"Physical density: (\d+)", density)
+    expected_physical = f"{physical_spec['width_px']}x{physical_spec['height_px']}"
+    if not physical_size or physical_size[1] != expected_physical or not physical_density or int(physical_density[1]) != physical_spec["density_dpi"]:
+        raise RuntimeError("Physical AVD LCD resolution/density does not match baseline profile")
+    api = int(adb("shell", "getprop", "ro.build.version.sdk"))
+    release = adb("shell", "getprop", "ro.build.version.release")
+    page_size = int(adb("shell", "getconf", "PAGESIZE"))
+    build_fingerprint = adb("shell", "getprop", "ro.build.fingerprint")
+    if not build_fingerprint:
+        raise RuntimeError("Missing Android build fingerprint")
+    width, height, dpi = (spec[k] for k in ("width_px", "height_px", "density_dpi"))
+    if api != CONFIG["api"] or release.split(".")[0] != str(CONFIG["android_release"]) or page_size != CONFIG["page_size"]:
+        raise RuntimeError("Android OS or memory page size does not match device matrix")
+    if not actual_size or actual_size[-1] != f"{width}x{height}" or not actual_density or int(actual_density[-1]) != dpi:
+        raise RuntimeError("Device resolution/density does not match evidence label")
     actual_font = adb("shell", "settings", "get", "system", "font_scale")
     measured_font = float(actual_font) if actual_font != "null" else 1.0
-    if font is not None and measured_font != float(font):
+    if measured_font != float(spec["font_scale"]):
         raise RuntimeError("Device font scale does not match evidence label")
-    return measured_font
+    return dict(spec, android_api=api, android_release=release, page_size=page_size, build_fingerprint=build_fingerprint,
+                physical_size=physical_size[1], physical_density_dpi=int(physical_density[1]),
+                width_dp=round(width * 160 / dpi, 2), height_dp=round(height * 160 / dpi, 2))
 
 
-def run_fresh_suite(width, height, font, log, destination):
-    font = assert_device(width, height, font)
+def run_fresh_suite(profile, mode, log, destination, shard):
+    measured = assert_device(dimensions(profile, mode), dimensions(profile, 'baseline'))
+    measured.update(profile=profile, mode=mode, shard=shard)
     adb("shell", "am", "force-stop", PACKAGE)
-    clear_device_screens()
+    screenshot_errors = []
+    try:
+        clear_device_screens()
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        screenshot_errors.append("清理旧截图失败，跳过本轮采集：" + str(error))
     run_id = uuid.uuid4().hex
     started = time.time()
-    result = execute_instrumentation(SUITE, log)
-    missing, code = collect_screens(destination)
-    manifest = Path(destination) / "manifest.json"
-    if manifest.is_file():
-        evidence = json.loads(manifest.read_text(encoding="utf-8"))
-        evidence.update(run_id=run_id, started_at_epoch=started,
-                        commit=os.environ.get("GITHUB_SHA"), width_dp=width,
-                        height_dp=height, font_scale=font)
-        manifest.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    result.update(run_id=run_id, width_dp=width, height_dp=height,
-                  font_scale=font, missing_screens=missing, screenshot_collection_exit=code)
-    if missing or code:
-        result.update(status="failed", evidence_category="screenshot_missing_or_collection_error")
+    classes = shard_classes(profile, mode, shard)
+    result = execute_instrumentation(classes, log, arguments={
+        "expectedWidthPx": measured["width_px"], "expectedDensityDpi": measured["density_dpi"]})
+    observed = {test.split('#', 1)[0] for test in result['test_ids']}
+    if observed != {PACKAGE + '.' + name for name in classes}:
+        result.update(status='failed', evidence_category='missing_or_unexpected_test_classes')
+    missing, code = [], None
+    try:
+        if not screenshot_errors:
+            missing, code = collect_screens(destination)
+            manifest = Path(destination) / "manifest.json"
+            if manifest.is_file():
+                evidence = json.loads(manifest.read_text(encoding="utf-8"))
+                evidence.update(run_id=run_id, started_at_epoch=started,
+                                commit=os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA"), **measured)
+                manifest.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
+        screenshot_errors.append("截图采集失败：" + str(error))
+    result.update(run_id=run_id, commit=os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA"), **measured, missing_screens=missing, screenshot_collection_exit=code)
+    result["screenshot_observation"] = {
+        "blocking": False,
+        "status": "incomplete" if screenshot_errors or missing or code != 0 else "recorded",
+        "errors": screenshot_errors,
+    }
     return result
 
 
 def collect_screens(destination):
     collected = subprocess.run(["python3", "android-app/tools/collect_ui_screenshots.py",
-                                "--destination", destination], check=False)
+                                "--destination", destination, "--partial"], check=False)
     manifest = Path(destination) / "manifest.json"
     missing = json.loads(manifest.read_text(encoding="utf-8"))["missing"] if manifest.is_file() else ["screenshot_manifest"]
     return missing, collected.returncode
 
 
-def baseline(width):
-    return run_fresh_suite(width, 800, 1.0, "ui-instrument-result.log", "ui-screenshots")
+def prepare_display_change():
+    """Configure a disposable AVD with the tested app actually foregrounded."""
+    launch = adb("shell", "am", "start", "-W", "-n", PACKAGE + "/.MainActivity")
+    if not re.search(r"(?m)^Status: ok\s*$", launch):
+        raise RuntimeError("App could not own the display before reconfiguration: " + launch)
+    deadline = time.monotonic() + 15
+    while True:
+        activity = adb("shell", "dumpsys", "activity", "activities")
+        resumed = [line for line in activity.splitlines()
+                   if "mResumedActivity" in line or "topResumedActivity" in line]
+        if any(PACKAGE + "/" in line for line in resumed):
+            print("DISPLAY_PREPARATION " + json.dumps({"foreground": PACKAGE}), flush=True)
+            return
+        if time.monotonic() >= deadline:
+            raise RuntimeError("App did not become the resumed activity: " + "\n".join(resumed))
+        time.sleep(.25)
 
 
-def adaptive(width):
-    height, font = VARIANTS[width]
-    original_font = adb("shell", "settings", "get", "system", "font_scale")
-    original_size = re.search(r"Override size: (\d+x\d+)", adb("shell", "wm", "size"))
-    try:
-        adb("shell", "wm", "size", f"{width}x{height}")
-        adb("shell", "settings", "put", "system", "font_scale", font)
-        result = run_fresh_suite(width, height, float(font), "ui-adaptive-result.log", "ui-screenshots-adaptive")
-        baseline_result = json.loads(Path("ui-baseline-diagnosis.json").read_text(encoding="utf-8"))
-        result["expected_tests"] = baseline_result["tests"]
-        if result["tests"] != baseline_result["tests"]:
-            result.update(status="failed", evidence_category="adaptive_test_count_mismatch")
-        return result
-    finally:
-        adb("shell", "wm", "size", original_size.group(1) if original_size else "reset")
-        if original_font == "null":
-            adb("shell", "settings", "delete", "system", "font_scale")
-        else:
-            adb("shell", "settings", "put", "system", "font_scale", original_font)
+def baseline(profile, shard):
+    return run_fresh_suite(profile, "baseline", "ui-instrument-result.log", "ui-screenshots", shard)
+
+
+def adaptive(profile, shard):
+    # Each configuration owns a disposable AVD. Apply its display override
+    # once; do not stop HOME or resize after capturing the test evidence.
+    spec = dimensions(profile, "adaptive")
+    prepare_display_change()
+    # Reconfigure only actual differences. Even nominally identical wm
+    # requests can trigger display/layout work in the system and launcher.
+    actual_size = re.findall(r"(?:Override|Physical) size: (\d+x\d+)", adb("shell", "wm", "size"))
+    actual_density = re.findall(r"(?:Override|Physical) density: (\d+)", adb("shell", "wm", "density"))
+    if not actual_size or not actual_density:
+        raise RuntimeError("Unable to determine current device display configuration")
+    target_size = f"{spec['width_px']}x{spec['height_px']}"
+    if actual_size[-1] != target_size:
+        adb("shell", "wm", "size", target_size)
+    if int(actual_density[-1]) != spec["density_dpi"]:
+        adb("shell", "wm", "density", str(spec["density_dpi"]))
+    actual_font = adb("shell", "settings", "get", "system", "font_scale")
+    if (1.0 if actual_font == "null" else float(actual_font)) != float(spec["font_scale"]):
+        adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
+    return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", shard)
+
+
+def collect_anr_diagnostics():
+    """Retain the original ANR event and system stack before the AVD is destroyed."""
+    diagnostics = []
+    for command in (
+        ["adb", "logcat", "-b", "events", "-d", "-s", "am_anr"],
+        ["adb", "shell", "dumpsys", "activity", "lastanr"],
+    ):
+        record = {"command": command}
+        try:
+            result = subprocess.run(command, capture_output=True, text=True,
+                                    errors="replace", timeout=20, check=False)
+            output = result.stdout + result.stderr
+            record.update(exit_code=result.returncode, output=output[:65536],
+                          truncated=len(output) > 65536)
+        except (OSError, subprocess.SubprocessError) as error:
+            record.update(error=str(error))
+        diagnostics.append(record)
+    return diagnostics
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--width", type=int, choices=sorted(VARIANTS), required=True)
+    parser.add_argument("--profile", choices=sorted(PROFILES), required=True)
     parser.add_argument("--mode", choices=["baseline", "adaptive"], required=True)
+    parser.add_argument("--shard", choices=sorted(SHARDS), required=True)
     args = parser.parse_args()
     report = Path("ui-" + args.mode + "-diagnosis.json")
     try:
-        result = baseline(args.width) if args.mode == "baseline" else adaptive(args.width)
+        result = baseline(args.profile, args.shard) if args.mode == "baseline" else adaptive(args.profile, args.shard)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
-        result = {"status": "failed", "category": "runner_or_device", "error": str(error), "width_dp": args.width}
+        result = {"status": "failed", "category": "runner_or_device", "error": str(error), "profile": args.profile}
+    if result["status"] != "passed":
+        result["system_anr_diagnostics"] = collect_anr_diagnostics()
     report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
     return int(result["status"] != "passed")
@@ -158,3 +277,4 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
+

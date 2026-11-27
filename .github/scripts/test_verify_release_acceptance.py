@@ -1,15 +1,48 @@
 #!/usr/bin/env python3
 """Release barrier must not mistake green preflight-only runs for real device checks."""
 import sys
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from verify_release_acceptance import REQUIRED_JOBS, accepted, find_acceptance
+from verify_release_acceptance import REQUIRED_JOBS, accepted, find_acceptance, accepted_receipt
 
 
 class ReleaseAcceptanceTests(unittest.TestCase):
+    def test_automatic_release_cannot_skip_device_chain_or_report_false_success(self):
+        # workflow_run intentionally skips manual preflight. Every downstream
+        # required job must override the default transitive success() check.
+        import re
+        workflow = (Path(__file__).resolve().parents[1] / "workflows" / "release.yml").read_text(encoding="utf-8")
+        jobs = dict(re.findall(r"^  ([a-z][a-z-]*):\n(.*?)(?=^  [a-z][a-z-]*:\n|\Z)", workflow, re.M | re.S))
+        requirements = {
+            "device-ready": ("release", "check-release"),
+            "device": ("release", "check-release", "device-ready"),
+            "publish": ("release", "check-release", "device"),
+            "cleanup": ("publish",),
+        }
+        for name, upstream in requirements.items():
+            with self.subTest(job=name):
+                condition = re.search(r"^    if: (.+)$", jobs[name], re.M).group(1)
+                self.assertIn("!cancelled()", condition)
+                for dependency in upstream:
+                    self.assertIn("needs." + dependency + ".result == 'success'", condition)
+        terminal = jobs["release-result"]
+        from release_outcome import CHAIN, verdict
+        dependencies = re.search(r"^    needs: \[(.+)\]$",terminal,re.M).group(1).split(", ")
+        self.assertEqual({"preflight","check-release",*CHAIN},set(dependencies))
+        self.assertIn("!cancelled()",terminal)
+        self.assertIn("python3 .github/scripts/release_outcome.py",terminal)
+        fixture={"preflight":{"result":"skipped"},"check-release":{"result":"success","outputs":{"decision":"publish"}},
+                 **{key:{"result":"success"} for key in CHAIN}}
+        self.assertIn("已完成",verdict(fixture,"workflow_run","refs/heads/main",True))
+        for key in CHAIN:
+            with self.subTest(job=key):
+                with self.assertRaises(ValueError):
+                    verdict(fixture|{key:{"result":"skipped"}},"workflow_run","refs/heads/main",True)
+
     def test_all_real_android_jobs_are_required(self):
         for workflow, names in REQUIRED_JOBS.items():
             good = [{"name": name, "conclusion": "success"} for name in names]
@@ -58,6 +91,22 @@ class ReleaseAcceptanceTests(unittest.TestCase):
             self.assertEqual(find_acceptance("org/repo", sha, "ci.yml", "fix/pr"), 10)
             self.assertIn("fix/pr", client.call_args_list[0].args[0])
             self.assertIn(sha, client.call_args_list[0].args[0])
+
+    def test_partial_main_must_prove_all_reused_groups(self):
+        from ci_reuse import FULL_GROUPS
+        sha="a"*40
+        names=[{"name":"111 合并验收","conclusion":"success"}]
+        receipt={"required":sorted(FULL_GROUPS)}
+        def download(args,check):
+            folder=Path(args[args.index("--dir")+1])
+            (folder/"ci-acceptance-receipt.json").write_text(json.dumps(receipt))
+        with patch("verify_release_acceptance.gh_json",return_value={"artifacts":[{"name":"ci-acceptance-receipt","expired":False}]}), \
+             patch("verify_release_acceptance.subprocess.run",side_effect=download), \
+             patch("verify_release_acceptance.validate",return_value=set()) as verify:
+            self.assertTrue(accepted_receipt("o/r",12,sha,names,"main"))
+            verify.assert_called_once()
+            receipt["required"]=[]
+            self.assertFalse(accepted_receipt("o/r",12,sha,names,"main"))
 
     def test_other_sha_is_never_validated(self):
         sha = "a" * 40

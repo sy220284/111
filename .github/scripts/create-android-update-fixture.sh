@@ -11,7 +11,11 @@ ASSET_DIR="android-app/app/src/androidTest/assets"
 mkdir -p "$ASSET_DIR"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
-curl --fail --location --retry 3 --retry-delay 2 "$URL" -o "$TMP/$ARCHIVE"
+if [ -n "${CODEX_PATCHER_HOME:-}" ]; then
+  cp "$CODEX_PATCHER_HOME/$ARCHIVE" "$TMP/$ARCHIVE"
+else
+  curl --fail --location --retry 3 --retry-delay 2 "$URL" -o "$TMP/$ARCHIVE"
+fi
 printf '%s  %s\n' "$SHA256" "$TMP/$ARCHIVE" | sha256sum -c -
 unzip -q "$TMP/$ARCHIVE" -d "$TMP/bin"
 HDIFFZ="$(find "$TMP/bin" -type f -name hdiffz -print -quit)"

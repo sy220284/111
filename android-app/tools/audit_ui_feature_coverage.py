@@ -30,7 +30,7 @@ OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"\s*\{')
 
 # 静态调用证据与方法名称引用分开计数。解析参数括号，避免漏掉拼接 key。
 RPC_CALL_HEAD = re.compile(
-    r'\b(?P<callee>(?:(?:vm\.)?bridge\.)?request(?:ForSession)?|(?:vm\.)?capabilityRequest|(?:vm\.)?(?:rpc|refresh|ensureCatalog))\s*\('
+    r'\b(?P<callee>(?:owner|lease)\.request|(?:(?:vm\.)?bridge\.)?request(?:ForSession)?|(?:vm\.)?capabilityRequest|(?:vm\.)?(?:rpc|refresh|ensureCatalog))\s*\('
 )
 DYNAMIC_METHOD = re.compile(
     r'\bval\s+(?P<variable>[A-Za-z_]\w*)\s*=\s*if\s*\([^)]*\)\s*'
@@ -72,6 +72,53 @@ EMPTY_HANDLER = re.compile(
 )
 
 
+# Inspect the actual when branches; unrelated route-transition conditions must
+# not determine whether the sheet entry is present. Strings/comments do not
+# contribute brace depth.
+_KOTLIN_BRACE_TOKEN = re.compile(r'"""[\s\S]*?"""|"(?:\\.|[^"\\])*"|\'(?:\\.|[^\'\\])*\'|//[^\n]*|/\*[\s\S]*?\*/|[{}]')
+_ROUTE_CASE = re.compile(r'(?m)^[ \t]*(?P<names>"[a-z]+"(?:[ \t]*,[ \t]*"[a-z]+")*)[ \t]*->')
+
+def _braced_body(code: str, start: int) -> str:
+    depth = 0
+    for token in _KOTLIN_BRACE_TOKEN.finditer(code, start):
+        value = token.group()
+        if value == "{":
+            depth += 1
+        elif value == "}":
+            depth -= 1
+            if depth == 0:
+                return code[start + 1:token.start()]
+    return ""
+
+def _sheet_route_handlers(navigation: str) -> dict[str, str]:
+    move = re.search(r'\bval\s+move\s*:[^=\n]+=\s*(?:\w+@\s*)?\{', navigation)
+    if move is None:
+        return {}
+    body = _braced_body(navigation, move.end() - 1)
+    dispatch = re.search(r'\bwhen\s*\(\s*destination\s*\)\s*\{', body)
+    if dispatch is None:
+        return {}
+    routes = _braced_body(body, dispatch.end() - 1)
+    # Keep only cases at the top level of the when block, including grouped
+    # names. A nested case, comment or string is not another route.
+    tokens = list(_KOTLIN_BRACE_TOKEN.finditer(routes))
+    cases = []
+    depth = cursor = 0
+    for match in _ROUTE_CASE.finditer(routes):
+        while cursor < len(tokens) and tokens[cursor].end() <= match.start("names"):
+            token = tokens[cursor].group()
+            depth += (token == "{") - (token == "}")
+            cursor += 1
+        if depth == 0 and not (cursor < len(tokens) and tokens[cursor].start() < match.start("names") < tokens[cursor].end()):
+            cases.append(match)
+    result = {}
+    for i, match in enumerate(cases):
+        end = cases[i + 1].start() if i + 1 < len(cases) else len(routes)
+        for name in NAME.findall(match.group("names")):
+            result[name] = routes[match.end():end]
+    return result
+
+
 def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
     code = files.get("UiFeatureCatalog.kt", "")
     navigation = files.get("AppNavigation.kt", "")
@@ -97,9 +144,7 @@ def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
                     "diff", "terminal", "review", "modes", "security"}
     if task_actions & set(settings_ids):
         invalid.append("设置首页混入会话或工作区操作")
-    move_start = navigation.find("val move:")
-    move_end = navigation.find("if (page.id != destination)", move_start)
-    route_handlers = navigation[move_start:move_end] if move_start >= 0 and move_end > move_start else ""
+    route_handlers = _sheet_route_handlers(navigation)
     missing_surfaces = []
     for feature in features:
         name, kind = feature["id"], feature["surface"]
@@ -107,8 +152,8 @@ def audit_surface_hierarchy(files: dict[str, str], page_ids: set[str]) -> dict:
             expected = SHEET_DISPATCH.get(name)
             if expected is None:
                 missing_surfaces.append(f"{name}:缺少弹层归属")
-            elif (f'"{name}"' not in route_handlers
-                  or expected[0] not in route_handlers or expected[1] not in navigation
+            elif (name not in route_handlers
+                  or expected[0] not in route_handlers[name] or expected[1] not in navigation
                   or (name not in {"threads", "search"} and
                       not re.search(r'if \(activeSheet == "' + re.escape(name) +
                                     r'"\)[^\n]*(?:\n[^\n]*){0,2}?' + re.escape(expected[1]), navigation))):
@@ -203,7 +248,15 @@ def find_rpc_calls(code: str, official: set[str], resolvers: dict[str, set[str]]
             candidates[match.group(1)] = resolvers[match.group(2)]
     for match in RPC_CALL_HEAD.finditer(code):
         args = _call_arguments(code, match.end())
-        index = 0 if match.group("callee").rsplit(".", 1)[-1] in {"request", "requestForSession", "capabilityRequest"} else 1
+        callee = match.group("callee")
+        if callee in {"owner.request", "lease.request"}:
+            # TaskRequestOwner.request(vm, method, params) checks the captured
+            # connection/account before forwarding the actual method to bridge.
+            if not args or not re.fullmatch(r"vm|this(?:@\w+)?", args[0]):
+                continue
+            index = 1
+        else:
+            index = 0 if callee.rsplit(".", 1)[-1] in {"request", "requestForSession", "capabilityRequest"} else 1
         if len(args) <= index:
             continue
         expression = args[index]
@@ -217,6 +270,11 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
     directory = sources.resolve()
     files = {path.name: path.read_text(encoding="utf-8")
              for path in sorted(directory.rglob("*.kt"))}
+    return audit_sources(files,parse_contracts(protocol.read_text(encoding="utf-8")),
+                         json.loads(policy.read_text(encoding="utf-8")) if policy is not None else None)
+
+
+def audit_sources(files, contracts, payload):
     if "AppNavigation.kt" not in files or "Screens.kt" not in files:
         raise ValueError("缺少 AppNavigation.kt 或 Screens.kt，无法核对页面和路由")
 
@@ -256,14 +314,12 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
         for match in FUNCTION.finditer(code):
             defined.setdefault(match.group(1), filename)
 
-    contracts = parse_contracts(protocol.read_text(encoding="utf-8"))
     official = set(contracts)
     client_requests = {name for name, entry in contracts.items()
                        if entry.direction == "client_request"}
     host_requests = official - client_requests
     surfaces = {}
-    if policy is not None:
-        payload = json.loads(policy.read_text(encoding="utf-8"))
+    if payload is not None:
         surfaces = payload.get("methods", {})
         if not isinstance(surfaces, dict):
             raise ValueError("UI 接口分层清单缺少 methods 对象")
@@ -303,8 +359,7 @@ def audit(sources: Path, protocol: Path, policy: Path | None = None) -> dict:
 
     equivalents: dict[str, dict] = {}
     user_facing: set[str] = set()
-    if policy is not None:
-        payload = json.loads(policy.read_text(encoding="utf-8"))
+    if payload is not None:
         equivalents = payload.get("implementationEquivalents", {})
         if not isinstance(equivalents, dict):
             raise ValueError("implementationEquivalents 必须为 JSON 对象")
@@ -439,6 +494,9 @@ def report_markdown(result: dict) -> str:
     return "\n".join(lines)
 
 
+CHECK_FIELDS = ("missingRoutes", "unknownRoutes", "undefinedHandlers",
+                "invalidHierarchy", "missingSurfaceMappings", "emptyActionHandlers")
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sources", type=Path, required=True)
@@ -464,8 +522,7 @@ def main() -> int:
         f"UI 页面对照 {result['routedCount']}/{result['pageCount']}；"
         f"官方请求引用 {result['referencedRequests']}/{result['officialRequests']}。"
     )
-    checked = ("missingRoutes", "unknownRoutes", "undefinedHandlers",
-               "invalidHierarchy", "missingSurfaceMappings", "emptyActionHandlers")
+    checked = CHECK_FIELDS
     for field in checked:
         if result[field]:
             print(f"{field}：{result[field]}", file=sys.stderr)

@@ -4,17 +4,19 @@ import argparse
 import json
 import re
 from pathlib import Path
-from ui_evidence_manifest import load_evidence_manifest, declared_screens
+from ui_evidence_manifest import declared_screens
+from static_audit_inputs import AuditInputs, APP
 
 SOURCE = "android-app/app/src/main/java/io/github/sy220284/codexandroid"
 TOOLS = "android-app/tools"
 
 
-def check(root):
-    root = Path(root)
+def check(root, *, inputs=None):
+    inputs=inputs or AuditInputs(root)
+    root=inputs.root
     source = root / SOURCE
-    registry = json.loads((root / TOOLS / "ui_interaction_coverage.json").read_text())
-    expected = set(re.findall(r'UiFeature\("([^"]+)"', (source / "UiFeatureCatalog.kt").read_text()))
+    registry = json.loads(inputs.text(root / TOOLS / "ui_interaction_coverage.json"))
+    expected = set(re.findall(r'UiFeature\("([^"]+)"', inputs.text(source / "UiFeatureCatalog.kt")))
     routes = registry["routes"]
     subpages = registry["subpages"]
     errors = []
@@ -24,8 +26,8 @@ def check(root):
     children = [row["id"] for row in subpages]
     if len(children) != len(set(children)):
         errors.append("子页面标识重复")
-    tests = "\n".join(p.read_text() for p in (root / "android-app/app/src").glob("**/*Test.kt"))
-    screenshots = set(declared_screens(load_evidence_manifest(root)))
+    tests = "\n".join(code for p,code in inputs.kotlin(APP).items() if p.name.endswith("Test.kt"))
+    screenshots = set(declared_screens(inputs.manifest))
     for row in routes + subpages:
         label = row.get("route", row.get("id"))
         if "parent" in row and row["parent"] not in expected:
@@ -34,7 +36,7 @@ def check(root):
         if not path.is_file():
             errors.append(f"{label}: 源文件不存在")
             continue
-        code = path.read_text()
+        code = inputs.text(path)
         owner = re.search(r"(?m)^(?:private |internal |public )?fun\s+" + re.escape(row["owner"]) + r"\s*\(", code)
         if owner is None:
             errors.append(f"{label}: 页面函数不存在")

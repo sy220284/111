@@ -43,11 +43,22 @@ internal object ComposerProviderScope {
             ?: error("当前服务商没有可用模型，请检查授权或模型目录")
     }
 
+    /** Running queue/steer use the actual thread model, not a next-turn draft override. */
+    suspend fun requireExistingMedia(threadId: String, required: Set<String>,
+        rpc: suspend (String, JSONObject) -> JSONObject) {
+        if (required.isEmpty()) return
+        val thread = rpc("thread/read", JSONObject().put("threadId", threadId)).getJSONObject("thread")
+        val provider = requireNotNull(provider(thread.optString("modelProvider"))) { "当前会话服务商未确认" }
+        val model = requireNotNull(ComposerProviderScope.provider(thread.optString("model"))) { "当前会话模型未确认，请重新打开会话" }
+        val catalog = records(rpc("model/list", request(provider)))
+        ComposerModelPolicy.requireMediaInput(catalog, model, required)
+    }
+
     data class Submission(val provider: String, val model: String, val catalog: List<JSONObject>, val effectiveConfig: JSONObject?)
 
     suspend fun submission(
         config: JSONObject, submittedThread: String?, chosenModel: String, chosenMode: String,
-        chosenOptions: ComposerTaskOptions, rpc: suspend (String, JSONObject) -> JSONObject
+        chosenOptions: ComposerTaskOptions, hasImages: Boolean = false, mediaKinds: Set<String> = emptySet(), rpc: suspend (String, JSONObject) -> JSONObject
     ): Submission {
         val configuredProvider = ComposerProviderScope.provider(config.optString("model_provider")) ?: "openai"
         val existing = submittedThread?.let {
@@ -58,7 +69,7 @@ internal object ComposerProviderScope {
         }
         val provider = ComposerProviderScope.resolve(existingProvider,
             ComposerProviderScope.provider(chosenOptions.modelProvider), configuredProvider)
-        val requiresCatalog = chosenModel.isNotBlank() || chosenMode == "plan" ||
+        val requiresCatalog = hasImages || mediaKinds.isNotEmpty() || chosenModel.isNotBlank() || chosenMode == "plan" ||
             (submittedThread == null && provider != "openai")
         val catalog = if (requiresCatalog)
             records(rpc("model/list", ComposerProviderScope.request(provider)))
@@ -69,6 +80,15 @@ internal object ComposerProviderScope {
             ComposerProviderScope.initialModel(catalog, chosenModel, configuredModel, provider != "openai")
             else chosenModel
         ComposerProviderScope.requireModel(catalog, requestModel, chosenOptions.effort)
+        val imageModel = requestModel.ifBlank {
+            if (existing != null) {
+                ComposerProviderScope.provider(existing.optString("model")).orEmpty()
+            } else {
+                configuredModel ?: catalog.firstOrNull { !it.optBoolean("hidden") && it.optBoolean("isDefault") }
+                    ?.let { it.optString("id").ifBlank { it.optString("model") } }.orEmpty()
+            }
+        }
+        ComposerModelPolicy.requireMediaInput(catalog, imageModel, mediaKinds + (if (hasImages) setOf("image") else emptySet()))
         val effectiveConfig = if (chosenMode == "plan") JSONObject(config.toString()).apply {
             if (existing != null) {
                 put("model", ComposerProviderScope.provider(existing.optString("model")) ?: JSONObject.NULL)

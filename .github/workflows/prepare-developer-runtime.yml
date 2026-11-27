@@ -1,0 +1,84 @@
+name: 111 双 ABI 开发运行时产物
+on:
+  workflow_call:
+    inputs:
+      abi:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+    outputs:
+      artifact_id:
+        value: ${{ jobs.prepare.outputs.artifact_id }}
+      source:
+        value: ${{ jobs.prepare.outputs.source }}
+      key:
+        value: ${{ jobs.prepare.outputs.key }}
+permissions:
+  contents: read
+  actions: read
+jobs:
+  prepare:
+    name: ${{ inputs.abi == 'arm64-v8a' && 'ARM64 工具链产物核验' || 'x86_64 工具链产物核验' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      artifact_id: ${{ steps.reuse.outputs.reused == 'true' && steps.reuse.outputs.artifact_id || steps.upload.outputs.artifact-id }}
+      source: ${{ steps.reuse.outputs.reused == 'true' && steps.reuse.outputs.source || inputs.source_sha }}
+      key: ${{ steps.reuse.outputs.key }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+          fetch-depth: 0
+      - name: 查找同输入的已验收手机运行组件
+        id: reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ABI: ${{ inputs.abi }}
+          SOURCE: ${{ inputs.source_sha }}
+        run: python3 .github/scripts/runtime_artifacts.py select --abi "$ABI" --source "$SOURCE"
+      - name: 提取并核验 777 预编译组件
+        if: steps.reuse.outputs.reused != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ABI: ${{ inputs.abi }}
+        run: |
+          set -euo pipefail
+          bash tools/runtime/build-111-runtime.sh "$ABI" "$RUNNER_TEMP/runtime"
+      - name: 使用 Runner Android NDK
+        if: steps.reuse.outputs.reused != 'true'
+        uses: ./.github/actions/ci-android
+        with:
+          mode: native
+      - name: 验证实际 CLI 原生装配和依赖闭环
+        if: steps.reuse.outputs.reused != 'true'
+        env:
+          ABI: ${{ inputs.abi }}
+        run: |
+          set -euo pipefail
+          case "$ABI" in arm64-v8a) TARGET=aarch64-linux-android;; x86_64) TARGET=x86_64-linux-android;; *) exit 2;; esac
+          CLANG="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/${TARGET}29-clang"
+          python3 android-app/tools/prepare_prebuilt_developer_runtime.py "$ABI" --prepared-dir "$RUNNER_TEMP/runtime" --native "$RUNNER_TEMP/cli-native" --assets "$RUNNER_TEMP/cli-assets" --clang "$CLANG" --git-source-output "$RUNNER_TEMP/git-source.tar.xz"
+      - name: 生成可复用离线组件并回读
+        if: steps.reuse.outputs.reused != 'true'
+        id: bundle
+        env:
+          ABI: ${{ inputs.abi }}
+        run: |
+          set -euo pipefail
+          case "$ABI" in arm64-v8a) COMPONENT=runtime-arm64;; x86_64) COMPONENT=runtime-x86;; *) exit 2;; esac
+          PIN="$(python3 tools/build/component-bundle.py pack "$COMPONENT" "$RUNNER_TEMP/runtime" "$RUNNER_TEMP/runtime-bundle" --head "$(git rev-parse HEAD)")"
+          python3 tools/build/component-bundle.py install "$COMPONENT" "$RUNNER_TEMP/runtime-bundle" "$RUNNER_TEMP/installed" --manifest-sha "$PIN"
+          echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        id: upload
+        if: steps.reuse.outputs.reused != 'true'
+        with:
+          name: 111-runtime-${{ inputs.abi }}-${{ steps.reuse.outputs.key }}
+          path: ${{ runner.temp }}/runtime-bundle/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 90

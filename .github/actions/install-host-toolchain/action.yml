@@ -1,0 +1,45 @@
+name: 安装经断网验收的 111 主机组件
+description: Consume exact immutable artifact IDs from the same dependency fingerprint.
+inputs:
+  group:
+    required: true
+    description: android or rust
+  descriptor:
+    required: true
+    description: verified producer descriptor
+  token:
+    required: true
+    description: GitHub Actions read token
+  components:
+    required: false
+    default: ''
+    description: optional subset of components
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        HOST_DESCRIPTOR: ${{ inputs.descriptor }}
+        HOST_GROUP: ${{ inputs.group }}
+        HOST_COMPONENTS: ${{ inputs.components }}
+      run: |
+        set -euo pipefail
+        # Match the producer fingerprint before consuming any host component.
+        . /etc/os-release
+        if [ "$ID" != ubuntu ] || [ "$VERSION_ID" != 24.04 ] || [ "$(uname -m)" != x86_64 ]; then
+          echo "::error::Host components require Ubuntu 24.04 x86_64, matching the producer fingerprint."
+          exit 1
+        fi
+        PYTHON_VERSION="$(python3 -c 'import json; print(json.load(open("tools/dev/toolchain-lock.json"))["project"]["hostPython"])')"
+        HOST_PYTHON="/usr/bin/python${PYTHON_VERSION}"
+        "$HOST_PYTHON" -c 'import sys; assert ".".join(map(str,sys.version_info[:2])) == sys.argv[1], "host Python lock mismatch"' "$PYTHON_VERSION"
+        if [ "$HOST_GROUP" = wheelhouse ]; then
+          printf 'CODEX_HOST_PYTHON=%s\n' "$HOST_PYTHON" >> "$GITHUB_ENV"
+        fi
+        EXTRA=()
+        if [ -n "$HOST_COMPONENTS" ]; then
+          read -r -a NAMES <<< "$HOST_COMPONENTS"
+          EXTRA=(--components "${NAMES[@]}")
+        fi
+        timeout --signal=TERM --kill-after=15s 25m "$HOST_PYTHON" tools/dev/ci_host.py consume --group "$HOST_GROUP" --root "$RUNNER_TEMP/111-host-$HOST_GROUP" "${EXTRA[@]}"

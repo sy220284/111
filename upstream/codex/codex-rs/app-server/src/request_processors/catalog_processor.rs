@@ -194,7 +194,7 @@ impl CatalogRequestProcessor {
                     // Temporary catalogs must not replace the active provider's disk cache.
                     let manager = self.thread_manager.temporary_models_manager_for_config(
                         &config,
-                        &codex_models_manager::manager::ModelCatalogSettings::default(),
+                        &codex_models_manager::manager::ModelCatalogSettings::media_evidence_only(config.codex_home.to_path_buf()),
                     );
                     (config, manager)
                 }
@@ -252,7 +252,7 @@ impl CatalogRequestProcessor {
             return Err(invalid_request("该服务商没有可验证的国内实时目录"));
         }
         let manager = self.thread_manager.temporary_models_manager_for_config(
-            &config, &codex_models_manager::manager::ModelCatalogSettings::default());
+            &config, &codex_models_manager::manager::ModelCatalogSettings::media_evidence_only(config.codex_home.to_path_buf()));
         let catalog = tokio::time::timeout(std::time::Duration::from_secs(60),
             self.list_models(ModelListParams {
                 model_provider: Some(params.model_provider.clone()),

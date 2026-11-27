@@ -15,12 +15,133 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
 /** 实际模拟器验证：详情不挤动列表、可关闭，上下文菜单能完成所选动作。 */
 class CodexInteractionComponentsInstrumentedTest {
+    @Test fun singleQuestionKeyboardDoneAppliesOnlyAValidReply() {
+        var applied = "原值"
+        rule.setContent {
+            CodexTheme {
+                ActionQuestionRow(applied, { applied = it }, "名称", replyTag = "keyboard-reply",
+                    validate = { if (it.isBlank()) "需要名称" else null })
+            }
+        }
+        rule.onNodeWithText("修改").performClick()
+        rule.onNodeWithTag("keyboard-reply-input").performTextReplacement("")
+        rule.onNodeWithTag("keyboard-reply-input").performImeAction()
+        rule.runOnIdle { assertEquals("原值", applied) }
+        rule.onNodeWithTag("keyboard-reply-input").assertExists().performTextReplacement("新名称")
+        rule.onNodeWithTag("keyboard-reply-input").performImeAction()
+        rule.onNodeWithTag("keyboard-reply-input").assertDoesNotExist()
+        rule.runOnIdle { assertEquals("新名称", applied) }
+    }
+
+    @Test fun unreadableMediaRecordOffersExplicitClearWithoutAnotherProviderCall() {
+        var cleared = false
+        var providerCalls = 0
+        var selectedRecords = 0
+        rule.setContent {
+            CodexTheme {
+                MediaAnalysisActions(emptyList(), MediaAnalysisController.State(owner = "thread",
+                    scope = "a".repeat(64), error = "分析记录无法读取，原记录已保留"),
+                    owner = "thread", enabled = false, onChoose = { _, _ -> providerCalls++ },
+                    onContinue = { _, _ -> providerCalls++ }, onSelectRecord = { selectedRecords++ },
+                    onCancel = {}, onReview = {}, onDismiss = { cleared = true })
+            }
+        }
+        rule.onNodeWithText("分析记录无法读取，原记录已保留").assertIsDisplayed()
+        rule.onNodeWithText("清除损坏记录").assertIsDisplayed().performClick()
+        rule.runOnIdle { assertEquals(true, cleared); assertEquals(0, providerCalls); assertEquals(0, selectedRecords) }
+    }
+
     @get:Rule val rule = createComposeRule()
+
+    @Test fun markdownFileLinksUseTheSameNativeFileOpenerAsCards() {
+        var opened: String? = null
+        rule.setContent {
+            CodexTheme {
+                androidx.compose.runtime.CompositionLocalProvider(LocalReplyFileOpen provides { opened = it }) {
+                    NativeMessageMarkdown("[下载报告](sandbox:/workspace/report.pdf)")
+                }
+            }
+        }
+        // The raw stream tail contains the label before the background parser
+        // has produced an interactive link. Wait for the rendered label itself.
+        rule.waitUntil(10_000L) {
+            rule.onAllNodesWithText("下载报告", substring = false).fetchSemanticsNodes().size == 1
+        }
+        rule.onNodeWithText("下载报告", substring = false).assertIsDisplayed()
+            .performTouchInput { click(center) }
+        rule.runOnIdle { org.junit.Assert.assertEquals("/workspace/report.pdf", opened) }
+    }
+
+    @Test fun isolatedMcpAppRealWebViewRoundTrip() {
+        val port = java.util.concurrent.atomic.AtomicReference<android.webkit.WebMessagePort>()
+        val view = java.util.concurrent.atomic.AtomicReference<android.webkit.WebView>()
+        val receipt = java.util.concurrent.atomic.AtomicReference<org.json.JSONObject>()
+        val finished = java.util.concurrent.atomic.AtomicBoolean(false)
+        val diagnostics = java.util.concurrent.ConcurrentLinkedQueue<String>()
+        val html = """
+            <!doctype html><script>
+            (async function(){
+              let parentDenied=false, storageDenied=false, networkDenied=false;
+              try { void parent.document.body; } catch(e) { parentDenied=true; }
+              try { localStorage.setItem("probe","blocked"); } catch(e) { storageDenied=true; }
+              try { await fetch("https://111-mcp-test.invalid/probe"); } catch(e) { networkDenied=true; }
+              addEventListener("message", e=>{
+                if(e.source===parent && e.data.result && e.data.result.receipt==="native")
+                  parent.postMessage({jsonrpc:"2.0",method:"test/ack"},"*");
+              });
+              parent.postMessage({jsonrpc:"2.0",id:1,method:"test/isolation",params:{parentDenied,storageDenied,networkDenied}},"*");
+            })();
+            </script>
+        """.trimIndent()
+        org.junit.Assert.assertThrows(IllegalArgumentException::class.java) {
+            McpAppSandbox.shell(html, "invalid-bootstrap-token")
+        }
+        try {
+            rule.setContent {
+                androidx.compose.ui.viewinterop.AndroidView(factory = { context ->
+                    android.webkit.WebView(context).apply {
+                        view.set(this)
+                        McpAppSandbox.attach(this, html, { true }, {
+                            assertEquals(McpAppSandbox.PAGE, url)
+                            port.set(it)
+                        }, { raw ->
+                            val msg = org.json.JSONObject(raw)
+                            when (msg.optString("method")) {
+                                "test/isolation" -> {
+                                    receipt.set(msg.getJSONObject("params"))
+                                    port.get().postMessage(android.webkit.WebMessage(
+                                        """{"jsonrpc":"2.0","id":1,"result":{"receipt":"native"}}"""))
+                                }
+                                "test/ack" -> finished.set(true)
+                            }
+                        }, diagnostics = { if (diagnostics.size < 32) diagnostics.add(it) })
+                    }
+                })
+            }
+            try {
+                rule.waitUntil(20000L) { finished.get() }
+            } catch (timeout: androidx.compose.ui.test.ComposeTimeoutException) {
+                var page: String? = null
+                rule.runOnIdle { page = view.get()?.url }
+                throw AssertionError("MCP 往返未完成：page=$page, nativePort=${port.get() != null}, " +
+                    "isolationReceipt=${receipt.get() != null}, diagnostics=${diagnostics.joinToString(" | ")}", timeout)
+            }
+            val isolated = requireNotNull(receipt.get())
+            org.junit.Assert.assertTrue(diagnostics.contains("bootstrap-connected"))
+            org.junit.Assert.assertTrue(isolated.getBoolean("parentDenied"))
+            org.junit.Assert.assertTrue(isolated.getBoolean("storageDenied"))
+            org.junit.Assert.assertTrue(isolated.getBoolean("networkDenied"))
+        } finally {
+            rule.runOnIdle { port.get()?.close(); view.get()?.stopLoading(); view.get()?.destroy() }
+        }
+    }
+
 
     @Test fun adaptiveActionsKeepLabelsAndCallbacksAtDoubleFontScale() {
         val chosen = mutableListOf<String>()
@@ -433,7 +554,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithContentDescription("上一个匹配").performClick()
         rule.onNodeWithText("第 2 / 2 处").assertExists()
-        captureComponentEvidence("audit-full-text-match-android35.png")
+        captureComponentEvidence("audit-full-text-match-android.png")
         rule.onNodeWithContentDescription("下一个匹配").performClick()
         rule.onNodeWithText("第 1 / 2 处").assertExists()
         rule.onNodeWithText("清除查找条件").performClick()
@@ -536,6 +657,35 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.runOnIdle { org.junit.Assert.assertEquals("已确认名称", committed) }
     }
 
+    @Test fun attachmentPreviewAvailabilityDoesNotDependOnThumbnailDecoding() {
+        val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
+        val unreadable = java.io.File.createTempFile("preview-unreadable", ".png", context.cacheDir)
+        try {
+            unreadable.writeText("invalid image fixture")
+            rule.setContent {
+                CodexTheme {
+                    LocalImageAttachmentStrip(listOf(unreadable.absolutePath), onRemove = {})
+                }
+            }
+            // No decodable thumbnail can ever appear; the preview must still open
+            // and provide the existing explicit recovery path.
+            rule.onNodeWithContentDescription("预览附件图片 1").assertIsEnabled()
+                .performTouchInput { click() }
+            rule.onNodeWithTag("attachment-preview-position").assertTextEquals("图片 1 / 1")
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithText("图片读取失败").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithText("重新读取").assertIsDisplayed().performClick()
+            rule.waitUntil(5000L) {
+                rule.onAllNodesWithText("图片读取失败").fetchSemanticsNodes().isNotEmpty()
+            }
+            rule.onNodeWithContentDescription("关闭图片预览").performClick()
+            rule.onNodeWithTag("attachment-preview").assertDoesNotExist()
+        } finally {
+            unreadable.delete()
+        }
+    }
+
     @Test fun attachmentPreviewSupportsZoomSwitchResetAndRemove() {
         val context = androidx.test.platform.app.InstrumentationRegistry.getInstrumentation().targetContext
         val first = java.io.File.createTempFile("preview-first", ".png", context.cacheDir)
@@ -595,9 +745,10 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.waitUntil(5000L) {
                 rule.onAllNodesWithContentDescription("预览附件图片 1").fetchSemanticsNodes().isNotEmpty()
             }
-            rule.onNodeWithContentDescription("预览附件图片 1").performTouchInput { click() }
+            rule.onNodeWithContentDescription("预览附件图片 1").assertIsEnabled()
+                .performTouchInput { click() }
             assertDisplayedImage(1, android.graphics.Color.RED)
-            captureComponentEvidence("audit-attachment-preview-android35.png")
+            captureComponentEvidence("audit-attachment-preview-android.png")
             rule.onNodeWithTag("attachment-zoom-in").performClick()
             rule.onNodeWithTag("attachment-zoom-level").assertTextEquals("150%")
             rule.onNodeWithTag("attachment-preview-reset").performClick()
@@ -712,7 +863,7 @@ class CodexInteractionComponentsInstrumentedTest {
             rule.onNodeWithTag("workspace-editor-content").performTextReplacement("修改内容")
             rule.onNodeWithContentDescription("返回文件列表").performClick()
             rule.onNodeWithText("保留草稿并返回？").assertExists()
-            captureComponentEvidence("audit-file-editor-android35.png")
+            captureComponentEvidence("audit-file-editor-android.png")
             rule.onNodeWithText("取消").performClick()
             rule.onNodeWithTag("workspace-editor-content").assertExists()
             rule.onNodeWithTag("workspace-editor-save").assertIsEnabled()
@@ -769,7 +920,7 @@ class CodexInteractionComponentsInstrumentedTest {
         rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Retry, action) }
         rule.onNodeWithTag("timeline-header-long-press").performTouchInput { longClick() }
         rule.onNodeWithTag("message-fork-long-press").assertIsEnabled()
-        captureComponentEvidence("audit-message-menu-android35.png")
+        captureComponentEvidence("audit-message-menu-android.png")
         rule.onNodeWithTag("message-fork-long-press").performClick()
         rule.runOnIdle { org.junit.Assert.assertEquals("test-turn" to MessageTurnAction.Fork, action) }
         rule.onNodeWithTag("timeline-header-long-press").performClick()
@@ -790,7 +941,7 @@ class CodexInteractionComponentsInstrumentedTest {
             }
         }
         rule.onNodeWithText("47%").assertExists()
-        captureComponentEvidence("audit-update-progress-android35.png")
+        captureComponentEvidence("audit-update-progress-android.png")
         rule.onNodeWithText("模拟真实失败状态").performClick()
         rule.onNodeWithText("47%").assertDoesNotExist()
         rule.onNodeWithText("校验失败").assertExists()
@@ -826,6 +977,26 @@ class CodexInteractionComponentsInstrumentedTest {
             org.junit.Assert.assertTrue(moved > 0f)
             org.junit.Assert.assertEquals(1, ended)
             org.junit.Assert.assertEquals(1, clicks)
+        }
+    }
+
+    @Test fun crossPageSelectionCopiesExactMarkdownAcrossUnloadedItems() {
+        val sample = "第一段**粗体**\n" + "正文\n".repeat(4000) + "\n[末尾](./file.md)"
+        lateinit var context: android.content.Context
+        rule.setContent {
+            context = androidx.compose.ui.platform.LocalContext.current
+            CodexTheme { FullTextReaderDialog("长回复", sample, CopyContentFormat.Markdown, onDismiss = {}) }
+        }
+        rule.waitUntil(10_000) { rule.onAllNodesWithTag("full-text-chunk-0").fetchSemanticsNodes().isNotEmpty() }
+        rule.onNodeWithTag("full-text-range-toggle").performClick()
+        rule.onNodeWithTag("full-text-range-start-0").performClick()
+        val last = ReaderTextIndex.chunks(sample).lastIndex
+        rule.onNodeWithTag("full-text-reader-list").performScrollToIndex(last)
+        rule.onNodeWithTag("full-text-range-end-$last").performClick()
+        rule.onNodeWithTag("full-text-range-copy").assertIsEnabled().performClick()
+        rule.waitUntil(10_000) {
+            val clip = context.getSystemService(android.content.ClipboardManager::class.java)?.primaryClip
+            clip?.getItemAt(0)?.text?.toString() == sample
         }
     }
 
@@ -946,6 +1117,38 @@ class CodexInteractionComponentsInstrumentedTest {
     }
 
 
+    @Test fun nativeUserMessageUsesMobileBubble() {
+        rule.setContent {
+            CodexTheme { TimelineActivityGroup(listOf(TimelineItem("native-user", "userMessage", "任务", "completed"))) }
+        }
+        rule.onNodeWithTag("chat-user-message").assertExists()
+        rule.onNodeWithText("任务").assertExists()
+        rule.onNodeWithTag("chat-activity-group").assertDoesNotExist()
+    }
+
+    @Test fun liveReplyShowsToolRowsAndNativeRichContent() {
+        val fence = "```"
+        val tools = listOf(TimelineItem("live-tool", "commandExecution", "读取仓库", "completed", turnId = "turn"))
+        val running = androidx.compose.runtime.mutableStateOf(true)
+        rule.setContent {
+            CodexTheme {
+                androidx.compose.foundation.layout.Column {
+                    TimelineActivityGroup(tools, liveProcess = running.value)
+                    NativeMessageMarkdown(fence + "codex-metrics\n文件数|11,404\n开放 PR|3\n" + fence)
+                    NativeMessageMarkdown(fence + "codex-flow\n读取\n检查\n" + fence)
+                }
+            }
+        }
+        rule.onNodeWithText("读取仓库").assertExists()
+        rule.onNodeWithTag("message-rich-metrics").assertExists()
+        rule.onNodeWithText("11,404").assertExists()
+        rule.onNodeWithTag("message-rich-flow").assertExists()
+        rule.runOnIdle { running.value = false }
+        rule.onNodeWithText("读取仓库").assertDoesNotExist()
+        rule.onNodeWithTag("chat-activity-group").performClick()
+        rule.onNodeWithText("读取仓库").assertExists()
+    }
+
     @Test fun progressiveReplyShowsFragmentsThenOneAnswerAction() {
         val partial = TimelineItem("partial-ui", "agentMessage", "第一部分\n\n", "completed",
             turnId = "progressive-ui", phase = "partial_answer")
@@ -963,7 +1166,7 @@ class CodexInteractionComponentsInstrumentedTest {
                     rows.forEach { row ->
                         androidx.compose.runtime.key(row.key) {
                             TimelineActivityGroup(row.group, showMessageActions = row.showActions,
-                                actionItem = row.actionItem, forceActivity = row.forceActivity, note = row.note)
+                                actionItem = row.actionItem, forceActivity = row.forceActivity, note = row.note, liveProcess = row.liveProcess)
                         }
                     }
                 }
@@ -1011,6 +1214,7 @@ class CodexInteractionComponentsInstrumentedTest {
             context = androidx.compose.ui.platform.LocalContext.current
             CodexTheme { NativeMessageMarkdown("| A | B |\n| --- | --- |\n| 排除 | 保留 |") }
         }
+        rule.waitUntil(10_000) { rule.onAllNodesWithTag("message-table-select").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("message-table-select").performClick()
         rule.onNodeWithTag("message-table-cell-1-1").performClick()
         rule.onNodeWithTag("message-table-cell-1-1").performClick()

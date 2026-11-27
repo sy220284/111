@@ -113,8 +113,35 @@ class UiNavigationInstrumentedTest {
     /** Send Back to the focused Android window so Dialog/ModalBottomSheet receives it. */
     private fun pressSystemBack() {
         rule.waitForIdle()
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.waitForIdleSync()
+        instrumentation.sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        instrumentation.waitForIdleSync()
         rule.waitForIdle()
+    }
+
+    /** Wait for the actual visible touch target, including platform IME/window motion. */
+    private fun stableClick(tag: String, scrollTo: Boolean = false) {
+        var last: androidx.compose.ui.geometry.Rect? = null
+        var stableSince = 0L
+        val target = rule.onNodeWithTag(tag)
+        rule.waitUntil(10_000L) {
+            val node = rule.onAllNodesWithTag(tag).fetchSemanticsNodes().singleOrNull()
+            if (node == null || !target.isDisplayed()) {
+                last = null
+                stableSince = 0L
+                if (node != null && scrollTo) target.performScrollTo()
+                return@waitUntil false
+            }
+            val bounds = node.boundsInWindow
+            val now = android.os.SystemClock.elapsedRealtime()
+            val previous = last
+            if (previous == null || kotlin.math.abs(bounds.left - previous.left) > .5f ||
+                kotlin.math.abs(bounds.top - previous.top) > .5f || kotlin.math.abs(bounds.right - previous.right) > .5f ||
+                kotlin.math.abs(bounds.bottom - previous.bottom) > .5f) { last = bounds; stableSince = now }
+            bounds.width > 0 && bounds.height > 0 && now - stableSince >= 300L
+        }
+        target.assertIsDisplayed().assertIsEnabled().assertHasClickAction().performClick()
     }
 
     /**
@@ -140,9 +167,38 @@ class UiNavigationInstrumentedTest {
 
     private fun openComposerShortcut(command: String) {
         val input = rule.onNodeWithTag("composer-input")
+        // A visible underlying Activity does not yet own input while a
+        // dismissing native Dialog still owns the platform window focus.
+        rule.waitUntil(10_000L) { rule.activity.window.decorView.hasWindowFocus() }
+        stableClick("composer-input")
+        input.assertIsFocused()
+        assertRealSoftKeyboardOpen()
         input.performTextReplacement("/$command")
-        rule.onNodeWithTag("composer-shortcut-$command").assertHasClickAction().performClick()
+        stableClick("composer-shortcut-$command")
+        rule.waitUntil(5_000L) {
+            rule.onAllNodesWithTag("composer-shortcuts").fetchSemanticsNodes().isEmpty()
+        }
         rule.onNodeWithTag("composer-shortcuts").assertDoesNotExist()
+        // Insets may briefly report hidden before a queued IME show is dispatched.
+        // Require a stable platform acknowledgement before sending the next Back.
+        var hiddenSince = 0L
+        rule.waitUntil(5_000L) {
+            val hidden = androidx.core.view.ViewCompat.getRootWindowInsets(rule.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) == false
+            val now = android.os.SystemClock.elapsedRealtime()
+            if (!hidden) hiddenSince = 0L else if (hiddenSince == 0L) hiddenSince = now
+            hidden && now - hiddenSince >= 300L
+        }
+    }
+
+    private fun waitForConversationAfterSystemBack() {
+        try {
+            rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
+        } catch (failure: Throwable) {
+            val ime = androidx.core.view.ViewCompat.getRootWindowInsets(rule.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime())
+            throw AssertionError("系统返回未回到会话；IME=$ime；" + rule.onRoot(useUnmergedTree = true).printToString(), failure)
+        }
     }
 
     private fun assertNoWorkspaceBar() {
@@ -196,7 +252,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-top-title").assertDoesNotExist()
         rule.onNodeWithText("新任务", substring = false).assertDoesNotExist()
         assertNoWorkspaceBar()
-        capture("chat-android35.png")
+        capture("chat-android.png")
         rule.onNodeWithContentDescription("打开侧边导航").performClick()
         rule.onNodeWithTag("nav-chat").assertDoesNotExist()
         rule.onNodeWithTag("nav-home").assertDoesNotExist()
@@ -206,10 +262,19 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("sidebar-global-search").performClick()
         rule.onNodeWithTag("sidebar-clipboard-query").assertIsDisplayed()
         rule.onNodeWithTag("sidebar-global-search").performClick()
-        capture("sidebar-android35.png")
+        capture("sidebar-android.png")
         pressSystemBack()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         rule.onNodeWithText("今天想做什么？").assertExists()
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        // A retained drawer must remain inaccessible while offscreen.
+        rule.onNodeWithTag("sidebar-thread-list").assertDoesNotExist()
+        rule.onNodeWithTag("nav-settings").assertDoesNotExist()
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("sidebar-thread-list").assertIsDisplayed()
+        rule.onNodeWithTag("sidebar-clipboard-query").assertDoesNotExist()
+        pressSystemBack()
+        rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
@@ -230,6 +295,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("额度窗口", substring = false).assertIsDisplayed()
         rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
         pressSystemBack()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("conversation-composer").fetchSemanticsNodes().size == 1 }
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
     }
 
@@ -389,7 +455,7 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("backup-import").assertIsNotEnabled()
             rule.onNodeWithText(
                 "仍有会话任务、终端命令或审批待处理，请完成后再操作").assertExists()
-            capture("audit-backup-background-block-android35.png")
+            capture("audit-backup-background-block-android.png")
         } finally {
             rule.runOnUiThread { vm.threadExecutions.value = emptyMap() }
             rule.waitForIdle()
@@ -432,7 +498,7 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("data-transfer-busy-overlay").assertExists()
             rule.onNodeWithTag("data-transfer-busy-message")
                 .assertTextEquals("正在验证本机备份…")
-            captureVerifiedDisplayScreenshot("audit-backup-in-progress-android35.png")
+            captureVerifiedDisplayScreenshot("audit-backup-in-progress-android.png")
             // Pressing Back acknowledges the blocked operation without exposing
             // file/editor controls until the archive reports completion.
             pressSystemBack()
@@ -501,7 +567,7 @@ class UiNavigationInstrumentedTest {
         assertRealSoftKeyboardOpen()
         // Compose-root captures exclude the Android IME window. Capture the full
         // device display so the screenshot actually proves keyboard occlusion.
-        captureVerifiedDisplayScreenshot("chat-keyboard-open-android35.png")
+        captureVerifiedDisplayScreenshot("chat-keyboard-open-android.png")
         assertRealSoftKeyboardOpen()
         rule.onNodeWithTag("composer-expand").assertIsDisplayed()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
@@ -511,7 +577,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-mode-control").assertIsDisplayed()
         rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
-        rule.onNodeWithTag("composer-add-photos").assertIsDisplayed()
+        rule.onNodeWithTag("composer-add-media").assertIsDisplayed()
         assertRealSoftKeyboardOpen()
         tapOutsideFloatingMenu()
         rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
@@ -529,22 +595,22 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithContentDescription("查看内核运行诊断").assertDoesNotExist()
         rule.onNodeWithContentDescription("添加内容").assertIsDisplayed()
         rule.onNodeWithTag("composer-task-options").assertIsDisplayed()
-        capture("chat-toolbar-android35.png")
+        capture("chat-toolbar-android.png")
         rule.onNodeWithTag("composer-plus").performClick()
         rule.onNodeWithText("添加内容").assertExists()
-        rule.onNodeWithTag("composer-add-photos").assertExists()
+        rule.onNodeWithTag("composer-add-media").assertExists()
         rule.onNodeWithTag("composer-add-files").assertExists()
         rule.onNodeWithTag("composer-add-reference").assertExists()
         rule.onNodeWithTag("composer-add-skill").assertExists()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
-        captureOverlay("attachment-sheet-android35.png")
+        captureOverlay("attachment-sheet-android.png")
         pressSystemBack()
         rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         openComposerShortcut("terminal")
         rule.onNodeWithTag("screen-title").assertTextEquals("终端")
-        captureOverlay("terminal-sheet-android35.png")
+        captureOverlay("terminal-sheet-android.png")
     }
 
     @Test fun statusButtonHasStableMeaningAndSeparatesActions() {
@@ -553,7 +619,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("composer-tool-status").performScrollTo().performClick()
         rule.onNodeWithText("运行状态").assertExists()
         rule.onNodeWithText("查看诊断和日志").assertExists()
-        captureOverlay("engine-status-android35.png")
+        captureOverlay("engine-status-android.png")
     }
 
     @Test fun modelChoiceUsesOneSharedBottomSheet() {
@@ -562,7 +628,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         rule.onNodeWithTag("composer-effort").assertExists()
         rule.onNodeWithTag("codex-floating-title").assertTextEquals("切换模型")
-        captureOverlay("model-sheet-android35.png")
+        captureOverlay("model-sheet-android.png")
         pressSystemBack()
         rule.onNodeWithTag("codex-floating-menu").assertDoesNotExist()
     }
@@ -614,7 +680,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("diff-reader-review").performScrollTo().assertIsDisplayed().assertTextContains("代码审查")
         rule.onNodeWithTag("diff-reader-copy").performScrollTo().assertIsDisplayed().assertTextContains("复制全部差异")
         rule.onNodeWithText("src/main.kt").assertExists()
-        capture("diff-reader-android35.png")
+        capture("diff-reader-android.png")
     }
 
     @Test fun projectTerminalAndFilesReturnToConversation() {
@@ -623,6 +689,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("终端")
         rule.onNodeWithTag("terminal-console").assertExists()
         pressSystemBack()
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertExists()
         openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
@@ -649,7 +716,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("执行", substring = false).performClick()
         rule.onNodeWithText("选择协作方式").assertExists()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
-        captureOverlay("mode-sheet-android35.png")
+        captureOverlay("mode-sheet-android.png")
         val available = rule.onAllNodesWithText("先制定计划").fetchSemanticsNodes().isNotEmpty()
         if (available) {
             rule.onNodeWithText("先制定计划").performClick()
@@ -673,11 +740,13 @@ class UiNavigationInstrumentedTest {
         openComposerShortcut("files")
         rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
         pressSystemBack()
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("terminal")
         rule.onNodeWithTag("screen-title").assertTextEquals("终端")
         rule.onNodeWithTag("terminal-console").assertExists()
         pressSystemBack()
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
     }
 
@@ -708,14 +777,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("update-check"))
         rule.onNodeWithTag("update-check").assertIsDisplayed()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
-        captureOverlay("settings-update-sheet-android35.png")
-        capture("settings-hub-android35.png")
+        captureOverlay("settings-update-sheet-android.png")
+        capture("settings-hub-android.png")
         rule.onNodeWithTag("settings-list").performScrollToNode(hasTestTag("settings-route-appearance"))
         rule.onNodeWithTag("settings-route-appearance").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("外观与显示")
         rule.onNodeWithText("柔和阴影").assertExists()
         rule.onNodeWithText("减少动效").assertExists()
-        captureOverlay("appearance-android35.png")
+        captureOverlay("appearance-android.png")
     }
 
     @Test fun terminalExecutionShowsReadableConfirmation() {
@@ -729,7 +798,7 @@ class UiNavigationInstrumentedTest {
         assertTrue("空态需要足够的阅读面积", emptyPanel.height >= 96f)
         assertTrue("空态不能超出终端输出容器", emptyPanel.bottom <= output.bottom + 8f)
         assertTrue("空态应保留结果区域扩展空间", emptyPanel.height <= output.height)
-        captureOverlay("terminal-android35.png")
+        captureOverlay("terminal-android.png")
         rule.onNodeWithText("输入命令").performTextInput("pwd")
         rule.runOnUiThread {
             val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -743,7 +812,7 @@ class UiNavigationInstrumentedTest {
         }
         rule.onNodeWithText("确认执行命令").assertExists()
         rule.onNodeWithText("确认执行").assertExists()
-        captureOverlay("terminal-confirm-android35.png")
+        captureOverlay("terminal-confirm-android.png")
         rule.onNodeWithText("取消").performClick()
         rule.onNodeWithText("确认执行命令").assertDoesNotExist()
     }
@@ -756,15 +825,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("查看账号授权与安全设置").assertExists()
         rule.onNodeWithText("刷新账号状态").performScrollTo().assertIsDisplayed()
         rule.onNodeWithText("设备码登录").performScrollTo()
-        capture("account-android35.png")
+        capture("account-android.png")
         rule.onNodeWithTag("account-usage-limits").performScrollTo().performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("用量与额度")
     }
 
     @Test fun featureCatalogKeepsUserFacingRoutesOnly() {
         val widthDp = rule.activity.resources.configuration.screenWidthDp
-        assertTrue("宽度应为 360/393/411dp，实际 $widthDp",
-            widthDp in setOf(360, 393, 411))
+        val args = InstrumentationRegistry.getArguments()
+        val expectedWidth = requireNotNull(args.getString("expectedWidthPx")?.toIntOrNull()) { "缺少实际设备宽度验收参数" }
+        val expectedDensity = requireNotNull(args.getString("expectedDensityDpi")?.toIntOrNull()) { "缺少实际设备密度验收参数" }
+        assertEquals(expectedWidth, rule.activity.resources.displayMetrics.widthPixels)
+        assertEquals(expectedDensity, rule.activity.resources.displayMetrics.densityDpi)
+        assertTrue("设备逻辑宽度与像素/密度不符：$widthDp",
+            kotlin.math.abs(widthDp - expectedWidth * 160.0 / expectedDensity) <= 1.0)
         assertEquals(pages.size, pages.map { it.id }.toSet().size)
         assertEquals(UiFeatureCatalog.all.size, UiFeatureCatalog.byRoute.size)
         assertEquals(pages.filter { it.id != "settings" }.map { it.id }.toSet(),
@@ -783,7 +857,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("功能开关")
         rule.onNodeWithTag("feature-switch-list").assertExists()
         rule.onNodeWithTag("feature-switch-search").assertDoesNotExist()
-        capture("audit-features-android35.png")
+        capture("audit-features-android.png")
         openSettingRoute("config")
         rule.onNodeWithTag("screen-title").assertTextEquals("开发者设置")
         openSettingRoute("diagnostics")
@@ -805,7 +879,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("会话", substring = false).assertExists()
         rule.onNodeWithText("已归档", substring = false).performScrollTo().performClick()
         rule.onNodeWithText("全文搜索").performScrollTo().assertIsDisplayed()
-        captureOverlay("audit-sidebar-query-filters-android35.png")
+        captureOverlay("audit-sidebar-query-filters-android.png")
         rule.onNodeWithTag("sidebar-filters-done").assertIsDisplayed().performClick()
         rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
         rule.onNodeWithTag("sidebar-query-filters").assertTextContains("已归档", substring = true)
@@ -819,22 +893,22 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("会话分组").assertDoesNotExist()
         rule.onNodeWithText("批量管理").assertDoesNotExist()
         rule.onNodeWithText("下一页").assertDoesNotExist()
-        captureOverlay("thread-library-android35.png")
+        captureOverlay("thread-library-android.png")
         rule.onNodeWithTag("sidebar-query-filters").performClick()
         rule.onNodeWithText("全文搜索").performScrollTo().performClick()
         rule.onNodeWithTag("sidebar-filters-done").performClick()
         rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
-        captureOverlay("thread-full-search-android35.png")
+        captureOverlay("thread-full-search-android.png")
     }
 
     @Test fun accountMetricsUsesSharedUsageAndLimitsTabs() {
         openSettingRoute("account")
         rule.onNodeWithTag("account-usage-limits").performScrollTo().performClick()
         rule.onNodeWithText("账号使用概况").assertExists()
-        capture("account-usage-android35.png")
+        capture("account-usage-android.png")
         rule.onNodeWithText("额度", substring = false).performClick()
         rule.onNodeWithText("额度窗口").assertExists()
-        capture("account-limits-android35.png")
+        capture("account-limits-android.png")
     }
 
     @Test fun workspaceProjectManagerOpensWithoutExpandingTheFileList() {
@@ -842,7 +916,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("workspace-project-management").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithTag("codex-detail-title").assertTextEquals("项目列表与管理")
-        captureOverlay("audit-project-manager-sheet-android35.png")
+        captureOverlay("audit-project-manager-sheet-android.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         rule.onNodeWithTag("workspace-list").assertExists()
@@ -855,7 +929,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("codex-detail-title").assertTextEquals("执行环境检查")
         rule.onNodeWithTag("environment-check-status").assertExists()
         rule.onNodeWithTag("environment-info").assertExists()
-        captureOverlay("audit-environment-diagnostics-sheet-android35.png")
+        captureOverlay("audit-environment-diagnostics-sheet-android.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         rule.onNodeWithTag("environment-advanced-toggle").assertExists()
@@ -873,7 +947,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("workspace-new-name").performScrollTo().assertIsDisplayed().performClick()
         rule.onNodeWithTag("workspace-create").assertIsNotEnabled()
         rule.onNodeWithTag("action-reply-input").performScrollTo().assertIsDisplayed().performTextReplacement(name)
-        rule.onNodeWithTag("action-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        stableClick("action-reply-send", scrollTo = true)
         rule.onNodeWithTag("workspace-new-name").assertTextContains(name)
         rule.onNodeWithTag("workspace-create").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
         rule.waitUntil(10000) {
@@ -896,7 +970,7 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("workspace-menu-" + external.name).assertExists()
         } finally { external.delete() }
         rule.onNodeWithTag("workspace-list").performScrollToNode(hasTestTag("workspace-menu-" + name))
-        capture("workspace-files-android35.png")
+        capture("workspace-files-android.png")
         // 创建目录后由业务页面自动收起键盘，并在此验收该交互。
         rule.waitForIdle()
         rule.onNodeWithTag("workspace-list").performScrollToNode(hasTestTag("workspace-menu-" + name))
@@ -960,7 +1034,7 @@ class UiNavigationInstrumentedTest {
             .fetchSemanticsNodes().isNotEmpty()
         if (connected) rule.onNodeWithText("刷新账号与工作区").assertExists()
         else rule.onNodeWithText("连接本机内核").assertExists()
-        captureOverlay("account-sessions-android35.png")
+        captureOverlay("account-sessions-android.png")
     }
 
     @Test fun pluginDiscoveryUsesClipboardWithoutSearchField() {
@@ -970,13 +1044,13 @@ class UiNavigationInstrumentedTest {
             .assertTextContains("使用剪贴板发现插件")
         rule.onNodeWithText("插件名称或关键字").assertDoesNotExist()
         rule.onAllNodes(hasSetTextAction()).assertCountEquals(0)
-        capture("plugin-search-android35.png")
+        capture("plugin-search-android.png")
     }
 
     @Test fun installedPluginManagementAndCatalogStayReachable() {
         openSettingRoute("plugins")
         rule.onNodeWithTag("plugins-tab-installed").performClick().assertIsSelected()
-        capture("plugins-android35.png")
+        capture("plugins-android.png")
         rule.onNodeWithTag("plugins-tab-catalog").performClick()
         rule.onNodeWithText("插件源", substring = false).assertExists()
     }
@@ -1017,7 +1091,7 @@ class UiNavigationInstrumentedTest {
         }
         try {
             rule.onNodeWithTag("chat-user-message").assertExists()
-            rule.onNodeWithTag("chat-user-prompt-marker", useUnmergedTree = true).assertExists()
+            rule.onNodeWithTag("chat-user-prompt-marker", useUnmergedTree = true).assertDoesNotExist()
             rule.onNodeWithTag("chat-assistant-message").assertExists()
             rule.onNodeWithTag("message-copy-ui-agent").assertExists()
             rule.onNodeWithTag("message-retry-ui-agent").assertExists()
@@ -1026,6 +1100,79 @@ class UiNavigationInstrumentedTest {
             rule.onNodeWithTag("chat-activity-group").performClick()
             rule.onNodeWithText("pwd").assertExists()
             rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        } finally {
+            rule.runOnUiThread { vm.timeline.value = emptyList() }
+        }
+    }
+
+    @Test fun progressiveLongReplyKeepsReadingAnchorAndReturnsToTail() {
+        val vm = (rule.activity.application as CodexApplication).session
+        val history = (0 until 36).map { i ->
+            TimelineItem("scroll-history-$i", "agentMessage", "历史阅读锚点 $i", "completed", turnId = "scroll-turn-$i")
+        }
+        val tail = TimelineItem("scroll-tail", "agentMessage", "当前阶段成果", "inProgress", turnId = "scroll-live")
+        try {
+            rule.runOnUiThread { vm.timeline.value = history + tail }
+            // Presentation preparation runs outside Compose's idle clock. Wait
+            // for its real tail, then address the LazyColumn's own scroll node.
+            rule.waitUntil(10_000L) {
+                rule.onAllNodesWithText("当前阶段成果").fetchSemanticsNodes().isNotEmpty()
+            }
+            val viewport = rule.onNodeWithTag("conversation-timeline", useUnmergedTree = true)
+                .assertIsDisplayed()
+            viewport.performScrollToIndex(12)
+            rule.waitForIdle()
+            val anchor = rule.onNodeWithText("历史阅读锚点 12")
+            anchor.assertIsDisplayed()
+            // Real touch input takes ownership of the viewport, rather than relying on a programmatic jump.
+            viewport.performTouchInput { swipeDown(startY = centerY, endY = centerY + 100f, durationMillis = 500) }
+            rule.waitForIdle()
+            val visible = history.map { it.text }.firstOrNull { label ->
+                rule.onNodeWithText(label).isDisplayed()
+            } ?: error("未取得真实可见的阅读锚点")
+            val reading = rule.onNodeWithText(visible)
+            reading.assertIsDisplayed()
+            val before = reading.fetchSemanticsNode().boundsInRoot.top
+            repeat(12) { n ->
+                rule.runOnUiThread { vm.timeline.value = history + tail.copy(text = "当前阶段成果 " + "增量内容 ".repeat(n + 1)) }
+                rule.waitForIdle()
+            }
+            reading.assertIsDisplayed()
+            val after = reading.fetchSemanticsNode().boundsInRoot.top
+            assertTrue("连续回复期间阅读位置偏移：$before -> $after", kotlin.math.abs(before - after) <= 2f)
+            rule.onNodeWithTag("timeline-return-latest").assertIsDisplayed().performClick()
+            rule.waitForIdle()
+            rule.onNodeWithText("当前阶段成果", substring = true).assertIsDisplayed()
+            rule.runOnUiThread { vm.timeline.value = history + tail.copy(text = "最终交付已收到", status = "completed") }
+            rule.waitForIdle()
+            rule.onNodeWithText("最终交付已收到").assertIsDisplayed()
+            // Completing a progressive turn must keep the coordinate origin of the fragment being read.
+            val partial = TimelineItem("anchor-partial", "agentMessage", "第一阶段长内容\n\n".repeat(120),
+                "completed", turnId = "anchor-turn", phase = "partial_answer")
+            val final = TimelineItem("anchor-final", "agentMessage",
+                (0 until 80).joinToString("\n\n") { "第二阶段阅读位置 $it" }, "inProgress",
+                turnId = "anchor-turn", phase = "final_answer")
+            rule.runOnUiThread { vm.timeline.value = listOf(partial, final) }
+            rule.waitUntil(10_000L) {
+                rule.onAllNodesWithText("第二阶段阅读位置", substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
+            // A logical message can span several lazy pages. Find the actual
+            // final fragment instead of treating logical row 1 as physical page 1.
+            viewport.performScrollToNode(hasText("第二阶段阅读位置 0"))
+            viewport.performTouchInput { swipeUp() }
+            rule.waitForIdle()
+            val fragmentLabel = (0 until 80).map { "第二阶段阅读位置 $it" }.first { label ->
+                rule.onNodeWithText(label).isDisplayed()
+            }
+            val fragment = rule.onNodeWithText(fragmentLabel)
+            val fragmentBefore = fragment.fetchSemanticsNode().boundsInRoot.top
+            rule.runOnUiThread {
+                vm.timeline.value = TimelineEventReducer.reduce("turn/completed", org.json.JSONObject().put("turn",
+                    org.json.JSONObject().put("id", "anchor-turn").put("status", "completed")), vm.timeline.value)
+            }
+            rule.waitForIdle()
+            fragment.assertIsDisplayed()
+            assertTrue("回合结束改变了片段阅读位置", kotlin.math.abs(fragment.fetchSemanticsNode().boundsInRoot.top - fragmentBefore) <= 2f)
         } finally {
             rule.runOnUiThread { vm.timeline.value = emptyList() }
         }
@@ -1096,7 +1243,7 @@ class UiNavigationInstrumentedTest {
                 rule.onNodeWithTag("engine-setting-model").performScrollTo()
             }
             if (route in listOf("models", "personalization", "context", "tools"))
-                captureVerifiedDisplayScreenshot("audit-" + route + "-android35.png")
+                captureVerifiedDisplayScreenshot("audit-" + route + "-android.png")
         }
     }
 
@@ -1160,20 +1307,25 @@ class UiNavigationInstrumentedTest {
         rule.waitForIdle()
         rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
         openComposerShortcut("queue")
-        rule.onNodeWithTag("thread-queue-draft").performTextInput("保留未发送的队列内容")
-        rule.runOnUiThread {
-            val input = rule.activity.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            input.hideSoftInputFromWindow(rule.activity.window.decorView.windowToken, 0)
-            rule.activity.currentFocus?.clearFocus()
+        val text = "保留未发送的队列内容"
+        val field = rule.onNodeWithTag("thread-queue-draft")
+        stableClick("thread-queue-draft")
+        field.assertIsFocused().performTextInput(text)
+        field.assertTextContains(text)
+        rule.runOnIdle {
+            assertEquals("输入必须先进入原会话的草稿", text, vm.taskPanelDraft("ci-queue-draft").queueText)
         }
-        rule.waitForIdle()
-        // A visible close button must work regardless of IME focus or Back delivery.
+        // Close through the real owning window while its text field has focus.
+        // Do not send IME commands to the underlying Activity's window token.
         rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithTag("thread-queue-draft").fetchSemanticsNodes().isEmpty()
         }
+        rule.runOnIdle {
+            assertEquals("关闭窗口不得清除草稿", text, vm.taskPanelDraft("ci-queue-draft").queueText)
+        }
         openComposerShortcut("queue")
-        rule.onNodeWithTag("thread-queue-draft").assertTextContains("保留未发送的队列内容")
+        field.assertTextContains(text)
         // Finish the real navigation lifecycle before the next Activity is launched.
         rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.waitUntil(5_000L) {
@@ -1192,7 +1344,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("全文搜索").performScrollTo().performClick()
         rule.onNodeWithTag("sidebar-filters-done").performClick()
         rule.onNodeWithTag("sidebar-clipboard-query").assertExists()
-        captureOverlay("thread-global-search-android35.png")
+        captureOverlay("thread-global-search-android.png")
         pressSystemBack()
 
         rule.runOnUiThread { vm.activeThread.value = "ci-queue-thread" }
@@ -1203,8 +1355,9 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("后续指令").assertExists()
         assertTrue("同一队列请求错误只显示一次",
             rule.onAllNodesWithText("Codex 内核尚未连接").fetchSemanticsNodes().size <= 1)
-        captureOverlay("audit-queue-android35.png")
+        captureOverlay("audit-queue-android.png")
         pressSystemBack()
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertExists()
     }
 
@@ -1233,10 +1386,10 @@ class UiNavigationInstrumentedTest {
                 rule.onNodeWithTag("diagnostics-runtime-policy").assertExists()
                 rule.onNodeWithTag("diagnostics-log-panel").assertExists()
                 rule.onNodeWithText("查看启动日志").assertHasClickAction()
-                captureVerifiedDisplayScreenshot("audit-diagnostics-android35.png")
+                captureVerifiedDisplayScreenshot("audit-diagnostics-android.png")
                 rule.onNodeWithTag("diagnostics-environment").performScrollTo().assertIsDisplayed()
                 rule.onNodeWithTag("diagnostics-crash-history").performScrollTo().assertIsDisplayed()
-            } else capture("audit-" + route + "-android35.png")
+            } else capture("audit-" + route + "-android.png")
         }
     }
 
@@ -1274,7 +1427,7 @@ class UiNavigationInstrumentedTest {
         }
         rule.onNodeWithContentDescription("待审批").performClick()
         rule.onNodeWithTag("screen-title").assertTextEquals("待审批操作")
-        captureOverlay("audit-approvals-android35.png")
+        captureOverlay("audit-approvals-android.png")
         pressSystemBack()
         rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
 
@@ -1282,7 +1435,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("添加自定义服务商").performScrollTo().performClick()
         rule.onNodeWithTag("provider-endpoint").assertExists()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
-        captureOverlay("audit-provider-editor-android35.png")
+        captureOverlay("audit-provider-editor-android.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("config")
@@ -1291,14 +1444,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("设置项名称").assertDoesNotExist()
         rule.onNodeWithText("高级数据").assertDoesNotExist()
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
-        captureOverlay("audit-config-editor-android35.png")
+        captureOverlay("audit-config-editor-android.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
 
         openSettingRoute("environments")
         rule.onNodeWithTag("environment-remote-option").performScrollTo().performClick()
         rule.onNodeWithTag("environment-remote-name").assertDoesNotExist()
         rule.onNodeWithTag("environment-endpoint").assertExists()
-        capture("audit-environment-editor-android35.png")
+        capture("audit-environment-editor-android.png")
     }
 
     @Test fun executionEnvironmentShowsChoiceBeforeConnectionFields() {
@@ -1313,15 +1466,20 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-remote-name").assertDoesNotExist()
         rule.onNodeWithTag("environment-endpoint").assertExists()
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
-        rule.onNodeWithTag("environment-endpoint").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("environment-endpoint").performScrollTo()
+        stableClick("environment-endpoint")
         rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://example.com/exec")
-        rule.onNodeWithTag("environment-address-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.onNodeWithTag("environment-address-reply-send").assertIsEnabled()
+        rule.onNodeWithTag("environment-address-reply-input").performImeAction()
         rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-remote-name").fetchSemanticsNodes().isNotEmpty() }
         rule.onNodeWithTag("environment-remote-name").assertTextContains("example.com", substring = true)
-        rule.onNodeWithTag("environment-remote-name").performScrollTo().assertIsDisplayed().performClick()
+        rule.onNodeWithTag("environment-remote-name").performScrollTo()
+        stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-connect").assertIsNotEnabled()
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("工作电脑")
-        rule.onNodeWithTag("environment-name-reply-send").performScrollTo().assertIsDisplayed().assertIsEnabled().performClick()
+        rule.onNodeWithTag("environment-name-reply-send").assertIsEnabled()
+        rule.onNodeWithTag("environment-name-reply-input").performImeAction()
+        rule.waitUntil(5_000L) { rule.onAllNodesWithTag("environment-name-reply-input").fetchSemanticsNodes().isEmpty() }
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
 
@@ -1332,18 +1490,33 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("environment-endpoint").assertTextContains("wss://example.com/exec")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         // Editing the address must not overwrite a user-chosen name.
-        rule.onNodeWithTag("environment-endpoint").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-endpoint").performScrollTo()
+        stableClick("environment-endpoint")
         rule.onNodeWithTag("environment-address-reply-input").performScrollTo().performTextReplacement("wss://other.example/exec")
-        rule.onNodeWithTag("environment-address-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-address-reply-send").assertIsEnabled()
+        rule.onNodeWithTag("environment-address-reply-input").performImeAction()
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
         // Cancel keeps the existing name; explicitly clearing it restores the derived name.
-        rule.onNodeWithTag("environment-remote-name").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").performScrollTo()
+        stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextReplacement("临时名称")
-        rule.onNodeWithTag("environment-name-reply-cancel").performScrollTo().performClick()
+        // The system owns Back while its keyboard is open. Dismiss it before scrolling
+        // to the separate cancel control; dismissal must preserve the in-progress reply.
+        assertRealSoftKeyboardOpen()
+        pressSystemBack()
+        rule.waitUntil(5_000L) {
+            androidx.core.view.ViewCompat.getRootWindowInsets(rule.activity.window.decorView)
+                ?.isVisible(androidx.core.view.WindowInsetsCompat.Type.ime()) != true
+        }
+        rule.onNodeWithTag("environment-name-reply-input").assertTextContains("临时名称")
+        rule.onNodeWithTag("environment-name-reply-cancel").performScrollTo()
+        stableClick("environment-name-reply-cancel")
         rule.onNodeWithTag("environment-remote-name").assertTextContains("工作电脑")
-        rule.onNodeWithTag("environment-remote-name").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-remote-name").performScrollTo()
+        stableClick("environment-remote-name")
         rule.onNodeWithTag("environment-name-reply-input").performScrollTo().performTextClearance()
-        rule.onNodeWithTag("environment-name-reply-send").performScrollTo().performClick()
+        rule.onNodeWithTag("environment-name-reply-send").assertIsEnabled()
+        rule.onNodeWithTag("environment-name-reply-input").performImeAction()
         rule.onNodeWithTag("environment-remote-name").assertTextContains("other.example", substring = true)
         rule.onNodeWithTag("environment-connect").assertIsEnabled()
     }
@@ -1355,13 +1528,14 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithText("可用权限方案", substring = false).assertExists()
         rule.onNodeWithTag("codex-floating-menu").assertIsDisplayed()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
-        captureOverlay("audit-security-profiles-android35.png")
+        captureOverlay("audit-security-profiles-android.png")
         pressSystemBack()
+        waitForConversationAfterSystemBack()
         rule.onNodeWithTag("conversation-composer").assertExists()
 
         openSettingRoute("about")
         rule.onNodeWithText("关于应用").assertExists()
-        captureOverlay("audit-about-android35.png")
+        captureOverlay("audit-about-android.png")
     }
 
     @Test fun permissionProfilesCanBeSelectedAndRestrictedProfilesCannot() {
@@ -1397,7 +1571,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("security-profile-workspace").performScrollTo().assertIsDisplayed()
         rule.onNodeWithTag("security-profile-danger-full-access").performScrollTo().assertIsNotEnabled()
         rule.onNodeWithTag("security-profile-read-only").performScrollTo().assertIsDisplayed().assertIsSelected()
-        captureOverlay("audit-security-selection-android35.png")
+        captureOverlay("audit-security-selection-android.png")
         pressSystemBack()
         rule.onNodeWithTag("composer-permission-control").assertExists()
     }
@@ -1419,7 +1593,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("screen-title").assertTextEquals("待审批操作")
         rule.onNodeWithText("允许访问网络", substring = true).assertExists()
         rule.onNodeWithText("修改：本机工作区", substring = true).assertExists()
-        captureOverlay("audit-permission-request-android35.png")
+        captureOverlay("audit-permission-request-android.png")
         rule.runOnUiThread { vm.bridge.prompts.value = emptyList() }
     }
 
@@ -1433,40 +1607,48 @@ class UiNavigationInstrumentedTest {
         openComposerShortcut("context")
         rule.onNodeWithText("创建会话分支").assertDoesNotExist()
         rule.onNodeWithText("整理上下文").assertExists()
-        captureOverlay("audit-thread-context-android35.png")
+        captureOverlay("audit-thread-context-android.png")
         rule.onNodeWithText("历史回退").performScrollTo().performClick()
         rule.waitUntil(5_000L) {
             rule.onAllNodesWithText("查看完整时间线（实验）").fetchSemanticsNodes().isNotEmpty()
         }
         rule.onNodeWithText("查看完整时间线（实验）").assertExists()
-        captureOverlay("audit-thread-history-android35.png")
+        captureOverlay("audit-thread-history-android.png")
         rule.onNodeWithText("查看完整时间线（实验）").performClick()
         rule.onNodeWithText("会话时间线").assertExists()
-        captureOverlay("audit-advanced-timeline-android35.png")
+        captureOverlay("audit-advanced-timeline-android.png")
+        rule.onNodeWithText("查看完整时间线（实验）").assertDoesNotExist()
         rule.onNodeWithContentDescription("返回回合历史").performClick()
-        rule.onNodeWithText("查看完整时间线（实验）").assertExists()
+        rule.onNodeWithText("会话时间线").assertDoesNotExist()
+        rule.onNodeWithText("查看完整时间线（实验）").assertIsDisplayed()
+        rule.onNodeWithText("查看完整时间线（实验）").performClick()
+        rule.onNodeWithText("会话时间线").assertIsDisplayed()
         pressSystemBack()
-        rule.onNodeWithTag("conversation-top-bar").assertExists()
+        rule.onNodeWithText("会话时间线").assertDoesNotExist()
+        rule.onNodeWithText("查看完整时间线（实验）").assertIsDisplayed()
+        pressSystemBack()
+        rule.onNodeWithText("查看完整时间线（实验）").assertDoesNotExist()
+        rule.onNodeWithTag("conversation-top-bar").assertIsDisplayed()
         openComposerShortcut("context")
         rule.onNodeWithText("关联资料").performScrollTo().performClick()
         rule.onNodeWithText("添加文本备注").assertExists()
-        captureOverlay("audit-thread-attachments-android35.png")
+        captureOverlay("audit-thread-attachments-android.png")
         pressSystemBack()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         openComposerShortcut("review")
         rule.onNodeWithText("审查范围").assertExists()
         rule.onNodeWithContentDescription("返回上一页").assertExists()
-        captureOverlay("audit-review-sheet-android35.png")
+        captureOverlay("audit-review-sheet-android.png")
         rule.onNodeWithContentDescription("返回上一页").performClick()
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         openComposerShortcut("goal")
         rule.onNodeWithText("设置新目标").assertExists()
         rule.onNodeWithTag("goal-sticky-save").assertExists()
         rule.onNodeWithContentDescription("关闭任务目标").assertExists()
-        captureOverlay("audit-goals-sheet-android35.png")
+        captureOverlay("audit-goals-sheet-android.png")
         rule.onNodeWithTag("goal-advanced-toggle").performScrollTo().performClick()
         rule.onNodeWithTag("codex-edit-dialog").assertExists()
-        captureOverlay("audit-goal-budget-editor-android35.png")
+        captureOverlay("audit-goal-budget-editor-android.png")
         rule.onNodeWithText("取消").performClick()
         rule.onNodeWithTag("codex-edit-dialog").assertDoesNotExist()
         rule.onNodeWithTag("goal-sticky-save").assertIsDisplayed()
@@ -1481,6 +1663,66 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("thread-library-sheet").assertDoesNotExist()
     }
 
+    @Test fun experienceComposerTargetsAreUnclippedAndAligned() {
+        val quality = UiExperienceAssertions(rule)
+        quality.bounds("composer-send", 48f, 48f)
+        quality.bounds("composer-plus", 48f, 48f)
+        quality.bounds("composer-task-options", 48f, 48f)
+        quality.bounds("composer-input", 120f)
+        quality.nonOverlap("composer-plus", "composer-send", "composer-input")
+        quality.alignedCenters("composer-plus", "composer-send")
+    }
+
+    @Test fun experienceTopBarTargetsAreIndependent() {
+        val quality = UiExperienceAssertions(rule)
+        quality.bounds("drawer-toggle", 48f, 48f)
+        quality.bounds("top-new-chat", 48f, 48f)
+        quality.nonOverlap("drawer-toggle", "top-new-chat")
+        quality.alignedCenters("drawer-toggle", "top-new-chat")
+        rule.onNodeWithTag("drawer-toggle").performClick()
+        quality.bounds("sidebar-global-search", 48f, 48f)
+        quality.bounds("nav-settings", 48f, 48f)
+        quality.bounds("nav-account", 48f, 48f)
+        quality.nonOverlap("nav-settings", "nav-account")
+        quality.alignedCenters("nav-settings", "nav-account")
+    }
+
+    @Test fun experienceKeyboardDoesNotCoverActualActionBounds() {
+        rule.onNodeWithTag("composer-input").performClick()
+        rule.onNodeWithTag("composer-input").performTextInput("检查真实键盘遮挡")
+        assertRealSoftKeyboardOpen()
+        val quality = UiExperienceAssertions(rule)
+        quality.visibleAboveIme("composer-input", "composer-plus", "composer-send", "composer-task-options")
+        quality.nonOverlap("composer-input", "composer-plus", "composer-send")
+        quality.bounds("composer-send", 48f, 48f)
+    }
+
+    @Test fun experiencePageTitleTypographyRemainsReadable() {
+        val quality = UiExperienceAssertions(rule)
+        openSettingRoute("providers")
+        quality.untruncatedText("screen-title", "模型服务商")
+        rule.onNodeWithContentDescription("返回上一页").performClick()
+        rule.onNodeWithTag("settings-list").assertIsDisplayed()
+        quality.untruncatedText("screen-title", "设置")
+    }
+
+    @Test fun experienceDraftSurvivesRepeatedWorkspaceRoundTrips() {
+        val draft = "需要保留的实际任务草稿"
+        rule.onNodeWithTag("composer-input").performClick()
+        rule.onNodeWithTag("composer-input").performTextReplacement(draft)
+        assertRealSoftKeyboardOpen()
+        pressSystemBack()
+        repeat(2) {
+            openDrawerRoute("files")
+            rule.onNodeWithTag("screen-title").assertTextEquals("工作区文件")
+            pressSystemBack()
+            rule.onNodeWithTag("conversation-composer").assertIsDisplayed()
+            rule.onNodeWithTag("composer-input").assertTextContains(draft)
+            // This UI-only APK has no native runtime; preserve its real offline send gate.
+            rule.onNodeWithTag("composer-send").assertIsNotEnabled()
+        }
+    }
+
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot(fileName)
@@ -1491,3 +1733,4 @@ class UiNavigationInstrumentedTest {
         captureVerifiedDisplayScreenshot(fileName)
     }
 }
+

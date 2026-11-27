@@ -21,6 +21,7 @@ object UiProtocolMatrix {
         ProtocolSurface("thread/resume", ApiExposure.Direct, "会话/对话", false),
         ProtocolSurface("thread/fork", ApiExposure.Contextual, "会话/对话", false),
         ProtocolSurface("thread/sample", ApiExposure.Internal, "会话/对话", true),
+        ProtocolSurface("thread/sample/scope", ApiExposure.Internal, "会话/对话", true),
         ProtocolSurface("thread/sample/cancel", ApiExposure.Internal, "会话/对话", true),
         ProtocolSurface("thread/archive", ApiExposure.Direct, "会话/对话", false),
         ProtocolSurface("thread/delete", ApiExposure.Direct, "会话/对话", false),

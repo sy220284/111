@@ -12,6 +12,8 @@ test "$(adb -s "$ANDROID_SERIAL" get-state)" = device
 test "$(adb shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
 test "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" != 1
 adb shell getprop ro.build.version.sdk | tr -d '\r' > "$OUT/api.txt"
+EXPECTED_API="$(python3 -c 'import json; print(json.load(open("android-app/tools/device-matrix.json"))["api"])')"
+test "$(cat "$OUT/api.txt")" = "$EXPECTED_API"
 adb shell getprop ro.product.model | tr -d '\r' > "$OUT/model.txt"
 (cd "$DIR" && sha256sum -c SHA256SUMS.txt)
 APK="$DIR/codex-android-arm64-v8a-$RELEASE_VERSION.apk"

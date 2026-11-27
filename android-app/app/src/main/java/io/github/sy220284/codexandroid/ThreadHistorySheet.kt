@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,6 +38,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     var inspected by remember(thread) { mutableStateOf<String?>(null) }
     var fullReader by remember(thread) { mutableStateOf<String?>(null) }
     var showAdvanced by remember(thread) { mutableStateOf(false) }
+    val historyListState = rememberLazyListState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var exportMarkdown by remember(thread) { mutableStateOf<String?>(null) }
@@ -106,8 +108,10 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     }
     CodexOverlayFrame(
         onDismissRequest = onDismiss,
-        fullScreen = true, containerColor = Ink.canvas) {
-        Column(Modifier.fillMaxWidth().fillMaxHeight()
+        fullScreen = true, containerColor = Ink.canvas,
+        onBackRequest = if (showAdvanced) ({ showAdvanced = false }) else null) {
+        if (showAdvanced) AdvancedThreadTimelineDialog(vm) { showAdvanced = false }
+        else Column(Modifier.fillMaxWidth().fillMaxHeight()
             .navigationBarsPadding().padding(horizontal = 19.dp, vertical = 10.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)) {
             AtlasSheetHeader("回合历史与回退", onDismiss)
@@ -156,7 +160,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 if (turns.isEmpty() && pages.isNotEmpty() && key !in loading && prefix + "0" !in loading) {
                     CodexEmptyState("暂无历史回合", "该会话可能尚未执行任务。")
                 }
-                LazyColumn(modifier = Modifier.weight(1f),
+                LazyColumn(state = historyListState, modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     contentPadding = PaddingValues(bottom = 20.dp)) {
                     itemsIndexed(turns, key = { _, item -> item.optString("id") }) { index, turn ->
@@ -268,7 +272,6 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     fullReader?.let { raw ->
         FullTextReaderDialog("会话执行记录", raw) { fullReader = null }
     }
-    if (showAdvanced) AdvancedThreadTimelineDialog(vm) { showAdvanced = false }
 }
 
 /** 为历史正文阅读器提取真正的事件内容，避免把 RPC 结构当成正文。 */
@@ -276,7 +279,7 @@ private fun readableTurnItems(payload: JSONObject): String {
     val items = records(payload)
     if (items.isEmpty()) return "该回合没有可阅读的文本记录。"
     return items.mapIndexed { index, record ->
-        val item = record.optJSONObject("item") ?: record
+        val item = AgentReplyContract.sanitize(record.optJSONObject("item") ?: record)
         val kind = PresentationPolicy.timelineKind(item.optString("type"))
         val text = listOf("text", "message", "command", "summary").firstNotNullOfOrNull {
             PresentationPolicy.meaningful(item.optString(it)).takeIf { value -> value.isNotEmpty() }

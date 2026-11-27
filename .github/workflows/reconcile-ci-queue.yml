@@ -1,0 +1,49 @@
+name: CI 过期队列实时收敛
+
+on:
+  pull_request_target:
+    types: [synchronize, closed]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 只检查，不取消
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: write
+  pull-requests: read
+
+concurrency:
+  group: ci-queue-reconcile-${{ github.event.pull_request.number || 'repository' }}
+  cancel-in-progress: true
+
+jobs:
+  reconcile:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # Privileged event: execute trusted main only.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+          sparse-checkout: |
+            .github/scripts
+            .github/ci
+            .github/workflows
+      - name: 收敛已关闭或被替代的验收
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
+        run: |
+          set -euo pipefail
+          args=(--repo "$GITHUB_REPOSITORY")
+          if [ -n "$PR_NUMBER" ]; then args+=(--pr "$PR_NUMBER"); fi
+          if [ "$DRY_RUN" != true ]; then args+=(--apply); fi
+          python3 .github/scripts/ci_queue_policy.py "${args[@]}"

@@ -99,15 +99,18 @@ def source_marker_lines(source, marker):
     return [code.count("\n", 0, hit.start()) + 1 for hit in re.finditer(pattern, code)]
 
 
-def audit(root):
+def audit(root, *, inputs=None):
+    from static_audit_inputs import AuditInputs
+    inputs=inputs or AuditInputs(root)
+    root=inputs.root
     errors, assets = [], []
     design = root/"docs/ui-assets"
     src = root/"android-app/app/src/main/java"
     drawable = root/"android-app/app/src/main/res/drawable"
     test_root = root/"android-app/app/src/androidTest/java"
-    manifest = json.loads((design/"素材接入清单.json").read_text(encoding="utf-8"))
-    sources = {x.stem:x.read_text(encoding="utf-8") for x in src.rglob("*.kt")}
-    tests = {x.stem:set(TEST_RE.findall(x.read_text(encoding="utf-8"))) for x in test_root.rglob("*.kt")}
+    manifest = inputs.manifest
+    sources = inputs.names(inputs.production,stems=True)
+    tests = {name:set(TEST_RE.findall(code)) for name,code in inputs.names(inputs.kotlin(test_root),stems=True).items()}
     def test_ref(ref):
         parts = ref.split(".")
         if len(parts) != 2 or parts[1] not in tests.get(parts[0], set()):
@@ -228,6 +231,14 @@ def audit(root):
         errors.append("设计图谱有遗漏或未登记；新增未登记："+str(sorted(x.name for x in actual_atlases-atlas_files))+"；缺失仍登记："+str(sorted(x.name for x in atlas_files-actual_atlases)))
     return errors, {"status":"failed" if errors else "source_verified","figma":manifest["figma"],"route_count":len(routes),"icon_count":len(registry),"artwork_count":len(manifest["artwork"]),"asset_count":len(assets),"routes":routes,"assets":assets,"errors":errors,"evidence":"静态核查与设备测试声明；真实设备结果以当前 CI 测试报告及截图为准"}
 
+def report_markdown(report):
+    errors=report["errors"]
+    lines=["# UI 素材接入验收","",report["evidence"],"",f"路由 {report['route_count']}；图标 {report['icon_count']}；插画 {report['artwork_count']} 类。","","| 素材 | 共享组件 | 实际调用位置 | 业务 | 测试声明 |","| --- | --- | --- | --- | --- |"]
+    for row in report["assets"]:
+        lines.append("| "+" | ".join([row["asset"],row["component"],", ".join(row["callsites"]),"; ".join(row["business"]),"; ".join(row["tests"])])+" |")
+    lines.extend(["","## 问题"]+[("- "+x) for x in errors] if errors else ["","静态检查通过。"])
+    return "\n".join(lines)+"\n"
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--repository",type=Path,default=Path("."))
@@ -236,11 +247,7 @@ def main():
     args=parser.parse_args()
     errors,report=audit(args.repository.resolve())
     args.report.write_text(json.dumps(report,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
-    lines=["# UI 素材接入验收","",report["evidence"],"",f"路由 {report['route_count']}；图标 {report['icon_count']}；插画 {report['artwork_count']} 类。","","| 素材 | 共享组件 | 实际调用位置 | 业务 | 测试声明 |","| --- | --- | --- | --- | --- |"]
-    for row in report["assets"]:
-        lines.append("| "+" | ".join([row["asset"],row["component"],", ".join(row["callsites"]),"; ".join(row["business"]),"; ".join(row["tests"])])+" |")
-    lines.extend(["","## 问题"]+[("- "+x) for x in errors] if errors else ["","静态检查通过。"])
-    args.markdown.write_text("\n".join(lines)+"\n",encoding="utf-8")
+    args.markdown.write_text(report_markdown(report),encoding="utf-8")
     print(f"素材检查：{report['icon_count']} 图标 / {report['artwork_count']} 类插画 / {report['route_count']} 路由；{len(errors)} 个问题")
     for error in errors:
         print(error,file=sys.stderr)

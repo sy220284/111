@@ -1,0 +1,139 @@
+package io.github.sy220284.codexandroid
+
+import org.json.JSONArray
+import org.json.JSONObject
+
+/** Native host for the MCP Apps 2026-01-26 JSON-RPC transport. No arbitrary native RPC names. */
+internal class McpAppHostContract(private val call: JSONObject, private val originCallId: String = call.optString("id")) {
+    private var state = 0
+    val version = "2026-01-26"
+    val server = call.getString("server")
+    val environment = call.optString("environmentId").takeUnless { call.isNull("environmentId") }
+    val uri = call.optJSONObject("mcpAppUi")?.optString("resourceUri")?.takeIf(String::isNotBlank)
+        ?: call.optString("mcpAppResourceUri")
+    val scopedTools = server != "codex_apps" && call.isNull("appContext")
+    val originResource = server == "codex_apps" && environment == null && originCallId.isNotBlank()
+    val ready get() = state == 2
+    fun notification(method: String, params: JSONObject) = JSONObject().put("jsonrpc", "2.0")
+        .put("method", method).put("params", params)
+    fun response(id: Any, result: JSONObject) = JSONObject().put("jsonrpc", "2.0").put("id", id).put("result", result)
+    fun error(id: Any, code: Int, message: String) = JSONObject().put("jsonrpc", "2.0").put("id", id)
+        .put("error", JSONObject().put("code", code).put("message", message))
+    fun initialize(params: JSONObject, theme: String): JSONObject {
+        require(state == 0 && params.optString("protocolVersion") == version &&
+            params.optJSONObject("appInfo") != null && params.optJSONObject("appCapabilities") != null) {
+            "MCP App 协议版本或初始化数据不受支持"
+        }
+        state = 1
+        val capabilities = JSONObject().put("openLinks", JSONObject()).put("sandbox", JSONObject())
+        if (scopedTools) capabilities.put("serverTools", JSONObject())
+        if (scopedTools || originResource) capabilities.put("serverResources", JSONObject())
+        return JSONObject().put("protocolVersion", version)
+            .put("hostInfo", JSONObject().put("name", "111 Android").put("version", "1.0"))
+            .put("hostCapabilities", capabilities)
+            .put("hostContext", JSONObject().put("platform", "mobile").put("theme", theme)
+                .put("displayMode", "fullscreen").put("availableDisplayModes", JSONArray().put("fullscreen"))
+                .put("deviceCapabilities", JSONObject().put("touch", true).put("hover", false)))
+    }
+    fun initialized(): List<JSONObject> {
+        require(state == 1)
+        state = 2
+        val result = call.optJSONObject("result") ?: JSONObject().put("content", JSONArray())
+        return listOf(notification("ui/notifications/tool-input", JSONObject()
+            .put("arguments", call.optJSONObject("arguments") ?: JSONObject())),
+            notification("ui/notifications/tool-result", result))
+    }
+    fun scoped(params: JSONObject, thread: String): JSONObject = params.put("threadId", thread)
+        .put("server", server).apply { environment?.let { put("environmentId", it) } }
+    fun catalogRequest(thread: String) = JSONObject().put("threadId", thread).put("serverName", server)
+        .put("detail", "full").put("limit", 20).apply { environment?.let { put("environmentId", it) } }
+    suspend fun readRegistration(thread: String, read: suspend (JSONObject) -> JSONObject): JSONObject {
+        var found: JSONObject? = null
+        var count = 0
+        val seen = mutableSetOf<String>()
+        var cursor: String? = null
+        repeat(32) {
+            val request = catalogRequest(thread).apply { cursor?.let { put("cursor", it) } }
+            val result = read(request)
+            val page = result.getJSONArray("data")
+            for (index in 0 until page.length()) {
+                require(++count <= 640) { "应用服务目录超过宿主容量" }
+                val item = page.getJSONObject(index)
+                if (matches(item)) {
+                    require(found == null) { "工具服务归属重复" }
+                    found = item
+                }
+            }
+            if (result.isNull("nextCursor")) return requireNotNull(found) { "工具服务归属无法确认" }
+            cursor = result.opt("nextCursor") as? String ?: error("服务目录分页回执无效")
+            require(!cursor.isNullOrBlank() && seen.add(requireNotNull(cursor))) { "服务目录分页回执重复或无效" }
+        }
+        error("应用服务目录未完整读取，请重试")
+    }
+    fun registration(result: JSONObject): JSONObject {
+        val values = result.getJSONArray("data")
+        val matches = (0 until values.length()).map { values.getJSONObject(it) }.filter(::matches)
+        require(matches.size == 1) { "工具服务归属无法确认" }
+        return matches.single()
+    }
+    private fun matches(item: JSONObject): Boolean = item.optString("name") == server &&
+        item.optString("environmentId").takeUnless { item.isNull("environmentId") } == environment
+    fun allowedTool(registration: JSONObject, name: String): Boolean {
+        if (!scopedTools || name.isBlank()) return false
+        val tool = registration.optJSONObject("tools")?.optJSONObject(name) ?: return false
+        if (tool.optString("name") != name) return false
+        val meta = tool.optJSONObject("_meta")
+        if (!tool.isNull("_meta") && meta == null) return false
+        val ui = meta?.optJSONObject("ui")
+        if (meta != null && !meta.isNull("ui") && ui == null) return false
+        if (ui == null || ui.isNull("visibility")) return true
+        val visibility = ui.optJSONArray("visibility") ?: return false
+        return (0 until visibility.length()).any { visibility.optString(it) == "app" }
+    }
+    fun allowedResource(registration: JSONObject, requested: String): Boolean {
+        if (!scopedTools || requested.isBlank()) return false
+        if (requested == uri) return true
+        val resources = registration.optJSONArray("resources") ?: return false
+        return (0 until resources.length()).any { resources.optJSONObject(it)?.optString("uri") == requested }
+    }
+    fun resourceRequest(thread: String, requested: String, registration: JSONObject? = null): JSONObject {
+        if (originResource) {
+            require(requested == uri) { "托管应用只能重读原调用的界面资源" }
+            return scoped(JSONObject().put("uri", requested).put("originCallId", originCallId), thread)
+        }
+        require(registration != null && allowedResource(registration, requested)) { "资源不在应用服务目录中" }
+        return scoped(JSONObject().put("uri", requested), thread)
+    }
+    companion object {
+        const val MAX_HTML = 2 * 1024 * 1024
+        const val MAX_MESSAGE = 256 * 1024
+        fun html(result: JSONObject, uri: String): String? {
+            val values = result.getJSONArray("contents")
+            val matches = (0 until values.length()).map { values.getJSONObject(it) }.filter {
+                it.optString("uri") == uri && it.optString("mimeType").replace(" ", "")
+                    .equals("text/html;profile=mcp-app", true)
+            }
+            if (matches.isEmpty()) return null
+            require(matches.size == 1)
+            val resource = matches.single()
+            require(resource.has("text") != resource.has("blob")) { "MCP App HTML 编码不明确" }
+            if (resource.has("text")) {
+                val source = resource.opt("text") as? String ?: error("MCP App HTML 文本无效")
+                require(source.toByteArray(Charsets.UTF_8).size in 1..MAX_HTML) { "MCP App 资源过大" }
+                return source
+            }
+            val encoded = resource.opt("blob") as? String ?: error("MCP App HTML 编码无效")
+            require(encoded.length in 1..((MAX_HTML + 2) / 3) * 4) { "MCP App 资源过大" }
+            val bytes = java.util.Base64.getDecoder().decode(encoded)
+            require(bytes.size in 1..MAX_HTML) { "MCP App 资源过大" }
+            return Charsets.UTF_8.newDecoder()
+                .onMalformedInput(java.nio.charset.CodingErrorAction.REPORT)
+                .onUnmappableCharacter(java.nio.charset.CodingErrorAction.REPORT)
+                .decode(java.nio.ByteBuffer.wrap(bytes)).toString()
+        }
+        fun externalLink(url: String): Boolean = try {
+            val parsed = java.net.URI(url)
+            parsed.scheme == "https" && parsed.host != null && parsed.rawUserInfo == null
+        } catch (_: java.net.URISyntaxException) { false }
+    }
+}

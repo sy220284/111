@@ -14,13 +14,17 @@ class PinnedProtocolContractTest(unittest.TestCase):
         cls.source = UPSTREAM.read_text(encoding="utf-8")
         cls.methods = parse_contracts(cls.source)
 
-    def test_all_198_methods_have_a_single_direction(self):
+    def test_all_199_methods_have_a_single_direction(self):
         client, host = request_method_names(self.source)
-        self.assertEqual(190, len(client))
+        self.assertEqual(191, len(client))
         self.assertEqual(8, len(host))
-        self.assertEqual(198, len(self.methods))
+        self.assertEqual(199, len(self.methods))
         self.assertFalse(client & host)
         self.assertIn("modelProvider/model/verify", client)
+        self.assertIn("thread/sample/scope", client)
+        self.assertTrue(self.methods["thread/sample/scope"].experimental)
+        self.assertEqual("v2::ThreadSampleScopeParams", self.methods["thread/sample/scope"].params)
+        self.assertEqual("v2::ThreadSampleScopeResponse", self.methods["thread/sample/scope"].response)
         for name in ("account/voiceSettings/read", "account/voiceSettings/write"):
             self.assertIn(name, client)
             self.assertTrue(self.methods[name].experimental)

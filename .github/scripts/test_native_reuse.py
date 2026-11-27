@@ -41,7 +41,7 @@ class FakeRunner:
                  run_conclusion='success', failed_job=False,
                  changed_code_mode_adapter=False,
                  legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False, changed_git_builder=False,
-                 changed_parent_cargo=False):
+                 changed_parent_cargo=False, changed_producer=False, changed_privacy=False, changed_delivery=False):
         self.run_conclusion = run_conclusion
         self.failed_job = failed_job
         self.failed_provider = False
@@ -56,6 +56,9 @@ class FakeRunner:
         self.changed_v8_host_adapter = changed_v8_host_adapter
         self.changed_git_builder = changed_git_builder
         self.changed_parent_cargo = changed_parent_cargo
+        self.changed_producer = changed_producer
+        self.changed_privacy = changed_privacy
+        self.changed_delivery = changed_delivery
         self.git_queries = []
         self.called_api = 0
         self.last_workflow_query = []
@@ -74,8 +77,14 @@ class FakeRunner:
             if is_upstream:
                 return "same-tree"
             return "same-patcher"
+        if args[:3] == ["git", "ls-tree", "-r"]:
+            return "different producer" if self.changed_producer and args[3] in ("old","older") else "same producer"
         if args[:2] == ["git", "ls-tree"]:
             sha = args[2]
+            if args[-1] in ("android-app/tools/prepare_android_remote_delivery.py", "android-app/tools/test_prepare_android_remote_delivery.py"):
+                return "old delivery" if self.changed_delivery and sha.startswith(("old", "older")) else "same delivery"
+            if args[-1] == "android-app/tools/prepare_android_realtime_privacy.py":
+                return "old privacy" if self.changed_privacy and sha.startswith(("old","older")) else "same privacy" if self.changed_privacy else ""
             if args[-1] == "upstream/codex/.cargo":
                 return ("old-parent-cargo" if sha.startswith(("old", "older")) and
                         self.changed_parent_cargo else "same-parent-cargo")
@@ -128,15 +137,45 @@ class FakeRunner:
 
 
 class NativeReuseTests(unittest.TestCase):
+    def test_transient_api_error_retries_and_validates_json(self):
+        from unittest.mock import patch
+        from collections import deque
+        results = deque([SelectionError("unexpected end of JSON input"), "{", '{"jobs":[]}'])
+        def runner(args):
+            value = results.popleft()
+            if isinstance(value, Exception):
+                raise value
+            return value
+        with patch("select_native_artifacts.time.sleep") as sleep:
+            self.assertEqual(ArtifactSelector(runner).api_json("repos/a/b/actions/runs/1/jobs"), {"jobs": []})
+            self.assertEqual(sleep.call_count, 2)
+
+    def test_invalid_api_response_never_becomes_verified_receipt(self):
+        from unittest.mock import patch
+        with patch("select_native_artifacts.time.sleep"):
+            with self.assertRaises(SelectionError):
+                ArtifactSelector(lambda args: "[]").api_json("repos/a/b/actions/runs/1")
+
     def test_trigger_and_upload_changes_do_not_invalidate_binary(self):
         edited = COMPILER_JOB.replace("paths: [x]", "paths: [y]")
         edited = edited.replace("retention-days: 90", "retention-days: 30")
+        self.assertEqual(native_recipe(COMPILER_JOB), native_recipe(edited))
+
+    def test_new_binary_upload_name_keeps_historical_recipe_compatible(self):
+        edited = COMPILER_JOB.replace("上传原生内核与构建清单", "上传原生内核二进制")
         self.assertEqual(native_recipe(COMPILER_JOB), native_recipe(edited))
 
     def test_checkout_transport_does_not_invalidate_binary(self):
         old = COMPILER_JOB.replace("      - name: 构建", "      - name: checkout\n        uses: actions/checkout@v4\n        with:\n          sparse-checkout: |\n            upstream/codex\n      - name: 构建")
         new = old.replace("          sparse-checkout: |", "          ref: ${{ github.event.pull_request.head.sha || github.sha }}\n          fetch-depth: 0\n          sparse-checkout: |\n            .github/scripts\n            .github/ci")
         self.assertEqual(native_recipe(old), native_recipe(new))
+
+    def test_host_contract_gate_does_not_invalidate_binary(self):
+        edited = COMPILER_JOB.replace(
+            "needs: reuse", "needs: [reuse, provider-contract]"
+        ).replace("if: needs.reuse.outputs.use != 'true'",
+                  "if: needs.provider-contract.result == 'success'")
+        self.assertEqual(native_recipe(COMPILER_JOB), native_recipe(edited))
 
     def test_compiler_change_invalidates_binary(self):
         edited = COMPILER_JOB.replace("cargo build --locked", "cargo build --release")
@@ -236,6 +275,12 @@ jobs:
         self.assertEqual(ArtifactSelector(runner).find(
             "owner/repo", "HEAD", ["arm64-v8a"]), "21")
 
+    def test_remote_delivery_adapter_invalidates_both_rust_proofs(self):
+        runner = FakeRunner(changed_delivery=True)
+        selector = ArtifactSelector(runner)
+        self.assertNotEqual(selector.test_signature("HEAD"), selector.test_signature("old"))
+        self.assertNotEqual(selector.signature("HEAD", "arm64-v8a"), selector.signature("old", "arm64-v8a"))
+
     def test_failed_provider_contract_cannot_reuse_artifact(self):
         runner = FakeRunner(missing_abi=True)
         runner.failed_provider = True
@@ -307,8 +352,16 @@ jobs:
                                                         ["arm64-v8a"]))
         self.assertEqual(runner.called_api, 0)
 
-    def test_unrelated_history_cannot_reuse(self):
+    def test_identical_indexed_sibling_producer_can_reuse(self):
         runner = FakeRunner(ancestor=False)
+        self.assertEqual("21", ArtifactSelector(runner).find("owner/repo", "HEAD", ["arm64-v8a"]))
+
+    def test_privacy_adapter_is_a_native_input(self):
+        runner = FakeRunner(changed_privacy=True)
+        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD", ["arm64-v8a"]))
+
+    def test_unrelated_history_cannot_reuse(self):
+        runner = FakeRunner(ancestor=False, changed_producer=True)
         self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                         ["arm64-v8a"]))
 

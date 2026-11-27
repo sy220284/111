@@ -13,10 +13,20 @@ internal fun hasClipboardOverlayWindow(dump: String): Boolean =
 /**
  * 所有全屏弹层截图共用这个验证入口。判据是 WindowManager 当前焦点窗口，
  * 能识别跨应用的系统 ANR 对话框；无障碍节点树只作为读不到焦点信息时的补充。
- * Android 35 某些屏宽下 getRootInActiveWindow() 会暂时返回 null，
+ * Android 某些系统版本及屏宽下 getRootInActiveWindow() 会暂时返回 null，
  * 因此单独依赖该接口会错误拒绝正常的 Compose 弹层。
  */
 internal fun captureVerifiedDisplayScreenshot(fileName: String) {
+    // Keep rejected evidence out of the gallery without altering functional tests.
+    try {
+        captureOwnedDisplayScreenshot(fileName)
+    } catch (failure: Exception) {
+        android.util.Log.w("UiScreenshotObservation", "SCREENSHOT_FAILED $fileName", failure)
+        println("SCREENSHOT_FAILED $fileName: " + failure.message)
+    }
+}
+
+private fun captureOwnedDisplayScreenshot(fileName: String) {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     val automation = instrumentation.uiAutomation
     val target = instrumentation.targetContext
@@ -77,10 +87,27 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String) {
         val directory = requireNotNull(target.getExternalFilesDir(null)) {
             "设备未提供测试截图目录"
         }
-        File(directory, fileName).outputStream().use { output ->
-            check(image.compress(Bitmap.CompressFormat.PNG, 100, output)) {
-                "无法写入 UI 截图：$fileName"
+        val pending = File(directory, "$fileName.part")
+        try {
+            pending.outputStream().use { output ->
+                check(image.compress(Bitmap.CompressFormat.PNG, 100, output)) {
+                    "无法写入 UI 截图：$fileName"
+                }
             }
+            check(pending.renameTo(File(directory, fileName))) { "无法提交 UI 截图：$fileName" }
+        } finally { pending.delete() }
+    } finally { image.recycle() }
+}
+
+/** Raw diagnostic only: retain overlays causing failure; never accepted as successful UI evidence. */
+internal fun captureFailureDisplayScreenshot(fileName: String) {
+    require(fileName.endsWith("-failure.png")) { "失败诊断须独立命名" }
+    val instrumentation = InstrumentationRegistry.getInstrumentation()
+    val image = requireNotNull(instrumentation.uiAutomation.takeScreenshot()) { "无法保存失败画面" }
+    try {
+        val directory = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+        File(directory, fileName).outputStream().use {
+            check(image.compress(Bitmap.CompressFormat.PNG, 100, it)) { "无法写入失败画面" }
         }
     } finally { image.recycle() }
 }

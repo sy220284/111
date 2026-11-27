@@ -15,6 +15,10 @@ internal fun CodexViewModel.acceptComposerDraft(threadId: String?, submitted: Co
 internal fun CodexViewModel.submitComposerDraft(draft: ComposerDraft, followUp: String,
     expectedThread: String?, expectedTurn: String?, expectedRunning: Boolean, expectedOwner: String) {
     if (!draft.hasInput) return
+    if (composerContent.mediaAnalysis.state.value.busy || composerContent.liveScreenAnalysis.state.value.running) {
+        errors.value = errors.value + ("conversation" to "请先停止或完成媒体分析，原草稿已保留")
+        return
+    }
     if (composerOwner(activeThread.value) != expectedOwner ||
         activeThread.value != expectedThread || running.value != expectedRunning ||
         (expectedRunning && activeTurn.value != expectedTurn)) {
@@ -34,7 +38,8 @@ internal fun CodexViewModel.submitComposerDraft(draft: ComposerDraft, followUp: 
     } else sendPrompt(draft.text, draft.images, draft.references) { acceptComposerDraft(it, draft) }
 }
 
-internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp: String, accepted: () -> Unit) {
+internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp: String,
+    onSettled: (Boolean?) -> Unit = {}, accepted: () -> Unit) {
     val thread = activeThread.value ?: return
     val turn = activeTurn.value
     val workspace = activeWorkspace.value
@@ -48,31 +53,38 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
         errors.value = errors.value + (key to "连接尚未就绪，输入已保留")
         return
     }
-    val epoch = bridge.connectedSession.value ?: return
-    val accountRevision = catalogWarmup.accountRevision.value
-    val permit = { catalogWarmup.accountRevision.value == accountRevision }
+    val owner = captureTaskOwner() ?: return
+    val epoch = owner.epoch
+    val permit = { owner.current(this) }
     if (queue) loading.value = loading.value + key else steerBusy.value = true
     errors.value = errors.value - key
     pendingComposerImages.value = pendingComposerImages.value + draft.images
     viewModelScope.launch {
         var dispatched = false
+        var outcome: Boolean? = false
         try {
             check(bridge.connectedSession.value == epoch && permit()) { "连接或账号已变化，原输入已保留" }
             remoteBindings.forThread(thread)?.let {
                 it.requireTextOnly(draft.images, draft.references)
-                ensureRemoteThread(thread, it, running = true, expectedSession = epoch)
+                ensureRemoteThread(thread, it, running = true, expectedSession = epoch, sendPermit = permit)
             }
+            ComposerProviderScope.requireExistingMedia(thread, LocalMediaAttachmentPolicy.modalities(draft.images)) { method, params -> owner.request(this@submitRunningComposer, method, params) }
+            AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(draft.images, LocalImageAttachments.directory(getApplication())) { owner.requireCurrent(this@submitRunningComposer) } }
             ComposerInputPolicy.validate(draft.images, draft.references, LocalImageAttachments.directory(getApplication()), File(workspace))
+            val clientId = UUID.randomUUID().toString()
+            LocalImageAttachments.preserveForHistory(getApplication(), draft.images, clientId)
             if (queue) {
                 check(threadExecutions.value[thread]?.turnId == turn && thread in threadExecutions.value) {
                     "当前任务已变化，请重新确认发送方式；原指令已保留"
                 }
                 // Native queue snapshots local images before acknowledging enqueue.
                 val params = JSONObject().put("threadId", thread)
-                    .put("clientUserMessageId", UUID.randomUUID().toString())
+                    .put("clientUserMessageId", clientId)
                     .put("input", TurnRequestContract.input(draft.text, draft.images, draft.references))
                 dispatched = true
+                outcome = null
                 bridge.request("thread/queue/add", params, expectedSession = epoch, sendPermit = permit)
+                outcome = true
                 accepted()
                 actionFeedback.tryEmit(ActionFeedbackReceipt("已加入后续指令"))
                 refresh("queue:$thread", "thread/queue/list", JSONObject().put("threadId", thread).put("limit", 100))
@@ -87,11 +99,12 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
                 // The native userMessage event owns the visible message. A separate local
                 // steer bubble would duplicate it and could survive history reconciliation.
                 val params = TurnRequestContract.steer(thread, turn, draft.text, draft.images, draft.references)
-                    .put("clientUserMessageId", UUID.randomUUID().toString())
-                LocalImageAttachments.preserveForHistory(getApplication(), draft.images)
+                    .put("clientUserMessageId", clientId)
                 check(threadExecutions.value[thread]?.turnId == turn) { "当前运行回合已变化，原指令已保留" }
                 dispatched = true
+                outcome = null
                 bridge.request("turn/steer", params, expectedSession = epoch, sendPermit = permit)
+                outcome = true
                 accepted()
                 actionFeedback.tryEmit(ActionFeedbackReceipt("引导指令已发送"))
             }
@@ -100,6 +113,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
             throw cancel
         } catch (failure: Exception) {
             val method = if (queue) "thread/queue/add" else "turn/steer"
+            if (failure is RpcServerRejection && failure.method == method) outcome = false
             val reason = failure.message ?: "发送失败"
             val message = if (dispatched && !(failure is RpcServerRejection && failure.method == method))
                 "$reason；发送结果尚未确认，原输入已保留，请先核对当前消息或队列再重试"
@@ -110,6 +124,7 @@ internal fun CodexViewModel.submitRunningComposer(draft: ComposerDraft, followUp
         } finally {
             pendingComposerImages.value = pendingComposerImages.value - draft.images.toSet()
             if (queue) loading.value = loading.value - key else steerBusy.value = false
+            onSettled(outcome)
         }
     }
 }
@@ -126,6 +141,7 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
         return
     }
     if (DataTransferMutationGate.refuse(this, key, "thread/queue/start")) return
+    val owner = captureTaskOwner() ?: return
     val params = JSONObject().put("threadId", threadId)
     if (queuedId != null) {
         require(queuedId.isNotBlank()) { "缺少排队消息标识" }
@@ -145,9 +161,11 @@ internal fun CodexViewModel.startQueuedComposer(threadId: String, queuedId: Stri
                 bridge.status.value == EngineStatus.Connected && !connectionRestarter.busy.value) {
                 "运行核心状态已变化，请重新启动队列"
             }
-            remoteBindings.forThread(threadId)?.let { ensureRemoteThread(threadId, it) }
+            owner.requireCurrent(this@startQueuedComposer)
+            remoteBindings.forThread(threadId)?.let { ensureRemoteThread(threadId, it, expectedSession = owner.epoch, sendPermit = { owner.current(this@startQueuedComposer) }) }
+            owner.requireCurrent(this@startQueuedComposer)
             dispatched = true
-            val response = bridge.request("thread/queue/start", params)
+            val response = owner.request(this@startQueuedComposer, "thread/queue/start", params)
             val turnId = response.optJSONObject("turn")?.optString("id").orEmpty()
             require(turnId.isNotBlank()) { "核心未返回有效执行回合，请先核对队列" }
             // The started/completed events may have been processed before the response.

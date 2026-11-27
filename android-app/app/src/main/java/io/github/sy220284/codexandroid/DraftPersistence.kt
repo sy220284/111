@@ -15,9 +15,6 @@ internal data class DraftRestoreResult(
 internal object DraftPersistence {
     private const val STORE = "codex-unsent-drafts"
     private const val KEY = "drafts"
-    private val IMAGE_NAME = Regex(
-        "^[0-9a-fA-F]{8}(-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}\\.(jpg|png|webp)$"
-    )
 
     /** Accept pre-upgrade text-only records without migrating user content. */
     fun decode(raw: String): Map<String, ComposerDraft> {
@@ -46,8 +43,8 @@ internal object DraftPersistence {
         drafts.forEach { (id, draft) ->
             val names = draft.images.map { absolute ->
                 val name = File(absolute).name
-                require(IMAGE_NAME.matches(name)) {
-                    "未发送草稿包含未受管理的图片：$name"
+                require(PortableMediaFormat.original(name)) {
+                    "未发送草稿包含未受管理的媒体附件：$name"
                 }
                 name
             }.distinct()
@@ -71,7 +68,7 @@ internal object DraftPersistence {
         for ((id, draft) in entries) {
             val files = mutableListOf<String>()
             for (name in draft.images) {
-                if (!IMAGE_NAME.matches(name) || files.size >= LocalImageAttachments.MAX_FILES) {
+                if (!PortableMediaFormat.original(name) || files.size >= LocalImageAttachments.MAX_FILES) {
                     missing++
                     continue
                 }

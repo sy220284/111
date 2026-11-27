@@ -38,9 +38,9 @@ def is_standard_mime(value: str) -> bool:
     return mimetypes.guess_extension(value, strict=False) is not None
 
 
-def verify_sources(source: str, files: dict[str, str]) -> tuple[list[str], set[str]]:
-    contracts = parse_contracts(source)
-    notifications = parse_notifications(source)
+def verify_sources(source: str, files: dict[str, str], *, contracts=None, notifications=None) -> tuple[list[str], set[str]]:
+    contracts = parse_contracts(source) if contracts is None else contracts
+    notifications = parse_notifications(source) if notifications is None else notifications
     errors: list[str] = []
     used: set[str] = set()
     namespaces = {name.split("/", 1)[0] for name in contracts.keys() | notifications}
@@ -88,7 +88,7 @@ def main() -> int:
     try:
         contracts = parse_contracts(source)
         notifications = parse_notifications(source)
-        errors, used = verify_sources(source, files)
+        errors, used = verify_sources(source, files, contracts=contracts, notifications=notifications)
     except ValueError as exc:
         parser.error(str(exc))
     client = sum(c.direction == "client_request" for c in contracts.values())

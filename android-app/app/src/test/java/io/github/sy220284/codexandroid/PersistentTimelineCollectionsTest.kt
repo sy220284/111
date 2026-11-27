@@ -1,0 +1,93 @@
+package io.github.sy220284.codexandroid
+
+import kotlin.random.Random
+import org.junit.Assert.*
+import org.junit.Test
+
+class PersistentTimelineCollectionsTest {
+    @Test fun randomizedIndexUpdatesPreserveOldSnapshots() {
+        val random = Random(42)
+        var index = PersistentIndex<String, Int>()
+        val expected = mutableMapOf<String, Int>()
+        repeat(20000) {
+            val key = "id-${random.nextInt(1000)}"
+            val prior = index
+            val old = expected[key]
+            if (random.nextBoolean()) { index = index.put(key, it); expected[key] = it }
+            else { index = index.remove(key); expected.remove(key) }
+            assertEquals(old, prior[key])
+            assertEquals(expected[key], index[key])
+            if (it % 100 == 0) repeat(1000) { n -> assertEquals(expected["id-$n"], index["id-$n"]) }
+        }
+    }
+
+    @Test fun longSequenceKeepsListEqualityAndIndependentSnapshots() {
+        val random = Random(42)
+        val plain = (0 until 5000).toList()
+        var seq = PersistentSequence.from(plain)
+        val baseline = seq
+        assertEquals(plain, seq)
+        assertEquals(seq, plain)
+        assertEquals(plain.hashCode(), seq.hashCode())
+        assertEquals(seq, PersistentSequence.from(plain))
+        repeat(3000) {
+            val pos = random.nextInt(seq.size)
+            val old = seq[pos]
+            val previous = seq
+            seq = seq.replace(pos, -it - 1)
+            assertEquals(old, previous[pos])
+            assertEquals(-it - 1, seq[pos])
+            assertNotEquals(previous, seq)
+            assertEquals(pos, baseline[pos])
+        }
+    }
+
+    @Test fun orderedTraversalRetainsSnapshotsAcrossRotations() {
+        val expected = (0 until 10000).toMutableList()
+        var sequence = PersistentSequence.from(expected)
+        val snapshot = sequence
+        repeat(1000) {
+            val index = (it * 31) % expected.size
+            expected[index] = -it
+            sequence = sequence.replace(index, -it)
+        }
+        repeat(1000) {
+            expected.add(it)
+            sequence = sequence.append(it)
+        }
+        assertEquals(expected, sequence.iterator().asSequence().toList())
+        assertEquals((0 until 10000).toList(), snapshot.iterator().asSequence().toList())
+        val iterator = PersistentSequence<Int>().iterator()
+        assertFalse(iterator.hasNext())
+        try { iterator.next(); fail("Expected exhausted iterator") } catch (_: NoSuchElementException) { }
+    }
+
+    @Test fun turnIndexHandlesPendingReplacementAndLateTurnItems() {
+        val one = TimelineItem("one", "agentMessage", "one", turnId = "turn-a")
+        val two = TimelineItem("pending-client", "user", "two", turnId = "turn-a")
+        val three = TimelineItem("three", "agentMessage", "three", turnId = "turn-b")
+        val before = IndexedTimeline.from(listOf(one, two, three))
+        val after = before.put(two.copy(id = "native", turnId = "turn-b"), "client")
+        assertEquals(listOf(one, two), before.inTurn("turn-a").toList())
+        assertEquals(listOf(one), after.inTurn("turn-a").toList())
+        assertEquals(listOf("native", "three"), after.inTurn("turn-b").map { it.id }.toList())
+        assertEquals(0, after.lastIndexOfTurn("turn-a"))
+        assertEquals(2, after.lastIndexOfTurn("turn-b"))
+        assertEquals(-1, after.positionOf("pending-client"))
+    }
+
+    @Test fun largeActivityUpdateRetainsOtherGroupsAndIds() {
+        val prefix = TimelineItem("old", "user", "previous", turnId = "history")
+        val items = listOf(prefix) + (0 until 5000).map { i ->
+            TimelineItem("step-$i", "commandExecution", "step", turnId = "active")
+        }
+        val before = IndexedTimeline.from(items)
+        val nextItem = before[3000].copy(text = "updated")
+        val after = before.put(nextItem)
+        assertSame(before.grouping.groups.first(), after.grouping.groups.first())
+        assertEquals(nextItem, after.byId(nextItem.id))
+        assertEquals("step", before.byId(nextItem.id)?.text)
+        assertEquals(items.toMutableList().apply { set(3000, nextItem) }, after)
+        assertEquals(after, IndexedTimeline.from(after.toList()))
+    }
+}

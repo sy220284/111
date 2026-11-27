@@ -2,6 +2,7 @@
 val releaseVersionName = providers.gradleProperty("codexReleaseVersionName").orNull
 val releaseVersionCode = providers.gradleProperty("codexReleaseVersionCode").orNull?.toIntOrNull()
 val releaseTargetAbi = providers.gradleProperty("codexReleaseTargetAbi").orNull
+val r8Candidate = providers.gradleProperty("codexR8Candidate").orNull == "true"
 require(releaseTargetAbi == null || releaseTargetAbi == "arm64-v8a") {
     "正式发布目标架构只能是 arm64-v8a"
 }
@@ -60,8 +61,9 @@ android {
         release {
             // Full ARM64 runtime and all 29 UI pages have not yet been validated
             // with R8. Keep the proven release behavior until device coverage exists.
-            isMinifyEnabled = false
-            isShrinkResources = false
+            isMinifyEnabled = r8Candidate
+            isShrinkResources = r8Candidate
+            if (r8Candidate) proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             if (signingReady) {
                 signingConfig = signingConfigs.getByName("release")
             }
@@ -83,9 +85,11 @@ android {
             keepDebugSymbols += "**/libcodex_git.so"
             keepDebugSymbols += "**/libcodex_git_remote_http.so"
             keepDebugSymbols += "**/libcodex_curl.so"
-            keepDebugSymbols += "**/libnode.so"
-            keepDebugSymbols += "**/libpython3.so"
-            keepDebugSymbols += "**/libnpm.so"
+            keepDebugSymbols += "**/libcodex_node.so"
+            keepDebugSymbols += "**/libcodex_python.so"
+            keepDebugSymbols += "**/libcodex_jq.so"
+            keepDebugSymbols += "**/libcodex_tool_launcher.so"
+            keepDebugSymbols += "**/libcodex_git_helper_*.so"
         }
     }
     // Enabled only in the native APK pipeline. Standalone UI verification keeps
@@ -122,6 +126,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
+    // JVM scheduler and flow regression tests require virtual time at the same locked coroutine version.
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     // Stable AndroidX Test release containing the public InputManager lookup.
     // Older Espresso versions crash before Compose assertions on Android 17.
     androidTestImplementation("androidx.test:core:1.7.0")
@@ -172,3 +178,8 @@ tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
     outputs.file(fixtureOutput)
 }
 
+// Lock resolved dependency graphs; baseline creation is an explicit review operation.
+dependencyLocking {
+    lockAllConfigurations()
+    if (file("gradle.lockfile").isFile) lockMode.set(org.gradle.api.artifacts.dsl.LockMode.STRICT)
+}

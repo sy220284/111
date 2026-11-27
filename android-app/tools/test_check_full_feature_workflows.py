@@ -33,7 +33,7 @@ class FullFeatureWorkflowGateTests(TestCase):
             encoding="utf-8"
         )
         (docs / "对标应用29项界面交付核对表-20261123.md").write_text(
-            "| 01 | `home` | P1 | 首页 | `Screens.kt / HomePage` | homeOpensScreen；home-android35.png |\n",
+            "| 01 | `home` | P1 | 首页 | `Screens.kt / HomePage` | homeOpensScreen；home-android.png |\n",
             encoding="utf-8"
         )
         (docs / "ui-assets").mkdir()
@@ -49,7 +49,7 @@ class FullFeatureWorkflowGateTests(TestCase):
         return source, docs, test
 
     def run_audit(self, root: Path):
-        with patch("check_full_feature_workflows.parse_contracts",
+        with patch("static_audit_inputs.parse_contracts",
                    return_value={"thread/list": SimpleNamespace(direction="client_request")}):
             return audit(root, expected=1)
 
@@ -69,12 +69,12 @@ class FullFeatureWorkflowGateTests(TestCase):
             file = docs / "对标应用29项界面交付核对表-20261123.md"
             file.write_text(file.read_text(encoding="utf-8").replace(
                 "Screens.kt / HomePage", "Missing.kt"
-            ).replace("homeOpensScreen；home-android35.png", "unknownEvidence"))
+            ).replace("homeOpensScreen；home-android.png", "unknownEvidence"))
             errors = self.run_audit(root)["issues"]
             self.assertTrue(any("文件已失效" in error for error in errors))
             self.assertTrue(any("未关联实际 JUnit/Android 用例" in error for error in errors))
 
-    def test_documented_screenshot_must_be_in_device_capture_manifest(self):
+    def test_undeclared_screenshot_is_observation_not_functional_failure(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_repo(root)
@@ -83,8 +83,9 @@ class FullFeatureWorkflowGateTests(TestCase):
                 "routes": [{"route": "home", "screens": ["other-screen"]}],
                 "requiredStateScreens": [], "optionalStateScreens": [],
             }), encoding="utf-8")
-            errors = self.run_audit(root)["issues"]
-            self.assertTrue(any("文档截图未纳入设备验收" in error for error in errors))
+            result = self.run_audit(root)
+            self.assertEqual([], result["issues"])
+            self.assertTrue(any("文档截图未纳入采集登记" in item for item in result["screenshot_observations"]))
 
     def test_screenshot_alone_does_not_prove_a_functional_test_exists(self):
         with TemporaryDirectory() as directory:
@@ -93,7 +94,7 @@ class FullFeatureWorkflowGateTests(TestCase):
             ledger = root / "docs/对标应用29项界面交付核对表-20261123.md"
             ledger.write_text(
                 ledger.read_text(encoding="utf-8").replace(
-                    "homeOpensScreen；home-android35.png", "home-android35.png"
+                    "homeOpensScreen；home-android.png", "home-android.png"
                 ),
                 encoding="utf-8"
             )
@@ -105,7 +106,7 @@ class FullFeatureWorkflowGateTests(TestCase):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_repo(root)
-            with patch("check_full_feature_workflows.parse_contracts",
+            with patch("static_audit_inputs.parse_contracts",
                        return_value={"thread/list": SimpleNamespace(direction="host_request")}):
                 errors = audit(root, expected=1)["issues"]
             self.assertTrue(any("Host" in error for error in errors))

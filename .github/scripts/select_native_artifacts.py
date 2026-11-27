@@ -3,13 +3,15 @@
 
 Ignore upstream documentation and unrelated platforms. Reuse only when the
 Android Rust source tree, inherited Cargo configuration, native build recipe,
-and platform adapters match an ancestor with a verified, unexpired artifact.
+and platform adapters match a verified artifact. Sibling commits additionally
+require identical trusted producer workflow and index/selector code.
 """
 import argparse
 import json
 import re
 import subprocess
 import sys
+import time
 
 
 class SelectionError(RuntimeError):
@@ -60,10 +62,11 @@ def native_recipe(workflow, abi=None):
         raise SelectionError("原生构建工作流缺少 native 作业")
     job = workflow.split(marker, 1)[1]
     start = re.search(r"(?m)^    runs-on:", job)
-    end = re.search(r"(?m)^      - name: 上传原生内核与构建清单\s*$", job)
+    end = re.search(r"(?m)^      - name: 上传原生内核(?:与构建清单|二进制)\s*$", job)
     if not start or not end or start.start() >= end.start():
         raise SelectionError("无法识别原生编译配置边界；需核对后再复用")
     recipe = job[start.start():end.start()].strip()
+    recipe = re.sub(r'(?m)^    timeout-minutes: \d+\n', '', recipe)
     # Checkout transport and CI-index-only paths do not alter native inputs.
     recipe = re.sub(r"(?m)^          (?:ref: .*github\.event\.pull_request\.head\.sha.*|fetch-depth: 0)\n|^            \.github/(?:scripts|ci)\n", "", recipe)
     dynamic = "        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}"
@@ -100,12 +103,27 @@ def provider_recipe(workflow):
     job = workflow.split(marker, 1)[1]
     job = re.split(r"(?m)^  [a-z][a-z0-9-]*:\s*$", job, maxsplit=1)[0]
     steps = job[job.index("    runs-on:"):].split("\n      - name: 生成 Rust 回归凭证", 1)[0]
+    steps = re.sub(r'(?m)^    timeout-minutes: \d+\n', '', steps)
     return re.sub(r"(?m)^          (?:ref: .*github\.event\.pull_request\.head\.sha.*|fetch-depth: 0)\n|^            \.github/(?:scripts|ci)\n", "", steps).strip()
 
 
 class ArtifactSelector:
     def __init__(self, runner=command):
         self.run = runner
+
+    def api_json(self, endpoint):
+        """Retry only read-only GitHub API requests; never accept an unverified receipt."""
+        for attempt in range(3):
+            try:
+                response = json.loads(self.run(["gh", "api", endpoint]))
+                if not isinstance(response, dict):
+                    raise SelectionError("GitHub API 返回非对象响应")
+                return response
+            except (SelectionError, json.JSONDecodeError) as exc:
+                if attempt == 2:
+                    raise SelectionError(f"GitHub API 三次读取仍失败：{endpoint}: {exc}") from exc
+                print(f"GitHub API 读取失败，重新核验 ({attempt + 1}/3): {endpoint}", file=sys.stderr)
+                time.sleep(attempt + 1)
 
     def signature(self, sha, abi='arm64-v8a'):
         # Changes to upstream SDKs, docs or archived CI do not alter Android ELF files.
@@ -128,13 +146,36 @@ class ArtifactSelector:
             "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
         ])
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder, v8_host_adapter, git_builder, native_recipe(workflow, abi))
+        signature = (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder,
+                     v8_host_adapter, git_builder, native_recipe(workflow, abi))
+        privacy = self.run(["git", "ls-tree", sha, "--", "android-app/tools/prepare_android_realtime_privacy.py"])
+        if privacy:
+            signature += (privacy,)
+        remote_delivery = self.run(["git", "ls-tree", sha, "--", "android-app/tools/prepare_android_remote_delivery.py"])
+        if remote_delivery:
+            signature += (remote_delivery,)
+        if "\n  v8:\n" in workflow:
+            from v8_artifacts import producer_recipe, compiler_action_recipe
+            setup = tuple(compiler_action_recipe(self.run(["git", "show", f"{sha}:{p}"]))
+                          for p in (".github/actions/ci-android/action.yml", ".github/actions/ci-rust/action.yml"))
+            signature += (producer_recipe(workflow), setup,
+                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py",".github/scripts/ci-android-sdk.sh",".github/scripts/ci-llvm.sh","upstream/codex/codex-rs/Cargo.lock"]))
+        return signature
 
     def test_signature(self, sha):
         upstream = self.run(["git", "rev-parse", f"{sha}:upstream/codex/codex-rs"])
         parent_cargo = self.run(["git", "ls-tree", sha, "--", "upstream/codex/.cargo"])
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
-        return (upstream, parent_cargo, provider_recipe(workflow))
+        # The workstation executor is produced by the same verified host job.
+        # Its adapter and tests are part of the proof, even when the upstream tree is unchanged.
+        delivery = self.run(["git", "ls-tree", sha, "--",
+                             "android-app/tools/prepare_android_remote_delivery.py",
+                             "android-app/tools/test_prepare_android_remote_delivery.py"])
+        rust_setup = self.run(["git", "ls-tree", sha, "--", ".github/actions/ci-rust/action.yml"])
+        if rust_setup and "uses: ./.github/actions/ci-rust" in workflow:
+            from v8_artifacts import compiler_action_recipe
+            rust_setup = compiler_action_recipe(self.run(["git", "show", f"{sha}:.github/actions/ci-rust/action.yml"]))
+        return (upstream, parent_cargo, provider_recipe(workflow), delivery, rust_setup)
 
     def is_ancestor(self, old, new):
         try:
@@ -147,7 +188,7 @@ class ArtifactSelector:
         matches = set()
         page = 1
         while True:
-            response = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/artifacts?name={name}&per_page=100&page={page}"]))
+            response = self.api_json(f"repos/{repository}/actions/artifacts?name={name}&per_page=100&page={page}")
             artifacts = response.get("artifacts", [])
             matches.update(a["workflow_run"]["id"] for a in artifacts if not a.get("expired", True) and a.get("workflow_run"))
             if len(artifacts) < 100:
@@ -168,8 +209,19 @@ class ArtifactSelector:
         return {item["run_id"]: item for item in json.loads(path.read_text(encoding="utf-8"))
                 if item["repository"] == repository}
 
-    def source(self, repository, run_id, target, branch):
-        run = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/runs/{run_id}"]))
+    def same_producer(self, old, target):
+        # Exact producer/caller and index code, not just a similar job name.
+        paths = (".github/workflows/ci.yml", ".github/workflows/build-native-codex.yml",
+                 ".github/scripts/native_index.py", ".github/scripts/select_native_artifacts.py")
+        try:
+            previous = self.run(["git", "ls-tree", "-r", old, "--", *paths])
+            current = self.run(["git", "ls-tree", "-r", target, "--", *paths])
+        except SelectionError:
+            return False
+        return bool(previous) and previous == current
+
+    def source(self, repository, run_id, target, branch, *, indexed=False):
+        run = self.api_json(f"repos/{repository}/actions/runs/{run_id}")
         if (run.get("head_repository") or {}).get("full_name") != repository:
             return None
         if run.get("path", "").split("@", 1)[0] not in {
@@ -178,10 +230,13 @@ class ArtifactSelector:
         if branch != "main" and run.get("head_branch") != branch:
             return None
         old = run.get("head_sha")
-        return old if old and self.is_ancestor(old, target) else None
+        if old and (self.is_ancestor(old, target) or
+                    (indexed and self.same_producer(old, target))):
+            return old
+        return None
 
     def jobs(self, repository, run_id):
-        jobs = json.loads(self.run(["gh", "api", f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100"]))
+        jobs = self.api_json(f"repos/{repository}/actions/runs/{run_id}/jobs?per_page=100")
         return {job.get("name", "").rsplit(" / ", 1)[-1]
                 for job in jobs.get("jobs", []) if job.get("conclusion") == "success"}
 
@@ -195,7 +250,7 @@ class ArtifactSelector:
         history = self.historical(repository)
         ids = list(dict.fromkeys(sorted(self.index_runs(repository, "provider-index-" + fingerprint(signature)), reverse=True) + list(history)))
         for run_id in ids:
-            old = self.source(repository, run_id, target, branch)
+            old = self.source(repository, run_id, target, branch, indexed=run_id not in history)
             if not old:
                 continue
             if run_id in history and not self.legacy_source(history[run_id], old):
@@ -217,7 +272,7 @@ class ArtifactSelector:
         ids = list(dict.fromkeys(self.indexed_candidates(repository, current_signatures) + list(history)))
         expected = {f"codex-android-native-{abi}" for abi in abis}
         for run_id in ids:
-            old = self.source(repository, run_id, target, branch)
+            old = self.source(repository, run_id, target, branch, indexed=run_id not in history)
             if not old:
                 continue
             try:
@@ -226,9 +281,7 @@ class ArtifactSelector:
             except SelectionError as exc:
                 print(f"跳过无法核对原生编译指纹的历史候选 {old}: {exc}", file=sys.stderr)
                 continue
-            response = json.loads(self.run([
-                "gh", "api", f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100",
-            ]))
+            response = self.api_json(f"repos/{repository}/actions/runs/{run_id}/artifacts?per_page=100")
             available = {a["name"]: a for a in response.get("artifacts", [])
                          if not a.get("expired", True) and a.get("size_in_bytes", 0) > 0}
             if not expected <= available.keys():

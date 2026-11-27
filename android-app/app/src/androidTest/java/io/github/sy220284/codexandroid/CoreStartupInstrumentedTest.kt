@@ -10,6 +10,7 @@ import java.util.concurrent.TimeUnit
 import java.util.UUID
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +34,7 @@ import org.junit.runner.RunWith
  */
 @RunWith(AndroidJUnit4::class)
 class CoreStartupInstrumentedTest {
-    @Test fun nativeFeatureDirectoryAndPersistentSwitchRoundTrip() = runBlocking {
+    @Test fun nativeFeatureDirectoryAndPersistentSwitchRoundTrip() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val config = File(app.filesDir, "codex-home/config.toml")
         val original = config.takeIf { it.isFile }?.readBytes()
@@ -88,7 +89,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun nativeCoreDiscoversAndCallsAndroidPreviewMcp() = runBlocking {
+    @Test fun nativeCoreDiscoversAndCallsAndroidPreviewMcp() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         val host = ModelPreviewMcpServer { args, meta ->
@@ -127,6 +128,122 @@ class CoreStartupInstrumentedTest {
             bridge.close()
             host.stop()
         }
+    }
+
+    @Test fun androidRemoteDeliveryReadsActualExecutorFile() = runBlocking<Unit> {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val root = File(app.cacheDir, "remote-delivery-" + UUID.randomUUID()).apply { check(mkdirs()) }
+        val workspace = File(root, "workspace").apply { check(mkdir()) }
+        val home = File(root, "home").apply { check(mkdir()) }
+        val expected = ByteArray(4096) { (it % 251).toByte() }
+        File(workspace, "receipt.bin").writeBytes(expected)
+        val large = ByteArray(9 * 1024 * 1024 + 7) { (it % 239).toByte() }
+        val largeFile = File(workspace, "large.bin").apply { writeBytes(large) }
+        File(workspace, "empty.bin").createNewFile()
+        val secret = File(root, "outside.bin").apply { writeText("outside workspace") }
+        android.system.Os.symlink(secret.absolutePath, File(workspace, "escape.bin").absolutePath)
+        val port = ServerSocket(0).use { it.localPort }
+        val executable = File(app.applicationInfo.nativeLibraryDir, "libcodex_server.so")
+        val log = File(root, "executor.log")
+        val executor = ProcessBuilder(executable.absolutePath, "exec-server", "--listen", "ws://127.0.0.1:$port")
+            .directory(workspace).redirectErrorStream(true).redirectOutput(log).apply {
+                environment()["CODEX_HOME"] = home.absolutePath
+                environment()["HOME"] = home.absolutePath
+                environment()["SHELL"] = "/system/bin/sh"
+            }.start()
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90000) {
+                var listening = false
+                repeat(100) {
+                    if (!listening) {
+                        check(executor.isAlive) { "真实远端执行器启动失败：" + log.readText().takeLast(2000) }
+                        listening = runCatching { Socket().use { it.connect(InetSocketAddress("127.0.0.1", port), 200) } }.isSuccess
+                        if (!listening) kotlinx.coroutines.delay(100)
+                    }
+                }
+                check(listening) { "真实执行器未监听" }
+                bridge.connect()
+                val id = "delivery-executor"
+                bridge.request("environment/add", JSONObject().put("environmentId", id)
+                    .put("execServerUrl", "ws://127.0.0.1:$port"))
+                val info = bridge.request("environment/info", JSONObject().put("environmentId", id))
+                val cwd = info.getString("cwd")
+                assertEquals(workspace.canonicalPath, File(java.net.URI(cwd)).canonicalPath)
+                suspend fun read(path: String) = bridge.request("android/remoteFile/read", JSONObject()
+                    .put("environmentId", id).put("workspaceUri", cwd).put("relativePath", path))
+                val reply = read("receipt.bin")
+                assertEquals(id, reply.getString("environmentId"))
+                org.junit.Assert.assertArrayEquals(expected, android.util.Base64.decode(reply.getString("dataBase64"), android.util.Base64.NO_WRAP))
+                for (path in listOf("../outside.bin", "escape.bin", "/outside.bin")) {
+                    org.junit.Assert.assertTrue("真实核心接受了不允许的路径：$path", runCatching { read(path) }.isFailure)
+                }
+                suspend fun chunk(path: String, offset: Long = 0, version: String? = null) =
+                    bridge.request("android/remoteFile/readChunk", JSONObject().put("environmentId", id)
+                        .put("workspaceUri", cwd).put("relativePath", path).put("offset", offset)
+                        .put("version", version ?: JSONObject.NULL))
+                val first = chunk("large.bin")
+                val version = first.getString("version")
+                val digest = java.security.MessageDigest.getInstance("SHA-256")
+                val expectedSha = RemoteTransferCheckpoint.hex(digest.digest(large))
+                assertEquals(expectedSha, first.getString("sha256"))
+                assertEquals(large.size.toLong(), first.getLong("size"))
+                assertEquals(0L, first.getLong("offset"))
+                val store = RemoteTransferCheckpoint(File(root, "staging"))
+                val source = RemoteTransferCheckpoint.Source("test-thread", large.size.toLong(), expectedSha)
+                val partial = store.begin(source)
+                fun bytes(receipt: JSONObject) = android.util.Base64.decode(receipt.getString("dataBase64"), android.util.Base64.NO_WRAP)
+                store.append(partial, 0, bytes(first))
+                val restarted = chunk("large.bin")
+                assertEquals(expectedSha, restarted.getString("sha256"))
+                val resumed = store.begin(source)
+                assertEquals(1024 * 1024L, resumed.offset)
+                while (resumed.offset < source.size) {
+                    val offset = resumed.offset
+                    val receipt = chunk("large.bin", offset, restarted.getString("version"))
+                    assertEquals(offset, receipt.getLong("offset"))
+                    assertEquals(source.size, receipt.getLong("size"))
+                    assertEquals(version, receipt.getString("version"))
+                    org.junit.Assert.assertTrue(receipt.isNull("sha256"))
+                    store.append(resumed, offset, bytes(receipt))
+                }
+                store.verify(resumed)
+                org.junit.Assert.assertArrayEquals(large, resumed.file.readBytes())
+                val empty = chunk("empty.bin")
+                assertEquals(0L, empty.getLong("size"))
+                assertEquals(RemoteTransferCheckpoint.hex(digest.digest(byteArrayOf())), empty.getString("sha256"))
+                assertEquals("", empty.getString("dataBase64"))
+                for (bad in listOf("../outside.bin", "escape.bin", "/outside.bin")) {
+                    org.junit.Assert.assertTrue("分块读取接受了不允许的路径：$bad", runCatching { chunk(bad) }.isFailure)
+                }
+                org.junit.Assert.assertTrue(runCatching { chunk("large.bin", 1) }.isFailure)
+                largeFile.appendBytes(byteArrayOf(1))
+                org.junit.Assert.assertTrue("源文件变化后仍接受旧断点", runCatching { chunk("large.bin", 1024 * 1024L, version) }.isFailure)
+
+            }
+        } finally {
+            bridge.close()
+            executor.destroy()
+            if (!executor.waitFor(5, TimeUnit.SECONDS)) executor.destroyForcibly()
+            root.deleteRecursively()
+        }
+    }
+
+    @Test fun androidRemoteDeliveryRejectsLocalAndUnknownEnvironment() = runBlocking<Unit> {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        try {
+            withTimeout(90000) {
+                bridge.connect()
+                for ((id, expected) in listOf("local" to "remote environment required", "missing-delivery-test" to "unknown remote environment")) {
+                    val failure = runCatching {
+                        bridge.request("android/remoteFile/read", JSONObject().put("environmentId", id)
+                            .put("workspaceUri", "file:///tmp").put("relativePath", "file.txt"))
+                    }.exceptionOrNull()
+                    org.junit.Assert.assertTrue("真实核心没有返回预期拒绝：$failure", failure?.message?.contains(expected) == true)
+                }
+            }
+        } finally { bridge.close() }
     }
 
     @Test fun nativeDeltaPatcherLoadsAndRejectsCorruptPatch() {
@@ -191,7 +308,7 @@ class CoreStartupInstrumentedTest {
         val process = ProcessBuilder("/system/bin/sh", "-c", shell)
             .directory(folder)
             .redirectErrorStream(true)
-            .apply { environment()["PATH"] = "${bin.absolutePath}:/system/bin" }
+            .apply { DeveloperRuntime.configure(app, bin, environment()) }
             .start()
         try {
             val ended = process.waitFor(30, TimeUnit.SECONDS)
@@ -216,7 +333,7 @@ class CoreStartupInstrumentedTest {
             "rg --no-config --line-number codex-rg-native-confirmation rg-native-integration.txt")
             .directory(workspace)
             .redirectErrorStream(true)
-            .apply { environment()["PATH"] = "${bin.absolutePath}:/system/bin" }
+            .apply { DeveloperRuntime.configure(app, bin, environment()) }
             .start()
         try {
             val finished = process.waitFor(30, TimeUnit.SECONDS)
@@ -308,7 +425,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun localProjectRegistryAndThreadBindingWorkOnRealCore() = runBlocking {
+    @Test fun localProjectRegistryAndThreadBindingWorkOnRealCore() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         val workspace = WorkspaceStorage.root(app)
@@ -342,7 +459,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun androidPtySupportsInteractiveInputAndResize() = runBlocking {
+    @Test fun androidPtySupportsInteractiveInputAndResize() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -390,7 +507,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun localThreadCanStartAndBeReadWithoutCloudLogin() = runBlocking {
+    @Test fun localThreadCanStartAndBeReadWithoutCloudLogin() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -413,7 +530,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession() = runBlocking {
+    @Test fun realCoreCrashRecoversWithoutReplayingAndRejectsRetiredSession() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         var child: Process? = null
         val bridge = CodexConnection(app) { builder -> builder.start().also { child = it } }
@@ -443,7 +560,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange() = runBlocking {
+    @Test fun reservedRestartWaitsForConfirmedProcessExitBeforeCredentialChange() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val allowExitReceipt = java.util.concurrent.CountDownLatch(1)
         val boundedWait = CompletableDeferred<Unit>()
@@ -503,17 +620,24 @@ class CoreStartupInstrumentedTest {
     @Test fun bundledDeveloperToolsActuallyExecute() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val tools = NativeToolInstaller.prepare(app)
+        val ripgrepVersion = if (Build.SUPPORTED_ABIS.firstOrNull() == "x86_64") "16.0.0" else "15.2.0"
         val command = """set -e
             case ":${'$'}PATH:" in *":${'$'}PYTHONUSERBASE/bin:"*) ;; *) exit 91 ;; esac
             case ":${'$'}PATH:" in *":${'$'}npm_config_prefix/bin:"*) ;; *) exit 92 ;; esac
             test -d "${'$'}PYTHONUSERBASE/bin"
             test -d "${'$'}npm_config_prefix/bin"
-            git --version
-            curl --version
+            git --version | grep -F 2.56.1
+            curl --version | grep -F 8.23.0
+            jq -n '1+1' | grep -x 2
+            jq --version | grep -F 1.8.2
+            rg --version | grep -F "$ripgrepVersion"
+            python3 --version | grep -F 3.14.10
             python3 -c 'import ssl, sqlite3, json; assert json.loads("42") == 42'
-            python3 -m pip --version
+            python3 -m pip --version | grep -F 26.3
+            pip --version | grep -F 26.3
+            node --version | grep -F 26.13.1
             node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
-            npm --version
+            npm --version | grep -x 11.6.2
             printf developer-runtime-ok
         """.trimIndent()
         val process = ProcessBuilder("/system/bin/sh", "-c", command)
@@ -529,7 +653,7 @@ class CoreStartupInstrumentedTest {
 
     /** Real Codex command RPC, not only a ProcessBuilder version probe. The dedicated
      * test device uses a disposable workspace and digest-locked, pure-language packages. */
-    @Test fun bundledDeveloperPackagesAndHttpsUseRealCore() = runBlocking {
+    @Test fun bundledDeveloperPackagesAndHttpsUseRealCore() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         val work = File(WorkspaceStorage.root(app), "runtime-probe-" + UUID.randomUUID())
@@ -550,7 +674,6 @@ class CoreStartupInstrumentedTest {
                     .put("", JSONObject().put("name", "codex-runtime-probe").put("version", "1.0.0")
                         .put("dependencies", JSONObject().put("is-number", "7.0.0")))
                     .put("node_modules/is-number", dependency)).toString())
-            val arm64 = Build.SUPPORTED_ABIS.firstOrNull() == "arm64-v8a"
             val script = """set -e
                 git init -q local
                 printf probe > local/probe.txt
@@ -563,7 +686,7 @@ class CoreStartupInstrumentedTest {
                 PYTHONPATH="${'$'}PWD/python" python3 -c 'import packaging; from packaging.version import Version; assert packaging.__version__ == "26.3" and Version("2.0") > Version("1.0")'
                 (cd node && npm ci --ignore-scripts --no-audit --no-fund --registry=https://registry.npmjs.org/ --cache="${'$'}PWD/.npm-cache")
                 node -e 'if (!require("./node/node_modules/is-number")(42) || require("./node/node_modules/is-number")("abc")) process.exit(1)'
-                ${if (arm64) "GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code https://github.com/octocat/Hello-World.git HEAD" else "printf 'x86_64 Git HTTPS not provided\\n'"}
+                GIT_TERMINAL_PROMPT=0 git -c credential.helper= ls-remote --exit-code https://github.com/octocat/Hello-World.git HEAD
                 printf developer-network-packages-ok
             """.trimIndent()
             withTimeout(240_000L) {
@@ -585,7 +708,77 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking {
+    /** Actual command RPC, real sockets and curl: HTTP rejection and stalled
+     * response must fail with their real exit codes; the same core remains usable. */
+    @Test fun realNetworkFailureAndTimeoutRecoverOnSameCore() = runBlocking<Unit> {
+        val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
+        val bridge = CodexConnection(app)
+        val server = ServerSocket(0, 4, java.net.InetAddress.getByName("127.0.0.1"))
+        server.soTimeout = 90_000
+        val service = async(Dispatchers.IO) {
+            repeat(3) { index ->
+                val accepted = try { server.accept() } catch (failure: java.net.SocketException) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    throw failure
+                }
+                accepted.use { connection ->
+                    connection.soTimeout = 5_000
+                    val reader = connection.getInputStream().bufferedReader(Charsets.US_ASCII)
+                    check(reader.readLine()?.startsWith("GET /probe ") == true)
+                    while (true) {
+                        val line = reader.readLine() ?: error("Incomplete request")
+                        if (line.isEmpty()) break
+                    }
+                    if (index == 1) {
+                        // Keep the TCP connection open beyond curl's actual timeout.
+                        Thread.sleep(1_800L)
+                    } else {
+                        val body = if (index == 0) "temporarily unavailable" else "network-restored"
+                        val status = if (index == 0) "503 Service Unavailable" else "200 OK"
+                        val response = "HTTP/1.1 $status\r\nContent-Length: " +
+                            body.toByteArray(Charsets.US_ASCII).size + "\r\nConnection: close\r\n\r\n" + body
+                        connection.getOutputStream().write(response.toByteArray(Charsets.US_ASCII))
+                        connection.getOutputStream().flush()
+                    }
+                }
+            }
+        }
+        try {
+            withTimeout(90_000L) {
+                bridge.connect()
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                suspend fun fetch(seconds: Int): JSONObject {
+                    return bridge.request("command/exec", JSONObject()
+                        .put("command", JSONArray().put("curl").put("--noproxy").put("*")
+                            .put("--fail").put("--silent").put("--show-error")
+                            .put("--connect-timeout").put("2").put("--max-time").put(seconds.toString())
+                            .put("http://127.0.0.1:${server.localPort}/probe"))
+                        .put("cwd", WorkspaceStorage.root(app).absolutePath)
+                        .put("timeoutMs", 10_000)
+                        .put("outputBytesCap", 16_000)
+                        .put("sandboxPolicy", JSONObject().put("type", "externalSandbox")
+                            .put("networkAccess", "enabled")), timeoutMillis = 15_000L)
+                }
+                val rejected = fetch(5)
+                assertEquals(rejected.toString(), 22, rejected.getInt("exitCode"))
+                val timedOut = fetch(1)
+                assertEquals(timedOut.toString(), 28, timedOut.getInt("exitCode"))
+                val recovered = fetch(5)
+                assertEquals(recovered.toString(), 0, recovered.getInt("exitCode"))
+                assertEquals("network-restored", recovered.getString("stdout").trim())
+                assertEquals(EngineStatus.Connected, bridge.status.value)
+                assertNotNull(bridge.request("account/read"))
+                service.await()
+            }
+        } finally {
+            service.cancel()
+            server.close()
+            service.join()
+            bridge.close()
+        }
+    }
+
+    @Test fun bundledCoreReportsAndroidCodeModeDefault() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -619,7 +812,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking {
+    @Test fun bundledCoreInitializesAndAnswersAccountRead() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -663,7 +856,7 @@ class CoreStartupInstrumentedTest {
             bridge.close()
         }
     }
-    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking {
+    @Test fun terminalStreamsUtf8AndAcceptsStdinOnRealAndroidCore() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
@@ -709,7 +902,7 @@ class CoreStartupInstrumentedTest {
         }
     }
 
-    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking {
+    @Test fun terminalLongRunningProcessCanBeStoppedByProcessId() = runBlocking<Unit> {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val bridge = CodexConnection(app)
         try {
