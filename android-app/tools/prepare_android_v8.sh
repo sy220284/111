@@ -28,15 +28,7 @@ TOOL_PROVENANCE="$(mktemp)"
 trap 'rm -f "$EXPECTED_INPUTS" "$TOOL_PROVENANCE"' EXIT
 # Resolve and record the verified portable tools before expensive source work.
 python3 "$GITHUB_WORKSPACE/android-app/tools/v8_toolchain_provenance.py" > "$TOOL_PROVENANCE"
-(
-  printf 'source=%s\nversion=%s\ntarget=%s\n' "$SOURCE_COMMIT" "$VERSION" "$TARGET"
-  rustc --version
-  grep '^Pkg.Revision' "$ANDROID_NDK_HOME/source.properties"
-  printf 'runner=%s\n' "$(uname -m)"
-  cat /etc/os-release
-  cd "$GITHUB_WORKSPACE"
-  sha256sum android-app/tools/prepare_android_v8.sh android-app/tools/adapt_android_v8_build.py android-app/tools/v8_toolchain_provenance.py upstream/codex/codex-rs/Cargo.lock
-) > "$EXPECTED_INPUTS"
+python3 "$GITHUB_WORKSPACE/.github/scripts/v8_artifacts.py" inputs --target "$TARGET" > "$EXPECTED_INPUTS"
 test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
   echo "Raw V8 cache reuse is disabled; use a verified complete native artifact: $CACHE" >&2; exit 1;
 }

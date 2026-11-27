@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
-from v8_artifacts import names, verify, extract, direct_producer, producer_recipe
+from v8_artifacts import names, verify, extract, direct_producer, producer_recipe, current_artifact, expected_inputs, INPUTS, host_identity
 
 TARGET="aarch64-linux-android"
 KEY="a"*64
@@ -77,3 +77,65 @@ class V8ArtifactsTests(unittest.TestCase):
         workflow="jobs:\n  v8:\n    steps: compile\n  native:\n    steps: core\n"
         self.assertEqual(producer_recipe(workflow),producer_recipe(workflow.replace("steps: core","steps: changed")))
         self.assertNotEqual(producer_recipe(workflow),producer_recipe(workflow.replace("steps: compile","steps: changed")))
+
+    def test_current_artifact_requires_unique_live_digest(self):
+        row = {"id": 42, "name": "v8-binary-" + KEY, "expired": False,
+               "digest": "sha256:" + "1"*64, "size_in_bytes": 100}
+        def lookup(rows):
+            def api(repo, path):
+                self.assertEqual(path, "actions/runs/17/artifacts?name=v8-binary-" + KEY + "&per_page=100")
+                return {"total_count": len(rows), "artifacts": rows}
+            return current_artifact("o/r", 17, KEY, api)
+        self.assertEqual(lookup([row])["id"], 42)
+        for rows in ([], [dict(row, expired=True)], [row, dict(row, id=43)],
+                     [dict(row, digest=None)], [dict(row, name="v8-binary-other")]):
+            with self.subTest(rows=rows), self.assertRaises(ValueError):
+                lookup(rows)
+
+    def test_pristine_lock_and_environment_contract(self):
+        import subprocess
+        from types import SimpleNamespace
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+            for name in INPUTS:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text("original")
+            ndk = root / "ndk"
+            ndk.mkdir()
+            (ndk / "source.properties").write_text("Pkg.Revision = 27.2.12479018\n")
+            subprocess.run(["git", "init", "-q", d], check=True)
+            subprocess.run(["git", "-C", d, "add", "."], check=True)
+            subprocess.run(["git", "-C", d, "-c", "user.name=CI", "-c", "user.email=ci@example.invalid",
+                            "commit", "-qm", "fixture"], check=True)
+            with patch.dict(os.environ, {"ANDROID_NDK_HOME": str(ndk)}), \
+                 patch("v8_artifacts.subprocess.check_output", return_value=b"rustc 1.99.1 (fixture)\n"), \
+                 patch("v8_artifacts.host_identity", return_value=b"runner=x86_64\nID=ubuntu\nVERSION_ID=24.04\n"):
+                original = expected_inputs(root, TARGET)
+                self.assertEqual(original, expected_inputs(root, TARGET))
+                self.assertNotEqual(original, expected_inputs(root, "x86_64-linux-android"))
+                (root / "upstream/codex/codex-rs/Cargo.lock").write_text("Android-adapted")
+                with self.assertRaises(subprocess.CalledProcessError):
+                    expected_inputs(root, TARGET)
+            for data in ('ID=ubuntu\nVERSION_ID="24.04"\nPRETTY_NAME=old\n',
+                         'ID=ubuntu\nVERSION_ID="24.04"\nPRETTY_NAME=new\n'):
+                with patch("v8_artifacts.Path.read_text", return_value=data), \
+                     patch("v8_artifacts.os.uname", return_value=SimpleNamespace(machine="x86_64")):
+                    self.assertEqual(host_identity(), b"runner=x86_64\nID=ubuntu\nVERSION_ID=24.04\n")
+            with patch("v8_artifacts.Path.read_text", return_value="ID=ubuntu\nVERSION_ID=26.04\n"), \
+                 patch("v8_artifacts.os.uname", return_value=SimpleNamespace(machine="x86_64")):
+                with self.assertRaises(ValueError):
+                    host_identity()
+
+    def test_real_workflow_checks_before_adapter_and_supersedes_old_head(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github/workflows/build-native-codex.yml").read_text()
+        native = workflow.split("\n  native:\n", 1)[1].split("\n  provider-contract:\n", 1)[0]
+        self.assertLess(native.index("v8_artifacts.py consume"), native.index("cat >> upstream/codex/codex-rs/core/Cargo.toml"))
+        self.assertLess(native.index("v8_artifacts.py consume"), native.index("prepare_android_remote_delivery.py\" \"$GITHUB_WORKSPACE"))
+        self.assertIn("overwrite: true", workflow.split("\n  native:\n", 1)[0])
+        producer = (root / "android-app/tools/prepare_android_v8.sh").read_text()
+        self.assertIn("v8_artifacts.py\" inputs --target", producer)
+        ci = (root / ".github/workflows/ci.yml").read_text()
+        self.assertIn("github.event_name == 'pull_request' && 'latest' || github.sha", ci)
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", ci)
