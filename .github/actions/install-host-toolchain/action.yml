@@ -42,4 +42,4 @@ runs:
           read -r -a NAMES <<< "$HOST_COMPONENTS"
           EXTRA=(--components "${NAMES[@]}")
         fi
-        "$HOST_PYTHON" tools/dev/ci_host.py consume --group "$HOST_GROUP" --root "$RUNNER_TEMP/111-host-$HOST_GROUP" "${EXTRA[@]}"
+        timeout --signal=TERM --kill-after=15s 25m "$HOST_PYTHON" tools/dev/ci_host.py consume --group "$HOST_GROUP" --root "$RUNNER_TEMP/111-host-$HOST_GROUP" "${EXTRA[@]}"

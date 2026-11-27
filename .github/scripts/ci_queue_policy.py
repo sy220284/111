@@ -24,7 +24,6 @@ def eligible(repo, run, pr, newer, jobs):
         or newer.get("head_sha") != head["sha"] or run.get("head_sha") == head["sha"]
         or newer["id"] <= run["id"]
         or newer.get("status") not in WAITING | {"in_progress", "completed"}
-        or (newer.get("status") == "completed" and newer.get("conclusion") != "success")
         or {p["number"] for p in run.get("pull_requests", [])} != {pr["number"]}
         or {p["number"] for p in newer.get("pull_requests", [])} != {pr["number"]}):
         return False
@@ -49,11 +48,8 @@ def reconcile(repo, pr_number, api, pages, cancel, apply=False):
     for old in rows:
         if not eligible(repo, old, pr, newer, []):
             continue
-        # Never discard an independent or force-pushed history.
-        old_sha, new_sha = old.get("head_sha",""), newer.get("head_sha","")
-        if not all(re.fullmatch("[0-9a-f]{40}", s) for s in (old_sha,new_sha)):
-            continue
-        if api(repo,f"compare/{old_sha}...{new_sha}").get("status") != "ahead":
+        # PR identity + current head determine obsolescence, including rebase/force-push.
+        if not all(re.fullmatch("[0-9a-f]{40}", r.get("head_sha", "")) for r in (old, newer)):
             continue
         current = api(repo,f"actions/runs/{old['id']}")
         candidate = api(repo,f"actions/runs/{newer['id']}")

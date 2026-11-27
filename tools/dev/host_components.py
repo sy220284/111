@@ -11,6 +11,7 @@ import re
 import subprocess
 import tempfile
 import time
+from transfer_progress import download
 
 HERE = pathlib.Path(__file__).resolve().parent
 LOCK = json.loads((HERE/"toolchain-lock.json").read_text())
@@ -245,10 +246,10 @@ def download_artifact(row,destination):
     destination.mkdir(parents=True,exist_ok=False)
     archive=destination.parent/(destination.name+".zip")
     try:
-        with archive.open("wb") as output:
-            subprocess.run(["gh","api",f"repos/{REPOSITORY}/actions/artifacts/{row['id']}/zip"],stdout=output,check=True)
+        download(f"repos/{REPOSITORY}/actions/artifacts/{row['id']}/zip", archive, row["size_in_bytes"])
         require(archive.stat().st_size==row["size_in_bytes"] and bundle.digest(archive)==row["digest"][7:],
                 "artifact ZIP digest mismatch: "+row["name"])
+        print(f"Verifying and extracting {row['name']}", flush=True)
         with zipfile.ZipFile(archive) as zipped:
             files=zipped.infolist()
             require(len(files)<=105 and sum(i.file_size for i in files)<=32*1024**3,"artifact exceeds bounds")
@@ -259,7 +260,15 @@ def download_artifact(row,destination):
                         and not info.is_dir() and name not in seen,"unexpected artifact entry: "+name)
                 seen.add(name)
                 with zipped.open(info) as source,(destination/name).open("wb") as target:
-                    shutil.copyfileobj(source,target,1024**2)
+                    copied = 0
+                    next_log = time.monotonic() + 15
+                    while chunk := source.read(1024**2):
+                        target.write(chunk)
+                        copied += len(chunk)
+                        if time.monotonic() >= next_log:
+                            print(f"Extracting {name}: {copied}/{info.file_size} bytes", flush=True)
+                            next_log = time.monotonic() + 15
+                print(f"Extracted {name}: {info.file_size} bytes", flush=True)
     finally:
         archive.unlink(missing_ok=True)
 

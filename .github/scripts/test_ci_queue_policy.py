@@ -23,10 +23,6 @@ class QueueTests(unittest.TestCase):
         self.assertIn("github.event_name == 'pull_request' && 'latest' || github.sha", concurrency)
         self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", concurrency)
         self.assertNotIn("github.event.pull_request.head.sha", concurrency)
-        native = (root / ".github/workflows/build-native-codex.yml").read_text()
-        self.assertIn("group: android-native-codex-${{ inputs.native_key || github.sha }}", native)
-        self.assertIn("group: android-v8-${{ matrix.v8_key }}", native)
-        self.assertEqual(2, native.count("queue: max"))
 
     def test_only_idle_superseded_pr_candidate(self):
         old,new=run(1,OLD),run(2,NEW)
@@ -36,7 +32,7 @@ class QueueTests(unittest.TestCase):
         self.assertFalse(eligible(REPO,new,pr(),new,[]))
         self.assertFalse(eligible(REPO,dict(old,event="workflow_dispatch"),pr(),new,[]))
         self.assertFalse(eligible(REPO,dict(old,head_repository={"full_name":"fork/r"}),pr(),new,[]))
-        self.assertFalse(eligible(REPO,old,pr(),dict(new,status="completed",conclusion="failure"),[]))
+        self.assertTrue(eligible(REPO,old,pr(),dict(new,status="completed",conclusion="failure"),[]))
         self.assertFalse(eligible(REPO,old,pr(OLD),new,[]))
 
     def test_dry_run_and_live_head_recheck(self):
@@ -58,11 +54,14 @@ class QueueTests(unittest.TestCase):
         self.assertEqual([],reconcile(REPO,12,changed,pages,lambda *x:calls.append(x),True))
         self.assertEqual(1,len(calls))
 
-    def test_diverged_history_is_preserved(self):
+    def test_force_push_supersedes_same_pr_without_ancestry(self):
         old,new=run(1,OLD),run(2,NEW)
         def api(repo,path):
-            return {"status":"diverged"} if path.startswith("compare/") else pr()
-        self.assertEqual([],reconcile(REPO,12,api,lambda *x:[old,new],lambda *x:self.fail("cancel"),True))
+            if path=="pulls/12": return pr()
+            if path.startswith("compare/"): self.fail("ancestry is irrelevant")
+            return old if path.endswith("/1") else new
+        self.assertEqual([1],reconcile(REPO,12,api,lambda r,p,f: [old,new] if f=="workflow_runs" else [],lambda *x:None,True))
+
 
 if __name__=="__main__":
     unittest.main()

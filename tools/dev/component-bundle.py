@@ -13,6 +13,7 @@ import shutil
 import subprocess
 import tarfile
 import tempfile
+import time
 
 PART_SIZE = 350 * 1024 * 1024
 ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -252,6 +253,7 @@ def verify_stream(folder, manifest, output=None):
                 archive.update(block)
                 if output is not None:
                     output.write(block)
+        print(f"Verified {manifest['name']} part {spec['name']}: {count} bytes", flush=True)
         require(count == spec["size"] and part_hash.hexdigest() == spec["sha256"],
                 "corrupt part: " + spec["name"])
     require(archive.hexdigest() == manifest["archiveSha256"], "archive digest mismatch")
@@ -281,6 +283,7 @@ def install(name, folder, root, expected):
             seen = set()
             def checked_members():
                 total = 0
+                next_log = time.monotonic() + 15
                 for member in tar:
                     total += member.size
                     require(len(seen) < 1000000 and total <= m["unpackedBytes"], "archive bounds")
@@ -289,8 +292,13 @@ def install(name, folder, root, expected):
                     require(member.isfile() or member.isdir() or member.issym() or member.islnk(), "special archive member")
                     seen.add(path)
                     yield member
+                    if time.monotonic() >= next_log:
+                        print(f"Installing {name}: {len(seen)} entries, {total}/{m['unpackedBytes']} bytes", flush=True)
+                        next_log = time.monotonic() + 15
             tar.extractall(stage, members=checked_members(), filter="data")
+        print(f"Verifying extracted {name} tree", flush=True)
         require(verified_tree(stage, m, seal=True), "extracted tree digest mismatch")
+        print(f"Verified extracted {name} tree", flush=True)
         if dest.exists() or dest.is_symlink():
             require(not dest.is_symlink(), "unsafe installed component")
             shutil.rmtree(dest)

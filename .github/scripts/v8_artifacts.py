@@ -9,9 +9,12 @@ import re
 import shutil
 import subprocess
 import tempfile
+import sys
 import zipfile
 from datetime import datetime
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/dev'))
+from transfer_progress import download, TransferUnavailable
 
 TARGETS = {"aarch64-linux-android": ("arm64-v8a", "arm64"),
            "x86_64-linux-android": ("x86_64", "x64")}
@@ -39,7 +42,9 @@ def producer_recipe(workflow):
     marker = "\n  v8:\n"
     if marker not in workflow:
         raise ValueError("Missing independent V8 producer")
-    return re.split(r"(?m)^  [a-z][a-z0-9-]*:\s*$", workflow.split(marker,1)[1], maxsplit=1)[0]
+    job = re.split(r"(?m)^  [a-z][a-z0-9-]*:\s*$", workflow.split(marker,1)[1], maxsplit=1)[0]
+    # Only the producer environment and step recipe affect the produced bytes.
+    return "\n".join(line for line in job.splitlines() if not re.match(r"^    (?:name|needs|if|timeout-minutes):", line))
 
 
 def key(target, sha="HEAD"):
@@ -207,8 +212,7 @@ def download_verified(repo, artifact, folder, target, expected):
     folder.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=folder.parent) as tmp:
         archive = Path(tmp) / "source.zip"
-        with archive.open("wb") as stream:
-            subprocess.run(["gh", "api", f"repos/{repo}/actions/artifacts/{artifact['id']}/zip"], stdout=stream, check=True)
+        download(f"repos/{repo}/actions/artifacts/{artifact['id']}/zip", archive, artifact['size_in_bytes'])
         if sha256(archive) != artifact["digest"].removeprefix("sha256:"):
             raise ValueError("V8 GitHub artifact digest mismatch")
         extracted = Path(tmp) / "verified"
@@ -221,13 +225,23 @@ def download_verified(repo, artifact, folder, target, expected):
 def restore(repo,target,source,folder,expected_key,expected):
     # Query immutable indexed artifacts; only original successful source
     # producers qualify, even while other jobs in that workflow are running.
+    rejected = 0
     for page in range(1,11):
         response=api(repo,f"actions/artifacts?name=v8-binary-{expected_key}&per_page=100&page={page}")
         rows=response["artifacts"]
         for artifact in rows:
             if not direct_producer(repo,artifact,target,expected_key,source):
                 continue
-            download_verified(repo, artifact, folder, target, expected)
+            try:
+                download_verified(repo, artifact, folder, target, expected)
+            except (ValueError, zipfile.BadZipFile, TransferUnavailable) as exc:
+                # An invalid or unavailable immutable ID is excluded locally.
+                # Never delete a shared artifact while other jobs may read it.
+                rejected += 1
+                print(f"::warning::Rejected V8 artifact {artifact['id']}: {exc}", flush=True)
+                if rejected >= 2:
+                    return False
+                continue
             print(f"Verified V8 source artifact {artifact['id']} from run {artifact['workflow_run']['id']}")
             return True
         if len(rows)<100:
@@ -267,8 +281,18 @@ def main():
         if a.command == "consume":
             if not a.repo:
                 p.error("Consume requires repository")
-            artifact = current_artifact(a.repo, int(os.environ["GITHUB_RUN_ID"]), fingerprint)
-            download_verified(a.repo, artifact, folder, a.target, expected)
+            try:
+                artifact = current_artifact(a.repo, int(os.environ["GITHUB_RUN_ID"]), fingerprint)
+                download_verified(a.repo, artifact, folder, a.target, expected)
+            except (ValueError, zipfile.BadZipFile, TransferUnavailable) as exc:
+                print(f"::warning::Current V8 artifact rejected: {exc}", flush=True)
+                if not restore(a.repo, a.target, source, folder, fingerprint, expected):
+                    # Workflow must rebuild and independently verify before Cargo.
+                    with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                        print("rebuild=true", file=out)
+                    return
+            with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                print("rebuild=false", file=out)
         archive,binding=verify(folder,a.target,expected)
         with open(os.environ["GITHUB_ENV"],"a") as out:
             print(f"RUSTY_V8_ARCHIVE={folder/archive}",file=out)

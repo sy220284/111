@@ -75,6 +75,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/scripts/run_ci_script_tests.py plan
+          python3 -m unittest discover -s tools/dev -p test_transfer_progress.py
           python3 -m unittest discover -s android-app/tools -p 'test_device_matrix.py'
           python3 -m unittest discover -s android-app/tools -p 'test_verify_ui_matrix_evidence.py'
           python3 -m unittest discover -s android-app/tools -p 'test_merge_ui_shards.py'

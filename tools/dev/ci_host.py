@@ -15,7 +15,7 @@ WORKFLOWS = {".github/workflows/dev-toolchain.yml", ".github/workflows/ci.yml",
              ".github/workflows/build-native-codex.yml", ".github/workflows/release.yml"}
 RECIPE = (".github/workflows/prepare-host-toolchain.yml", ".github/actions/install-host-toolchain",
           "tools/dev/ci_host.py", "tools/dev/component-bundle.py", "tools/dev/host_components.py",
-          "tools/dev/toolchain-lock.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py")
+          "tools/dev/toolchain-lock.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py", "tools/dev/transfer_progress.py")
 HEX = re.compile(r"[0-9a-f]{64}")
 SHA = re.compile(r"[0-9a-f]{40}")
 

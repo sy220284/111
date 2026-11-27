@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
-from v8_artifacts import names, verify, extract, direct_producer, producer_recipe, current_artifact, expected_inputs, INPUTS, host_identity
+from v8_artifacts import names, verify, extract, direct_producer, producer_recipe, current_artifact, expected_inputs, INPUTS, host_identity, restore
 
 TARGET="aarch64-linux-android"
 KEY="a"*64
@@ -77,6 +77,20 @@ class V8ArtifactsTests(unittest.TestCase):
         workflow="jobs:\n  v8:\n    steps: compile\n  native:\n    steps: core\n"
         self.assertEqual(producer_recipe(workflow),producer_recipe(workflow.replace("steps: core","steps: changed")))
         self.assertNotEqual(producer_recipe(workflow),producer_recipe(workflow.replace("steps: compile","steps: changed")))
+
+    def test_bad_artifacts_are_excluded_and_rebuilt_after_two(self):
+        rows = [{"id": 1}, {"id": 2}, {"id": 3}]
+        with tempfile.TemporaryDirectory() as d, \
+             patch("v8_artifacts.api", return_value={"artifacts": rows}), \
+             patch("v8_artifacts.direct_producer", return_value=True), \
+             patch("v8_artifacts.download_verified", side_effect=ValueError("corrupt")) as download:
+            self.assertFalse(restore("o/r", TARGET, SOURCE, Path(d)/"result", KEY, b"inputs"))
+            self.assertEqual(download.call_count, 2)
+            self.assertFalse((Path(d)/"result").exists())
+
+    def test_v8_timeout_is_not_a_build_input(self):
+        workflow = "jobs:\n  v8:\n    timeout-minutes: 180\n    runs-on: ubuntu-24.04\n    steps: compile\n  native:\n"
+        self.assertEqual(producer_recipe(workflow), producer_recipe(workflow.replace("180", "360")))
 
     def test_current_artifact_requires_unique_live_digest(self):
         row = {"id": 42, "name": "v8-binary-" + KEY, "expired": False,
