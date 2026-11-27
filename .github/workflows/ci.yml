@@ -52,8 +52,6 @@ jobs:
           python3 -m unittest discover -s .github/scripts -p 'test_ci_execution.py'
           python3 -m unittest discover -s .github/scripts -p 'test_ci_queue_policy.py'
           python3 -m unittest discover -s .github/scripts -p 'test_ci_gate.py'
-          python3 -m unittest discover -s .github/scripts -p 'test_retain_check_artifacts.py'
-          python3 -m unittest discover -s .github/scripts -p 'test_repository_steward.py'
           python3 .github/scripts/ci_policy.py
   native:
     needs: plan

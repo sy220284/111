@@ -3,10 +3,31 @@
 import argparse
 import json
 import re
+import subprocess
 
 WAITING = {"queued", "pending", "waiting", "requested"}
 CI = ".github/workflows/ci.yml"
 UNFINISHED = WAITING | {"in_progress"}
+
+
+def gh(*args):
+    return subprocess.check_output(["gh", *args], text=True)
+
+
+def api(repo, path):
+    return json.loads(gh("api", f"repos/{repo}/{path}"))
+
+
+def pages(repo, path, field=None):
+    separator = "&" if "?" in path else "?"
+    page = 1
+    while True:
+        response = api(repo, f"{path}{separator}per_page=100&page={page}")
+        rows = response[field] if field else response
+        yield from rows
+        if len(rows) < 100:
+            return
+        page += 1
 
 
 def own_run(repo, run):
@@ -77,7 +98,6 @@ def reconcile(repo, pr_number, api, pages, cancel, apply=False):
 
 
 def main():
-    from retain_check_artifacts import api, pages, gh
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument("--repo",required=True)
     p.add_argument("--pr",type=int)

@@ -16,9 +16,7 @@ class ReleaseCandidateTests(unittest.TestCase):
     def test_known_maintenance_and_empty_delta(self):
         self.assertTrue(maintenance_only([]))
         self.assertTrue(maintenance_only([
-            "AGENTS.md", ".github/workflows/retain-check-artifacts.yml",
-            ".github/scripts/repository_steward.py",
-            ".github/scripts/test_retain_check_artifacts.py",
+            "AGENTS.md", "README.md", "docs/普通说明.md",
         ]))
 
     def test_client_native_acceptance_and_release_inputs_are_never_exempt(self):
