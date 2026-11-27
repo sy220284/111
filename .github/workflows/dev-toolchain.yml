@@ -2,6 +2,8 @@ name: 111 开发工具链产物与离线验收
 
 on:
   workflow_dispatch:
+  push:
+    branches: [validation/dev-toolchain-d0bf3a4]
 
 permissions:
   contents: read
