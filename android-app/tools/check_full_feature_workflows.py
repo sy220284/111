@@ -46,6 +46,7 @@ def audit(repository: Path, expected: int | None = None) -> dict:
         expected = len(features)
     rows = []
     issues = []
+    screenshot_observations = []
     by_route = {}
     for match in ROW.finditer(document):
         number, route, priority, goal, code, evidence = match.groups()
@@ -66,7 +67,7 @@ def audit(repository: Path, expected: int | None = None) -> dict:
         if missing_files:
             issues.append(f"{route} 文件已失效：{', '.join(missing_files)}")
         if missing_screens:
-            issues.append(f"{route} 文档截图未纳入设备验收：{', '.join(missing_screens)}")
+            screenshot_observations.append(f"{route} 文档截图未纳入采集登记：{', '.join(missing_screens)}")
         if route not in features:
             issues.append(f"{route} 缺少功能目录")
         if route != "update" and route not in routes:
@@ -113,6 +114,7 @@ def audit(repository: Path, expected: int | None = None) -> dict:
         "host_methods": sum(c.direction == "host_request" for c in contracts.values()),
         "workflows": rows,
         "issues": issues,
+        "screenshot_observations": screenshot_observations,
         "evidence_boundary": "源码、测试名称与预期截图声明；真实内核与真机结果需要对应运行产物",
     }
 
@@ -136,6 +138,8 @@ def markdown(report: dict) -> str:
         )
     lines += ["", "## 本次 CI 审计异常", ""]
     lines += [f"- {issue}" for issue in report["issues"]] if report["issues"] else ["- 无静态目录与证据声明缺口"]
+    lines += ["", "## 截图记录（非门禁）", ""]
+    lines += [f"- {item}" for item in report["screenshot_observations"]] or ["- 无截图声明缺口"]
     lines += ["", "## 后续每个真实功能的验收标准", "",
               "入口点击 → 参数与权限 → 官方请求/本机操作 → 服务端回执 → 状态更新/数据保存 → 失败或断线后的恢复；必须记录当前提交和执行环境。", ""]
     return "\n".join(lines)

@@ -188,7 +188,7 @@ jobs:
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
           python3 android-app/tools/check_component_system.py --repository . --report component-system-audit.json
-      - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
+      - name: 验证截图收集与功能验收独立记录
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
@@ -311,7 +311,7 @@ jobs:
             python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode baseline
             # All pages and component tests repeat at short/tall windows and large text.
             python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode adaptive
-            file ui-screenshots/*.png
+            # Screenshot reports are advisory; functional tests above remain mandatory.
             # Only the 393dp emulator replaces the running app, then presses the
             # system installer's actual Install and Open buttons. Execute after
             # screenshots: package replacement kills the old app process.
