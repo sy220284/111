@@ -562,7 +562,7 @@ jobs:
   release-result:
     name: 正式发布闭环验收
     needs: [preflight, check-release, developer-runtime, host-android, host-patcher, release, device-ready, device, publish, cleanup]
-    if: ${{ !cancelled() }}
+    if: ${{ !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:

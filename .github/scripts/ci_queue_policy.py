@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Cancel only CI belonging to the exact same obsolete or closed same-repo PR."""
 import argparse
+import subprocess
 from retain_check_artifacts import active_runs, api, gh
 
 UNFINISHED = {"queued", "pending", "waiting", "requested", "in_progress"}
@@ -42,7 +43,13 @@ def reconcile(repo, number, request=api, active=active_runs, cancel=None, apply=
         if not eligible(repo, live, candidate):
             continue
         if apply:
-            cancel(repo, rid)
+            try:
+                cancel(repo, rid)
+            except subprocess.CalledProcessError:
+                # Cancellation can race natural completion. Any still-active error is real.
+                if request(repo, f"actions/runs/{rid}").get("status") != "completed":
+                    raise
+                continue
         selected.append(rid)
     return selected
 
