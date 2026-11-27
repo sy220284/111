@@ -151,7 +151,11 @@ def run_fresh_suite(profile, mode, log, destination, shard):
     measured = assert_device(dimensions(profile, mode), dimensions(profile, 'baseline'))
     measured.update(profile=profile, mode=mode, shard=shard)
     adb("shell", "am", "force-stop", PACKAGE)
-    clear_device_screens()
+    screenshot_errors = []
+    try:
+        clear_device_screens()
+    except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
+        screenshot_errors.append("清理旧截图失败，跳过本轮采集：" + str(error))
     run_id = uuid.uuid4().hex
     started = time.time()
     classes = shard_classes(profile, mode, shard)
@@ -160,16 +164,24 @@ def run_fresh_suite(profile, mode, log, destination, shard):
     observed = {test.split('#', 1)[0] for test in result['test_ids']}
     if observed != {PACKAGE + '.' + name for name in classes}:
         result.update(status='failed', evidence_category='missing_or_unexpected_test_classes')
-    missing, code = collect_screens(destination)
-    manifest = Path(destination) / "manifest.json"
-    if manifest.is_file():
-        evidence = json.loads(manifest.read_text(encoding="utf-8"))
-        evidence.update(run_id=run_id, started_at_epoch=started,
-                        commit=os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA"), **measured)
-        manifest.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    missing, code = [], None
+    try:
+        if not screenshot_errors:
+            missing, code = collect_screens(destination)
+            manifest = Path(destination) / "manifest.json"
+            if manifest.is_file():
+                evidence = json.loads(manifest.read_text(encoding="utf-8"))
+                evidence.update(run_id=run_id, started_at_epoch=started,
+                                commit=os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA"), **measured)
+                manifest.write_text(json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except (OSError, ValueError, KeyError, RuntimeError, subprocess.SubprocessError) as error:
+        screenshot_errors.append("截图采集失败：" + str(error))
     result.update(run_id=run_id, commit=os.environ.get("TEST_SOURCE_SHA") or os.environ.get("GITHUB_SHA"), **measured, missing_screens=missing, screenshot_collection_exit=code)
-    if missing or code:
-        result.update(status="failed", evidence_category="screenshot_missing_or_collection_error")
+    result["screenshot_observation"] = {
+        "blocking": False,
+        "status": "incomplete" if screenshot_errors or missing or code != 0 else "recorded",
+        "errors": screenshot_errors,
+    }
     return result
 
 

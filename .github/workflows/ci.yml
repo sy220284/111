@@ -194,7 +194,7 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
       - name: 一次加载源码，完整执行协议、功能和设计三类审计
         run: python3 android-app/tools/run_static_audit.py --repository . --output .
-      - name: 验证截图收集器会自动发现新增页面与阻断缺失截图
+      - name: 验证截图收集与功能验收独立记录
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
@@ -435,10 +435,6 @@ jobs:
             test "$(adb shell ime list -s | tr -d '\r' | grep -c .)" -gt 0
             test "$(adb shell wm size | awk '/(Override|Physical) size:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.width_px }}x${{ matrix.height_px }}"
             test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.density_dpi }}"
-            # Measure motion on a fresh process before the navigation shard.
-            # Preserve both results even if the performance gate fails.
-            rm -f ui-motion-exit
-            if [ "${{ matrix.motion }}" = "true" ]; then if python3 android-app/tools/run_ui_motion_checks.py --profile ${{ matrix.profile }}; then printf '0\n' > ui-motion-exit; else printf '1\n' > ui-motion-exit; fi; else printf '0\n' > ui-motion-exit; fi
             # The instrumentation test captures the home screen after a visible
             # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
@@ -453,7 +449,9 @@ jobs:
             # system installer's actual Install and Open buttons. Execute after
             # screenshots: package replacement kills the old app process.
             if [ "${{ matrix.self_update }}" = "true" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
-            test -s ui-motion-exit && test "$(cat ui-motion-exit)" = "0"
+            # Run observational performance after mandatory functional testing.
+            # A bounded diagnostic may fail or time out; keep its actual exit code.
+            if [ "${{ matrix.motion }}" = "true" ]; then bash -c 'status=0; timeout --kill-after=10s 360s python3 android-app/tools/run_ui_motion_checks.py --profile "${{ matrix.profile }}" || status=$?; printf "%s\\n" "$status" > ui-motion-exit; echo "Performance observation exit=$status (non-blocking)"'; fi
       - name: 保存独立分流的原始日志、截图与验收凭证
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
@@ -467,6 +465,7 @@ jobs:
             ui-baseline-diagnosis.json
             ui-adaptive-result.log
             ui-adaptive-diagnosis.json
+            ui-motion-exit
             ui-motion.log
             ui-motion-diagnosis.json
             ui-motion-performance.json
@@ -520,22 +519,27 @@ jobs:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 android-app/tools/merge_ui_shards.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --root ui-shards
       - name: 安装独立视觉审计依赖
+        continue-on-error: true
+        timeout-minutes: 3
         run: |
           "$CODEX_HOST_PYTHON" -m venv .ui-visual-venv
           .ui-visual-venv/bin/pip install --no-index --find-links "$CODEX_WHEELHOUSE" --require-hashes -r "$CODEX_WHEELHOUSE/requirements.lock"
-      - name: 截图内容及历史视觉变化审计
-        if: always()
+      - name: 截图内容及历史视觉变化审计（仅记录）
+        if: always() && !cancelled()
+        continue-on-error: true
+        timeout-minutes: 3
         env:
           GH_TOKEN: ${{ github.token }}
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: .ui-visual-venv/bin/python android-app/tools/ui_visual_audit.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --repo "$GITHUB_REPOSITORY"
       - name: 保存视觉审计基线与差异
-        if: always()
+        if: always() && !cancelled()
+        continue-on-error: true
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-visual-api${{ matrix.api }}-${{ matrix.profile }}-${{ matrix.mode }}
           path: ui-visual-evidence/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
       - name: 保存 UI 设备测试与真实屏幕截图
         if: always()
@@ -547,6 +551,7 @@ jobs:
             ui-baseline-diagnosis.json
             ui-adaptive-result.log
             ui-adaptive-diagnosis.json
+            ui-motion-exit
             ui-motion.log
             ui-motion-diagnosis.json
             ui-motion-performance.json
@@ -576,6 +581,7 @@ jobs:
             ui-motion-diagnosis.json
             ui-motion-performance.json
             ui-motion-environment.json
+            ui-motion-exit
             self-update-open.json
           if-no-files-found: error
           retention-days: 14

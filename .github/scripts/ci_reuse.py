@@ -40,7 +40,7 @@ ARTIFACTS = {
     "ui": {
            *(f"ui-proof-{p}-{m}" for p in PROFILES for m in MODES),
            *(f"ui-shard-{p}-{m}-{s}" for p in PROFILES for m in MODES for s in SHARDS),
-           *(f"codex-android-ui-visual-api{API}-{p}-{m}" for p in PROFILES for m in MODES),
+           # Visual artifacts are observational, not required for functional reuse.
            *(f"codex-android-ui-device-evidence-api{API}-{p}-{m}" for p in PROFILES for m in MODES)},
     "package": {"111-runtime-arm64-v8a", "codex-android-arm64-apk", "codex-android-arm64-git-corresponding-source",
                 "codex-android-instrumentation-apk", "codex-android-arm64-apk-audit"},

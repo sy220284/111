@@ -22,7 +22,8 @@ ORIGIN = "ui-shard-origin.json"
 FILES = {INPUT,"ui-device-resources.json","ui-instrument-result.log",
          "ui-baseline-diagnosis.json","ui-adaptive-result.log","ui-adaptive-diagnosis.json",
          "ui-motion.log","ui-motion-diagnosis.json","ui-motion-performance.json",
-         "ui-motion-environment.json","ui-motion-failure.txt","ui-motion-failure.png",
+         "ui-motion-environment.json","ui-motion-exit","ui-motion-failure.txt","ui-motion-failure.png",
+         "ui-motion-failure.trace","ui-motion-failure.profile.log",
          "self-update-open.log","self-update-open.json","self-update-after-open.png"}
 SCREEN_FOLDERS = {"ui-screenshots","ui-screenshots-adaptive"}
 LIMIT = 1024**3
@@ -107,7 +108,7 @@ def extract(archive,folder):
                 continue
             if not (len(parts)==1 and parts[0] in FILES
                     or len(parts)==2 and parts[0] in SCREEN_FOLDERS
-                    and (parts[1]=="manifest.json" or re.fullmatch("[a-z0-9_-]+-android.png",parts[1]))):
+                    and (parts[1] in {"manifest.json", "missing.txt", "index.html"} or re.fullmatch("[a-z0-9_-]+-android.png",parts[1]))):
                 raise ValueError("Unexpected UI shard file")
             target=folder.joinpath(*parts)
             target.parent.mkdir(parents=True,exist_ok=True)

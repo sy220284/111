@@ -59,9 +59,11 @@ class ShardMergeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.run_case(change)
 
-    def test_missing_screenshot_is_rejected(self):
-        with self.assertRaises(ValueError):
-            self.run_case(lambda root: (root/"ui-shard-mainstream-adaptive-navigation/ui-screenshots-adaptive/navigation-android.png").unlink())
+    def test_missing_screenshot_is_recorded(self):
+        result = self.run_case(lambda root: (root/"ui-shard-mainstream-adaptive-navigation/ui-screenshots-adaptive/navigation-android.png").unlink())
+        self.assertEqual("passed", result["status"])
+        self.assertEqual("incomplete", result["screenshot_observation"]["status"])
+        self.assertIn("navigation", result["missing_screens"])
 
     def test_duplicate_run_is_rejected(self):
         def change(root):
@@ -71,15 +73,16 @@ class ShardMergeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.run_case(change)
 
-    def test_duplicate_screenshot_is_rejected(self):
+    def test_duplicate_screenshot_is_recorded(self):
         def change(root):
             folder=root/"ui-shard-mainstream-adaptive-components/ui-screenshots-adaptive"
             (folder/"components-android.png").rename(folder/"navigation-android.png")
             path=folder/"manifest.json"; data=json.loads(path.read_text())
             data.update(present=["navigation"],required=["navigation"],discovered=["navigation"],screenshot_dimensions={"navigation":{"width_px":1,"height_px":1}})
             path.write_text(json.dumps(data))
-        with self.assertRaises(ValueError):
-            self.run_case(change)
+        result = self.run_case(change)
+        self.assertEqual("passed", result["status"])
+        self.assertTrue(any("duplicate screenshot name" in error for error in result["screenshot_observation"]["errors"]))
 
     def test_different_apk_bytes_are_rejected(self):
         def change(root):

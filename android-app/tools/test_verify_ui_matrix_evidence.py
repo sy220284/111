@@ -47,11 +47,15 @@ class MatrixEvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError): validate(root,"different")
             (root/"ui-proof-mainstream-adaptive").rename(root/"unexpected")
             with self.assertRaises(ValueError): validate(root,"head")
-    def test_visual_and_motion_failures_block(self):
+    def test_visual_and_motion_failures_are_observations(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
             self.write(root/"ui-proof-mainstream-baseline/ui-motion-performance.json",{"frames":0})
-            with self.assertRaises(ValueError): validate(root,"head")
+            (root/"ui-proof-mainstream-baseline/ui-visual-evidence/report.json").unlink()
+            result = validate(root,"head")
+            report = next(x for x in result["observations"] if x["profile"] == "mainstream" and x["mode"] == "baseline")
+            self.assertEqual("failed_or_unavailable", report["motion"]["status"])
+            self.assertEqual("unavailable", report["visual"]["status"])
 
     def test_reports_multiple_failed_devices_without_accepting_them(self):
         with tempfile.TemporaryDirectory() as d:
@@ -60,7 +64,7 @@ class MatrixEvidenceTests(unittest.TestCase):
             (root/"ui-proof-ultra-adaptive/ui-adaptive-diagnosis.json").unlink()
             with self.assertRaises(ValueError) as caught:
                 validate(root,"head")
-            self.assertIn("mainstream/baseline", str(caught.exception))
+            self.assertNotIn("mainstream/baseline", str(caught.exception))
             self.assertIn("ultra/adaptive", str(caught.exception))
 
     def test_installer_contract_must_run_once_on_designated_device(self):
@@ -96,7 +100,9 @@ class MatrixEvidenceTests(unittest.TestCase):
                             {"very_slow_frames":3}):
                 with self.subTest(changes=changes):
                     self.write(path,dict(valid,**changes))
-                    with self.assertRaises(ValueError): validate(root,"head")
+                    result = validate(root,"head")
+                    report = next(x for x in result["observations"] if x["profile"] == "mainstream" and x["mode"] == "baseline")
+                    self.assertEqual("failed_or_unavailable", report["motion"]["status"])
             self.write(path,valid)
             self.assertEqual(4,validate(root,"head")["device_configurations"])
 

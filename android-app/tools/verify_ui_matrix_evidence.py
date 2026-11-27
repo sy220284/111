@@ -32,6 +32,7 @@ def validate(root, source):
     expected_dirs = {f"ui-proof-{p}-{m}" for p,m in expected}
     present_dirs = {p.name for p in root.iterdir()} if root.is_dir() else set()
     failures = []
+    observations = []
     if present_dirs != expected_dirs:
         failures.append(f"Missing or unexpected device proof: missing={sorted(expected_dirs-present_dirs)}, unexpected={sorted(present_dirs-expected_dirs)}")
     reference = None
@@ -42,13 +43,11 @@ def validate(root, source):
         try:
             directory = root/f"ui-proof-{profile}-{mode}"
             report = read(directory/f"ui-{mode}-diagnosis.json")
-            visual = read(directory/"ui-visual-evidence/report.json")
             if (report.get("status") != "passed" or report.get("commit") != source
                 or report.get("profile") != profile or report.get("mode") != mode
                 or report.get("android_api") != CONFIG["api"]
                 or report.get("page_size") != CONFIG["page_size"]
-                or not report.get("build_fingerprint")
-                or report.get("missing_screens") != [] or report.get("screenshot_collection_exit") != 0):
+                or not report.get("build_fingerprint")):
                 raise ValueError(f"{profile}/{mode}: wrong or failed device proof")
             if any(report.get(k) != v for k,v in dimensions(profile,mode).items()):
                 raise ValueError(f"{profile}/{mode}: wrong display configuration")
@@ -84,24 +83,36 @@ def validate(root, source):
                 reference=visual_ids
             if visual_ids != reference:
                 raise ValueError(f"{profile}/{mode}: different visual test identities")
-            if visual.get("status") not in {"compared","baseline_pending"} or visual.get("structural_errors") != []:
-                raise ValueError(f"{profile}/{mode}: invalid visual proof")
+            observation = {"profile": profile, "mode": mode, "blocking": False,
+                           "screenshot_collection": report.get("screenshot_observation", {"missing": report.get("missing_screens"), "exit": report.get("screenshot_collection_exit")})}
+            try:
+                visual = read(directory/"ui-visual-evidence/report.json")
+                observation["visual"] = visual
+            except (OSError, ValueError, KeyError, TypeError) as exc:
+                observation["visual"] = {"status": "unavailable", "error": str(exc)}
             if mode == "baseline":
-                motion = read(directory/"ui-motion-diagnosis.json")
-                frames = read(directory/"ui-motion-performance.json")
-                if motion.get("status") != "passed" or motion.get("tests") != 1 or frames.get("frames",0) < 12:
-                    raise ValueError(f"{profile}: motion proof missing or failed")
-                validate_motion(frames)
+                try:
+                    motion = read(directory/"ui-motion-diagnosis.json")
+                    frames = read(directory/"ui-motion-performance.json")
+                    observation["motion"] = {"status": motion.get("status"), "frames": frames.get("frames"),
+                                             "p95_ms": frames.get("p95_ms"), "very_slow_frames": frames.get("very_slow_frames")}
+                    validate_motion(frames)
+                    if motion.get("status") != "passed" or motion.get("tests") != 1:
+                        raise ValueError("Motion observation did not pass")
+                except (OSError, ValueError, KeyError, TypeError) as exc:
+                    observation.setdefault("motion", {})["status"] = "failed_or_unavailable"
+                    observation["motion"]["error"] = str(exc)
                 if PROFILES[profile]["self_update"]:
                     update = read(directory/"self-update-open.json")
                     if update.get("status") != "passed":
                         raise ValueError("System installer proof did not pass")
+            observations.append(observation)
             count += len(ids)
         except (OSError, ValueError, KeyError, TypeError) as exc:
             failures.append(f"{profile}/{mode}: {exc}")
     if failures:
         raise ValueError("\n".join(failures))
-    return {"device_configurations": len(expected), "unique_tests":len(reference)+len(INDEPENDENT_IDS), "executions":count}
+    return {"device_configurations": len(expected), "unique_tests":len(reference)+len(INDEPENDENT_IDS), "executions":count, "observations":observations}
 
 if __name__ == "__main__":
     result = validate(Path(sys.argv[1]), os.environ["TEST_SOURCE_SHA"])

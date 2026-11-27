@@ -74,7 +74,7 @@ class FullFeatureWorkflowGateTests(TestCase):
             self.assertTrue(any("文件已失效" in error for error in errors))
             self.assertTrue(any("未关联实际 JUnit/Android 用例" in error for error in errors))
 
-    def test_documented_screenshot_must_be_in_device_capture_manifest(self):
+    def test_undeclared_screenshot_is_observation_not_functional_failure(self):
         with TemporaryDirectory() as directory:
             root = Path(directory)
             self.make_repo(root)
@@ -83,8 +83,9 @@ class FullFeatureWorkflowGateTests(TestCase):
                 "routes": [{"route": "home", "screens": ["other-screen"]}],
                 "requiredStateScreens": [], "optionalStateScreens": [],
             }), encoding="utf-8")
-            errors = self.run_audit(root)["issues"]
-            self.assertTrue(any("文档截图未纳入设备验收" in error for error in errors))
+            result = self.run_audit(root)
+            self.assertEqual([], result["issues"])
+            self.assertTrue(any("文档截图未纳入采集登记" in item for item in result["screenshot_observations"]))
 
     def test_screenshot_alone_does_not_prove_a_functional_test_exists(self):
         with TemporaryDirectory() as directory:

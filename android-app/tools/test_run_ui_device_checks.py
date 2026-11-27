@@ -132,6 +132,24 @@ class DeviceEvidenceTest(unittest.TestCase):
             with patch("run_ui_device_checks.adb", side_effect=wrong), self.assertRaises(RuntimeError):
                 assert_device(spec, spec)
 
+    def test_screenshot_failure_does_not_change_functional_result(self):
+        import tempfile
+        from run_ui_device_checks import run_fresh_suite
+        from device_matrix import dimensions, shard_classes
+        measured = dimensions("mainstream", "baseline")
+        ids = [PACKAGE + "." + name + "#example" for name in shard_classes("mainstream", "baseline", "navigation")]
+        for status in ("passed", "failed"):
+            with tempfile.TemporaryDirectory() as dest, \
+                    patch("run_ui_device_checks.assert_device", return_value=dict(measured)), \
+                    patch("run_ui_device_checks.adb"), \
+                    patch("run_ui_device_checks.clear_device_screens"), \
+                    patch("run_ui_device_checks.execute_instrumentation", return_value={"status": status, "tests": len(ids), "test_ids": ids}), \
+                    patch("run_ui_device_checks.collect_screens", return_value=(["home"], 1)):
+                result = run_fresh_suite("mainstream", "baseline", "unused.log", dest, "navigation")
+                self.assertEqual(status, result["status"])
+                self.assertEqual("incomplete", result["screenshot_observation"]["status"])
+                self.assertEqual(["home"], result["missing_screens"])
+
     def test_stale_screens_must_be_removed(self):
         with patch("run_ui_device_checks.adb", side_effect=["home-android.png", "", "home-android.png"]):
             with self.assertRaises(RuntimeError):
