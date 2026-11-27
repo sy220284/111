@@ -63,3 +63,14 @@ class PolicyTests(unittest.TestCase):
         self.assertNotIn("github.event.pull_request.head.sha", concurrency)
         self.assertIn("ref: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
         self.assertIn("python3 .github/scripts/ci_gate.py", workflow)
+
+    def test_diagnostic_candidates_use_current_registry_without_reducing_full_acceptance(self):
+        from ci_policy import diagnostic_candidates
+        root=Path(__file__).resolve().parents[2]
+        path="android-app/app/src/main/java/io/github/sy220284/codexandroid/SidebarSessions.kt"
+        report=diagnostic_candidates([path],root)
+        self.assertIn("threads",report["routes"])
+        self.assertIn("sidebar",report["subpages"])
+        self.assertTrue(any(x["method"]=="sidebarUsesRealThreadListAndFiltersWithoutLosingCurrentSelection" for x in report["suggested_methods"]))
+        self.assertTrue(plan([path])["full"])
+        self.assertEqual([],diagnostic_candidates(["new-file"],root)["suggested_methods"])

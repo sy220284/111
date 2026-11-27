@@ -156,5 +156,17 @@ class DeviceEvidenceTest(unittest.TestCase):
                 clear_device_screens()
 
 
+    def test_manual_selection_checks_exact_completed_method(self):
+        from run_ui_device_checks import run_fresh_suite
+        from device_matrix import dimensions, DIAGNOSTIC_SUITES
+        measured=dimensions("mainstream","baseline")
+        cls=DIAGNOSTIC_SUITES["navigation"][0]
+        for observed,status in (("selected","passed"),("different","failed")):
+            with patch("run_ui_device_checks.assert_device",return_value=dict(measured)), patch("run_ui_device_checks.adb"), patch("run_ui_device_checks.clear_device_screens"), patch("run_ui_device_checks.collect_screens",return_value=([],0)), patch("run_ui_device_checks.execute_instrumentation",return_value={"status":"passed","tests":1,"test_ids":[PACKAGE+"."+cls+"#"+observed]}) as execute:
+                result=run_fresh_suite("mainstream","baseline","unused.log","unused-screens","navigation",suite="navigation",method="selected")
+                self.assertEqual([cls+"#selected"],execute.call_args.args[0])
+                self.assertEqual(status,result["status"])
+                self.assertTrue(result["diagnostic_only"])
+
 if __name__ == "__main__":
     unittest.main()

@@ -84,6 +84,7 @@ jobs:
         uses: ./.github/actions/run-emulator
         env:
           TEST_SOURCE_SHA: ${{ steps.apk.outputs.source }}
+          LP_NUM_THREADS: 4
           SUITE: ${{ inputs.suite }}
           METHOD: ${{ inputs.method }}
           PROFILE: ${{ inputs.profile }}
@@ -99,7 +100,9 @@ jobs:
             adb shell settings put secure show_ime_with_hard_keyboard 1
             test "$(adb shell settings get secure show_ime_with_hard_keyboard | tr -d '\r')" = "1"
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
-            args=(python3 android-app/tools/run_ui_device_checks.py --profile "$PROFILE" --mode "$MODE" --shard navigation --suite "$SUITE")
+            shard=components
+            if [ "$SUITE" = navigation ]; then shard=navigation; fi
+            args=(python3 android-app/tools/run_ui_device_checks.py --profile "$PROFILE" --mode "$MODE" --shard "$shard" --suite "$SUITE")
             if [ -n "$METHOD" ]; then args+=(--method "$METHOD"); fi
             if [ "$RECORD" = true ]; then
               python3 android-app/tools/device_video.py --name "$SUITE" --output diagnostic-videos -- "${args[@]}"

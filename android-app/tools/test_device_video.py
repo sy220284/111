@@ -185,5 +185,19 @@ class VideoTest(unittest.TestCase):
             self.assertEqual(result.returncode, 7, result.stderr)
             self.assertTrue((root / 'output' / 'extension-market' / 'part-001.mp4').exists())
 
+    def test_observation_failure_does_not_change_functional_exit(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            adb=root/'adb'
+            adb.write_text(ADB_STUB)
+            adb.chmod(0o755)
+            env=dict(os.environ,FAKE_ADB_STORE=str(root/'remote'),FAKE_ADB_EARLY_EXIT130='1')
+            command=[sys.executable,str(Path(__file__).with_name('device_video.py')),
+                     '--name','diagnostic','--output',str(root/'output'),'--adb',str(adb),'--',
+                     sys.executable,'-c','pass']
+            result=subprocess.run(command,env=env,capture_output=True,text=True,timeout=35)
+            self.assertEqual(0,result.returncode,result.stderr)
+            self.assertIn("VIDEO_OBSERVATION=incomplete",result.stdout)
+
 if __name__=='__main__':
     unittest.main()
