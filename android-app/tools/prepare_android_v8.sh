@@ -93,6 +93,11 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     fi
     export NINJA="$(command -v ninja)"
     export V8_FROM_SOURCE=1
+    : "${SCCACHE_PATH:?official sccache must be installed before building V8}"
+    export SCCACHE="$SCCACHE_PATH"
+    "$SCCACHE" --version
+    "$SCCACHE" --start-server
+    JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs v8)"
     export GN_ARGS='v8_enable_sandbox=true v8_enable_pointer_compression=true android_static_analysis="off"'
     # The Cargo config in WRAPPER/.cargo applies only when Cargo runs from
     # WRAPPER (or a child). --manifest-path alone does not load that config.
@@ -108,7 +113,7 @@ TOML
     printf 'fn main() {}\n' > "$PREFLIGHT/src/main.rs"
     (
       cd "$PREFLIGHT"
-      cargo build --release --target "$TARGET" -j 2
+      cargo build --release --target "$TARGET" -j "$JOBS"
     )
     ELF="$PREFLIGHT/target/$TARGET/release/android-v8-linker-preflight"
     test -s "$ELF"
@@ -119,8 +124,9 @@ TOML
     (
       cd "$SRC"
       CARGO_TARGET_DIR="$ROOT/target" cargo build --locked --release -vv -p v8 --lib \
-        --features v8_enable_sandbox --target "$TARGET" -j 2
+        --features v8_enable_sandbox --target "$TARGET" -j "$JOBS"
     )
+    "$SCCACHE" --show-stats
     GN_OUT="$ROOT/target/$TARGET/release/gn_out"
     test -s "$GN_OUT/obj/librusty_v8.a"
     test -s "$GN_OUT/src_binding.rs"
