@@ -1,4 +1,5 @@
 import unittest
+from pathlib import Path
 from ci_queue_policy import eligible, reconcile
 
 REPO="o/r"
@@ -14,6 +15,18 @@ def run(id,sha,status="queued"):
             "pull_requests":[{"number":12}]}
 
 class QueueTests(unittest.TestCase):
+    def test_candidates_start_independently_and_producers_keep_shared_locks(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github/workflows/ci.yml").read_text()
+        concurrency = workflow.split("\nconcurrency:\n", 1)[1].split("\njobs:\n", 1)[0]
+        self.assertIn("github.event.pull_request.number || github.ref", concurrency)
+        self.assertIn("github.event.pull_request.head.sha || github.sha", concurrency)
+        self.assertIn("cancel-in-progress: false", concurrency)
+        native = (root / ".github/workflows/build-native-codex.yml").read_text()
+        self.assertIn("group: android-native-codex-${{ inputs.native_key || github.sha }}", native)
+        self.assertIn("group: android-v8-${{ matrix.v8_key }}", native)
+        self.assertEqual(2, native.count("queue: max"))
+
     def test_only_idle_superseded_pr_candidate(self):
         old,new=run(1,OLD),run(2,NEW)
         self.assertTrue(eligible(REPO,old,pr(),new,[{"status":"completed"},{"status":"queued"}]))

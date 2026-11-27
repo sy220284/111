@@ -19,6 +19,7 @@ VERSION = "152.2.0"
 WORKFLOW = ".github/workflows/build-native-codex.yml"
 INPUTS = ("android-app/tools/prepare_android_v8.sh",
           "android-app/tools/adapt_android_v8_build.py",
+          "android-app/tools/v8_toolchain_provenance.py",
           "upstream/codex/codex-rs/Cargo.lock")
 PRODUCER = ".github/scripts/v8_artifacts.py"
 LIMIT = 3 * 1024**3

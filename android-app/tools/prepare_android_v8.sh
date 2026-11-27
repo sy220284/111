@@ -24,7 +24,10 @@ export RUSTUP_TOOLCHAIN=1.99.1
 mkdir -p "$CACHE"
 CACHE="$(realpath "$CACHE")"
 EXPECTED_INPUTS="$(mktemp)"
-trap 'rm -f "$EXPECTED_INPUTS"' EXIT
+TOOL_PROVENANCE="$(mktemp)"
+trap 'rm -f "$EXPECTED_INPUTS" "$TOOL_PROVENANCE"' EXIT
+# Resolve and record the verified portable tools before expensive source work.
+python3 "$GITHUB_WORKSPACE/android-app/tools/v8_toolchain_provenance.py" > "$TOOL_PROVENANCE"
 (
   printf 'source=%s\nversion=%s\ntarget=%s\n' "$SOURCE_COMMIT" "$VERSION" "$TARGET"
   rustc --version
@@ -32,7 +35,7 @@ trap 'rm -f "$EXPECTED_INPUTS"' EXIT
   printf 'runner=%s\n' "$(uname -m)"
   cat /etc/os-release
   cd "$GITHUB_WORKSPACE"
-  sha256sum android-app/tools/prepare_android_v8.sh android-app/tools/adapt_android_v8_build.py upstream/codex/codex-rs/Cargo.lock
+  sha256sum android-app/tools/prepare_android_v8.sh android-app/tools/adapt_android_v8_build.py android-app/tools/v8_toolchain_provenance.py upstream/codex/codex-rs/Cargo.lock
 ) > "$EXPECTED_INPUTS"
 test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
   echo "Raw V8 cache reuse is disabled; use a verified complete native artifact: $CACHE" >&2; exit 1;
@@ -141,7 +144,7 @@ TOML
       printf 'upstream_lock_sha256='
       sha256sum "$SRC/Cargo.lock" | cut -d' ' -f1
       git -C "$SRC" submodule status --recursive
-      dpkg-query -W clang-21 libclang-21-dev ninja-build
+      cat "$TOOL_PROVENANCE"
       cat "$GN_OUT/args.gn"
     } > "$CACHE/SOURCE_PROVENANCE"
     (cd "$CACHE" && sha256sum "$ARCHIVE" "$BINDING" BUILD_INPUTS SOURCE_PROVENANCE > SHA256SUMS)

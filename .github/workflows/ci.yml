@@ -17,9 +17,9 @@ permissions:
   actions: read
 
 concurrency:
-  # Each PR keeps its running acceptance (including native work) and only the
-  # newest pending revision. A commit-specific group would queue every edit.
-  group: ci-${{ github.event.pull_request.number || github.ref }}
+  # Candidate validation starts independently of older native production.
+  # Immutable native/V8/host inputs retain their own shared producer locks.
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
   cancel-in-progress: false
 
 jobs:
