@@ -1119,9 +1119,7 @@ class UiNavigationInstrumentedTest {
             viewport.performTouchInput { swipeDown(startY = centerY, endY = centerY + 100f, durationMillis = 500) }
             rule.waitForIdle()
             val visible = history.map { it.text }.firstOrNull { label ->
-                rule.onAllNodesWithText(label).fetchSemanticsNodes().any { node ->
-                    node.boundsInRoot.center.y in viewport.fetchSemanticsNode().boundsInRoot.top..viewport.fetchSemanticsNode().boundsInRoot.bottom
-                }
+                rule.onNodeWithText(label).isDisplayed()
             } ?: error("未取得真实可见的阅读锚点")
             val reading = rule.onNodeWithText(visible)
             reading.assertIsDisplayed()
@@ -1155,9 +1153,7 @@ class UiNavigationInstrumentedTest {
             viewport.performTouchInput { swipeUp() }
             rule.waitForIdle()
             val fragmentLabel = (0 until 80).map { "第二阶段阅读位置 $it" }.first { label ->
-                rule.onAllNodesWithText(label).fetchSemanticsNodes().any { node ->
-                    node.boundsInRoot.center.y in viewport.fetchSemanticsNode().boundsInRoot.top..viewport.fetchSemanticsNode().boundsInRoot.bottom
-                }
+                rule.onNodeWithText(label).isDisplayed()
             }
             val fragment = rule.onNodeWithText(fragmentLabel)
             val fragmentBefore = fragment.fetchSemanticsNode().boundsInRoot.top

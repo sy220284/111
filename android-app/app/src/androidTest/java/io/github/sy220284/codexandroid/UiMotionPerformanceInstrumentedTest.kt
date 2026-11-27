@@ -140,7 +140,14 @@ class UiMotionPerformanceInstrumentedTest {
         val intent = android.content.Intent(instrumentation.targetContext, MainActivity::class.java)
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
         val scenario = ActivityScenario.launch<MainActivity>(intent)
+        var tracing = false
         try {
+            if (InstrumentationRegistry.getArguments().getString("methodTrace") == "true") {
+                val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
+                android.os.Debug.startMethodTracingSampling(File(folder, "ui-motion-failure.trace").absolutePath,
+                    32 * 1024 * 1024, 1000)
+                tracing = true
+            }
             scenario.onActivity {
                 UiPreferences.setReducedMotion(false)
                 refreshRate = it.display?.refreshRate ?: 60f
@@ -207,6 +214,7 @@ class UiMotionPerformanceInstrumentedTest {
             scenario.close()
             thread.quitSafely()
             thread.join(3000L)
+            if (tracing) android.os.Debug.stopMethodTracing()
         }
         val frames = synchronized(samples) { samples.toList() }
         val values = frames.map { it.first }

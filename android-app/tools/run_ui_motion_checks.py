@@ -77,6 +77,17 @@ def main():
         if "Pipeline=Skia (OpenGL)" not in data.get("renderer_pipelines", []):
             raise RuntimeError("The actual app did not use Skia OpenGL")
         if result["status"] != "passed" or result["tests"] != 1 or data["frames"] < 12:
+            # Preserve the original failure and frames. A separate sampled
+            # diagnostic execution identifies actual CPU stacks; it never
+            # supplies acceptance evidence or replaces the failed measurement.
+            profile = execute_instrumentation(["UiMotionPerformanceInstrumentedTest"],
+                "ui-motion-failure.profile.log", {"expectedRenderer": "Pipeline=Skia (OpenGL)", "methodTrace": "true"})
+            result["sampled_diagnostic"] = profile
+            Path("ui-motion-diagnosis.json").write_text(json.dumps(result, indent=2))
+            trace = "ui-motion-failure.trace"
+            pulled = subprocess.run(["adb", "pull", DEVICE_ROOT + "/" + trace, trace], check=False)
+            if pulled.returncode != 0:
+                print("Sampled method trace unavailable; original performance failure retained")
             raise RuntimeError("Actual motion test did not pass")
     finally:
         for suffix in ("txt", "png"):
