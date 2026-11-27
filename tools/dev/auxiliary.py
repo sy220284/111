@@ -203,17 +203,22 @@ def bazel_git_repository_names(external):
 def bazel_git_snapshots(external, destination, output_root):
     """Archive the exact generated Git repository, including its Bazel BUILD files."""
     names=bazel_git_repository_names(external)
+    bazel_repository_snapshots(external,destination,output_root,names)
+
+
+def bazel_repository_snapshots(external, destination, output_root, names):
+    """Relocate generated repositories without retaining producer filesystem links."""
     destination.mkdir()
     workspace=UPSTREAM.resolve()
     for name in names:
         source=(external/name).resolve(strict=True)
         need(source.is_relative_to(output_root.resolve()) and source.is_dir(),
-             "Git repository escapes Bazel output root: "+name)
+             "repository escapes Bazel output root: "+name)
         target=destination/name
         shutil.copytree(source,target,symlinks=True)
         for link in source.rglob("*"):
             if not link.is_symlink():
-                need(link.is_file() or link.is_dir(),"unsupported Git repository entry: "+str(link))
+                need(link.is_file() or link.is_dir(),"unsupported repository entry: "+str(link))
                 continue
             resolved=link.resolve()
             copied=target/link.relative_to(source)
@@ -226,11 +231,15 @@ def bazel_git_snapshots(external, destination, output_root):
                 copied.unlink()
                 shutil.copy2(resolved,copied)
             else:
-                raise ValueError("non-portable Git repository link: "+str(link))
+                raise ValueError("non-portable repository link: "+str(link))
     (destination/"repositories.json").write_text(json.dumps(names)+"\n")
 
 
 def bazel_git_overrides(destination):
+    yield from bazel_repository_overrides(destination)
+
+
+def bazel_repository_overrides(destination):
     need(destination.is_dir() and not destination.is_symlink(),"missing Git repository snapshots")
     manifest=destination/"repositories.json"
     need(manifest.is_file() and not manifest.is_symlink(),"missing Git repository manifest")
@@ -244,6 +253,35 @@ def bazel_git_overrides(destination):
         path=destination/name
         need(path.is_dir() and not path.is_symlink(),"invalid Git repository snapshot: "+name)
         yield "--override_repository="+name+"="+str(path.resolve())
+
+
+def bazel_pip_repository_names(external):
+    """pip executes its own downloader, outside Bazel's repository cache."""
+    module=(UPSTREAM/"MODULE.bazel").read_text()
+    hubs=set(re.findall(r'\bhub_name\s*=\s*"([A-Za-z0-9_]+)"',module))
+    need(bool(hubs),"no locked Bazel pip hubs found")
+    prefixes=tuple("rules_python++pip+"+hub+"_" for hub in sorted(hubs))
+    names=sorted(p.name for p in external.iterdir() if p.name.startswith(prefixes)
+                 and not p.name.endswith(".marker"))
+    need(bool(names),"no materialized Bazel pip repositories found")
+    for name in names:
+        path=external/name
+        need(re.fullmatch(r"[A-Za-z0-9_.+~-]+",name) and path.is_dir() and
+             (path/"BUILD.bazel").is_file(),"invalid generated pip repository: "+name)
+    return names
+
+
+def bazel_pip_snapshots(external,destination,output_root):
+    bazel_repository_snapshots(external,destination,output_root,bazel_pip_repository_names(external))
+
+
+def bazel_pip_overrides(destination):
+    # Validate every name against the current locked module, not only the archive.
+    expected=bazel_pip_repository_names(destination)
+    overrides=list(bazel_repository_overrides(destination))
+    names=json.loads((destination/"repositories.json").read_text())
+    need(names==expected,"Bazel pip repository manifest mismatch")
+    yield from overrides
 
 
 def bazel_registry_overrides(directory):
@@ -267,15 +305,17 @@ def bazel_fetch(stage,offline):
         cache=stage/"repository-cache";cache.mkdir(exist_ok=True)
         contents=pathlib.Path(d)/"repo-contents-cache";contents.mkdir()
         # Materialized external repositories can contain links to the old output root.
-        # Only the content-addressed cache and verified small registry repository travel.
+        # Download cache plus relocated registry, Git and pip repositories travel.
         args=[exe,"--batch","--output_user_root="+d,"fetch","--lockfile_mode=error",
               "--repository_cache="+str(cache),"--repo_contents_cache="+str(contents),"--disk_cache=","--jobs=4"]
         registries=stage/"registry-repositories"
         git_repositories=stage/"git-repositories"
+        pip_repositories=stage/"pip-repositories"
         if offline:
             args.append("--repository_disable_download")
             args.extend(bazel_registry_overrides(registries))
             args.extend(bazel_git_overrides(git_repositories))
+            args.extend(bazel_pip_overrides(pip_repositories))
         run(*args,*BAZEL_TARGETS,cwd=UPSTREAM)
         if not offline:
             registries.mkdir()
@@ -286,6 +326,7 @@ def bazel_fetch(stage,offline):
                 bazel_registry_snapshot(pathlib.Path(d),registries/name,name)
             (registries/"repositories.json").write_text(json.dumps(names)+"\n")
             bazel_git_snapshots(roots[0].parent,git_repositories,pathlib.Path(d))
+            bazel_pip_snapshots(roots[0].parent,pip_repositories,pathlib.Path(d))
 
 def llvm_prepare(stage):
     # apt's signed repository metadata authenticates the package bytes; keep

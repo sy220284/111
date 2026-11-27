@@ -122,6 +122,75 @@ class PortableAuxiliaryTest(unittest.TestCase):
                 for call in run.call_args_list:
                     self.assertEqual(call.kwargs["env"]["PATH"].split(auxiliary.os.pathsep)[0],str(stage/"bin"))
 
+    def test_pip_repositories_survive_relocation_without_producer_cache(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp)
+            workspace=root/"workspace"; workspace.mkdir()
+            (workspace/"MODULE.bazel").write_text('pip.parse(hub_name = "v8_python_deps")\npip.parse(hub_name = "schema_python")')
+            output=root/"producer"; external=output/"hash/external"; external.mkdir(parents=True)
+            names=["rules_python++pip+v8_python_deps_311_jinja2", "rules_python++pip+v8_python_deps_311_markupsafe",
+                   "rules_python++pip+schema_python_312_pydantic"]
+            for name in names:
+                source=output/"repo-contents-cache"/name; source.mkdir(parents=True)
+                (source/"BUILD.bazel").write_text('py_library(name = "pkg")')
+                (source/"package.py").write_text(name)
+                (source/"alias.py").symlink_to(source/"package.py")
+                (external/name).symlink_to(source,target_is_directory=True)
+                (external/(name+".marker")).write_text("marker")
+            (external/"rules_python++pip+v8_python_deps").mkdir()
+            (external/"rules_python++config+pypi__wheel").mkdir()
+            stage=root/"stage"; stage.mkdir()
+            dest=stage/"pip-repositories"
+            with patch.object(auxiliary,"UPSTREAM",workspace):
+                auxiliary.bazel_pip_snapshots(external,dest,output)
+                auxiliary.shutil.rmtree(output)
+                moved=root/"consumer"
+                stage.rename(moved)
+                restored=moved/"pip-repositories"
+                overrides=list(auxiliary.bazel_pip_overrides(restored))
+                self.assertEqual(len(overrides),len(names))
+                for name in names:
+                    self.assertIn("--override_repository="+name+"="+str(restored/name),overrides)
+                    self.assertEqual((restored/name/"alias.py").read_text(),name)
+                    self.assertEqual((restored/name/"alias.py").readlink(),pathlib.Path("package.py"))
+                auxiliary.shutil.rmtree(restored/names[0])
+                with self.assertRaises(ValueError):
+                    list(auxiliary.bazel_pip_overrides(restored))
+
+    def test_pip_snapshots_reject_external_links_and_unregistered_repositories(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root=pathlib.Path(tmp)
+            workspace=root/"workspace"; workspace.mkdir()
+            (workspace/"MODULE.bazel").write_text('pip.parse(hub_name = "v8_python_deps")')
+            external=root/"output/external"; external.mkdir(parents=True)
+            source=external/"rules_python++pip+v8_python_deps_311_jinja2"; source.mkdir()
+            (source/"BUILD.bazel").write_text('exports_files([])')
+            (source/"escape").symlink_to(workspace,target_is_directory=True)
+            with patch.object(auxiliary,"UPSTREAM",workspace):
+                with self.assertRaisesRegex(ValueError,"non-portable repository link"):
+                    auxiliary.bazel_pip_snapshots(external,root/"bad",root/"output")
+                (source/"escape").unlink()
+                dest=root/"snapshot"
+                auxiliary.bazel_pip_snapshots(external,dest,root/"output")
+                (dest/"rules_python++pip+unregistered_311_package").mkdir()
+                with self.assertRaises(ValueError):
+                    list(auxiliary.bazel_pip_overrides(dest))
+
+    def test_disconnected_bazel_fetch_consumes_pip_snapshots_and_keeps_download_ban(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stage=pathlib.Path(tmp)
+            with patch.object(auxiliary,"output",return_value="bazel "+auxiliary.LOCK["bazel"]), \
+                 patch.object(auxiliary,"bazel_registry_overrides",return_value=["--override_repository=registry=local"]), \
+                 patch.object(auxiliary,"bazel_git_overrides",return_value=["--override_repository=git=local"]), \
+                 patch.object(auxiliary,"bazel_pip_overrides",return_value=["--override_repository=pip=local"]) as pip, \
+                 patch.object(auxiliary,"run") as run:
+                auxiliary.bazel_fetch(stage,True)
+                pip.assert_called_once_with(stage/"pip-repositories")
+                args=run.call_args.args
+                self.assertIn("--repository_disable_download",args)
+                self.assertIn("--override_repository=pip=local",args)
+                self.assertEqual(args[-len(auxiliary.BAZEL_TARGETS):],auxiliary.BAZEL_TARGETS)
+
 
 if __name__ == "__main__":
     unittest.main()
