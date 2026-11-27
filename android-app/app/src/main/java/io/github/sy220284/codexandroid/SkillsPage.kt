@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -30,7 +31,7 @@ private fun JSONArray.objects(): List<JSONObject> =
 @Composable
 fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectEntries("skills")
-    val engineStatus by vm.bridge.status.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
     val skillErrors by vm.errors.collectEntries("skills", "skillsWrite")
     val skillsData = data["skills"]
     val groups = remember(skillsData) { records(skillsData) }

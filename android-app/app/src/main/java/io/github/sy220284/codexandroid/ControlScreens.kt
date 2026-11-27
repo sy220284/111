@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.json.JSONObject
 import org.json.JSONTokener
@@ -66,10 +67,10 @@ object UiPreferences {
 
 @Composable
 fun ApprovalsPage(vm: CodexViewModel) {
-    val prompts by vm.bridge.prompts.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val auditRecords by vm.approvalAudit.records.collectAsState()
-    val auditError by vm.approvalAudit.error.collectAsState()
+    val prompts by vm.bridge.prompts.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val auditRecords by vm.approvalAudit.records.collectAsStateWithLifecycle()
+    val auditError by vm.approvalAudit.error.collectAsStateWithLifecycle()
     ScreenColumn {
         SectionIntro("待审批操作", "运行核心请求人工审批时，逐项确认影响范围与风险。")
         errors["approvals"]?.let { ErrorText(it) }
@@ -109,8 +110,8 @@ internal fun List<ServerPrompt>.forThread(threadId: String?): List<ServerPrompt>
 internal fun ApprovalQuickSheetContent(
     vm: CodexViewModel, prompts: List<ServerPrompt>, onDismiss: () -> Unit, includeAudit: Boolean = true
 ) {
-    val auditRecords by vm.approvalAudit.records.collectAsState()
-    val auditError by vm.approvalAudit.error.collectAsState()
+    val auditRecords by vm.approvalAudit.records.collectAsStateWithLifecycle()
+    val auditError by vm.approvalAudit.error.collectAsStateWithLifecycle()
     CodexDetailSheet(title = "待处理审批", onDismiss = onDismiss, startExpanded = true,
         subtitle = "请根据具体命令、文件和权限范围作出决定。") {
         if (prompts.isEmpty()) {
@@ -323,10 +324,10 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val engineStatus by vm.bridge.status.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
+    val data by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
     var advanced by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (SettingsDeepLink.take("config") == "advanced") advanced = true
@@ -343,7 +344,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             vm.data.value = vm.data.value - ENGINE_SETTING_SAVE
         }
     }
-    val permissionBusy by vm.securitySaveBusy.collectAsState()
+    val permissionBusy by vm.securitySaveBusy.collectAsStateWithLifecycle()
     val enabled = ready && engineStatus == EngineStatus.Connected && "config" !in loading && !saving && !permissionBusy
     LaunchedEffect(engineStatus) {
         if (engineStatus == EngineStatus.Connected) {
@@ -436,7 +437,7 @@ fun AppearancePage(vm: CodexViewModel) {
 
 @Composable
 fun AboutPage(vm: CodexViewModel) {
-    val status by vm.bridge.status.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     val appContext = LocalContext.current
     val version = remember(appContext) {
         appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName.orEmpty()

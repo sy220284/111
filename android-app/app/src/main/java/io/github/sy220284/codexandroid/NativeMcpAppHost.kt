@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -124,8 +125,8 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val contract = remember(call, source, originCallId) { McpAppHostContract(call, originCallId) }
-    val currentSession by vm.bridge.connectedSession.collectAsState()
-    val currentRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val currentSession by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    val currentRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
     val theme = if (dark) "dark" else "light"
     var port by remember { mutableStateOf<WebMessagePort?>(null) }

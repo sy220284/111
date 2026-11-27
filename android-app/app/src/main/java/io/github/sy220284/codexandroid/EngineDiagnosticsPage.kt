@@ -22,26 +22,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 
 @Composable
 fun EngineDiagnosticsPage(vm: CodexViewModel) {
-    val status by vm.bridge.status.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
     val data by vm.data.collectEntries("diagnostics")
     var showLogs by rememberSaveable { mutableStateOf(false) }
     var showDiagnosticResult by rememberSaveable { mutableStateOf(false) }
-    val stderr by vm.bridge.recentStderr.collectAsState()
-    val coreIdentity by vm.bridge.runtimeUserAgent.collectAsState()
-    val protection by CodexForegroundService.protectionState.collectAsState()
+    val stderr by vm.bridge.recentStderr.collectAsStateWithLifecycle()
+    val coreIdentity by vm.bridge.runtimeUserAgent.collectAsStateWithLifecycle()
+    val protection by CodexForegroundService.protectionState.collectAsStateWithLifecycle()
     val checking by vm.loading.collectProjection { "diagnostics" in it }
     LaunchedEffect(Unit) {
         if (SettingsDeepLink.take("diagnostics") == "logs") showLogs = true
     }
-    val restarting by vm.connectionRestarter.busy.collectAsState()
-    val retirement by vm.bridge.retirementBusy.collectAsState()
-    val retry by vm.recoveryDelayMs.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsStateWithLifecycle()
+    val retirement by vm.bridge.retirementBusy.collectAsStateWithLifecycle()
+    val retry by vm.recoveryDelayMs.collectAsStateWithLifecycle()
     val work = observeGlobalWorkSnapshot(vm)
     var showCrashes by remember { mutableStateOf(false) }
     var showCrashReader by remember { mutableStateOf(false) }

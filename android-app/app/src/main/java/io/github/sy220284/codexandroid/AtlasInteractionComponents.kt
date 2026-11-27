@@ -2,7 +2,6 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -25,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * 111 交互图谱：由十张参考图片提炼的可复用原生组件。
@@ -167,7 +167,7 @@ fun AtlasOperationProgress(
             if (fraction != null) Text("${(fraction * 100).toInt()}%",
                 style = MaterialTheme.typography.labelMedium, color = Ink.parchment)
         }
-        val reduced by UiPreferences.reducedMotion.collectAsState()
+        val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
         if (fraction == null && reduced) {
             Box(Modifier.fillMaxWidth().height(4.dp)
                 .semantics { progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate }

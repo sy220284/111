@@ -43,7 +43,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     }
     git -C "$SRC" submodule update --init --recursive --depth 1
     : "${LLVM_HOME:?missing official LLVM}" "${LIBCLANG_PATH:?missing official libclang}"
-    "$LLVM_HOME/bin/clang" --version | grep -E 'clang version 21\.'
+    "$LLVM_HOME/bin/clang" --version | grep -E 'clang version 23\.'
     test -s "$LIBCLANG_PATH/libclang.so"
     command -v ninja
     command -v pkg-config
@@ -56,7 +56,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     ln -s "$ANDROID_HOME" "$SRC/third_party/android_sdk/public"
     CFG="$SRC/build/config/android/config.gni"
     if ! grep -Eq '^[[:space:]]*android_ndk_version[[:space:]]*=' "$CFG"; then
-      printf '\ndeclare_args() {\n  android_ndk_version = "r27"\n}\n' >> "$CFG"
+      printf '\ndeclare_args() {\n  android_ndk_version = "r30"\n}\n' >> "$CFG"
     fi
     mkdir -p "$SRC/build/rust"
     if [ ! -e "$SRC/build/rust/known-target-triples.txt" ]; then
@@ -76,21 +76,10 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     export LIBCLANG_PATH="$LLVM_HOME/lib"
     export "BINDGEN_EXTRA_CLANG_ARGS_$(printf '%s' "$TARGET" | tr '-' '_')=--sysroot=$SYSROOT -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/$TARGET"
     export "CARGO_TARGET_$(printf '%s' "$TARGET" | tr '[:lower:]-' '[:upper:]_')_LINKER=$LINKER"
-    # The pinned rusty_v8 source does not contain buildtools/linux64/gn.
-    # Its build.rs provisions the GN binary from the matching V8 dependency
-    # versions when GN is unset; retaining a guessed path caused CI to exit
-    # before compiling a single x86_64 target.
-    if command -v gn >/dev/null 2>&1; then
-      export GN="$(command -v gn)"
-      "$GN" --version
-    else
-      unset GN
-      test -s "$SRC/tools/ninja_gn_binaries.py" || {
-        echo "Pinned rusty_v8 is missing the GN provisioning script" >&2
-        exit 1
-      }
-      echo "GN is absent; pinned rusty_v8 will provision its own matching GN"
-    fi
+    # The pinned rusty_v8 revision provisions the GN version from its own
+    # dependency manifest. A host GN override makes that input nondeterministic.
+    unset GN
+    test -s "$SRC/tools/ninja_gn_binaries.py"
     export NINJA="$(command -v ninja)"
     export V8_FROM_SOURCE=1
     export GN_ARGS='v8_enable_sandbox=true v8_enable_pointer_compression=true android_static_analysis="off"'

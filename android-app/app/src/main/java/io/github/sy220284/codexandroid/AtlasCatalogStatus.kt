@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** 单一页面读取状态：首次加载、断连、读取失败、刷新、旧数据可读。 */
 internal enum class CatalogReadStage { FirstLoad, Connecting, Disconnected, Failed, Refreshing, Ready, Stale, Unread }
@@ -25,10 +26,10 @@ internal fun AtlasCatalogStatus(
     vm: CodexViewModel, key: String, subject: String, onRefresh: () -> Unit,
     onDiagnostics: (() -> Unit)? = null
 ) {
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val status by vm.bridge.status.collectAsState()
+    val data by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     val stage = CatalogReadPolicy.stage(data[key] != null, status == EngineStatus.Starting,
         status == EngineStatus.Connected, key in loading, errors[key] != null)
     when (stage) {

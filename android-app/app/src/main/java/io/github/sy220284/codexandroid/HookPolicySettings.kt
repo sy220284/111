@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -58,7 +59,7 @@ internal fun HookPolicySettings(vm: CodexViewModel, config: JSONObject?, enabled
     var open by remember { mutableStateOf(false) }
     var target by remember { mutableStateOf<Pair<HookPolicyRow, String>?>(null) }
     val data by vm.data.collectEntries("hookRequirements")
-    val loading by vm.loading.collectAsState()
+    val loading by vm.loading.collectAsStateWithLifecycle()
     val errors by vm.errors.collectEntries("hookRequirements", ENGINE_SETTING_SAVE)
     val requirements = data["hookRequirements"]?.optJSONObject("requirements")
     val local = remember(config) { HookPolicyCatalog.user(config) }

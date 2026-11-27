@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
@@ -27,11 +28,11 @@ internal fun NativeRemoteDeliveryDialog(vm: CodexViewModel, request: RemoteDeliv
     var receivedBytes by remember(request) { mutableLongStateOf(0L) }
     var verifiedBytes by remember(request) { mutableLongStateOf(0L) }
     var totalBytes by remember(request) { mutableLongStateOf(0L) }
-    val session by vm.bridge.connectedSession.collectAsState()
-    val revision by vm.catalogWarmup.accountRevision.collectAsState()
+    val session by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    val revision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
     fun owns() = request.owns(vm)
-    val activeThread by vm.activeThread.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
+    val activeThread by vm.activeThread.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
     LaunchedEffect(session, revision, activeThread, switching) {
         if (!owns()) { operation?.cancel(); onDismiss() }
     }

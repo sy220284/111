@@ -3,11 +3,11 @@ package io.github.sy220284.codexandroid
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 @Composable
@@ -17,9 +17,9 @@ internal fun DomesticCatalogSheet(vm: CodexViewModel, preset: DomesticModelPrese
     var confirmModel by remember(id) { mutableStateOf<String?>(null) }
     var testedModel by remember(id) { mutableStateOf<String?>(null) }
     val data by vm.data.collectEntries(key, probeKey)
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val engineStatus by vm.bridge.status.collectAsState()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
     val connected = engineStatus == EngineStatus.Connected
     val probeRunning = loading.any { it.startsWith("domesticProbe:") }
     val providers by vm.data.collectEntries("providers")

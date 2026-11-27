@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.net.URI
 import java.net.URISyntaxException
 import org.json.JSONObject
@@ -54,10 +55,10 @@ internal object ExecutionEnvironmentConnectionPolicy {
  */
 @Composable
 fun EnvironmentsPage(vm: CodexViewModel, onRemoteTask: () -> Unit = {}) {
-    val results by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val session by vm.bridge.connectedSession.collectAsState()
+    val results by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val session by vm.bridge.connectedSession.collectAsStateWithLifecycle()
     var remoteControl by remember { mutableStateOf(false) }
     var useRemote by rememberSaveable { mutableStateOf(false) }
     val target = remember { SettingsDeepLink.take("environments") }

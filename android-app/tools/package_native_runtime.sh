@@ -57,7 +57,7 @@ for ENTRY in "${ENTRIES[@]}"; do
 done
 
 if [ "$NEEDS_CPP_RUNTIME" -eq 1 ]; then
-  NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_HOME:?}/ndk/27.2.12479018}"
+  NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_HOME:?}/ndk/30.0.16248370}"
   CPP="$NDK_HOME/sources/cxx-stl/llvm-libc++/libs/$ABI/libc++_shared.so"
   test -s "$CPP" || { echo "::error::$ABI missing required NDK C++ runtime $CPP" >&2; exit 1; }
   cp "$CPP" "$TARGET/libc++_shared.so"

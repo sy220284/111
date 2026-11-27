@@ -11,6 +11,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 @Composable
@@ -184,12 +185,12 @@ private fun EngineInlineControl(setting: EngineSetting, current: Any?, loaded: B
 /** Every owner uses the same configuration lifecycle and verified write path. */
 @Composable
 internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarget: String? = null) {
-    val status by vm.bridge.status.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     val data by vm.data.collectEntries("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)
     val loading by vm.loading.collectProjection { it.intersect(setOf("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)) }
     val errors by vm.errors.collectEntries("config", "models", "securityRequirements", ENGINE_SETTING_SAVE)
-    val permissionBusy by vm.securitySaveBusy.collectAsState()
-    val configTransactionBusy by vm.configTransactionBusy.collectAsState()
+    val permissionBusy by vm.securitySaveBusy.collectAsStateWithLifecycle()
+    val configTransactionBusy by vm.configTransactionBusy.collectAsStateWithLifecycle()
     val otherConfigBusy by vm.loading.collectProjection { configSnapshotBusy(it, false) }
     val config = data["config"]?.optJSONObject("config")
     val saving = ENGINE_SETTING_SAVE in loading

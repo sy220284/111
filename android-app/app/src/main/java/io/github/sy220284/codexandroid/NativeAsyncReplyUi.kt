@@ -7,6 +7,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.update
 
 /** Drafts reuse persisted composer storage, under a separate question identity. */
@@ -50,8 +51,8 @@ internal fun NativeAsyncReplyCard(vm: CodexViewModel, thread: String, question: 
     val receiptKey = AsyncReplyContract.receiptKey(thread, question)
     val drafts by vm.composerDrafts.collectEntries(key, receiptKey)
     var confirmRetry by remember(key) { mutableStateOf(false) }
-    val accepted by vm.asyncReplyReceipts.accepted.collectAsState()
-    val uncertain by vm.asyncReplyReceipts.uncertain.collectAsState()
+    val accepted by vm.asyncReplyReceipts.accepted.collectAsStateWithLifecycle()
+    val uncertain by vm.asyncReplyReceipts.uncertain.collectAsStateWithLifecycle()
     val draft = drafts[key]?.text.orEmpty()
     val resolved = answered || key in accepted
     val unknown = !resolved && (key in uncertain || drafts[receiptKey]?.text == "unverified")

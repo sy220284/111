@@ -40,7 +40,7 @@ class FakeRunner:
                  expired_first=False, missing_abi=False, ancestor=True,
                  run_conclusion='success', failed_job=False,
                  changed_code_mode_adapter=False,
-                 legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False, changed_git_builder=False,
+                 legacy_missing_adapter=False, changed_v8_builder=False, changed_v8_host_adapter=False,
                  changed_parent_cargo=False, changed_producer=False, changed_privacy=False, changed_delivery=False):
         self.run_conclusion = run_conclusion
         self.failed_job = failed_job
@@ -54,7 +54,6 @@ class FakeRunner:
         self.legacy_missing_adapter = legacy_missing_adapter
         self.changed_v8_builder = changed_v8_builder
         self.changed_v8_host_adapter = changed_v8_host_adapter
-        self.changed_git_builder = changed_git_builder
         self.changed_parent_cargo = changed_parent_cargo
         self.changed_producer = changed_producer
         self.changed_privacy = changed_privacy
@@ -88,9 +87,6 @@ class FakeRunner:
             if args[-1] == "upstream/codex/.cargo":
                 return ("old-parent-cargo" if sha.startswith(("old", "older")) and
                         self.changed_parent_cargo else "same-parent-cargo")
-            if args[-1] == "android-app/tools/build_android_git.sh":
-                return ("old-git-builder" if sha.startswith(("old", "older")) and
-                        self.changed_git_builder else "same-git-builder")
             if args[-1] == "android-app/tools/adapt_android_v8_build.py":
                 return ("old-v8-host" if sha.startswith(("old", "older")) and
                         self.changed_v8_host_adapter else "same-v8-host")
@@ -342,12 +338,6 @@ jobs:
 
     def test_changed_v8_host_adapter_must_recompile(self):
         runner = FakeRunner(changed_v8_host_adapter=True)
-        self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
-                                                        ["arm64-v8a"]))
-        self.assertEqual(runner.called_api, 0)
-
-    def test_changed_git_builder_must_recompile(self):
-        runner = FakeRunner(changed_git_builder=True)
         self.assertIsNone(ArtifactSelector(runner).find("owner/repo", "HEAD",
                                                         ["arm64-v8a"]))
         self.assertEqual(runner.called_api, 0)

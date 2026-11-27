@@ -7,16 +7,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, model: String?,
                                      question: String, share: ScreenShareSession.State, revision: Long,
                                      enabled: Boolean) {
     val controller = vm.composerContent.liveScreenAnalysis
-    val active by controller.state.collectAsState()
-    val all by controller.resultsByOwner.collectAsState()
-    val epoch by vm.bridge.connectedSession.collectAsState()
-    val selection by vm.modelId.collectAsState()
+    val active by controller.state.collectAsStateWithLifecycle()
+    val all by controller.resultsByOwner.collectAsStateWithLifecycle()
+    val epoch by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    val selection by vm.modelId.collectAsStateWithLifecycle()
     val live = all[owner]?.takeIf { it.revision == revision && it.epoch == epoch && it.selection == selection &&
         model != null && (model.isBlank() || it.model == model) } ?: LiveScreenAnalysisController.State()
     var confirm by remember(owner, revision, epoch, model, selection) { mutableStateOf(false) }

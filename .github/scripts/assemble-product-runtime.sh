@@ -15,7 +15,7 @@ case "$abi" in
   x86_64) component=runtime-x86 ;;
   *) echo "Unsupported Android ABI: $abi" >&2; exit 2 ;;
 esac
-strip="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+strip="$ANDROID_HOME/ndk/30.0.16248370/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
 bundle="$RUNNER_TEMP/developer-runtime-bundle"
 installed="$RUNNER_TEMP/developer-runtime-installed"
 manifest_sha="$(python3 .github/scripts/runtime_artifacts.py download --abi "$abi" --artifact-id "$artifact_id" --source "$source" --key "$key" --output "$bundle")"

@@ -147,7 +147,7 @@ class V8ArtifactsTests(unittest.TestCase):
             lock.write_text(f'[[package]]\nname = "v8"\nversion = "{VERSION}"\n')
             ndk = root / "ndk"
             ndk.mkdir()
-            (ndk / "source.properties").write_text("Pkg.Revision = 27.2.12479018\n")
+            (ndk / "source.properties").write_text("Pkg.Revision = 30.0.16248370\n")
             subprocess.run(["git", "init", "-q", d], check=True)
             subprocess.run(["git", "-C", d, "add", "."], check=True)
             subprocess.run(["git", "-C", d, "-c", "user.name=CI", "-c", "user.email=ci@example.invalid",

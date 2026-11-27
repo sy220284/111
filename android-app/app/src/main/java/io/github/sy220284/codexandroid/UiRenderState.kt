@@ -2,10 +2,13 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.withFrameNanos
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
@@ -33,7 +36,7 @@ internal fun <T> StateFlow<Map<String, T>>.collectEntries(vararg keys: String): 
         }
     }
     // A different conversation starts a different subscription with its own initial snapshot.
-    return key(subscription) { subscription.updates.collectAsState(initial = subscription.initial) }
+    return key(subscription) { subscription.updates.collectAsStateWithLifecycle(initialValue = subscription.initial) }
 }
 
 /** Source-only projection: output events must not redraw controls that only need a running flag. */
@@ -41,21 +44,24 @@ internal fun <T> StateFlow<Map<String, T>>.collectEntries(vararg keys: String): 
 internal fun <T, R> StateFlow<T>.collectProjection(project: (T) -> R): State<R> {
     val source = this
     val subscription = remember(source, project) { source.uiSubscription(project) }
-    return key(subscription) { subscription.updates.collectAsState(initial = subscription.initial) }
+    return key(subscription) { subscription.updates.collectAsStateWithLifecycle(initialValue = subscription.initial) }
 }
 
 /** Publish at display cadence; the source retains every processed event. */
 @Composable
 internal fun <T> StateFlow<T>.collectFrameState(identity: Any? = Unit): State<T> {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val source = this
     val subscription = remember(source, identity) { source.uiSubscription { it } }
     return key(subscription) {
-        produceCodexUiState(subscription.initial, subscription) {
-            subscription.updates.collect { latest ->
-                if (latest != value) {
-                    withFrameNanos { }
-                    // A frame can include multiple source events; publish their latest complete state.
-                    value = source.value
+        produceCodexUiState(subscription.initial, subscription, lifecycle) {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                subscription.updates.collect { latest ->
+                    if (latest != value) {
+                        withFrameNanos { }
+                        // A frame can include multiple source events; publish their latest complete state.
+                        value = source.value
+                    }
                 }
             }
         }

@@ -22,7 +22,7 @@ def acceptance_inputs_unchanged(path):
 
 def maintenance_only(paths):
     """Only documentation, repository maintenance and CI/test infrastructure."""
-    return all(matches(path, "maintenance") or matches(path, "ci_maintenance") for path in paths)
+    return all(path not in {"tools/build/native_toolchain.py", "tools/build/native-toolchain.json"} and (matches(path, "maintenance") or matches(path, "ci_maintenance")) for path in paths)
 
 def plan(paths, force=False, runtime=False):
     paths = list(paths)

@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -29,7 +30,7 @@ import org.json.JSONObject
  * It submits directly; no sticky send mode or additional action is required. */
 @Composable
 internal fun ComposerQueueAction(visible: Boolean, enabled: Boolean, onQueue: () -> Unit) {
-    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     AnimatedVisibility(visible = visible,
         enter = expandVertically(tween(CodexMotion.duration(CodexMotion.selection, reduced))) +
             fadeIn(tween(CodexMotion.duration(CodexMotion.selection, reduced))),
@@ -68,7 +69,7 @@ internal fun queuedInputSummary(item: JSONObject): String {
 internal fun ComposerQueuePreview(thread: String, items: List<JSONObject>, running: Boolean,
     paused: Boolean, hasMore: Boolean, compact: Boolean, canStart: Boolean,
     onManage: () -> Unit, onStart: () -> Unit) {
-    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     var expanded by remember(thread) { mutableStateOf(false) }
     val count = items.size.toString() + if (hasMore) "+" else ""
     Surface(Modifier.fillMaxWidth().testTag("composer-queue-preview"),

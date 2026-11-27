@@ -28,11 +28,13 @@ jobs:
       source: ${{ steps.reuse.outputs.reused == 'true' && steps.reuse.outputs.source || inputs.source_sha }}
       key: ${{ steps.reuse.outputs.key }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
           persist-credentials: false
           fetch-depth: 0
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python gh
       - name: 查找同输入的已验收手机运行组件
         id: reuse
         env:
@@ -60,7 +62,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$ABI" in arm64-v8a) TARGET=aarch64-linux-android;; x86_64) TARGET=x86_64-linux-android;; *) exit 2;; esac
-          CLANG="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/${TARGET}29-clang"
+          CLANG="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin/${TARGET}29-clang"
           python3 android-app/tools/prepare_prebuilt_developer_runtime.py "$ABI" --prepared-dir "$RUNNER_TEMP/runtime" --native "$RUNNER_TEMP/cli-native" --assets "$RUNNER_TEMP/cli-assets" --clang "$CLANG" --git-source-output "$RUNNER_TEMP/git-source.tar.xz"
       - name: 生成可复用离线组件并回读
         if: steps.reuse.outputs.reused != 'true'
@@ -73,7 +75,7 @@ jobs:
           PIN="$(python3 tools/build/component-bundle.py pack "$COMPONENT" "$RUNNER_TEMP/runtime" "$RUNNER_TEMP/runtime-bundle" --head "$(git rev-parse HEAD)")"
           python3 tools/build/component-bundle.py install "$COMPONENT" "$RUNNER_TEMP/runtime-bundle" "$RUNNER_TEMP/installed" --manifest-sha "$PIN"
           echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         id: upload
         if: steps.reuse.outputs.reused != 'true'
         with:

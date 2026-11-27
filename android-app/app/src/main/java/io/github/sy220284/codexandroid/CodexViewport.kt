@@ -9,6 +9,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** Scaffold provides its measured header inset, including any dynamic system bars. */
 internal val LocalCodexProtectedTop = compositionLocalOf { 0.dp }
@@ -66,6 +67,6 @@ private fun observeCodexViewport(view: View): CodexViewport {
 /** Layout uses the same combined system and app typography scale as the theme. */
 @Composable
 internal fun codexEffectiveFontScale(): Float {
-    val appScale by UiPreferences.fontScale.collectAsState()
+    val appScale by UiPreferences.fontScale.collectAsStateWithLifecycle()
     return LocalDensity.current.fontScale * appScale
 }

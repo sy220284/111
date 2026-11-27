@@ -20,6 +20,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 import kotlin.math.roundToInt
 
@@ -75,8 +76,8 @@ internal fun SidebarQuotaButton(snapshot: JSONObject?, stale: Boolean, loading: 
 
 @Composable
 private fun SidebarQuotaArtwork(quota: SidebarQuota) {
-    val reduced by UiPreferences.reducedMotion.collectAsState()
-    val dark by UiPreferences.darkMode.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
+    val dark by UiPreferences.darkMode.collectAsStateWithLifecycle()
     val weekly by animateFloatAsState(quota.weekly ?: 0f,
         tween(CodexMotion.duration(CodexMotion.success, reduced)), label = "weekly-quota")
     val short by animateFloatAsState(quota.fiveHours ?: 0f,

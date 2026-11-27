@@ -15,7 +15,6 @@
       "tools/dev/ai-toolchain.sh",
       "tools/dev/audit_maven_metadata.py",
       "tools/dev/check-ci-toolchain.sh",
-      "tools/dev/requirements-host.lock",
       "tools/dev/test_auxiliary.py",
       "tools/dev/test_host_components.py",
       "tools/dev/test_toolchain.py",
@@ -49,7 +48,9 @@
       "android-app/gradle/wrapper/gradle-wrapper.jar",
       "android-app/gradle/wrapper/gradle-wrapper.properties",
       "android-app/gradle/libs.versions.toml",
-      "tools/build/component-bundle.py"
+      "tools/build/component-bundle.py",
+      "tools/build/native_toolchain.py",
+      "tools/build/native-toolchain.json"
     ],
     "prefixes": [
       "android-app/app/src/main/",
@@ -76,7 +77,6 @@
       "android-app/tools/prepare_android_code_mode.py",
       "android-app/tools/prepare_android_v8.sh",
       "android-app/tools/adapt_android_v8_build.py",
-      "android-app/tools/build_android_git.sh",
       "android-app/tools/package_native_runtime.sh",
       "android-app/tools/prepare_prebuilt_developer_runtime.py",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt",
@@ -135,7 +135,9 @@
       "tools/build/run-emulator.sh",
       "tools/build/build_progress.py",
       "tools/build/build_recipe.py",
-      "tools/build/transfer_progress.py"
+      "tools/build/transfer_progress.py",
+      "tools/build/native_toolchain.py",
+      "tools/build/native-toolchain.json"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",

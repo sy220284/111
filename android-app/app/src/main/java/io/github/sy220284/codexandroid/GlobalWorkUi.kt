@@ -2,7 +2,6 @@ package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -25,12 +24,13 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** One reactive projection for all core/data disruption controls. */
 @Composable
 internal fun observeGlobalWorkSnapshot(vm: CodexViewModel): GlobalWorkSnapshot {
     val changes = remember(vm) { vm.globalWorkChanges() }
-    val snapshot by changes.collectAsState(initial = vm.globalWorkSnapshot())
+    val snapshot by changes.collectAsStateWithLifecycle(initialValue = vm.globalWorkSnapshot())
     return snapshot
 }
 
@@ -119,14 +119,14 @@ internal fun DataTransferBusyOverlay(transfer: DataTransferState, vm: CodexViewM
 /** Keep changing archive progress in its own overlay rather than invalidating the page shell. */
 @Composable
 internal fun ObserveDataTransferBusyOverlay(vm: CodexViewModel) {
-    val transfer by AppDataTransfer.state.collectAsState()
+    val transfer by AppDataTransfer.state.collectAsStateWithLifecycle()
     DataTransferBusyOverlay(transfer, vm)
 }
 
 /** A failed stop survives navigation and remains actionable on every page. */
 @Composable
 internal fun RealtimeVoiceRecoveryNotice(vm: CodexViewModel) {
-    val failure by vm.realtimeVoiceLease.stopFailure.collectAsState()
+    val failure by vm.realtimeVoiceLease.stopFailure.collectAsStateWithLifecycle()
     if (failure == null) return
     val work = observeGlobalWorkSnapshot(vm)
     var confirm by remember { mutableStateOf(false) }
@@ -147,7 +147,7 @@ internal fun RealtimeVoiceRecoveryNotice(vm: CodexViewModel) {
 /** A failed Android foreground promotion remains visible across all pages. */
 @Composable
 internal fun RuntimeProtectionNotice(vm: CodexViewModel) {
-    val errors by vm.errors.collectAsState()
+    val errors by vm.errors.collectAsStateWithLifecycle()
     val failure = errors["foregroundProtection"] ?: return
     val work = observeGlobalWorkSnapshot(vm)
     if (!work.requiresForegroundProtection) return

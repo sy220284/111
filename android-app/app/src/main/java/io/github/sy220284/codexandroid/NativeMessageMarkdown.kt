@@ -35,6 +35,9 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.withContext
@@ -214,15 +217,18 @@ private fun replyInline(source: String): AnnotatedString {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val latest by rememberUpdatedState(source to streaming)
     var document by remember { mutableStateOf<ReplyDocumentEngine.Document?>(null) }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(lifecycle) {
         // Keep one serial worker per message. Conflation drops obsolete render
         // requests, never protocol events or received text.
         val engine = ReplyDocumentEngine()
-        snapshotFlow { latest }.conflate().collect { (text, live) ->
-            val prepared = withContext(Dispatchers.Default) { engine.prepare(text, live) }
-            document = prepared
+        lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+            snapshotFlow { latest }.conflate().collect { (text, live) ->
+                val prepared = withContext(Dispatchers.Default) { engine.prepare(text, live) }
+                document = prepared
+            }
         }
     }
     val ready = document?.takeIf { source.startsWith(it.prefix) }

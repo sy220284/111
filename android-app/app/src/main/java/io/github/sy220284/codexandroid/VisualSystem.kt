@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
@@ -25,6 +24,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 private object InkLight {
     val canvas = Color(0xFFFFFFFF)
@@ -89,8 +89,8 @@ object Ink {
 
 @Composable
 fun CodexTheme(content: @Composable () -> Unit) {
-    val fontScale by UiPreferences.fontScale.collectAsState()
-    val darkMode by UiPreferences.darkMode.collectAsState()
+    val fontScale by UiPreferences.fontScale.collectAsStateWithLifecycle()
+    val darkMode by UiPreferences.darkMode.collectAsStateWithLifecycle()
     val scheme = if (darkMode) darkColorScheme(
         primary = Ink.coral,
         onPrimary = Ink.canvas,
@@ -181,8 +181,8 @@ fun CodexTheme(content: @Composable () -> Unit) {
 
 @Composable
 fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    val compact by UiPreferences.compact.collectAsState()
-    val softMaterial by UiPreferences.softMaterial.collectAsState()
+    val compact by UiPreferences.compact.collectAsStateWithLifecycle()
+    val softMaterial by UiPreferences.softMaterial.collectAsStateWithLifecycle()
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(if (compact) 16.dp else 22.dp),

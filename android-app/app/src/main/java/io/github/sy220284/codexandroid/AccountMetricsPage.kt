@@ -10,6 +10,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 import java.text.NumberFormat
@@ -28,7 +29,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
         mutableStateOf(if (id == "limits" || requestedTab == "limits") "limits" else "usage")
     }
     val data by vm.data.collectEntries("usage", "limits")
-    val engineStatus by vm.bridge.status.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
     val errors by vm.errors.collectEntries("usage", "limits")
     val loading by vm.loading.collectProjection { it.intersect(setOf("usage", "limits")) }
     val result = data[selectedTab]

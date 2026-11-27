@@ -4,4 +4,4 @@ Exact Termux recipe and patches: https://github.com/termux/termux-packages/tree/
 Build recipe: android-app/tools/prepare_prebuilt_developer_runtime.py in this repository.
 Corresponding source: git-corresponding-source.tar.xz in the same release / ARM64 acceptance artifacts.
 The archive includes the original source, exact Termux recipe tree and Android shell transformation script.
-x86_64 emulator only: Git 2.52.0, source https://github.com/git/git/tree/9a2fb147f2c61d0cab52c883e7e26f5b7948e3ed and android-app/tools/build_android_git.sh; HTTPS transport is not provided on this test ABI.
+x86_64 emulator: Git is supplied by the signed Termux runtime package set.

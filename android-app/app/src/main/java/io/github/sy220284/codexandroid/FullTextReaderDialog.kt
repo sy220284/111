@@ -24,6 +24,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** 任务/资源大文本全部可读、可复制、可检索；分块渲染避免弹层截断。 */
 @Composable
@@ -58,7 +59,7 @@ internal fun FullTextReaderDialog(title: String, text: String,
         val hits = searchHits.orEmpty()
         val state = rememberLazyListState()
         val copy = rememberConversationCopy()
-        val reducedMotion by UiPreferences.reducedMotion.collectAsState()
+        val reducedMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
         val layouts = remember(text) { mutableStateMapOf<Int, TextLayoutResult>() }
         val topInset = with(LocalDensity.current) { 16.dp.roundToPx() }
         LaunchedEffect(text, search, searchHits, currentMatch, topInset, chunks) {

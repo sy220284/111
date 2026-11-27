@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import org.json.JSONObject
 
@@ -48,25 +49,25 @@ internal fun SidebarSessions(
     continuationLabel: String? = null, active: Boolean = true, publishDirectory: Boolean = true
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
-    val searchHistory by vm.sessions.recentSearches.state.collectAsState()
+    val searchHistory by vm.sessions.recentSearches.state.collectAsStateWithLifecycle()
     val data by vm.data.collectEntries("sidebarThreads", "archivedThreads")
     val loading by vm.loading.collectProjection { it.intersect(setOf("sidebarThreads", "archivedThreads", "threadLibraryAction", "threadLibraryBulk")) }
     val errors by vm.errors.collectEntries("sidebarThreads", "archivedThreads", "threadLibraryAction", "threadLibraryBulk")
-    val status by vm.bridge.status.collectAsState()
-    val running by vm.running.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
-    val starting by vm.firstThreadStarting.collectAsState()
-    val activeId by vm.activeThread.collectAsState()
-    val executions by vm.threadExecutions.collectAsState()
-    val activities by vm.threadActivities.collectAsState()
-    val prompts by vm.bridge.prompts.collectAsState()
-    val workspace by vm.activeWorkspace.collectAsState()
-    val pins by vm.sessions.pins.collectAsState()
-    val receipts by vm.sessions.receipts.collectAsState()
-    val searchResult by vm.sessions.searchResult.collectAsState()
-    val searchBusy by vm.sessions.searching.collectAsState()
-    val searchError by vm.sessions.searchError.collectAsState()
-    val completed by vm.bulkCompletedThreadIds.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
+    val running by vm.running.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
+    val starting by vm.firstThreadStarting.collectAsStateWithLifecycle()
+    val activeId by vm.activeThread.collectAsStateWithLifecycle()
+    val executions by vm.threadExecutions.collectAsStateWithLifecycle()
+    val activities by vm.threadActivities.collectAsStateWithLifecycle()
+    val prompts by vm.bridge.prompts.collectAsStateWithLifecycle()
+    val workspace by vm.activeWorkspace.collectAsStateWithLifecycle()
+    val pins by vm.sessions.pins.collectAsStateWithLifecycle()
+    val receipts by vm.sessions.receipts.collectAsStateWithLifecycle()
+    val searchResult by vm.sessions.searchResult.collectAsStateWithLifecycle()
+    val searchBusy by vm.sessions.searching.collectAsStateWithLifecycle()
+    val searchError by vm.sessions.searchError.collectAsStateWithLifecycle()
+    val completed by vm.bulkCompletedThreadIds.collectAsStateWithLifecycle()
     val connected = status == EngineStatus.Connected
     val busy = switching || starting || "threadLibraryAction" in loading || "threadLibraryBulk" in loading
     val answerMethods = remember { setOf("item/tool/requestUserInput", "mcpServer/elicitation/request") }
@@ -81,8 +82,8 @@ internal fun SidebarSessions(
         activities + questions.filter { (approvals[it] ?: 0) == 0 }
             .associateWith { ThreadActivity.WaitingAnswer }
     }
-    val accountRevision by vm.catalogWarmup.accountRevision.collectAsState()
-    val session by vm.bridge.connectedSession.collectAsState()
+    val accountRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
+    val session by vm.bridge.connectedSession.collectAsStateWithLifecycle()
     var section by remember { mutableStateOf<AndroidThreadSection?>(null) }
     var sectionRows by remember(section?.id, state.archived, session, accountRevision) { mutableStateOf<List<JSONObject>?>(null) }
     var sectionError by remember(section?.id, state.archived, session, accountRevision) { mutableStateOf("") }
@@ -117,7 +118,7 @@ internal fun SidebarSessions(
             }
         }
     }
-    val answerVersions by vm.answerVersions.state.collectAsState()
+    val answerVersions by vm.answerVersions.state.collectAsStateWithLifecycle()
     val query = state.search
     val archived = state.archived
     val fullText = state.fullText
@@ -369,7 +370,7 @@ internal fun SidebarSessionRow(
 ) {
     val id = SessionListPolicy.id(item)
     val actual = SessionListPolicy.activity(item, activity, running, pendingApprovals)
-    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val color by animateColorAsState(if (active || checked) Ink.elevated else Ink.canvas,
         tween(CodexMotion.duration(CodexMotion.selection, reduced)), label = "session-selection")
     Surface(modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)

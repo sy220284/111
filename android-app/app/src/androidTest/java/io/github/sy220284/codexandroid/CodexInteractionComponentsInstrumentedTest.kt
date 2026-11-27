@@ -15,6 +15,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -58,6 +63,31 @@ class CodexInteractionComponentsInstrumentedTest {
     }
 
     @get:Rule val rule = createComposeRule()
+
+    @Test fun frameStateStopsWithTheUiAndResumesAtTheLatestValue() {
+        val flow = MutableStateFlow(0)
+        val owner = object : LifecycleOwner {
+            override val lifecycle = LifecycleRegistry(this)
+        }
+        rule.runOnUiThread { owner.lifecycle.currentState = Lifecycle.State.STARTED }
+        rule.setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides owner) {
+                val value by flow.collectFrameState()
+                Text("value=$value")
+            }
+        }
+        rule.runOnIdle { flow.value = 1 }
+        rule.onNodeWithText("value=1").assertIsDisplayed()
+        rule.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.CREATED }
+        rule.runOnIdle {
+            flow.value = 2
+            flow.value = 3
+        }
+        rule.onNodeWithText("value=1").assertIsDisplayed()
+        rule.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.STARTED }
+        rule.onNodeWithText("value=3").assertIsDisplayed()
+        rule.runOnIdle { owner.lifecycle.currentState = Lifecycle.State.DESTROYED }
+    }
 
     @Test fun markdownFileLinksUseTheSameNativeFileOpenerAsCards() {
         var opened: String? = null

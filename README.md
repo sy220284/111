@@ -151,6 +151,6 @@ Rust 内核经 Android NDK 原生编译 · Kotlin / Jetpack Compose 原生界面
 - 高风险操作按官方协议单独审批，决策归口单一策略层
 - 官方源码保留并可追溯，升级逐一比对协议变化
 
-Android 原生核心使用锁定的 Rust 1.99.1、NDK 27.2.12479018 与 API 29 构建；原生输入未变化时复用既有产物。调试 APK 在 Actions 构建产物中提供，正式签名 APK 见 Releases。
+Android 原生核心使用锁定的 Rust 1.99.1、NDK 30.0.16248370 与 API 29 构建；原生输入未变化时复用既有产物。调试 APK 在 Actions 构建产物中提供，正式签名 APK 见 Releases。
 
 上游 Codex 授权见 `upstream/codex/LICENSE` 与相关 NOTICE。

@@ -7,6 +7,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -14,21 +15,21 @@ import java.io.File
 /** Codex's durable project registry is separate from local file deletion. */
 @Composable
 fun ProjectRegistryPanel(vm: CodexViewModel, currentFolder: File, onDismiss: () -> Unit) {
-    val status by vm.bridge.status.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val selectedId by vm.activeProjectId.collectAsState()
-    val currentThread by vm.activeThread.collectAsState()
-    val running by vm.running.collectAsState()
-    val selectedPath by vm.activeWorkspace.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
+    val data by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val selectedId by vm.activeProjectId.collectAsStateWithLifecycle()
+    val currentThread by vm.activeThread.collectAsStateWithLifecycle()
+    val running by vm.running.collectAsStateWithLifecycle()
+    val selectedPath by vm.activeWorkspace.collectAsStateWithLifecycle()
     val root = File(vm.workingDirectory).canonicalFile
     val name = currentFolder.name.ifBlank { "Codex" }
     var confirmCreate by remember { mutableStateOf(false) }
     var withThread by remember { mutableStateOf(false) }
     var projectPages by remember { mutableStateOf<List<JSONObject>>(emptyList()) }
     var nextPageCursor by remember { mutableStateOf("") }
-    val revision by vm.projectCatalogRevision.collectAsState()
+    val revision by vm.projectCatalogRevision.collectAsStateWithLifecycle()
     var editing by remember { mutableStateOf<JSONObject?>(null) }
     var renameText by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<JSONObject?>(null) }

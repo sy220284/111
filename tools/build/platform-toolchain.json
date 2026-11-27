@@ -1,0 +1,134 @@
+{
+  "host": {
+    "jdk": {
+      "version": "25.0.5.1+2",
+      "url": "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-25.0.5.1%2B2/OpenJDK25U-jdk_x64_linux_hotspot_25.0.5.1_2.tar.gz",
+      "sha256": "760f91b22c3efc9bd1b64ff950598231be82928cc807e30691a0e7a2995a62c0",
+      "probe": "bin/java"
+    },
+    "python": {
+      "version": "3.14.10",
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20261124/cpython-3.14.10%2B20261124-x86_64-unknown-linux-gnu-install_only.tar.gz",
+      "sha256": "bfa2f9fe1691f14a98c37e206641058ad7116db117ac924fdcab744987107ad8",
+      "probe": "bin/python3"
+    },
+    "gh": {
+      "version": "2.106.0",
+      "url": "https://github.com/cli/cli/releases/download/v2.106.0/gh_2.106.0_linux_amd64.tar.gz",
+      "sha256": "a476449fa9625413c54a3734eded62e9e480e49f421ff08e7f3b3879c059a033",
+      "probe": "bin/gh"
+    }
+  },
+  "android": {
+    "cmdline": {
+      "package": "cmdline-tools;22.0",
+      "version": "22.0",
+      "url": "https://dl.google.com/android/repository/commandlinetools-linux-15859902_latest.zip",
+      "sha256": "4e4c464f145a7512b57d088ac6c278c03c9eea610886b35a5e0804e74eedf583",
+      "officialSha1": "040d3996a65543d22ec4bf73e4c37aa37a8d4af4",
+      "root": "cmdline-tools",
+      "probe": "bin/sdkmanager",
+      "title": "Android SDK Command-line Tools",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"generic:genericDetailsType\" />"
+    },
+    "adb": {
+      "package": "platform-tools",
+      "version": "37.0.3",
+      "url": "https://dl.google.com/android/repository/platform-tools_r37.0.3-linux.zip",
+      "sha256": "214548146cadb2ca3508143d8a1d4be4c59de5bb837253e3ede89ed74cf450d1",
+      "officialSha1": "e1579b288a7ae4e9bc28dedec6a154d78b3c04ed",
+      "root": "platform-tools",
+      "probe": "adb",
+      "title": "Android SDK Platform-Tools",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"generic:genericDetailsType\" />"
+    },
+    "emulator": {
+      "package": "emulator",
+      "version": "37.3.10",
+      "url": "https://dl.google.com/android/repository/emulator-linux_x64-16970787.zip",
+      "sha256": "a4405349d8a9c52136ab7861e5331dc40e85574bd91cb8889a298a2ff4c52e26",
+      "officialSha1": "5f7314368fc6c05c937f6991bb4106214dc389e7",
+      "root": "emulator",
+      "probe": "emulator",
+      "title": "Android Emulator",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"generic:genericDetailsType\" />"
+    },
+    "image": {
+      "package": "system-images;android-37.2;google_apis_ps16k;x86_64",
+      "version": "7",
+      "url": "https://dl.google.com/android/repository/sys-img/google_apis/x86_64-ps16k-37.2_r07.zip",
+      "sha256": "02d2cdb501d11f70f318a2e542e8b997edb0d468855399d8c8efae22721b9b8c",
+      "officialSha1": "19653fc402b2bafb02d1619006970318820e3431",
+      "root": "x86_64",
+      "probe": "system.img",
+      "title": "16 KB Page Size Google APIs Intel x86_64 Atom System Image",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"sys-img:sysImgDetailsType\"><api-level>37.2</api-level><extension-level>24</extension-level><base-extension>true</base-extension><tag><id>google_apis</id><display>Google APIs</display></tag><tag><id>page_size_16kb</id><display>16 KB Page Size</display></tag><vendor><id>google</id><display>Google Inc.</display></vendor><abi>x86_64</abi></type-details>"
+    },
+    "compile-platform": {
+      "package": "platforms;android-37.2",
+      "version": "2",
+      "url": "https://dl.google.com/android/repository/platform-37.2_r02.zip",
+      "sha256": "17af98ec1427a1fed9ea278184aba71e53b87eca103655602f9fc64ef11ea4d3",
+      "officialSha1": "d52b3062af96f7c4dfdca5a479cd1db33ae83762",
+      "root": "android-37.2",
+      "probe": "android.jar",
+      "title": "Android SDK Platform 37.2",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"sdk:platformDetailsType\"><api-level>37.2</api-level><codename /><extension-level>24</extension-level><base-extension>true</base-extension><layoutlib api=\"15\" /></type-details>"
+    },
+    "compile-tools": {
+      "package": "build-tools;37.0.0",
+      "version": "37.0.0",
+      "url": "https://dl.google.com/android/repository/build-tools_r37_linux.zip",
+      "sha256": "01af179347cbcd9c208b7f8171f7b21f6dd1d2f85bcd15e88caa51d5d7b86060",
+      "officialSha1": "70954e99f4c3d9d46ee70fa32624672fe7cd6ebe",
+      "root": "android-37.0",
+      "probe": "aapt",
+      "title": "Android SDK Build-Tools 37",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"generic:genericDetailsType\" />"
+    },
+    "v8-platform": {
+      "package": "platforms;android-36",
+      "version": "2",
+      "url": "https://dl.google.com/android/repository/platform-36_r02.zip",
+      "sha256": "37607369a28c5b640b3a7998868d45898ebcb777565a0e85f9acf36f29631d2e",
+      "officialSha1": "2c1a80dd4d9f7d0e6dd336ec603d9b5c55a6f576",
+      "root": "android-36",
+      "probe": "android.jar",
+      "title": "Android SDK Platform 36",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"sdk:platformDetailsType\"><api-level>36</api-level><extension-level>17</extension-level><base-extension>true</base-extension><layoutlib api=\"15\" /></type-details>"
+    },
+    "v8-tools": {
+      "package": "build-tools;36.0.0",
+      "version": "36.0.0",
+      "url": "https://dl.google.com/android/repository/build-tools_r36_linux.zip",
+      "sha256": "5d9ac77fb6ff43d9da518a337b4fcf8f9097113df531d99ccefe80ef7ce8250b",
+      "officialSha1": "b0b6376977657e8ad9b969bacf4093601da2c6fb",
+      "root": "android-36",
+      "probe": "aapt",
+      "title": "Android SDK Build-Tools 36",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"generic:genericDetailsType\" />"
+    },
+    "emulator-platform": {
+      "package": "platforms;android-35",
+      "version": "2",
+      "url": "https://dl.google.com/android/repository/platform-35_r02.zip",
+      "sha256": "0988cacad01b38a18a47bac14a0695f246bc76c1b06c0eeb8eb0dc825ab0c8e0",
+      "officialSha1": "0bb560a90a7a2cbd0dd8348224d518b638fe7949",
+      "root": "android-35",
+      "probe": "android.jar",
+      "title": "Android SDK Platform 35",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"sdk:platformDetailsType\"><api-level>35</api-level><extension-level>13</extension-level><base-extension>true</base-extension><layoutlib api=\"15\" /></type-details>"
+    },
+    "ndk": {
+      "package": "ndk;30.0.16248370",
+      "version": "30.0.16248370",
+      "url": "https://dl.google.com/android/repository/android-ndk-r30-linux.zip",
+      "sha256": "753611f410d002cfcd3f3dc2ef49aad532089d3180b436c060a90bf0fcb64df2",
+      "officialSha1": "5107f898313790e449e87eee2183d9a20602dee9",
+      "root": "android-ndk-r30",
+      "probe": "toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip",
+      "title": "NDK (Side by side) 30.0.16248370",
+      "details": "<type-details xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\" xsi:type=\"generic:genericDetailsType\" />"
+    }
+  }
+}

@@ -360,6 +360,10 @@ prepare_arch() {
     exit 1
   }
 
+  if [ "${DSH_RUNTIME_OFFLINE:-false}" != true ]; then
+    python3 "$ROOT_DIR/tools/runtime/termux_package_lock.py" python "$apt_arch" "$packages_file" "${runtime_packages[@]}"
+  fi
+
   local jni_dir="$OUT_ROOT/jniLibs/$android_abi"
   local asset_root="$OUT_ROOT/assets/runtime/python/$android_abi"
   local lib_dir="$asset_root/lib"

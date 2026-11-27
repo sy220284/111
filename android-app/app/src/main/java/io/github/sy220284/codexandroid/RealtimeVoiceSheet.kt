@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 @Composable
@@ -31,11 +32,11 @@ internal fun RealtimeVoiceSheet(
     var permissionError by remember { mutableStateOf(false) }
     var permissionGrantedStart by remember { mutableStateOf(false) }
     val operation = rememberCapabilityOperation(vm)
-    val loading by vm.loading.collectAsState()
+    val loading by vm.loading.collectAsStateWithLifecycle()
     val account by vm.data.collectEntries("account")
-    val voiceEpoch by vm.bridge.connectedSession.collectAsState()
-    val voiceRevision by vm.catalogWarmup.accountRevision.collectAsState()
-    val threadProvider by vm.activeModelProvider.collectAsState()
+    val voiceEpoch by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    val voiceRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
+    val threadProvider by vm.activeModelProvider.collectAsStateWithLifecycle()
     val identity = account["account"]?.optJSONObject("account")
     var input by remember { mutableStateOf("") }
     var history by remember { mutableStateOf<JSONObject?>(null) }

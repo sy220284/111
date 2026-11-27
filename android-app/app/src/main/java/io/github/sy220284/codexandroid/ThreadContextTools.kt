@@ -1,6 +1,7 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** Task controls live beside the composer; session actions are transient. */
 @Composable
@@ -10,11 +11,11 @@ fun ThreadContextTools(
     onDismiss: () -> Unit,
     onCompact: () -> Unit
 ) {
-    val thread by vm.activeThread.collectAsState()
-    val running by vm.running.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
-    val starting by vm.firstThreadStarting.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val thread by vm.activeThread.collectAsStateWithLifecycle()
+    val running by vm.running.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
+    val starting by vm.firstThreadStarting.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
     val idle = thread != null && !running && !switching && !starting &&
         "threadFork:$thread" !in loading && "threadCompact:$thread" !in loading
     CodexFloatingActionMenu(title = "会话操作", onDismiss = onDismiss, actions = listOf(

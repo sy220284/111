@@ -18,17 +18,18 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** 设置只容纳长期配置和能力管理；任务操作由会话和工作区触发。 */
 @Composable
 fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val listState = rememberLazyListState()
     var showAbout by remember { mutableStateOf(false) }
-    val status by vm.bridge.status.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     val data by vm.data.collectEntries("account")
     val isAccountLoaded = data["account"] != null
     val isSignedIn = data["account"]?.optJSONObject("account") != null
-    val darkMode by UiPreferences.darkMode.collectAsState()
+    val darkMode by UiPreferences.darkMode.collectAsStateWithLifecycle()
     val groups = remember { NavigationPolicy.featureGroups.map { group ->
         group to group.routes.mapNotNull { id ->
             pages.firstOrNull { it.id == id &&
@@ -171,11 +172,11 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
             "font" -> fontRequester.bringIntoView()
         }
     }
-    val compact by UiPreferences.compact.collectAsState()
-    val softMaterial by UiPreferences.softMaterial.collectAsState()
-    val lessMotion by UiPreferences.reducedMotion.collectAsState()
-    val fontScale by UiPreferences.fontScale.collectAsState()
-    val darkMode by UiPreferences.darkMode.collectAsState()
+    val compact by UiPreferences.compact.collectAsStateWithLifecycle()
+    val softMaterial by UiPreferences.softMaterial.collectAsStateWithLifecycle()
+    val lessMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
+    val fontScale by UiPreferences.fontScale.collectAsStateWithLifecycle()
+    val darkMode by UiPreferences.darkMode.collectAsStateWithLifecycle()
     val largeTypography = codexEffectiveFontScale() >= 1.55f
     Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)) {

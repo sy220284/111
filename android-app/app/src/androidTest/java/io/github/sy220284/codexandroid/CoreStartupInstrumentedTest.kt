@@ -620,7 +620,7 @@ class CoreStartupInstrumentedTest {
     @Test fun bundledDeveloperToolsActuallyExecute() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val tools = NativeToolInstaller.prepare(app)
-        val ripgrepVersion = if (Build.SUPPORTED_ABIS.firstOrNull() == "x86_64") "16.0.0" else "15.2.0"
+        val ripgrepVersion = "16.0.0"
         val command = """set -e
             case ":${'$'}PATH:" in *":${'$'}PYTHONUSERBASE/bin:"*) ;; *) exit 91 ;; esac
             case ":${'$'}PATH:" in *":${'$'}npm_config_prefix/bin:"*) ;; *) exit 92 ;; esac
@@ -637,7 +637,7 @@ class CoreStartupInstrumentedTest {
             pip --version | grep -F 26.3
             node --version | grep -F 26.13.1
             node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
-            npm --version | grep -x 11.6.2
+            npm --version | grep -x 12.2.3
             printf developer-runtime-ok
         """.trimIndent()
         val process = ProcessBuilder("/system/bin/sh", "-c", command)

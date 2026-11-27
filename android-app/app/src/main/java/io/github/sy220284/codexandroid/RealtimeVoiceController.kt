@@ -1,13 +1,19 @@
 package io.github.sy220284.codexandroid
 
 import android.annotation.SuppressLint
+import android.app.Application
 import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.AudioTrack
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
+import android.os.Handler
+import android.os.Looper
 import android.util.Base64
+import android.util.Log
 import androidx.compose.runtime.*
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.*
@@ -55,6 +61,13 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     // The engine/microphone lease survives that disposal until stop and media cleanup finish.
     private val lease = vm.realtimeVoiceLease
     private val nativeLock = Mutex()
+    private val audioManager = vm.getApplication<Application>().getSystemService(AudioManager::class.java)
+    private val audioAttributes = AudioAttributes.Builder()
+        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
+        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+        .build()
+    private var audioFocus: AudioFocusRequest? = null
+    private var focusJob: Job? = null
     private var startup: CompletableDeferred<Unit>? = null
     private var closed = CompletableDeferred<Unit>()
     private var eventJob: Job? = null
@@ -118,6 +131,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 nativeLock.withLock {
                     if (state != State.Starting) return@withLock
                     check(vm.activeThread.value == threadId && !vm.threadSwitching.value) { "当前会话已切换" }
+                    acquireAudioFocus()
                     val params = RealtimeStartContract.params(threadId)
                     sentStart = true
                     vm.capabilityRequest("thread/realtime/start", params, 15_000, expectedSession = voiceEpoch)
@@ -156,6 +170,8 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         vm.viewModelScope.launch {
             try {
                 media.joinAll()
+                focusJob?.cancelAndJoin()
+                focusJob = null
                 nativeLock.withLock {
                     if (sentStart && !closed.isCompleted) {
                         val epoch = requireNotNull(sessionEpoch)
@@ -257,6 +273,39 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                     "assistant" -> assistantTranscript = text
                 }
             }
+        }
+    }
+
+    private fun acquireAudioFocus() {
+        val manager = checkNotNull(audioManager) { "此设备没有可用的音频服务" }
+        lateinit var request: AudioFocusRequest
+        request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
+            .setAudioAttributes(audioAttributes)
+            .setWillPauseWhenDucked(true)
+            .setOnAudioFocusChangeListener({ change ->
+                if (change < 0 && audioFocus === request) {
+                    stop("实时语音被系统音频中断，请在通话或播放结束后重新开启")
+                }
+            }, Handler(Looper.getMainLooper()))
+            .build()
+        check(manager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            "暂时无法使用音频，请先结束正在进行的通话或播放"
+        }
+        audioFocus = request
+        focusJob = vm.viewModelScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                awaitCancellation()
+            } finally {
+                releaseAudioFocus()
+            }
+        }
+    }
+
+    private fun releaseAudioFocus() {
+        val request = audioFocus ?: return
+        audioFocus = null
+        if (audioManager?.abandonAudioFocusRequest(request) != AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
+            Log.w("RealtimeVoice", "Android did not confirm audio focus release")
         }
     }
 
@@ -373,8 +422,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                     val minimum = AudioTrack.getMinBufferSize(rate, mask, AudioFormat.ENCODING_PCM_16BIT)
                     check(minimum > 0) { "设备无法播放当前语音格式" }
                     track = AudioTrack.Builder()
-                        .setAudioAttributes(AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build())
+                        .setAudioAttributes(audioAttributes)
                         .setAudioFormat(AudioFormat.Builder().setChannelMask(mask).setSampleRate(rate)
                             .setEncoding(AudioFormat.ENCODING_PCM_16BIT).build())
                         .setBufferSizeInBytes(minimum).setTransferMode(AudioTrack.MODE_STREAM).build()

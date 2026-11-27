@@ -31,6 +31,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -47,9 +48,9 @@ fun WorkspacePage(vm: CodexViewModel) {
     val keyboardController = LocalSoftwareKeyboardController.current
     val scope = rememberCoroutineScope()
     val root = remember { File(vm.workingDirectory).canonicalFile }
-    val selectedWorkspace by vm.activeWorkspace.collectAsState()
-    val activeThread by vm.activeThread.collectAsState()
-    val running by vm.running.collectAsState()
+    val selectedWorkspace by vm.activeWorkspace.collectAsStateWithLifecycle()
+    val activeThread by vm.activeThread.collectAsStateWithLifecycle()
+    val running by vm.running.collectAsStateWithLifecycle()
     val terminalRunning by vm.terminalSession.collectProjection { it.running }
     val vmErrors by vm.errors.collectEntries("workspace")
     var folder by remember { mutableStateOf(root) }

@@ -308,6 +308,10 @@ prepare_arch() {
     resolve_runtime_packages "$packages_file" "$GIT_PACKAGE" "ca-certificates" "curl" "jq" "ripgrep"
   )
 
+  if [ "${DSH_RUNTIME_OFFLINE:-false}" != true ]; then
+    python3 "$ROOT_DIR/tools/runtime/termux_package_lock.py" git "$apt_arch" "$packages_file" "${runtime_packages[@]}"
+  fi
+
   local jni_dir="$OUT_ROOT/jniLibs/$android_abi"
   local asset_root="$OUT_ROOT/assets/runtime/git/$android_abi"
   local lib_dir="$asset_root/lib"

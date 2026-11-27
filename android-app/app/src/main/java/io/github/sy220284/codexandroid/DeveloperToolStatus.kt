@@ -6,6 +6,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.testTag
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** Read actual CLI versions using the existing local command RPC; no download or install. */
 @Composable
@@ -14,8 +15,8 @@ internal fun DeveloperToolStatus(vm: CodexViewModel) {
     val data by vm.data.collectEntries(key)
     val loading by vm.loading.collectProjection { it.intersect(setOf(key)) }
     val errors by vm.errors.collectEntries(key)
-    val engine by vm.bridge.status.collectAsState()
-    val session by vm.bridge.connectedSession.collectAsState()
+    val engine by vm.bridge.status.collectAsStateWithLifecycle()
+    val session by vm.bridge.connectedSession.collectAsStateWithLifecycle()
     var checkedSession by remember { mutableStateOf<Long?>(null) }
     var details by remember { mutableStateOf(false) }
     val capabilities = mapOf("git" to "代码版本管理", "rg" to "快速查找项目内容", "curl" to "访问网络资源", "jq" to "处理 JSON 数据",

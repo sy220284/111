@@ -18,6 +18,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * File-first code review. The surrounding LazyColumn virtualizes every code
@@ -25,9 +26,9 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val diff by vm.latestDiff.collectAsState()
-    val active by vm.activeThread.collectAsState()
-    val running by vm.running.collectAsState()
+    val diff by vm.latestDiff.collectAsStateWithLifecycle()
+    val active by vm.activeThread.collectAsStateWithLifecycle()
+    val running by vm.running.collectAsStateWithLifecycle()
     val reviewTurn by vm.timeline.collectProjection { items -> items.lastOrNull { it.kind == "exitedReviewMode" && it.status !in setOf("failed", "interrupted", "cancelled") }?.turnId }
     val prepared by rememberPreparedDiff(diff, active)
     val context = LocalContext.current
