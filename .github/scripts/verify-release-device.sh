@@ -30,12 +30,21 @@ if adb shell pm path "$PKG" | grep -q '^package:'; then
   exit 1
 fi
 mkdir -p "$OUT/previous"
-gh release download "$PREVIOUS_TAG" --pattern 'codex-android-arm64-v8a-*.apk' --dir "$OUT/previous"
-OLD="$(find "$OUT/previous" -name '*.apk' -print -quit)"
+gh release download "$PREVIOUS_TAG" --pattern 'codex-android-arm64-v8a-*.apk' --pattern SHA256SUMS.txt --dir "$OUT/previous"
+OLD="$OUT/previous/codex-android-arm64-v8a-${PREVIOUS_TAG#v}.apk"
 test -s "$OLD"
+python3 .github/scripts/verify_upgrade_assets.py --previous "$OLD" --previous-tag "$PREVIOUS_TAG" --sums "$OUT/previous/SHA256SUMS.txt" --candidate "$DIR" --version "$RELEASE_VERSION" --output "$OUT/upgrade-assets.json"
 sha256sum "$OLD" > "$OUT/previous-apk.sha256"
 adb install "$OLD" | tee "$OUT/previous-install.log"
 grep -Fxq Success "$OUT/previous-install.log"
+# Verify the actual installed baseline before the site-owned harness seeds data.
+OLD_INSTALLED="$(adb shell pm path "$PKG" | tr -d '\r' | sed -n 's/^package://p')"
+test -n "$OLD_INSTALLED"
+adb pull "$OLD_INSTALLED" "$OUT/previous-installed.apk"
+cmp "$OLD" "$OUT/previous-installed.apk"
+rm "$OUT/previous-installed.apk"
+adb shell dumpsys package "$PKG" | grep -E '^[[:space:]]*(versionCode=|versionName=|lastUpdateTime=)' > "$OUT/previous-package.txt"
+grep -Fxq "versionName=${PREVIOUS_TAG#v}" <(sed 's/^[[:space:]]*//' "$OUT/previous-package.txt")
 # Site-owned external UI suite seeds test data, exercises the real core, account,
 # network tools, permission denial/revocation and migration. It may not use debug hooks.
 "$HARNESS" seed --package "$PKG" --output "$OUT/seed.json"
@@ -47,6 +56,8 @@ INSTALLED="$(adb shell pm path "$PKG" | tr -d '\r' | sed -n 's/^package://p' | h
 test -n "$INSTALLED"
 adb pull "$INSTALLED" "$OUT/installed.apk"
 cmp "$APK" "$OUT/installed.apk"
+adb shell dumpsys package "$PKG" | grep -E '^[[:space:]]*(versionCode=|versionName=|lastUpdateTime=)' > "$OUT/target-package.txt"
+grep -Fxq "versionName=$RELEASE_VERSION" <(sed 's/^[[:space:]]*//' "$OUT/target-package.txt")
 "$HARNESS" verify --package "$PKG" --version "$RELEASE_VERSION" --apk "$APK" --seed "$OUT/seed.json" --output "$OUT/runtime.json"
 python3 .github/scripts/verify_device_evidence.py "$OUT/runtime.json" "$RELEASE_VERSION" "$APK"
 test "$(sha256sum "$HARNESS" | awk '{print $1}')" = "$(cat "$OUT/harness.sha256")"

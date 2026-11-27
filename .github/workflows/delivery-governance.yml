@@ -16,9 +16,9 @@ permissions:
   contents: read
   actions: read
 
-# Same serialization lane as release.yml, never interrupt a publication.
+# Read-only inventory and visual pruning do not take the publication lane.
 concurrency:
-  group: android-release-${{ github.repository }}-main
+  group: delivery-governance-${{ github.repository }}
   cancel-in-progress: false
 
 jobs:
@@ -75,6 +75,9 @@ jobs:
     name: 手动退役明确登记的历史版本
     needs: inventory
     if: github.ref == 'refs/heads/main' && inputs.apply_retirements
+    concurrency:
+      group: android-release-${{ github.repository }}-main
+      cancel-in-progress: false
     permissions:
       contents: write
     runs-on: ubuntu-latest

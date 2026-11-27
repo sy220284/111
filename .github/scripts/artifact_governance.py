@@ -84,12 +84,20 @@ def inventory(rows, runs=None, now=None):
 
 def collect(repo):
     rows=listing(repo)
+    # Query job status only for old records outside the retained three per series.
+    # Hundreds of recent screenshot uploads do not require hundreds of API calls.
     runs={}
+    observations=defaultdict(list)
+    now=datetime.now(timezone.utc)
     for a in rows:
-        rid=run_id(a)
-        if not a.get("expired") and OBSERVATION.fullmatch(a["name"]) and rid and rid not in runs:
-            runs[rid]=json.loads(api(repo,f"actions/runs/{rid}"))
-    return inventory(rows,runs)
+        if not a.get("expired") and OBSERVATION.fullmatch(a["name"]):
+            observations[a["name"]].append(a)
+    for items in observations.values():
+        for a in sorted(items,key=lambda x:(stamp(x["created_at"]),x["id"]),reverse=True)[KEEP:]:
+            rid=run_id(a)
+            if now-stamp(a["created_at"])>=GRACE and rid and rid not in runs:
+                runs[rid]=json.loads(api(repo,f"actions/runs/{rid}"))
+    return inventory(rows,runs,now)
 
 def apply(repo, plan):
     for item in plan["observation_cleanup"]:

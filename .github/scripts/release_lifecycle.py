@@ -78,7 +78,7 @@ def retirement_plan(rows, retired, tag_commit=commit):
     healthy=[tag for tag in active if tag not in retired]
     pending=[tag for tag in active if tag in retired]
     for tag in pending:
-        if not any(version(new)>version(tag) and new in healthy for new in healthy):
+        if not any(version(new)>version(tag) for new in healthy):
             raise ValueError("先发布更高的健康版本，再退役: "+tag)
     return [retired[tag] for tag in sorted(pending,key=version)]
 
