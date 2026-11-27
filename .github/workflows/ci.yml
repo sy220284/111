@@ -157,7 +157,8 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_check_ui_assets.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
-      - name: 一次加载源码，完整执行协议、功能和设计三类审计
+          python3 -m unittest discover -s android-app/tools -p 'test_architecture_callgraph.py'
+      - name: 一次加载源码，执行协议、功能、设计与架构调用候选审计
         run: python3 android-app/tools/run_static_audit.py --repository . --output .
       - name: 复用 Python 锁定依赖下载缓存
         uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
@@ -168,6 +169,7 @@ jobs:
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_device_video.py'
           python3 -m venv .ui-visual-test-venv
           .ui-visual-test-venv/bin/pip install --require-hashes -r .github/ci/requirements.lock
           .ui-visual-test-venv/bin/python -m unittest discover -s android-app/tools -p 'test_ui_visual_audit.py'
@@ -189,6 +191,7 @@ jobs:
             interaction-coverage.json
             protocol-contract-audit.json
             static-audit-summary.json
+            architecture-callgraph.json
           if-no-files-found: ignore
           retention-days: 14
 
@@ -270,6 +273,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-apks
+          compression-level: 0
           path: |
             android-app/app/build/outputs/apk/debug/app-debug.apk
             android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk

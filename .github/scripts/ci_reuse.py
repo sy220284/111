@@ -73,6 +73,8 @@ def affected(path):
     if path in RELEASE_ONLY or (path.startswith(".github/scripts/test_") and path.endswith(".py")):
         return {"preflight"}
     # Explicitly scoped consumers. Unknown paths still invalidate all groups.
+    if path in {"android-app/tools/architecture_callgraph.py", "android-app/tools/test_architecture_callgraph.py", "android-app/tools/run_static_audit.py", "android-app/tools/test_run_static_audit.py", "android-app/tools/device_video.py", "android-app/tools/test_device_video.py", ".github/workflows/ui-diagnostic.yml", ".github/scripts/select_ui_diagnostic_apks.py"}:
+        return {"static", "preflight"}
     if path in {".github/scripts/run-android-runtime-tests.sh"}:
         return {"runtime", "preflight"}
     if path in {".github/scripts/ci-emulator-sdk.sh", ".github/actions/ci-emulator/action.yml",

@@ -28,6 +28,17 @@ SHARDS = {
                    "VideoAttachmentPreparationInstrumentedTest"),
 }
 
+# Manual diagnosis selects existing real classes without changing full acceptance.
+DIAGNOSTIC_SUITES = {
+    "navigation": SHARDS["navigation"],
+    "subpages": (SHARDS["components"][0],),
+    "components": (SHARDS["components"][1],),
+    "overlays": (SHARDS["components"][2],),
+    "engine": (SHARDS["components"][3],),
+    "video-attachment": (SHARDS["components"][4],),
+    "installer": ("SelfUpdateInstallerIntentInstrumentedTest",),
+}
+
 # These three exercise Android Intent/PackageManager/FileProvider, with no Compose or screenshots.
 INDEPENDENT_CLASS = "SelfUpdateInstallerIntentInstrumentedTest"
 INDEPENDENT_IDS = frozenset("io.github.sy220284.codexandroid."+INDEPENDENT_CLASS+"#"+name for name in (

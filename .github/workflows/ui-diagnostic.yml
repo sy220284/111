@@ -1,0 +1,122 @@
+name: UI 专项诊断（不用于合并发布）
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run:
+        description: 原始统一 CI 运行编号（编译作业成功，七天内）
+        required: true
+        type: string
+      suite:
+        description: 实际设备测试类
+        required: true
+        type: choice
+        options: [navigation, subpages, components, overlays, engine, video-attachment, installer]
+      method:
+        description: 可选的单个真实 JUnit 方法名
+        required: false
+        type: string
+      profile:
+        description: 设备
+        type: choice
+        options: [mainstream, ultra]
+        default: mainstream
+      mode:
+        description: 显示配置
+        type: choice
+        options: [baseline, adaptive]
+        default: baseline
+      record:
+        description: 分段记录真实操作（观察用途）
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ui-diagnostic-${{ github.ref }}-${{ inputs.suite }}-${{ inputs.profile }}-${{ inputs.mode }}
+  cancel-in-progress: true
+
+jobs:
+  diagnostic:
+    name: 实际设备专项诊断
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          filter: blob:none
+          sparse-checkout: |
+            .github
+            android-app/tools
+            tools/build
+            docs/ui-assets
+      - name: 从统一 CI 核对原始成功编译和有效产物
+        id: apk
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ inputs.source_run }}
+        run: python3 .github/scripts/select_ui_diagnostic_apks.py
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ steps.apk.outputs.apk_id }}
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+          path: apks
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          artifact-ids: ${{ steps.apk.outputs.integrity_id }}
+          run-id: ${{ inputs.source_run }}
+          github-token: ${{ github.token }}
+          path: apk-integrity
+      - name: 核对两份原始 APK 的字节完整性
+        run: (cd apks && sha256sum -c ../apk-integrity/ui-apk-sha256.txt)
+      - uses: ./.github/actions/ci-emulator
+      - name: 启用 KVM
+        run: |
+          test -e /dev/kvm
+          sudo chmod 666 /dev/kvm
+      - name: 安装同一 APK 并执行指定真实测试
+        uses: ./.github/actions/run-emulator
+        env:
+          TEST_SOURCE_SHA: ${{ steps.apk.outputs.source }}
+          SUITE: ${{ inputs.suite }}
+          METHOD: ${{ inputs.method }}
+          PROFILE: ${{ inputs.profile }}
+          MODE: ${{ inputs.mode }}
+          RECORD: ${{ inputs.record }}
+        with:
+          profile: ${{ inputs.profile }}
+          script: |
+            python3 android-app/tools/device_matrix.py --verify-resources ui-device-resources.json
+            adb install -r apks/debug/app-debug.apk
+            adb shell appops set io.github.sy220284.codexandroid MANAGE_EXTERNAL_STORAGE allow
+            adb install -r apks/androidTest/debug/app-debug-androidTest.apk
+            adb shell settings put secure show_ime_with_hard_keyboard 1
+            test "$(adb shell settings get secure show_ime_with_hard_keyboard | tr -d '\r')" = "1"
+            adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
+            args=(python3 android-app/tools/run_ui_device_checks.py --profile "$PROFILE" --mode "$MODE" --shard navigation --suite "$SUITE")
+            if [ -n "$METHOD" ]; then args+=(--method "$METHOD"); fi
+            if [ "$RECORD" = true ]; then
+              python3 android-app/tools/device_video.py --name "$SUITE" --output diagnostic-videos -- "${args[@]}"
+            else
+              "${args[@]}"
+            fi
+      - name: 保存专项日志、截图和录像（独立证据）
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ui-diagnostic-${{ inputs.suite }}-${{ inputs.profile }}-${{ inputs.mode }}
+          path: |
+            ui-device-resources.json
+            ui-*-diagnosis.json
+            ui-*-result.log
+            ui-screenshots*/
+            diagnostic-videos/
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0

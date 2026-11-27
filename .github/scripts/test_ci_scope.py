@@ -23,7 +23,11 @@ class UnifiedScopeTests(unittest.TestCase):
         self.assertIn("needs.ui-collect.result == 'failure'", ci)
         self.assertIn("--shard ${{ matrix.shard }}", ci)
         self.assertIn("pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*", ci)
-        self.assertEqual(3, ci.count("needs: [plan, static-ui, preflight]"))
+        compile_job = ci.split("\n  verify-ui:\n", 1)[1].split("\n  ui-emulator:\n", 1)[0]
+        self.assertIn("    needs: plan\n", compile_job)
+        for job in ("native", "release-signing-smoke"):
+            block = ci.split("\n  " + job + ":\n", 1)[1]
+            self.assertIn("needs: [plan, static-ui, preflight]", block.split("    runs-on:", 1)[0].split("    uses:", 1)[0])
         self.assertIn("needs.ui-emulator.result == 'failure'", ci)
         self.assertIn("保存供全矩阵核对的小型验收凭证\n        if: ${{ !cancelled() }}", ci)
         runtime = ci.split("\n  runtime-test:", 1)[1].split("\n  verify-apk:", 1)[0]
