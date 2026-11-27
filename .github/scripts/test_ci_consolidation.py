@@ -55,3 +55,21 @@ class ConsolidationTests(unittest.TestCase):
         product = json.loads((ROOT / "tools/runtime/runtime-lock.json").read_text())
         self.assertNotIn("runtime-cache", user["shared"])
         self.assertEqual("arm64-v8a", product["packageArchive"]["version"])
+
+    def test_shared_android_build_and_runtime_ownership(self):
+        ci = (ROOT / ".github/workflows/ci.yml").read_text()
+        release = (ROOT / ".github/workflows/release.yml").read_text()
+        android = (ROOT / ".github/actions/ci-android/action.yml").read_text()
+        compile_job = ci.split("\n  verify-ui:\n", 1)[1].split("\n  ui-emulator:\n", 1)[0]
+        self.assertIn("    needs: plan\n", compile_job)
+        self.assertNotIn("needs.static-ui", compile_job)
+        self.assertNotIn("needs.preflight", compile_job)
+        self.assertIn("needs: [plan, native", ci)
+        self.assertIn("static-ui, verify-ui", ci)
+        self.assertNotIn("校验固定 Gradle Wrapper", ci)
+        self.assertNotIn("校验固定 Gradle Wrapper", release)
+        self.assertLess(android.index("校验固定 Gradle Wrapper"), android.index("gradle/actions/setup-gradle@"))
+        self.assertEqual(2, ci.count("bash .github/scripts/assemble-product-runtime.sh "))
+        self.assertEqual(1, release.count("bash .github/scripts/assemble-product-runtime.sh "))
+        import subprocess
+        subprocess.run(["bash", "-n", str(ROOT / ".github/scripts/assemble-product-runtime.sh")], check=True)

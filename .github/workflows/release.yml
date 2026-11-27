@@ -192,10 +192,6 @@ jobs:
         uses: ./.github/actions/ci-android
         with:
           mode: build
-      - name: 校验固定 Gradle Wrapper
-        shell: bash
-        run: |
-          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 阻断未经审查的依赖基线
         shell: bash
         run: |
@@ -242,26 +238,16 @@ jobs:
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
 
-      - name: 直接获取并核验原始手机运行组件
-        id: runtime-bundle
+      - name: 直接核验并装配正式 ARM64 产品运行时
         env:
           GH_TOKEN: ${{ github.token }}
           RUNTIME_ID: ${{ needs.developer-runtime.outputs.artifact_id }}
           RUNTIME_SOURCE: ${{ needs.developer-runtime.outputs.source }}
           RUNTIME_KEY: ${{ needs.developer-runtime.outputs.key }}
-        run: |
-          PIN="$(python3 .github/scripts/runtime_artifacts.py download --abi arm64-v8a --artifact-id "$RUNTIME_ID" --source "$RUNTIME_SOURCE" --key "$RUNTIME_KEY" --output "$RUNNER_TEMP/developer-runtime-bundle")"
-          echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
-      - name: 核验并装配 ARM64 主核心与 Code Mode Host
-        env:
-          RUNTIME_MANIFEST_SHA: ${{ steps.runtime-bundle.outputs.manifest_sha }}
         shell: bash
         run: |
           set -euo pipefail
-          STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-          CODEX_RUNTIME_PREPARED="$(python3 tools/build/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
-          export CODEX_RUNTIME_PREPARED
-          bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
+          bash .github/scripts/assemble-product-runtime.sh arm64-v8a "$RUNTIME_ID" "$RUNTIME_SOURCE" "$RUNTIME_KEY" "$RUNNER_TEMP/native-arm64"
 
       - name: 装配官方 ARM64 增量恢复组件
         shell: bash
