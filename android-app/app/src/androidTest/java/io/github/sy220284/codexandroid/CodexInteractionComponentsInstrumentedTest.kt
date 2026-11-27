@@ -68,7 +68,13 @@ class CodexInteractionComponentsInstrumentedTest {
                 }
             }
         }
-        rule.onNodeWithText("下载报告", substring = true).performTouchInput { click(center) }
+        // The raw stream tail contains the label before the background parser
+        // has produced an interactive link. Wait for the rendered label itself.
+        rule.waitUntil(10_000L) {
+            rule.onAllNodesWithText("下载报告", substring = false).fetchSemanticsNodes().size == 1
+        }
+        rule.onNodeWithText("下载报告", substring = false).assertIsDisplayed()
+            .performTouchInput { click(center) }
         rule.runOnIdle { org.junit.Assert.assertEquals("/workspace/report.pdf", opened) }
     }
 
