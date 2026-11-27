@@ -19,12 +19,14 @@ bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
 ANDROID = ("jdk", "android-sdk", "gradle")
 RUST = ("rust", "cargo")
-AUX = ("wheelhouse","uv","pnpm","bazel","emulator","llvm","patcher")
+AUX = ("wheelhouse","emulator","llvm","patcher")
 GROUPS = {"android":ANDROID,"rust":RUST,**{name:(name,) for name in AUX}}
 HOST = ANDROID + RUST + AUX
 REPOSITORY = "sy220284/111"
 JOB_NAMES = {"android":"111 专用 JDK、Android SDK、Gradle 离线依赖", "rust":"Rust 1.99.1 双 ABI 工具及 Cargo 离线依赖", **{name:"111 辅助组件 · "+name for name in AUX}}
-MUTABLE = {"gradle","cargo","uv","pnpm","bazel"}
+MUTABLE = {"gradle","cargo"}
+# Retire only the three formerly valid selections; archived bytes are left intact.
+RETIRED = {"bazel", "uv", "pnpm"}
 
 def require(value, message):
     if not value:
@@ -36,9 +38,14 @@ def selected(root):
         return {}
     require(path.is_file() and not path.is_symlink(), "invalid host selection file")
     result = json.loads(path.read_text())
-    require(isinstance(result, dict) and set(result) <= set(HOST), "invalid host selection")
+    require(isinstance(result, dict) and set(result) <= set(HOST) | RETIRED, "invalid host selection")
     for name, item in result.items():
         require(re.fullmatch(r"[0-9a-f]{40}",item["head"]) and re.fullmatch(r"[0-9a-f]{64}",item["pin"]), "invalid host pin: "+name)
+    retired = sorted(set(result) & RETIRED)
+    if retired:
+        import sys
+        print("Retired 111 host selections: " + ", ".join(retired) + "; active selection will be pruned on install.", file=sys.stderr)
+        result = {name: item for name, item in result.items() if name not in RETIRED}
     return result
 
 def path_for(root, name, item):
@@ -141,23 +148,6 @@ def environment(root,names):
         wheel=paths["wheelhouse"]
         require((wheel/"requirements.lock").is_file() and any(wheel.glob("*.whl")), "wheelhouse incomplete")
         env["CODEX_WHEELHOUSE"]=str(wheel)
-    if "uv" in paths:
-        uv=paths["uv"]
-        require(subprocess.check_output([str(uv/"bin/uv"),"--version"],text=True).split()[1]==p["uv"], "uv version drift")
-        require((uv/"cache").is_dir(), "uv cache missing")
-        env.update(UV_CACHE_DIR=str(uv/"cache"), UV_OFFLINE="true", UV_PYTHON_DOWNLOADS="never", UV_LINK_MODE="copy")
-        search.append(str(uv/"bin"))
-    if "pnpm" in paths:
-        pnpm=paths["pnpm"]
-        package=json.loads((pnpm/"package/package.json").read_text())
-        require(package["version"]==p["pnpm"] and (pnpm/"store").is_dir(),"pnpm bundle version/cache drift")
-        env.update(npm_config_store_dir=str(pnpm/"store"), npm_config_offline="true", CODEX_PNPM_HOME=str(pnpm))
-        search.append(str(pnpm/"bin"))
-    if "bazel" in paths:
-        bazel=paths["bazel"]
-        require(subprocess.check_output([str(bazel/"bin/bazel"),"--version"],text=True).strip()=="bazel "+p["bazel"],"Bazel version drift")
-        env["CODEX_BAZEL_HOME"]=str(bazel)
-        search.append(str(bazel/"bin"))
     if "emulator" in paths:
         sdk=paths["emulator"]
         image=sdk/"system-images"/("android-"+p["deviceImage"])/p["deviceTarget"]/"x86_64"

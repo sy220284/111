@@ -13,10 +13,7 @@ on:
       - '.github/workflows/prepare-developer-runtime.yml'
       - '.github/workflows/prepare-host-toolchain.yml'
       - '.github/workflows/prepare-aux-toolchain.yml'
-      - 'upstream/codex/**/uv.lock'
-      - 'upstream/codex/**/pyproject.toml'
-      - 'upstream/codex/pnpm-lock.yaml'
-      - 'upstream/codex/MODULE.bazel.lock'
+      - 'upstream/codex/.github/actions/publish-dotslash/requirements.txt'
       - '.github/actions/install-host-toolchain/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/release.yml'
@@ -94,24 +91,6 @@ jobs:
     uses: ./.github/workflows/prepare-aux-toolchain.yml
     with:
       group: wheelhouse
-      source_sha: ${{ github.sha }}
-
-  uv:
-    uses: ./.github/workflows/prepare-aux-toolchain.yml
-    with:
-      group: uv
-      source_sha: ${{ github.sha }}
-
-  pnpm:
-    uses: ./.github/workflows/prepare-aux-toolchain.yml
-    with:
-      group: pnpm
-      source_sha: ${{ github.sha }}
-
-  bazel:
-    uses: ./.github/workflows/prepare-aux-toolchain.yml
-    with:
-      group: bazel
       source_sha: ${{ github.sha }}
 
   emulator:

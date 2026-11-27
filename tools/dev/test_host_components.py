@@ -5,6 +5,28 @@ from unittest.mock import patch
 from host_components import complete_index, bundle, install, selected, reviewed_artifacts, reusable, object_path, cache_downloaded_object
 
 class HostComponentTests(unittest.TestCase):
+    def test_retired_components_are_not_installable_and_legacy_selection_is_pruned(self):
+        import json
+        from host_components import GROUPS, HOST
+        from contextlib import redirect_stderr
+        import io
+        self.assertEqual(set(GROUPS), {"android", "rust", "wheelhouse", "emulator", "llvm", "patcher"})
+        self.assertEqual(set(HOST), {"jdk", "android-sdk", "gradle", "rust", "cargo", "wheelhouse", "emulator", "llvm", "patcher"})
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            receipt = {"head": "a"*40, "pin": "b"*64}
+            selection = root/"host-selection.json"
+            selection.write_text(json.dumps({name: receipt for name in ("cargo", "bazel", "uv", "pnpm")}))
+            with redirect_stderr(io.StringIO()) as notice:
+                self.assertEqual(selected(root), {"cargo": receipt})
+            self.assertIn("Retired 111 host selections", notice.getvalue())
+            for name in ("bazel", "uv", "pnpm"):
+                with self.assertRaisesRegex(ValueError, "invalid component list"):
+                    install(root, root, root, "a"*40, [name])
+            selection.write_text(json.dumps({"unknown": receipt}))
+            with self.assertRaisesRegex(ValueError, "invalid host selection"):
+                selected(root)
+
     def test_exact_source_and_cache_reuse(self):
         with tempfile.TemporaryDirectory() as tmp:
             root=pathlib.Path(tmp)

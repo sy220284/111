@@ -31,10 +31,8 @@ def key(group, source="HEAD"):
         paths += ["upstream/codex/codex-rs", ".github/workflows/build-native-codex.yml", "android-app/tools/prepare_android_mxc.py"]
     else:
         paths += [".github/workflows/prepare-aux-toolchain.yml", "tools/dev/auxiliary.py", "tools/dev/run-emulator.sh", ".github/actions/run-emulator", "tools/dev/requirements-host.lock"]
-        if group in ("wheelhouse","uv"):
-            paths += ["android-app/tools/requirements-ui-visual.txt","upstream/codex"]
-        if group=="pnpm": paths += ["upstream/codex"]
-        if group=="bazel": paths += ["upstream/codex"]
+        if group=="wheelhouse":
+            paths += ["android-app/tools/requirements-ui-visual.txt","upstream/codex/.github/actions/publish-dotslash/requirements.txt"]
         if group=="emulator": paths += ["android-app/tools/device-matrix.json","android-app/tools/device_matrix.py"]
         if group=="patcher": paths += [".github/scripts/prepare-android-patcher.sh",".github/scripts/create-android-update-fixture.sh"]
         if group=="llvm": paths += ["android-app/tools/prepare_android_v8.sh"]
@@ -51,9 +49,7 @@ def key(group, source="HEAD"):
         rust=group=="rust" and (name in ("Cargo.toml","Cargo.lock","rust-toolchain","rust-toolchain.toml") or
             "/.cargo/" in path or path.endswith("prepare_android_mxc.py"))
         aux=group not in ("android","rust") and (path.startswith("android-app/tools/") or
-            (group in ("wheelhouse","uv") and (name in ("uv.lock","pyproject.toml","requirements.txt","requirements-uv.txt") or path.endswith("setup-python-release-tools/action.yml"))) or
-            (group=="pnpm" and name in ("pnpm-lock.yaml","pnpm-workspace.yaml","package.json",".nvmrc",".npmrc")) or
-            (group=="bazel" and (name in ("MODULE.bazel","MODULE.bazel.lock","BUILD.bazel",".bazelrc",".bazelversion","Cargo.toml","Cargo.lock","uv.lock") or name.endswith((".bzl",".patch")))))
+            (group=="wheelhouse" and path=="upstream/codex/.github/actions/publish-dotslash/requirements.txt"))
         if common and not path.startswith("upstream/codex/") or android or rust or aux:
             result.append([path,meta])
     require(result,"no fingerprint inputs")
