@@ -120,12 +120,11 @@ jobs:
             /upstream/codex/codex-rs/model-provider/catalogs/
             /.github/workflows/
             /.github/scripts/
-            .github/actions/ci-android
-            .github/actions/ci-rust
-            .github/ci
+            /.github/actions/ci-android/
+            /.github/actions/ci-rust/
+            /.github/ci/
             /.github/actions/run-emulator/
             /tools/dev/
-            /.github/ci/
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
             /docs/第五版接口与界面组件映射矩阵.md
@@ -202,12 +201,11 @@ jobs:
             /upstream/codex/codex-rs/model-provider/catalogs/
             /.github/workflows/
             /.github/scripts/
-            .github/actions/ci-android
-            .github/actions/ci-rust
-            .github/ci
+            /.github/actions/ci-android/
+            /.github/actions/ci-rust/
+            /.github/ci/
             /.github/actions/run-emulator/
             /tools/dev/
-            /.github/ci/
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
             /docs/第五版接口与界面组件映射矩阵.md
@@ -299,9 +297,9 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /.github/scripts/
-            .github/actions/ci-android
-            .github/actions/ci-rust
-            .github/ci
+            /.github/actions/ci-android/
+            /.github/actions/ci-rust/
+            /.github/ci/
             /.github/actions/run-emulator/
             /tools/dev/
             /android-app/tools/collect_ui_screenshots.py
@@ -444,9 +442,9 @@ jobs:
           fetch-depth: 0
           sparse-checkout: |
             /.github/scripts/
-            .github/actions/ci-android
-            .github/actions/ci-rust
-            .github/ci
+            /.github/actions/ci-android/
+            /.github/actions/ci-rust/
+            /.github/ci/
             /.github/actions/run-emulator/
             /tools/dev/
             /android-app/tools/
@@ -679,14 +677,10 @@ jobs:
             .github/actions/run-emulator
             tools/dev
             tools/runtime
-      - name: 使用 Runner 模拟器（仅补齐指定镜像）
+      - name: 一次准备 Runner Android 编译及设备环境
         uses: ./.github/actions/ci-android
         with:
-          mode: emulator
-      - name: 使用 Runner Android SDK（仅补齐缺项）
-        uses: ./.github/actions/ci-android
-        with:
-          mode: build
+          mode: build-emulator
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |

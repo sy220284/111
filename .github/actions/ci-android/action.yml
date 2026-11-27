@@ -3,7 +3,7 @@ description: Use runner's JDK and SDK; install only missing official packages.
 inputs:
   mode:
     required: true
-    description: build, native, v8 or emulator
+    description: build, native, v8, emulator or build-emulator
 runs:
   using: composite
   steps:
@@ -17,5 +17,5 @@ runs:
         CI_ANDROID_MODE: ${{ inputs.mode }}
       run: bash .github/scripts/ci-android-sdk.sh "$CI_ANDROID_MODE"
     - name: 使用项目 Gradle Wrapper 和官方依赖缓存
-      if: inputs.mode == 'build'
+      if: inputs.mode == 'build' || inputs.mode == 'build-emulator'
       uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a

@@ -67,7 +67,8 @@ UI_TEST_TOOLS = {
 SAFE_DOCS = {"README.md", "AGENTS.md", "docs/CI统一交付流程.md"}
 
 def affected(path):
-    if path in SAFE_DOCS:
+    from ci_policy import maintenance_only
+    if path in SAFE_DOCS or maintenance_only([path]):
         return set()
     if path in RELEASE_ONLY or (path.startswith(".github/scripts/test_") and path.endswith(".py")):
         return {"preflight"}

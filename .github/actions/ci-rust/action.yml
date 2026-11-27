@@ -1,5 +1,5 @@
 name: GitHub Rust CI 环境
-description: Official rustup toolchain and Cargo cache.
+description: Official rustup toolchain and immutable source dependency cache.
 inputs:
   target:
     required: false
@@ -12,9 +12,10 @@ runs:
       with:
         toolchain: '1.99.1'
         targets: ${{ inputs.target }}
-    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+    - uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
       with:
-        workspaces: upstream/codex/codex-rs
-        cache-targets: 'false'
-        cache-on-failure: 'false'
-        key: ${{ inputs.target || 'host' }}
+        path: |
+          ~/.cargo/registry/cache
+          ~/.cargo/registry/index
+          ~/.cargo/git/db
+        key: cargo-source-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/codex/codex-rs/Cargo.lock') }}-${{ inputs.target || 'host' }}

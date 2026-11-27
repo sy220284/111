@@ -149,10 +149,11 @@ jobs:
         uses: ./.github/actions/ci-android
         with:
           mode: v8
-      - name: 使用官方 Rust 和 Cargo 缓存
-        uses: ./.github/actions/ci-rust
+      - name: 使用官方 Rust 编译器
+        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
         with:
-          target: ${{ matrix.rust_target }}
+          toolchain: '1.99.1'
+          targets: ${{ matrix.rust_target }}
       - name: 回归独立 V8 凭证规则（手动专项）
         if: github.event_name == 'workflow_dispatch'
         run: python3 -m unittest discover -s .github/scripts -p test_v8_artifacts.py
@@ -251,6 +252,11 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/v8_artifacts.py consume --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 为 V8 恢复补齐官方 SDK 缺项
+        if: steps.v8-consume.outputs.rebuild == 'true'
+        uses: ./.github/actions/ci-android
+        with:
+          mode: v8
       - name: 使用官方 LLVM 21（仅补齐缺项）
         if: steps.v8-consume.outputs.rebuild == 'true'
         run: bash .github/scripts/ci-llvm.sh
@@ -339,7 +345,7 @@ jobs:
           fi
           export "CARGO_TARGET_${TARGET_ENV}_RUSTFLAGS=$RUST_LINK_FLAGS"
           cd upstream/codex/codex-rs
-          python3 "$GITHUB_WORKSPACE/tools/dev/build_progress.py" -- bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline --release \
+          python3 "$GITHUB_WORKSPACE/tools/dev/build_progress.py" -- cargo build --locked --offline --release \
             -p codex-app-server --bin codex-app-server \
             -p codex-code-mode-host --bin codex-code-mode-host \
             --target "$TARGET"
