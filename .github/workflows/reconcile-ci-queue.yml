@@ -2,11 +2,7 @@ name: CI 过期队列实时收敛
 
 on:
   pull_request_target:
-    types: [synchronize]
-    branches: [main]
-  workflow_run:
-    workflows: ['111 统一质量验收']
-    types: [requested, in_progress]
+    types: [synchronize, closed]
   workflow_dispatch:
     inputs:
       dry_run:
@@ -20,20 +16,18 @@ permissions:
   pull-requests: read
 
 concurrency:
-  group: ci-queue-reconcile-${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number || 'repository' }}
+  group: ci-queue-reconcile-${{ github.event.pull_request.number || 'repository' }}
   cancel-in-progress: true
 
 jobs:
   reconcile:
     if: >-
       (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository) ||
-      (github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' &&
-       github.event.workflow_run.head_repository.full_name == github.repository)
+      (github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      # Privileged event: never check out or execute candidate source.
+      # Privileged event: execute trusted main only.
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           ref: main
@@ -42,12 +36,10 @@ jobs:
             .github/scripts
             .github/ci
             .github/workflows
-      - name: 核验过期任务判定规则
-        run: python3 -m unittest discover -s .github/scripts -p test_ci_queue_policy.py
-      - name: 收敛被替代的验收并输出仓库队列
+      - name: 收敛已关闭或被替代的验收
         env:
           GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number || github.event.workflow_run.pull_requests[0].number }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
         run: |
           set -euo pipefail
@@ -55,7 +47,3 @@ jobs:
           if [ -n "$PR_NUMBER" ]; then args+=(--pr "$PR_NUMBER"); fi
           if [ "$DRY_RUN" != true ]; then args+=(--apply); fi
           python3 .github/scripts/ci_queue_policy.py "${args[@]}"
-          for state in queued in_progress pending waiting requested; do
-            count="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?status=$state&per_page=1" --jq .total_count)"
-            printf '%s: %s\n' "$state" "$count" | tee -a "$GITHUB_STEP_SUMMARY"
-          done

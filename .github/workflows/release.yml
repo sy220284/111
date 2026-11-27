@@ -31,7 +31,7 @@ jobs:
     name: 识别待发布源码与版本
     needs: preflight
     if: >-
-      always() &&
+      !cancelled() &&
       ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' &&
        needs.preflight.result == 'success') ||
        (github.event_name == 'workflow_run' &&
@@ -41,7 +41,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     outputs:
-      should_release: ${{ steps.detect.outputs.should_release }}
+      decision: ${{ steps.detect.outputs.decision }}
       version: ${{ steps.detect.outputs.version }}
       version_code: ${{ steps.detect.outputs.version_code }}
       release_sha: ${{ steps.detect.outputs.release_sha }}
@@ -63,7 +63,6 @@ jobs:
           git fetch --tags --force origin
           git fetch origin main
           LATEST_MAIN="$(git rev-parse FETCH_HEAD)"
-          echo "should_release=false" >> "$GITHUB_OUTPUT"
           # 仅仓库维护变更可沿用已验收候选，绝不混合不同 SHA 的设备证据。
           SELECT_STATUS=0
           select_args=(--repo "$GITHUB_REPOSITORY" --latest-main "$LATEST_MAIN")
@@ -71,6 +70,7 @@ jobs:
           RELEASE_SHA="$(python3 .github/scripts/select_release_candidate.py "${select_args[@]}")" || SELECT_STATUS=$?
           if [ "$SELECT_STATUS" -eq 3 ]; then
             echo "::notice::等待当前客户端候选通过完整验收"
+            echo "decision=waiting-ci" >> "$GITHUB_OUTPUT"
             exit 0
           elif [ "$SELECT_STATUS" -ne 0 ]; then
             exit "$SELECT_STATUS"
@@ -85,6 +85,7 @@ jobs:
             > "$RUNNER_TEMP/native-release-run" || LOOKUP_STATUS=$?
           if [ "$LOOKUP_STATUS" -eq 3 ]; then
             echo "::notice::尚无与当前源码及编译参数完全一致的 ARM64 原生内核，等待原生构建后再发版"
+            echo "decision=waiting-native" >> "$GITHUB_OUTPUT"
             exit 0
           elif [ "$LOOKUP_STATUS" -ne 0 ]; then
             echo "::error::原生内核复用查询异常，已终止发布"
@@ -99,6 +100,7 @@ jobs:
             --jq ".[] | select(.draft == false and .prerelease == false and .target_commitish == \"$RELEASE_SHA\") | .tag_name" | head -n 1)"
           if [ -n "$EXISTING" ]; then
             echo "::notice::当前源码已发布：$EXISTING"
+            echo "decision=already-published" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -116,6 +118,7 @@ jobs:
               --base "$PREVIOUS_TAG" --head "$RELEASE_SHA" || GATE_STATUS=$?
             if [ "$GATE_STATUS" -eq 3 ]; then
               echo "::notice::仅有无关变更，跳过重复 APK"
+              echo "decision=no-client-change" >> "$GITHUB_OUTPUT"
               exit 0
             elif [ "$GATE_STATUS" -ne 0 ]; then
               echo "::error::无法确认 Android 发版输入，终止发布"
@@ -154,13 +157,13 @@ jobs:
           {
             echo "version=$VERSION"
             echo "version_code=$((10#$SEQUENCE))"
-            echo "should_release=true"
+            echo "decision=publish"
           } >> "$GITHUB_OUTPUT"
           echo "准备发布 $RELEASE_SHA -> v$VERSION"
 
   developer-runtime:
     needs: check-release
-    if: always() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.decision == 'publish' }}
     uses: ./.github/workflows/prepare-developer-runtime.yml
     with:
       abi: arm64-v8a
@@ -168,7 +171,7 @@ jobs:
 
   host-android:
     needs: check-release
-    if: always() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.decision == 'publish' }}
     uses: ./.github/workflows/prepare-host-toolchain.yml
     with:
       group: android
@@ -176,7 +179,7 @@ jobs:
 
   host-patcher:
     needs: check-release
-    if: always() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.decision == 'publish' }}
     uses: ./.github/workflows/prepare-aux-toolchain.yml
     with:
       group: patcher
@@ -187,7 +190,7 @@ jobs:
     needs: [check-release, developer-runtime, host-android, host-patcher]
     # The PR-only preflight is skipped for workflow_run. Check the actual
     # acceptance result explicitly instead of inheriting an implicit success().
-    if: always() && needs.check-release.result == 'success' && needs.developer-runtime.result == 'success' && needs.host-android.result == 'success' && needs.check-release.outputs.should_release == 'true' && needs.host-patcher.result == 'success'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.developer-runtime.result == 'success' && needs.host-android.result == 'success' && needs.check-release.outputs.decision == 'publish' && needs.host-patcher.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -367,7 +370,7 @@ jobs:
     needs: [check-release, release]
     # Automatic runs deliberately skip manual preflight. Use an explicit status
     # function so that skipped transitive ancestors cannot skip this required gate.
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true' && needs.release.result == 'success' }}
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.decision == 'publish' && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
@@ -462,32 +465,9 @@ jobs:
           SHA: ${{ needs.check-release.outputs.release_sha }}
         run: bash .github/scripts/publish-verified-release.sh
 
-  release-result:
-    name: 正式发布闭环验收
-    needs: [check-release, release, device-ready, device, publish]
-    # A selected candidate must never produce a green run without publication.
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: 核对所有正式发布门禁
-        env:
-          SIGNED: ${{ needs.release.result }}
-          DEVICE_READY: ${{ needs.device-ready.result }}
-          DEVICE: ${{ needs.device.result }}
-          PUBLISHED: ${{ needs.publish.result }}
-        run: |
-          set -eu
-          for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$PUBLISHED"; do
-            if [ "$status" != success ]; then
-              echo "::error::正式候选未完成完整发布链：签名=$SIGNED 设备就绪=$DEVICE_READY 真机=$DEVICE 公开=$PUBLISHED"
-              exit 1
-            fi
-          done
-
   cleanup:
-    needs: [publish, release-result]
-    if: ${{ !cancelled() && needs.publish.result == 'success' && needs.release-result.result == 'success' }}
+    needs: publish
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -578,3 +558,22 @@ jobs:
                   ) from exc
               print(f"已删除：{release['tag_name']}")
           PY
+
+  release-result:
+    name: 正式发布闭环验收
+    needs: [preflight, check-release, developer-runtime, host-android, host-patcher, release, device-ready, device, publish, cleanup]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+      - name: 核对发布决策和完整链路
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          TRIGGER_ELIGIBLE: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository }}
+        run: python3 .github/scripts/release_outcome.py

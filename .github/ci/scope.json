@@ -32,7 +32,10 @@
       "android-app/gradlew.bat",
       "android-app/app/gradle.lockfile",
       "android-app/tools/developer_tool_launcher.c",
-      ".github/workflows/prepare-developer-runtime.yml"
+      ".github/workflows/prepare-developer-runtime.yml",
+      "android-app/gradle/wrapper/gradle-wrapper.jar",
+      "android-app/gradle/wrapper/gradle-wrapper.properties",
+      "android-app/gradle/libs.versions.toml"
     ],
     "prefixes": [
       "android-app/app/src/main/",
@@ -105,13 +108,23 @@
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RemoteFileDelivery.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/NativeRemoteDeliveryDialog.kt",
       "android-app/tools/developer_tool_launcher.c",
-      ".github/workflows/prepare-developer-runtime.yml"
+      ".github/workflows/prepare-developer-runtime.yml",
+      ".github/scripts/prepare-android-patcher.sh",
+      ".github/scripts/create-android-update-fixture.sh",
+      "android-app/gradle.properties",
+      "android-app/settings.gradle.kts",
+      "android-app/build.gradle.kts",
+      "android-app/gradle/libs.versions.toml",
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/LiveServiceInstrumentedTest.kt",
+      "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/V8ComponentAssertions.kt"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
       "upstream/codex/.cargo/",
       "tools/runtime/",
-      "tools/dev/"
+      "tools/dev/",
+      "android-app/app/src/main/jniLibs/",
+      "android-app/app/src/main/assets/"
     ]
   }
 }

@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       full: ${{ steps.plan.outputs.full }}
+      toolchain_check: ${{ steps.plan.outputs.toolchain_check }}
       runtime: ${{ steps.plan.outputs.runtime }}
       receipt: ${{ steps.plan.outputs.receipt }}
       native_key: ${{ steps.plan.outputs.native_key }}
@@ -75,9 +76,6 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/scripts/run_ci_script_tests.py plan
-          python3 -m unittest discover -s tools/dev -p test_transfer_progress.py
-          python3 -m unittest discover -s tools/dev -p test_build_progress.py
-          python3 -m unittest discover -s tools/dev -p test_build_recipe.py
           python3 -m unittest discover -s android-app/tools -p 'test_device_matrix.py'
           python3 -m unittest discover -s android-app/tools -p 'test_verify_ui_matrix_evidence.py'
           python3 -m unittest discover -s android-app/tools -p 'test_merge_ui_shards.py'
@@ -843,7 +841,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.run_preflight == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -872,8 +870,11 @@ jobs:
           bash -n android-app/tools/prepare_android_v8.sh
           bash -n android-app/tools/build_android_git.sh
           python3 -m unittest discover -s android-app/tools -p 'test_adapt_android_v8_build.py'
-
-
+      - name: 核验实际变更的工具链与工作流
+        if: needs.plan.outputs.toolchain_check == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash tools/dev/check-ci-toolchain.sh
 
   release-signing-smoke:
     name: PR 内验证 Release 签名构建

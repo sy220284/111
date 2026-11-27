@@ -1,30 +1,6 @@
 name: 111 开发工具链产物与离线验收
 
 on:
-  push:
-    branches: [main, validation/combined-111-reply-20261126]
-    paths:
-      - 'tools/dev/**'
-      - 'tools/runtime/**'
-      - 'android-app/**/build.gradle.kts'
-      - 'android-app/**/settings.gradle.kts'
-      - 'android-app/**/gradle.properties'
-      - 'android-app/**/gradle.lockfile'
-      - 'android-app/gradle/**'
-      - 'android-app/gradlew*'
-      - 'android-app/tools/**'
-      - 'upstream/codex/codex-rs/Cargo.lock'
-      - 'upstream/codex/codex-rs/rust-toolchain.toml'
-      - '.github/workflows/dev-toolchain.yml'
-      - '.github/workflows/prepare-developer-runtime.yml'
-      - '.github/workflows/prepare-host-toolchain.yml'
-      - '.github/workflows/prepare-aux-toolchain.yml'
-      - 'upstream/codex/.github/actions/publish-dotslash/requirements.txt'
-      - '.github/actions/install-host-toolchain/**'
-      - '.github/workflows/ci.yml'
-      - '.github/workflows/release.yml'
-      - '.github/workflows/build-native-codex.yml'
-      - '.github/actionlint.yaml'
   workflow_dispatch:
 
 permissions:
@@ -32,20 +8,10 @@ permissions:
   actions: read
 
 concurrency:
-  group: dev-toolchain-${{ github.ref }}-${{ github.ref == 'refs/heads/main' && github.sha || 'latest' }}
-  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+  group: dev-toolchain-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
-  maven-metadata-audit:
-    name: Maven Central 缺失元数据独立摘要审查
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-        with:
-          persist-credentials: false
-      - run: python3 tools/dev/audit_maven_metadata.py
-
   shared:
     name: 777 固定共享产物与工作流检查
     runs-on: ubuntu-latest
@@ -59,17 +25,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          python3 -m unittest discover -s tools/dev -p 'test_*.py'
-          python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/shared" shared-install --artifacts-dir "$RUNNER_TEMP/downloads" --download > "$RUNNER_TEMP/shared.json"
-          NODE="$(jq -r '.node' "$RUNNER_TEMP/shared.json")"
-          LINT="$(jq -r '.actionlint' "$RUNNER_TEMP/shared.json")"
-          "$NODE/bin/node" --version
-          PATH="$NODE/bin:$PATH" "$NODE/bin/npm" --version
           python3 .github/scripts/run_ci_script_tests.py plan
-          "$LINT/actionlint" .github/workflows/dev-toolchain.yml .github/workflows/prepare-developer-runtime.yml .github/workflows/ci.yml .github/workflows/release.yml
-          # GitHub 已实际运行 queue: max，777 固定 actionlint 尚未认识该新字段。
-          # 仅在原生工作流过滤此已确认的解析差异；不屏蔽其它错误。
-          "$LINT/actionlint" -ignore 'unexpected key "queue" for "concurrency" section' .github/workflows/build-native-codex.yml .github/workflows/prepare-host-toolchain.yml .github/workflows/prepare-aux-toolchain.yml
+          bash tools/dev/check-ci-toolchain.sh
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
           python3 -m unittest discover -s .github/scripts -p 'test_audit_apk_contents.py'
 
