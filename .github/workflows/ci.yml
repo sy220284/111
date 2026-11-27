@@ -29,7 +29,6 @@ jobs:
     timeout-minutes: 5
     outputs:
       full: ${{ steps.plan.outputs.full }}
-      toolchain_check: ${{ steps.plan.outputs.toolchain_check }}
       runtime: ${{ steps.plan.outputs.runtime }}
       receipt: ${{ steps.plan.outputs.receipt }}
       native_key: ${{ steps.plan.outputs.native_key }}
@@ -80,46 +79,13 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_verify_ui_matrix_evidence.py'
           python3 -m unittest discover -s android-app/tools -p 'test_merge_ui_shards.py'
           python3 .github/scripts/ci_policy.py
-  host-android:
-    needs: plan
-    if: needs.plan.outputs.run_compile == 'true' || needs.plan.outputs.run_package == 'true' || needs.plan.outputs.run_runtime == 'true' || needs.plan.outputs.run_sign == 'true' || needs.plan.outputs.run_ui == 'true'
-    uses: ./.github/workflows/prepare-host-toolchain.yml
-    with:
-      group: android
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
-  host-wheelhouse:
-    needs: plan
-    if: needs.plan.outputs.run_static == 'true' || needs.plan.outputs.run_compile == 'true' || needs.plan.outputs.run_ui == 'true'
-    uses: ./.github/workflows/prepare-aux-toolchain.yml
-    with:
-      group: wheelhouse
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
-  host-emulator:
-    needs: plan
-    if: needs.plan.outputs.run_ui == 'true' || needs.plan.outputs.run_runtime == 'true'
-    uses: ./.github/workflows/prepare-aux-toolchain.yml
-    with:
-      group: emulator
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
-  host-patcher:
-    needs: plan
-    if: needs.plan.outputs.run_package == 'true' || needs.plan.outputs.run_runtime == 'true' || needs.plan.outputs.run_sign == 'true'
-    uses: ./.github/workflows/prepare-aux-toolchain.yml
-    with:
-      group: patcher
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
   native:
-    needs: [plan, static-ui, preflight, host-android]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     uses: ./.github/workflows/build-native-codex.yml
     with:
       include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}
       native_key: ${{ needs.plan.outputs.native_key }}
-      android_descriptor: ${{ needs.host-android.outputs.descriptor }}
 
   runtime-arm64:
     needs: [plan, preflight]
@@ -139,8 +105,8 @@ jobs:
 
   static-ui:
     name: 协议、视觉规范与静态覆盖检查
-    needs: [plan, host-wheelhouse]
-    if: needs.plan.outputs.run_static == 'true' && needs.host-wheelhouse.result == 'success'
+    needs: plan
+    if: needs.plan.outputs.run_static == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -154,7 +120,9 @@ jobs:
             /upstream/codex/codex-rs/model-provider/catalogs/
             /.github/workflows/
             /.github/scripts/
-            /.github/actions/install-host-toolchain/
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             /.github/actions/run-emulator/
             /tools/dev/
             /.github/ci/
@@ -169,12 +137,6 @@ jobs:
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs
             /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
-      - name: 安装已验收的 wheelhouse 组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: wheelhouse
-          descriptor: ${{ needs.host-wheelhouse.outputs.descriptor }}
-          token: ${{ github.token }}
       - name: 阻断未经审查的官方协议及字段变更
         run: |
           python3 -B -m unittest discover -s android-app/tools -p 'test_review_upstream_protocol.py'
@@ -199,8 +161,8 @@ jobs:
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
-          "$CODEX_HOST_PYTHON" -m venv .ui-visual-test-venv
-          .ui-visual-test-venv/bin/pip install --no-index --find-links "$CODEX_WHEELHOUSE" --require-hashes -r "$CODEX_WHEELHOUSE/requirements.lock"
+          python3 -m venv .ui-visual-test-venv
+          .ui-visual-test-venv/bin/pip install --require-hashes -r .github/ci/requirements.lock
           .ui-visual-test-venv/bin/python -m unittest discover -s android-app/tools -p 'test_ui_visual_audit.py'
       - name: 验证自更新证据判定与安装完成条件
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
@@ -225,8 +187,8 @@ jobs:
 
   verify-ui:
     name: Kotlin 编译、协议单元测试与 Android Lint
-    needs: [plan, static-ui, preflight, host-android, host-wheelhouse]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && needs.host-wheelhouse.result == 'success'
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
@@ -240,7 +202,9 @@ jobs:
             /upstream/codex/codex-rs/model-provider/catalogs/
             /.github/workflows/
             /.github/scripts/
-            /.github/actions/install-host-toolchain/
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             /.github/actions/run-emulator/
             /tools/dev/
             /.github/ci/
@@ -255,29 +219,21 @@ jobs:
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs
             /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
-      - name: 安装已验收的 wheelhouse 组件
-        uses: ./.github/actions/install-host-toolchain
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          group: wheelhouse
-          descriptor: ${{ needs.host-wheelhouse.outputs.descriptor }}
-          token: ${{ github.token }}
-      - name: 安装已断网验收的 Android 工具组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: android
-          descriptor: ${{ needs.host-android.outputs.descriptor }}
-          token: ${{ github.token }}
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
           printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证 Compose、协议测试与静态检查
-        run: bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
-          "$CODEX_HOST_PYTHON" -m venv .ci-schema-venv
-          .ci-schema-venv/bin/python -m pip install --no-index --find-links "$CODEX_WHEELHOUSE" --require-hashes -r "$CODEX_WHEELHOUSE/requirements.lock"
+          python3 -m venv .ci-schema-venv
+          .ci-schema-venv/bin/python -m pip install --require-hashes -r .github/ci/requirements.lock
           .ci-schema-venv/bin/python -m unittest discover \
             -s android-app/tools -p 'test_check_protocol_wire_fixtures.py'
           .ci-schema-venv/bin/python android-app/tools/check_protocol_wire_fixtures.py \
@@ -327,8 +283,8 @@ jobs:
 
   ui-emulator:
     name: Android ${{ matrix.android_release }} (API ${{ matrix.api }}) · ${{ matrix.profile }} ${{ matrix.mode }} UI 交互与截图验收 · ${{ matrix.shard }}
-    needs: [plan, verify-ui, host-android, host-emulator]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.verify-ui.result == 'success' || (needs.verify-ui.result == 'skipped' && needs.plan.outputs.run_compile == 'false')) && needs.host-android.result == 'success' && needs.host-emulator.result == 'success'
+    needs: [plan, verify-ui]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.verify-ui.result == 'success' || (needs.verify-ui.result == 'skipped' && needs.plan.outputs.run_compile == 'false'))
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.device_shards) }}
@@ -343,7 +299,9 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /.github/scripts/
-            /.github/actions/install-host-toolchain/
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             /.github/actions/run-emulator/
             /tools/dev/
             /android-app/tools/collect_ui_screenshots.py
@@ -385,21 +343,11 @@ jobs:
           CI_COMPILE_PROOF: ${{ toJSON(fromJSON(needs.plan.outputs.receipt).reused.compile) }}
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 .github/scripts/ui_shard_reuse.py --repo "$GITHUB_REPOSITORY" --source "$TEST_SOURCE_SHA" --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --shard ${{ matrix.shard }}
-      - name: 安装已验收的 android 组件
+      - name: 使用 Runner 模拟器（仅补齐指定镜像）
         if: steps.shard-reuse.outputs.reused != 'true'
-        uses: ./.github/actions/install-host-toolchain
+        uses: ./.github/actions/ci-android
         with:
-          group: android
-          descriptor: ${{ needs.host-android.outputs.descriptor }}
-          token: ${{ github.token }}
-          components: jdk
-      - name: 安装已验收的 emulator 组件
-        if: steps.shard-reuse.outputs.reused != 'true'
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: emulator
-          descriptor: ${{ needs.host-emulator.outputs.descriptor }}
-          token: ${{ github.token }}
+          mode: emulator
       - name: 允许模拟器硬件加速
         if: steps.shard-reuse.outputs.reused != 'true'
         run: |
@@ -482,8 +430,8 @@ jobs:
 
   ui-collect:
     name: UI 分流证据汇总 · ${{ matrix.profile }} ${{ matrix.mode }}
-    needs: [plan, ui-emulator, host-wheelhouse]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.ui-emulator.result == 'success' || needs.ui-emulator.result == 'failure') && needs.host-wheelhouse.result == 'success'
+    needs: [plan, ui-emulator]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.ui-emulator.result == 'success' || needs.ui-emulator.result == 'failure')
     strategy:
       fail-fast: false
       matrix: ${{ fromJSON(needs.plan.outputs.device_matrix) }}
@@ -496,19 +444,15 @@ jobs:
           fetch-depth: 0
           sparse-checkout: |
             /.github/scripts/
-            /.github/actions/install-host-toolchain/
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             /.github/actions/run-emulator/
             /tools/dev/
             /android-app/tools/
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
-      - name: 安装已验收的 wheelhouse 组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: wheelhouse
-          descriptor: ${{ needs.host-wheelhouse.outputs.descriptor }}
-          token: ${{ github.token }}
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*
@@ -523,8 +467,8 @@ jobs:
         continue-on-error: true
         timeout-minutes: 3
         run: |
-          "$CODEX_HOST_PYTHON" -m venv .ui-visual-venv
-          .ui-visual-venv/bin/pip install --no-index --find-links "$CODEX_WHEELHOUSE" --require-hashes -r "$CODEX_WHEELHOUSE/requirements.lock"
+          python3 -m venv .ui-visual-venv
+          .ui-visual-venv/bin/pip install --require-hashes -r .github/ci/requirements.lock
       - name: 截图内容及历史视觉变化审计（仅记录）
         if: always() && !cancelled()
         continue-on-error: true
@@ -611,8 +555,8 @@ jobs:
         run: python3 android-app/tools/verify_ui_matrix_evidence.py ui-proofs
 
   build:
-    needs: [plan, native, runtime-arm64, host-android, host-patcher]
-    if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success' && needs.host-android.result == 'success' && needs.host-patcher.result == 'success'
+    needs: [plan, native, runtime-arm64]
+    if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success'
     runs-on: ubuntu-24.04
     timeout-minutes: 35
     steps:
@@ -627,22 +571,16 @@ jobs:
             upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
-            .github/actions/install-host-toolchain
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             .github/actions/run-emulator
             tools/dev
             tools/runtime
-      - name: 安装已验收的 patcher 组件
-        uses: ./.github/actions/install-host-toolchain
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          group: patcher
-          descriptor: ${{ needs.host-patcher.outputs.descriptor }}
-          token: ${{ github.token }}
-      - name: 安装已断网验收的 Android 工具组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: android
-          descriptor: ${{ needs.host-android.outputs.descriptor }}
-          token: ${{ github.token }}
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -676,7 +614,7 @@ jobs:
         shell: bash
         run: bash .github/scripts/create-android-update-fixture.sh
       - name: 编译 Android APK 和设备测试包（单元测试由独立 UI 工作流执行）
-        run: bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app --dependency-verification strict :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
       - name: 验证 ARM64 APK 的原生功能组件和 ABI
         shell: bash
         run: |
@@ -719,8 +657,8 @@ jobs:
 
   runtime-test:
     name: Android ${{ needs.plan.outputs.device_release }} (API ${{ needs.plan.outputs.device_api }}) 真实内核及异常恢复验收（x86_64）
-    needs: [plan, native, runtime-x86, host-android, host-emulator, host-patcher]
-    if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.host-android.result == 'success' && needs.plan.outputs.run_runtime == 'true' && needs.host-emulator.result == 'success' && needs.host-patcher.result == 'success'
+    needs: [plan, native, runtime-x86]
+    if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.plan.outputs.run_runtime == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -735,28 +673,20 @@ jobs:
             upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
-            .github/actions/install-host-toolchain
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             .github/actions/run-emulator
             tools/dev
             tools/runtime
-      - name: 安装已验收的 emulator 组件
-        uses: ./.github/actions/install-host-toolchain
+      - name: 使用 Runner 模拟器（仅补齐指定镜像）
+        uses: ./.github/actions/ci-android
         with:
-          group: emulator
-          descriptor: ${{ needs.host-emulator.outputs.descriptor }}
-          token: ${{ github.token }}
-      - name: 安装已验收的 patcher 组件
-        uses: ./.github/actions/install-host-toolchain
+          mode: emulator
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          group: patcher
-          descriptor: ${{ needs.host-patcher.outputs.descriptor }}
-          token: ${{ github.token }}
-      - name: 安装已断网验收的 Android 工具组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: android
-          descriptor: ${{ needs.host-android.outputs.descriptor }}
-          token: ${{ github.token }}
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -782,7 +712,7 @@ jobs:
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
-          bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          ./android-app/gradlew -p android-app --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
           python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
       - name: 允许模拟器硬件加速
         run: |
@@ -870,16 +800,11 @@ jobs:
           bash -n android-app/tools/prepare_android_v8.sh
           bash -n android-app/tools/build_android_git.sh
           python3 -m unittest discover -s android-app/tools -p 'test_adapt_android_v8_build.py'
-      - name: 核验实际变更的工具链与工作流
-        if: needs.plan.outputs.toolchain_check == 'true'
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: bash tools/dev/check-ci-toolchain.sh
 
   release-signing-smoke:
     name: PR 内验证 Release 签名构建
-    needs: [plan, static-ui, preflight, host-android, host-patcher]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_sign == 'true' && needs.host-android.result == 'success' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped') && needs.host-patcher.result == 'success'
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_sign == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
@@ -890,21 +815,15 @@ jobs:
             android-app
             upstream/codex/codex-rs/model-provider/catalogs
             .github/scripts
-            .github/actions/install-host-toolchain
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             .github/actions/run-emulator
             tools/dev
-      - name: 安装已验收的 patcher 组件
-        uses: ./.github/actions/install-host-toolchain
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          group: patcher
-          descriptor: ${{ needs.host-patcher.outputs.descriptor }}
-          token: ${{ github.token }}
-      - name: 安装已断网验收的 Android 工具组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: android
-          descriptor: ${{ needs.host-android.outputs.descriptor }}
-          token: ${{ github.token }}
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -929,7 +848,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 \
@@ -948,7 +867,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexR8Candidate=true -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
           APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
@@ -1023,7 +942,7 @@ jobs:
 
   quality:
     name: 111 合并验收
-    needs: [plan, host-android, host-wheelhouse, host-emulator, host-patcher, native, runtime-arm64, runtime-x86, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
+    needs: [plan, native, runtime-arm64, runtime-x86, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5

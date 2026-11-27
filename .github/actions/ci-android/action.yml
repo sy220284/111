@@ -1,0 +1,21 @@
+name: GitHub Android CI 环境
+description: Use runner's JDK and SDK; install only missing official packages.
+inputs:
+  mode:
+    required: true
+    description: build, native, v8 or emulator
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+      with:
+        distribution: temurin
+        java-version: '17'
+    - name: 核对预装 SDK 并补齐缺项
+      shell: bash
+      env:
+        CI_ANDROID_MODE: ${{ inputs.mode }}
+      run: bash .github/scripts/ci-android-sdk.sh "$CI_ANDROID_MODE"
+    - name: 使用项目 Gradle Wrapper 和官方依赖缓存
+      if: inputs.mode == 'build'
+      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a

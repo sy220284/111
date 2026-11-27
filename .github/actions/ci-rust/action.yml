@@ -1,0 +1,20 @@
+name: GitHub Rust CI 环境
+description: Official rustup toolchain and Cargo cache.
+inputs:
+  target:
+    required: false
+    default: ''
+    description: Optional Android target
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc
+      with:
+        toolchain: '1.99.1'
+        targets: ${{ inputs.target }}
+    - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0
+      with:
+        workspaces: upstream/codex/codex-rs
+        cache-targets: 'false'
+        cache-on-failure: 'false'
+        key: ${{ inputs.target || 'host' }}

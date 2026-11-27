@@ -9,9 +9,6 @@ on:
       native_key:
         type: string
         default: ''
-      android_descriptor:
-        type: string
-        default: ''
     outputs:
       arm_run_id:
         value: ${{ jobs.verified.outputs.arm_run_id }}
@@ -113,35 +110,11 @@ jobs:
             echo "只编译缺失或已改变的 ABI：$MISSING"
           fi
 
-  host-android:
-    needs: reuse
-    if: needs.reuse.outputs.reuse != 'true' && inputs.android_descriptor == ''
-    uses: ./.github/workflows/prepare-host-toolchain.yml
-    with:
-      group: android
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
-  host-rust:
-    needs: reuse
-    if: needs.reuse.outputs.reuse != 'true' || needs.reuse.outputs.provider_reuse != 'true'
-    uses: ./.github/workflows/prepare-host-toolchain.yml
-    with:
-      group: rust
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
-  host-llvm:
-    needs: reuse
-    if: needs.reuse.outputs.reuse != 'true'
-    uses: ./.github/workflows/prepare-aux-toolchain.yml
-    with:
-      group: llvm
-      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
-
   v8:
     name: V8 官方源码产物 · ${{ matrix.abi }}
     # V8 official sources do not depend on provider model-contract results.
-    needs: [reuse, host-android, host-rust, host-llvm]
-    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && needs.host-llvm.result == 'success' }}
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -160,7 +133,9 @@ jobs:
           filter: blob:none
           sparse-checkout: |
             /.github/scripts/
-            /.github/actions/install-host-toolchain/
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             /.github/actions/run-emulator/
             /tools/dev/
             /.github/workflows/
@@ -170,26 +145,14 @@ jobs:
             /upstream/codex/codex-rs/Cargo.lock
           sparse-checkout-cone-mode: false
           persist-credentials: false
-      - name: 安装已验收的 llvm 组件
-        uses: ./.github/actions/install-host-toolchain
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          group: llvm
-          descriptor: ${{ needs.host-llvm.outputs.descriptor }}
-          token: ${{ github.token }}
-      - name: 安装已断网验收的 Android 工具组件
-        uses: ./.github/actions/install-host-toolchain
+          mode: v8
+      - name: 使用官方 Rust 和 Cargo 缓存
+        uses: ./.github/actions/ci-rust
         with:
-          group: android
-          descriptor: ${{ inputs.android_descriptor || needs.host-android.outputs.descriptor }}
-          token: ${{ github.token }}
-          components: android-sdk
-      - name: 安装已断网验收的 Rust 工具组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: rust
-          descriptor: ${{ needs.host-rust.outputs.descriptor }}
-          token: ${{ github.token }}
-          components: rust
+          target: ${{ matrix.rust_target }}
       - name: 回归独立 V8 凭证规则（手动专项）
         if: github.event_name == 'workflow_dispatch'
         run: python3 -m unittest discover -s .github/scripts -p test_v8_artifacts.py
@@ -198,6 +161,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/v8_artifacts.py restore --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 使用官方 LLVM 21（仅补齐缺项）
+        if: steps.restore.outputs.restored == 'false'
+        run: bash .github/scripts/ci-llvm.sh
       - name: 从官方源码编译 V8
         if: steps.restore.outputs.restored == 'false'
         run: python3 tools/dev/build_progress.py -- bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
@@ -220,8 +186,8 @@ jobs:
     name: 编译 ${{ matrix.abi }} 核心
     # Do not spend hours compiling Android binaries for a source revision that
     # has already failed the native host contract. A verified receipt also qualifies.
-    needs: [reuse, provider-contract, v8, host-android, host-rust, host-llvm]
-    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && needs.v8.result == 'success' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
+    needs: [reuse, provider-contract, v8]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && needs.v8.result == 'success' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
@@ -242,7 +208,9 @@ jobs:
           fetch-depth: 0
           sparse-checkout: |
             .github/scripts
-            .github/actions/install-host-toolchain
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             tools/dev
             .github/ci
             upstream/codex
@@ -260,19 +228,14 @@ jobs:
             android-app/tools/adapt_android_v8_build.py
             android-app/tools/v8_toolchain_provenance.py
             android-app/tools/build_android_git.sh
-      - name: 安装已断网验收的 Android 工具组件
-        uses: ./.github/actions/install-host-toolchain
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          group: android
-          descriptor: ${{ inputs.android_descriptor || needs.host-android.outputs.descriptor }}
-          token: ${{ github.token }}
-          components: android-sdk
-      - name: 安装已断网验收的 Rust 工具组件
-        uses: ./.github/actions/install-host-toolchain
+          mode: native
+      - name: 使用官方 Rust 和 Cargo 缓存
+        uses: ./.github/actions/ci-rust
         with:
-          group: rust
-          descriptor: ${{ needs.host-rust.outputs.descriptor }}
-          token: ${{ github.token }}
+          target: ${{ matrix.rust_target }}
       - name: 检查源码快照版本
         run: |
           set -euo pipefail
@@ -288,13 +251,9 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/v8_artifacts.py consume --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
-      - name: 为损坏或缺失 V8 产物恢复固定 LLVM
+      - name: 使用官方 LLVM 21（仅补齐缺项）
         if: steps.v8-consume.outputs.rebuild == 'true'
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: llvm
-          descriptor: ${{ needs.host-llvm.outputs.descriptor }}
-          token: ${{ github.token }}
+        run: bash .github/scripts/ci-llvm.sh
       - name: 从固定官方源码重建并核验 V8 产物
         if: steps.v8-consume.outputs.rebuild == 'true'
         run: |
@@ -330,7 +289,7 @@ jobs:
         run: |
           set -euo pipefail
           cd upstream/codex/codex-rs
-          cargo fetch --locked --offline --target "${{ matrix.rust_target }}"
+          cargo fetch --locked --target "${{ matrix.rust_target }}"
           python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_mxc.py" --cargo-home "${CARGO_HOME:-$HOME/.cargo}"
           python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_code_mode.py" \
             "$GITHUB_WORKSPACE/upstream/codex/codex-rs/install-context/src/lib.rs" \
@@ -440,8 +399,8 @@ jobs:
 
   provider-contract:
     name: 国内服务商目录与模型能力 Rust 回归测试
-    needs: [reuse, host-rust]
-    if: needs.reuse.outputs.provider_reuse != 'true' && needs.host-rust.result == 'success'
+    needs: reuse
+    if: needs.reuse.outputs.provider_reuse != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
@@ -456,40 +415,38 @@ jobs:
           fetch-depth: 0
           sparse-checkout: |
             .github/scripts
-            .github/actions/install-host-toolchain
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
             tools/dev
             .github/ci
             upstream/codex
             android-app/tools/prepare_android_remote_delivery.py
             android-app/tools/test_prepare_android_remote_delivery.py
-      - name: 安装已断网验收的 Rust 工具组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: rust
-          descriptor: ${{ needs.host-rust.outputs.descriptor }}
-          token: ${{ github.token }}
+      - name: 使用官方 Rust 和 Cargo 缓存
+        uses: ./.github/actions/ci-rust
       - name: 执行国内目录、端点绑定及合成工具回传测试
         working-directory: upstream/codex/codex-rs
         run: |
           set -euo pipefail
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-models-manager --lib android_catalog_version_tests
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-models-manager --lib image_input
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-model-provider --lib domestic_
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-model-provider-info --lib domestic_workspace_tests
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-api --lib body_model_reporting
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-app-server --test all media_sample_native_
+          cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
+          cargo test --locked -p codex-models-manager --lib image_input
+          cargo test --locked -p codex-model-provider --lib domestic_
+          cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
+          cargo test --locked -p codex-api --lib body_model_reporting
+          cargo test --locked -p codex-app-server --test all media_sample_native_
       - name: 验证工作站真实文件安全读取并构建 Linux 执行器
         working-directory: upstream/codex/codex-rs
         run: |
           set -euo pipefail
           python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_remote_delivery.py
           python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_remote_delivery.py" --exec-only .
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo test --locked --offline -p codex-exec-server --lib local_file_system_read::tests::android_delivery_ 2>&1 | tee "$RUNNER_TEMP/android-delivery-rust-tests.log"
+          cargo test --locked -p codex-exec-server --lib local_file_system_read::tests::android_delivery_ 2>&1 | tee "$RUNNER_TEMP/android-delivery-rust-tests.log"
           grep -F "test local_file_system_read::tests::android_delivery_enforces_the_actual_read_limit ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
           grep -F "test local_file_system_read::tests::android_delivery_rejects_leaf_and_parent_links ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
           grep -F "test local_file_system_read::tests::android_delivery_chunk_returns_verified_digest_and_bounded_ranges ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
           grep -F "test local_file_system_read::tests::android_delivery_chunk_rejects_leaf_and_parent_links ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline -p codex-exec-server-cli --bin codex-exec-server
+          cargo build --locked -p codex-exec-server-cli --bin codex-exec-server
           mkdir -p "$RUNNER_TEMP/android-delivery-executor"
           install -m 0755 target/debug/codex-exec-server "$RUNNER_TEMP/android-delivery-executor/codex-exec-server"
           "$RUNNER_TEMP/android-delivery-executor/codex-exec-server" --help
