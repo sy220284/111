@@ -21,7 +21,8 @@ WORKFLOW = ".github/workflows/prepare-developer-runtime.yml"
 INPUTS = (
     "tools/runtime", "android-app/tools/prepare_prebuilt_developer_runtime.py",
     "android-app/tools/developer_tool_launcher.c", "tools/build/component-bundle.py",
-    ".github/scripts/ci-android-sdk.sh",
+    ".github/scripts/ci-android-sdk.sh", ".github/actions/ci-android/action.yml",
+    ".github/scripts/runtime_artifacts.py",
 )
 ABI_NAMES = {"arm64-v8a": ("runtime-arm64", "ARM64 工具链产物核验"),
              "x86_64": ("runtime-x86", "x86_64 工具链产物核验")}
@@ -51,7 +52,17 @@ def valid_descriptor(a, name):
             and type(a.get("size_in_bytes")) is int and 0 < a["size_in_bytes"] <= LIMIT
             and re.fullmatch(r"sha256:[0-9a-f]{64}", a.get("digest") or ""))
 
-def direct_producer(repo, artifact, abi, source, expected, api_call=api, fingerprint=key):
+def trusted_caller(old, source, abi):
+    if old == source:
+        return True
+    # Reuse across a squash merge only when the original caller job is
+    # identical. A different caller cannot publish a trusted runtime.
+    job = ABI_NAMES[abi][0]
+    path = ".github/workflows/ci.yml"
+    return job_recipe(git("show", f"{old}:{path}"), job) == job_recipe(git("show", f"{source}:{path}"), job)
+
+
+def direct_producer(repo, artifact, abi, source, expected, api_call=api, fingerprint=key, caller=trusted_caller):
     name = f"111-runtime-{abi}-{expected}"
     if not valid_descriptor(artifact, name):
         return None
@@ -69,7 +80,7 @@ def direct_producer(repo, artifact, abi, source, expected, api_call=api, fingerp
     # Same trusted repository and exact product/producer inputs. A squash merge
     # can change commit identity while leaving the actual build inputs identical.
     try:
-        if fingerprint(old, abi) != expected:
+        if fingerprint(old, abi) != expected or not caller(old, source, abi):
             return None
     except subprocess.CalledProcessError:
         return None
@@ -98,15 +109,15 @@ def select(repo, abi, source, expected):
             if receipt:
                 return receipt
         if len(response["artifacts"]) < 100:
-            break
-    return None
+            return None
+    raise ValueError("Runtime artifact index exceeds safe scan limit")
 
 def retrieve(repo, abi, artifact_id, expected, source, output):
     name = f"111-runtime-{abi}-{expected}"
     artifact = api(repo, f"actions/artifacts/{artifact_id}")
     if not valid_descriptor(artifact, name) or artifact["id"] != artifact_id:
         raise ValueError("Runtime artifact identity mismatch")
-    if key(source, abi) != expected:
+    if key(source, abi) != expected or key(git("rev-parse", "HEAD"), abi) != expected:
         raise ValueError("Runtime source key mismatch")
     output = Path(output)
     output.mkdir(parents=True, exist_ok=False)

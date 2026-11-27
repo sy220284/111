@@ -16,12 +16,13 @@ class RuntimeArtifactTests(unittest.TestCase):
                "steps":[{"name":"生成可复用离线组件并回读","conclusion":"success"}]}
         def api(repo, path):
             return {"total_count":1,"jobs":[job]} if "/jobs?" in path else run
-        def select(a=artifact, fingerprint=lambda *_: key):
-            return direct_producer("o/r", a, "arm64-v8a", source, key, api, fingerprint)
+        def select(a=artifact, fingerprint=lambda *_: key, caller=lambda *_: True):
+            return direct_producer("o/r", a, "arm64-v8a", source, key, api, fingerprint, caller)
         self.assertEqual(23, select()["artifact_id"])
         self.assertIsNone(select(dict(artifact, expired=True)))
         self.assertIsNone(select(dict(artifact, created_at="2026-11-27T01:04:00Z")))
         self.assertIsNone(select(fingerprint=lambda *_: "d"*64))
+        self.assertIsNone(select(caller=lambda *_: False))
         job["steps"][0]["conclusion"]="skipped"
         self.assertIsNone(select())
         job["steps"][0]["conclusion"]="success"

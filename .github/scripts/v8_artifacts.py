@@ -57,7 +57,7 @@ def compiler_action_recipe(text):
     result = []
     block = []
     def append(step):
-        if any(re.match(r"^\s+uses:\s*(?:actions/cache(?:/restore|/save)?|gradle/actions/setup-gradle)@", line)
+        if any(re.match(r"^\s+(?:-\s+)?uses:\s*(?:actions/cache(?:/restore|/save)?|gradle/actions/setup-gradle)@", line)
                for line in step):
             return
         result.extend(step)

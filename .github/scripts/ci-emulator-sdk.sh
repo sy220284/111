@@ -16,11 +16,27 @@ IMAGE="android-${matrix[0]}/${matrix[1]}/${matrix[2]}"
 PACKAGE="system-images;android-${matrix[0]};${matrix[1]};${matrix[2]}"
 TOOLS="${matrix[3]}"
 image_present() {
-  [ -s "$SDK/system-images/$IMAGE/system.img" ] &&
-  [ -s "$SDK/system-images/$IMAGE/package.xml" ] &&
-  grep -Fq "$PACKAGE" "$SDK/system-images/$IMAGE/package.xml"
+  python3 - "$SDK/system-images/$IMAGE" "$PACKAGE" <<'PY'
+import pathlib, sys, xml.etree.ElementTree as ET
+root, expected = pathlib.Path(sys.argv[1]), sys.argv[2]
+if not (root/"system.img").is_file() or (root/"system.img").stat().st_size == 0:
+    raise SystemExit(1)
+if not (root/"package.xml").is_file() or not (root/"source.properties").is_file():
+    raise SystemExit(1)
+try:
+    packages = [p for p in ET.parse(root/"package.xml").iter() if p.tag.rsplit("}",1)[-1]=="localPackage"]
+    if len(packages)!=1 or packages[0].get("path")!=expected:
+        raise SystemExit(1)
+    revision = next((p for p in packages[0] if p.tag.rsplit("}",1)[-1]=="revision"), None)
+    major = next((p.text for p in revision if p.tag.rsplit("}",1)[-1]=="major"), None) if revision is not None else None
+    props = dict(line.split("=",1) for line in (root/"source.properties").read_text().splitlines() if "=" in line)
+    if not major or not props.get("Pkg.Revision") or props["Pkg.Revision"].split(".")[0]!=major:
+        raise SystemExit(1)
+except (ET.ParseError, OSError, ValueError):
+    raise SystemExit(1)
+PY
 }
-case "${1:?locate/install}" in
+case "${1:?locate/install/seal/verify-cache}" in
   locate)
     present=false
     if image_present; then present=true; fi
@@ -45,6 +61,18 @@ case "${1:?locate/install}" in
     test -x "$SDK/cmdline-tools/$TOOLS/bin/avdmanager"
     image_present
     printf 'ANDROID_HOME=%s\nANDROID_SDK_ROOT=%s\nCODEX_EMULATOR_SDK=%s\n' "$SDK" "$SDK" "$SDK" >> "$GITHUB_ENV"
+    ;;
+  seal)
+    image_present
+    cd "$SDK/system-images/$IMAGE"
+    find . -type f ! -name .111-image-sha256 -print0 | sort -z | xargs -0 sha256sum > .111-image-sha256
+    test -s .111-image-sha256
+    ;;
+  verify-cache)
+    image_present
+    cd "$SDK/system-images/$IMAGE"
+    test -s .111-image-sha256
+    sha256sum -c .111-image-sha256 --quiet
     ;;
   *) exit 2 ;;
 esac
