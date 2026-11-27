@@ -31,6 +31,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
@@ -69,6 +70,11 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
     }
     val canvas = Ink.canvas
     val entrance = if (moving) Modifier.graphicsLayer {
+        // Rasterize the page once while translating it. A display list alone
+        // still rerasterizes every glyph and card at each animation frame.
+        // Drop the texture when the route settles; content invalidations still
+        // redraw the layer, so a streaming reply never becomes a stale bitmap.
+        compositingStrategy = CompositingStrategy.Offscreen
         translationY = 6.dp.toPx() * (1f - progress.value)
     } else Modifier
     // Keep the original veil and translation; draw the translucent rectangle
@@ -83,6 +89,10 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         }
     }
 }
+
+/** Cache stable content only while the drawer is covering/moving over it. */
+internal fun Modifier.codexDrawerRaster(active: Boolean): Modifier =
+    if (active) graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen } else this
 
 /** State-driven reveal, never a perpetual decorative animation. */
 @Composable

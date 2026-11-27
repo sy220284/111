@@ -145,7 +145,7 @@ class UiMotionPerformanceInstrumentedTest {
             if (InstrumentationRegistry.getArguments().getString("methodTrace") == "true") {
                 val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
                 android.os.Debug.startMethodTracingSampling(File(folder, "ui-motion-failure.trace").absolutePath,
-                    32 * 1024 * 1024, 1000)
+                    8 * 1024 * 1024, 10000)
                 tracing = true
             }
             scenario.onActivity {
