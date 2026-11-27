@@ -19,7 +19,9 @@ DEVICE_ROOT = "/sdcard/Android/data/" + PACKAGE + "/files"
 
 
 def category(error):
-    if "CalledFromWrongThreadException" in error:
+    if "Application Not Responding:" in error and "截图被其他程序或系统窗口遮挡" in error:
+        return "system_window_anr"
+    if "CalledFromWrongThreadException" in error or "multithreaded access to SnapshotStateObserver" in error:
         return "ui_thread"
     if "ComposeTimeoutException" in error or "TimeoutException" in error:
         return "state_or_layout_timeout"
@@ -206,10 +208,41 @@ def adaptive(profile, shard):
     # once; do not stop HOME or resize after capturing the test evidence.
     spec = dimensions(profile, "adaptive")
     prepare_display_change()
-    adb("shell", "wm", "size", f"{spec['width_px']}x{spec['height_px']}")
-    adb("shell", "wm", "density", str(spec["density_dpi"]))
-    adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
+    # Reconfigure only actual differences. Even nominally identical wm
+    # requests can trigger display/layout work in the system and launcher.
+    actual_size = re.findall(r"(?:Override|Physical) size: (\d+x\d+)", adb("shell", "wm", "size"))
+    actual_density = re.findall(r"(?:Override|Physical) density: (\d+)", adb("shell", "wm", "density"))
+    if not actual_size or not actual_density:
+        raise RuntimeError("Unable to determine current device display configuration")
+    target_size = f"{spec['width_px']}x{spec['height_px']}"
+    if actual_size[-1] != target_size:
+        adb("shell", "wm", "size", target_size)
+    if int(actual_density[-1]) != spec["density_dpi"]:
+        adb("shell", "wm", "density", str(spec["density_dpi"]))
+    actual_font = adb("shell", "settings", "get", "system", "font_scale")
+    if (1.0 if actual_font == "null" else float(actual_font)) != float(spec["font_scale"]):
+        adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
     return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", shard)
+
+
+def collect_anr_diagnostics():
+    """Retain the original ANR event and system stack before the AVD is destroyed."""
+    diagnostics = []
+    for command in (
+        ["adb", "logcat", "-b", "events", "-d", "-s", "am_anr"],
+        ["adb", "shell", "dumpsys", "activity", "lastanr"],
+    ):
+        record = {"command": command}
+        try:
+            result = subprocess.run(command, capture_output=True, text=True,
+                                    errors="replace", timeout=20, check=False)
+            output = result.stdout + result.stderr
+            record.update(exit_code=result.returncode, output=output[:65536],
+                          truncated=len(output) > 65536)
+        except (OSError, subprocess.SubprocessError) as error:
+            record.update(error=str(error))
+        diagnostics.append(record)
+    return diagnostics
 
 
 def main():
@@ -223,6 +256,8 @@ def main():
         result = baseline(args.profile, args.shard) if args.mode == "baseline" else adaptive(args.profile, args.shard)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         result = {"status": "failed", "category": "runner_or_device", "error": str(error), "profile": args.profile}
+    if result["status"] != "passed":
+        result["system_anr_diagnostics"] = collect_anr_diagnostics()
     report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
     return int(result["status"] != "passed")

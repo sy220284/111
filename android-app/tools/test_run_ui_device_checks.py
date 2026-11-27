@@ -49,11 +49,38 @@ class DeviceEvidenceTest(unittest.TestCase):
                 prepare_display_change()
 
     def test_adaptive_dedicated_device_never_changes_home_or_resizes_after_test(self):
-        with patch("run_ui_device_checks.prepare_display_change") as prepare, patch("run_ui_device_checks.adb") as adb, patch("run_ui_device_checks.run_fresh_suite", return_value={"status": "passed"}) as suite:
-            self.assertEqual({"status": "passed"}, adaptive("mainstream", "navigation"))
-            prepare.assert_called_once()
-            self.assertEqual(3, adb.call_count)
-            suite.assert_called_once_with("mainstream", "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", "navigation")
+        from unittest.mock import call
+        for profile, replies, writes in (
+            ("mainstream", ["Physical size: 1272x2772", "Physical density: 480", "", "1.0", ""],
+             [call("shell", "wm", "size", "1272x2400"),
+              call("shell", "settings", "put", "system", "font_scale", "1.3")]),
+            ("ultra", ["Physical size: 1440x3120", "Physical density: 520", "1.0", ""],
+             [call("shell", "settings", "put", "system", "font_scale", "1.5")]),
+            ("ultra", ["Physical size: 1440x3120", "Physical density: 520", "1.5"], []),
+        ):
+            with self.subTest(profile=profile, writes=writes), patch("run_ui_device_checks.prepare_display_change") as prepare, patch("run_ui_device_checks.adb", side_effect=replies) as adb, patch("run_ui_device_checks.run_fresh_suite", return_value={"status": "passed"}) as suite:
+                self.assertEqual({"status": "passed"}, adaptive(profile, "navigation"))
+                prepare.assert_called_once()
+                actual_writes = [entry for entry in adb.call_args_list
+                                 if len(entry.args) == 4 and entry.args[1] == "wm" or
+                                 len(entry.args) > 3 and entry.args[1:3] == ("settings", "put")]
+                self.assertEqual(writes, actual_writes)
+                suite.assert_called_once_with(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", "navigation")
+
+    def test_anr_diagnostics_preserve_failure_and_system_event(self):
+        from subprocess import CompletedProcess, TimeoutExpired
+        from run_ui_device_checks import collect_anr_diagnostics, category
+        with patch("run_ui_device_checks.subprocess.run", side_effect=[
+            CompletedProcess([], 0, stdout="am_anr: launcher", stderr=""),
+            TimeoutExpired("dumpsys", 20),
+        ]) as run:
+            records = collect_anr_diagnostics()
+            self.assertEqual("am_anr: launcher", records[0]["output"])
+            self.assertEqual(0, records[0]["exit_code"])
+            self.assertIn("error", records[1])
+            self.assertEqual(2, run.call_count)
+        self.assertEqual("system_window_anr", category("截图被其他程序或系统窗口遮挡：x Application Not Responding: launcher"))
+        self.assertEqual("ui_thread", category("Detected multithreaded access to SnapshotStateObserver"))
 
     def test_success_requires_positive_count_and_successful_process(self):
         self.assertEqual("passed", parse_instrumentation("OK (142 tests)\n", 0)["status"])
