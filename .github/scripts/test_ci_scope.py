@@ -1,4 +1,5 @@
 import unittest
+import subprocess
 from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 W = ROOT / ".github/workflows"
@@ -41,6 +42,27 @@ class UnifiedScopeTests(unittest.TestCase):
                      "adb shell settings get system font_scale"):
             self.assertIn(read, before_motion)
         self.assertIn("null|1.0", before_motion)
+
+    def test_emulator_boot_dismisses_keyguard_without_injecting_input_and_checks_home_focus(self):
+        script = (ROOT / "tools/dev/run-emulator.sh").read_text()
+        self.assertNotIn("input keyevent 82", script)
+        self.assertIn("device_shell wm dismiss-keyguard", script)
+        self.assertIn("Android HOME focused and stable", script)
+        self.assertLess(script.index("Android HOME focused and stable"), script.index('bash -euo pipefail -c "$EMULATOR_SCRIPT"'))
+        helper = "home_focus_ready() {" + script.split("home_focus_ready() {", 1)[1].split("\n}\n", 1)[0] + "\n}\n"
+        command = helper + 'home_focus_ready "$1" "$2"'
+        package = "com.google.android.apps.nexuslauncher"
+        for focus, expected in (
+            ("Window{a u0 " + package + "/.NexusLauncherActivity}", 0),
+            ("null", 1),
+            ("Window{b u0 Application Not Responding: " + package + "}", 1),
+            ("Window{c u0 com.android.systemui/.Keyguard}", 1),
+            ("Window{d u0 " + package + ".other/.Activity}", 1),
+        ):
+            with self.subTest(focus=focus):
+                result = subprocess.run(["bash", "-c", command, "test", "  mCurrentFocus=" + focus, package],
+                                        capture_output=True, text=True)
+                self.assertEqual(expected, result.returncode, result.stderr)
 
     def test_host_toolchain_is_consumed_by_actual_builds(self):
         for name in ("ci.yml", "release.yml", "build-native-codex.yml"):

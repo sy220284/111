@@ -102,8 +102,39 @@ fi
 echo "Android system services ready; system_server:surfaceflinger=$last_pid"
 test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 37
 test "$(adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
-adb shell input keyevent 82
-for key in window_animation_scale transition_animation_scale animator_duration_scale; do adb shell settings put global "$key" 0.0; done
+# A live system_server does not prove that HOME has a focusable window.
+# Injecting KEYCODE_MENU here can start an input-dispatch timeout against an
+# unfocused launcher before the app is even installed. Use WindowManager's
+# non-input keyguard operation, then verify the real foreground window.
+device_shell wm dismiss-keyguard
+for key in window_animation_scale transition_animation_scale animator_duration_scale; do device_shell settings put global "$key" 0.0; done
+home_component="$(device_shell cmd package resolve-activity --brief -a android.intent.action.MAIN -c android.intent.category.HOME | tr -d '\r' | tail -n 1)"
+[[ "$home_component" =~ ^[A-Za-z0-9_.]+/[A-Za-z0-9_.$]+$ ]] || { echo "Unable to resolve the actual HOME activity: $home_component" >&2; exit 1; }
+home_package="${home_component%%/*}"
+home_focus_ready() {
+  local dump="$1" package="$2" focus
+  focus="$(printf '%s\n' "$dump" | awk '/^[[:space:]]*mCurrentFocus=/ {sub(/^[[:space:]]*mCurrentFocus=/,""); value=$0} END {print value}')"
+  [[ "$focus" == Window\{* && "$focus" == *" $package/"* && "$focus" != *"Application Not Responding"* && "$focus" != *"Application Error"* ]]
+}
+focus_deadline=$((SECONDS+120))
+focus_stable_since=-1
+focus_ready=false
+while [ "$SECONDS" -lt "$focus_deadline" ]; do
+  kill -0 "$PID"
+  if dump="$(device_shell dumpsys window)" && home_focus_ready "$dump" "$home_package"; then
+    if [ "$focus_stable_since" -lt 0 ]; then focus_stable_since=$SECONDS; fi
+    if [ "$((SECONDS-focus_stable_since))" -ge 10 ]; then focus_ready=true; break; fi
+  else
+    focus_stable_since=-1
+  fi
+  sleep 2
+done
+if [ "$focus_ready" != true ]; then
+  echo "HOME failed to acquire a stable focused window before test installation: $home_component" >&2
+  device_shell dumpsys window >&2 || true
+  exit 1
+fi
+echo "Android HOME focused and stable: $home_component"
 if [ "${1:-}" = "--probe" ]; then
   python3 "$ROOT/android-app/tools/device_matrix.py" --verify-resources "${RUNNER_TEMP:-/tmp}/111-emulator-probe.json"
 else
