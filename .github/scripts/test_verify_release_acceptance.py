@@ -21,7 +21,7 @@ class ReleaseAcceptanceTests(unittest.TestCase):
             "device-ready": ("release", "check-release"),
             "device": ("release", "check-release", "device-ready"),
             "publish": ("release", "check-release", "device"),
-            "cleanup": ("publish", "release-result"),
+            "cleanup": ("publish",),
         }
         for name, upstream in requirements.items():
             with self.subTest(job=name):
@@ -30,13 +30,14 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                 for dependency in upstream:
                     self.assertIn("needs." + dependency + ".result == 'success'", condition)
         terminal = jobs["release-result"]
-        self.assertIn("needs: [check-release, release, device-ready, device, publish]", terminal)
+        self.assertIn("needs: [preflight, check-release, developer-runtime, host-android, host-patcher, release, device-ready, device, publish, cleanup]", terminal)
         self.assertIn("!cancelled()", terminal)
-        self.assertIn("needs.check-release.outputs.should_release == 'true'", terminal)
-        for name in ("release", "device-ready", "device", "publish"):
-            self.assertIn("needs." + name + ".result", terminal)
-        self.assertIn('for status in "$SIGNED" "$DEVICE_READY" "$DEVICE" "$PUBLISHED"', terminal)
-        self.assertIn('exit 1', terminal)
+        self.assertIn("python3 .github/scripts/release_outcome.py", terminal)
+        # 防谎报语义已外移到 release_outcome.py：完整发布链逐项强制成功。
+        outcome = (Path(__file__).resolve().parent / "release_outcome.py").read_text(encoding="utf-8")
+        self.assertIn('"device-ready", "device", "publish", "cleanup"', outcome)
+        self.assertIn('results[key] != "success"', outcome)
+        self.assertIn("正式发布链未完成", outcome)
 
     def test_all_real_android_jobs_are_required(self):
         for workflow, names in REQUIRED_JOBS.items():
