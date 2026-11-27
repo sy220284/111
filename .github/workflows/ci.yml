@@ -419,11 +419,14 @@ jobs:
             adb install -r apks/debug/app-debug.apk
             adb shell appops set io.github.sy220284.codexandroid MANAGE_EXTERNAL_STORAGE allow
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
-            # Physical pixel resolution and logical density come from one device matrix.
+            # New AVDs already boot at the matrix's physical baseline. Validate
+            # the actual state before motion or adaptive setup, without forcing HOME to relayout.
             test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
-            adb shell wm size reset
-            adb shell wm density reset
-            adb shell settings put system font_scale 1.0
+            baseline_font_scale="$(adb shell settings get system font_scale | tr -d '\r')"
+            case "$baseline_font_scale" in
+              null|1.0) ;;
+              *) printf 'Unexpected initial AVD font scale: %s\n' "$baseline_font_scale" >&2; exit 1 ;;
+            esac
             # The emulator has a hardware keyboard. Explicitly allow the software IME,
             # otherwise performTextInput succeeds while keyboard screenshots are false positives.
             adb shell settings put secure show_ime_with_hard_keyboard 1

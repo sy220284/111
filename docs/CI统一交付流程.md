@@ -36,7 +36,7 @@
 
 系统与屏幕配置来源：Android 官方 https://developer.android.com/about/versions/17/get；Chromium Android 17 16KB 镜像说明 https://chromium.googlesource.com/chromium/src/+/main/docs/android_emulator.md；OnePlus 15 官方规格 https://www.oneplus.com/global/15/specs；Samsung S26 Ultra 官方规格 https://www.samsung.com/sg/business/smartphones/galaxy-s/galaxy-s26-ultra-sm-s948bzkbs02/。
 
-模拟器创建后、启动前按同一矩阵设置 AVD 原生 LCD 宽高与显示密度，避免用低分辨率设备仅拉伸逻辑窗口；适配轮次独立调整窗口及字体。截图清单另记录每张 PNG 的实际宽高。
+模拟器创建后、启动前按同一矩阵设置 AVD 原生 LCD 宽高与显示密度，避免用低分辨率设备仅拉伸逻辑窗口；分片启动后只读校验实际基准分辨率、密度和字号；适配轮次在测试应用进入前台后单独写入有差异的参数。截图清单另记录每张 PNG 的实际宽高。
 
 Android 17 的运行时镜像包固定为 `system-images;android-37.2;google_apis_ps16k;x86_64`（Chromium 当前配置）；模拟器工具的 SDK platform 参数独立保持 35，实际设备 SDK 必须为 37。设备矩阵和真实内核运行脚本的修改触发全量 x86_64 真实核心测试，保留不少于150项 UI 测试的底线。模拟器启动后的原生 LCD 参数需与基准配置一致，避免以低分辨率物理屏拉伸替代。Android Emulator Runner 锁定已核实支持独立镜像参数与 16KB 目标的提交。
 

@@ -30,6 +30,18 @@ class UnifiedScopeTests(unittest.TestCase):
         self.assertIn("needs: [plan, native, runtime-x86, host-android, host-emulator, host-patcher]", runtime)
         self.assertIn("needs: [plan, build]", verify_apk)
         self.assertNotIn("needs.runtime-test", verify_apk)
+    def test_ui_emulator_reads_the_physical_baseline_before_device_tests(self):
+        ci = (W / "ci.yml").read_text()
+        ui = ci.split("\n  ui-emulator:", 1)[1].split("\n  ui-collect:", 1)[0]
+        for write in ("adb shell wm size reset", "adb shell wm density reset",
+                      "adb shell settings put system font_scale"):
+            self.assertNotIn(write, ui)
+        before_motion = ui.split("python3 android-app/tools/run_ui_motion_checks.py", 1)[0]
+        for read in ("adb shell wm size", "adb shell wm density",
+                     "adb shell settings get system font_scale"):
+            self.assertIn(read, before_motion)
+        self.assertIn("null|1.0", before_motion)
+
     def test_host_toolchain_is_consumed_by_actual_builds(self):
         for name in ("ci.yml", "release.yml", "build-native-codex.yml"):
             source=(W/name).read_text()
