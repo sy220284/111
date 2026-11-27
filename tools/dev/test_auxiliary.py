@@ -16,7 +16,7 @@ class PortableAuxiliaryTest(unittest.TestCase):
             revision=auxiliary.LOCK["deviceCommandLineTools"]
             package="system-images/android-"+auxiliary.LOCK["deviceImage"]+"/"+auxiliary.LOCK["deviceTarget"]+"/x86_64"
             for rel in ("cmdline-tools/12.0/bin","cmdline-tools/"+revision+"/bin", "emulator", "platform-tools", "licenses",
-                        "platforms/android-"+str(auxiliary.LOCK["compileSdk"]),package):
+                        "platforms/android-"+auxiliary.EMULATOR_SDK_PLATFORM,package):
                 (sdk/rel).mkdir(parents=True)
             for version in ("12.0",revision):
                 (sdk/"cmdline-tools"/version/"bin/sdkmanager").write_text("manager")

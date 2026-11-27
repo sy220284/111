@@ -125,7 +125,7 @@ def environment(root,names):
     if "android-sdk" in paths:
         sdk=paths["android-sdk"]
         ndk=sdk/"ndk"/p["ndk"]
-        for relative in ("platforms/android-"+str(p["compileSdk"])+"/android.jar","build-tools/"+p["buildTools"]+"/aapt","platform-tools/adb"):
+        for relative in ("platforms/android-"+p["compileSdkPackage"]+"/android.jar","build-tools/"+p["buildTools"]+"/aapt","platform-tools/adb"):
             require((sdk/relative).is_file(),"SDK component missing: "+relative)
         require(re.search(r"^Pkg\.Revision\s*=\s*"+re.escape(p["ndk"])+r"\s*$",(ndk/"source.properties").read_text(),re.M),"NDK version drift")
         env.update(ANDROID_HOME=str(sdk),ANDROID_SDK_ROOT=str(sdk),ANDROID_NDK_HOME=str(ndk))

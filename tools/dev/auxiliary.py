@@ -17,6 +17,7 @@ import zipfile
 
 ROOT=pathlib.Path(__file__).resolve().parents[2]
 LOCK=json.loads((ROOT/"tools/dev/toolchain-lock.json").read_text())["project"]
+EMULATOR_SDK_PLATFORM = str(json.loads((ROOT / "android-app/tools/device-matrix.json").read_text())["sdk_platform"])
 UPSTREAM=ROOT/"upstream/codex"
 GROUPS=("wheelhouse","emulator","llvm","patcher")
 
@@ -158,8 +159,8 @@ def prepare(group,stage):
         need(properties.get("Pkg.Revision","").strip()==revision,"Android command-line tools revision mismatch")
         manager=tools/"bin/sdkmanager"
         package="system-images;android-"+LOCK["deviceImage"]+";"+LOCK["deviceTarget"]+";x86_64"
-        run(manager,"emulator","platform-tools",package,"platforms;android-"+str(LOCK["compileSdk"]))
-        for rel in ("emulator","platform-tools","cmdline-tools/"+revision,"licenses","platforms/android-"+str(LOCK["compileSdk"]),
+        run(manager,"emulator","platform-tools",package,"platforms;android-"+EMULATOR_SDK_PLATFORM)
+        for rel in ("emulator","platform-tools","cmdline-tools/"+revision,"licenses","platforms/android-"+EMULATOR_SDK_PLATFORM,
                     package.replace(";","/")):
             src=sdk/rel;dest=stage/rel;dest.parent.mkdir(parents=True,exist_ok=True)
             shutil.copytree(src,dest,symlinks=True)

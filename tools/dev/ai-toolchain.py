@@ -115,7 +115,7 @@ def project_check():
         "android-app/gradle/wrapper/gradle-wrapper.properties": [f"gradle-{p['gradle']}-bin.zip", p["gradleDistributionSha256"]],
         "upstream/codex/codex-rs/rust-toolchain.toml": [p["rust"]],
         "android-app/tools/prepare_android_v8.sh": [p["v8"], p["v8Commit"]],
-        ".github/scripts/ci-android-sdk.sh": [p["buildTools"], p["ndk"]],
+        ".github/scripts/ci-android-sdk.sh": [p["buildTools"], p["ndk"], "platforms;android-" + p["compileSdkPackage"]],
         "tools/dev/requirements-host.lock": [f"jsonschema=={p['jsonschema']}", f"pillow=={p['pillow']}"],
         "android-app/tools/device-matrix.json": ['"system_image_api": "' + p["deviceImage"] + '"'],
     }
