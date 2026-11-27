@@ -6,7 +6,7 @@ on:
     types: [completed]
     branches: [main]
   pull_request_target:
-    types: [closed, synchronize]
+    types: [closed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -23,38 +23,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  superseded-queue:
-    if: (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') || (github.event_name == 'pull_request_target' && github.event.action == 'synchronize' && github.event.pull_request.head.repo.full_name == github.repository)
-    permissions:
-      contents: read
-      actions: write
-      pull-requests: read
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      # Privileged operation: always execute trusted main, never PR source.
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-        with:
-          ref: main
-          persist-credentials: false
-          sparse-checkout: |
-            .github/scripts
-            .github/ci
-      - name: 验证过期作业判定
-        run: python3 -m unittest discover -s .github/scripts -p test_ci_queue_policy.py
-      - name: 收敛已被替代的空闲验收队列
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
-          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run }}
-        run: |
-          set -euo pipefail
-          args=(--repo "$GITHUB_REPOSITORY")
-          if [ -n "$PR_NUMBER" ]; then args+=(--pr "$PR_NUMBER"); fi
-          if [ "$DRY_RUN" != true ]; then args+=(--apply); fi
-          python3 .github/scripts/ci_queue_policy.py "${args[@]}"
   retain:
-    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged == false)
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success') || (github.event_name == 'pull_request_target' && github.event.pull_request.merged == false)
     permissions:
       contents: read
       actions: write
