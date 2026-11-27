@@ -704,4 +704,5 @@
 - 远端文件持久断点须在新连接重新得到 account/read 的真实 userId、accountSession/list 的唯一活动会话 ID 和已选工作区 accountId，并由 thread/read、environment/info 与源文件首块证明归属和 SHA-256 后才复用。清单只保存身份组合摘要、长度、源摘要、已提交偏移；数据先 sync，随后原子替换清单，恢复时截断未提交尾部。缺少稳定账号 ID 的账号模式或明确不支持会话列表的核心仅支持当前连接内续传，界面明确说明。保存、回读及成功回执全程复核同一归属，取消后可能存在用户授权位置的部分文件，继续提示重新保存。原有512MiB限制、安全路径和完整 SHA-256 不变。
 
 - 主机工具链消费环境必须与产物输入指纹的 Ubuntu 24.04 x86_64 一致，所有使用 install-host-toolchain 的 CI/发布任务使用固定宿主镜像；统一入口核验 OS、架构和 hostPython 锁定解释器，wheelhouse 虚拟环境通过 CODEX_HOST_PYTHON 创建，依赖摘要与断网验收保持严格。
+- Android 37.x 模拟器组件固定使用工具链锁中的 Command-line Tools 22.0 路径生产和创建 AVD，只归档该版本。启动前核验实际工具版本、根 ini 的精确 android-37.2 目标及系统镜像目录；发现 android-0 或版本不符立即失败并保留证据，不重写错误元数据掩盖工具问题。就绪窗口同时核验 system_server、surfaceflinger 身份持续稳定及真实 Binder 调用，保留原图形配置、设备规格和 UI 性能门槛。
 - JVM 协程回归使用与生产协程一致的 1.10.2 测试依赖及虚拟时钟，Debug/Release 单测锁定图与已核验的摘要同步；不以跳过测试替代修复。生成协议文档与回归断言均引用目标提交的 CI 设备矩阵，避免重复冻结过期设备档位。

@@ -16,7 +16,8 @@ import json,sys
 p=json.load(open(sys.argv[1])); print("system-images;android-"+p["system_image_api"]+";"+p["target"]+";"+p["arch"])
 PY
 )"
-MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name avdmanager -print -quit)"
+TOOLS_REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["project"]["deviceCommandLineTools"])' "$ROOT/tools/dev/toolchain-lock.json")"
+MANAGER="$ANDROID_HOME/cmdline-tools/$TOOLS_REVISION/bin/avdmanager"
 test -x "$MANAGER"
 test -r /dev/kvm && test -w /dev/kvm
 LOG="${RUNNER_TEMP:-/tmp}/111-emulator-$$.log"
@@ -40,6 +41,7 @@ cleanup() {
 }
 trap cleanup EXIT
 printf 'no\n' | "$MANAGER" create avd --force -n test --package "$PACKAGE"
+python3 "$ROOT/android-app/tools/device_matrix.py" --verify-avd-metadata
 python3 "$ROOT/android-app/tools/device_matrix.py" --configure-avd "$EMULATOR_PROFILE"
 if [ -n "${EMULATOR_PRE_SCRIPT:-}" ]; then bash -euo pipefail -c "$EMULATOR_PRE_SCRIPT"; fi
 mapfile -t CONFIG < <(python3 - "$MATRIX" <<'PY'
@@ -57,10 +59,12 @@ PID=$!
 # real Binder calls and the same system_server PID over a stability window.
 device_shell() { timeout 15 adb -s "$ANDROID_SERIAL" shell "$@"; }
 ready_pid() {
-  local before after pkg settings
+  local before after compositor compositor_after pkg settings
   [ "$(device_shell getprop sys.boot_completed | tr -d '\r')" = 1 ] || return 1
   before="$(device_shell pidof system_server | tr -d '\r')" || return 1
   [[ "$before" =~ ^[0-9]+$ ]] || return 1
+  compositor="$(device_shell pidof surfaceflinger | tr -d '\r')" || return 1
+  [[ "$compositor" =~ ^[0-9]+$ ]] || return 1
   pkg="$(device_shell cmd package path android | tr -d '\r')" || return 1
   [[ "$pkg" == package:* ]] || return 1
   settings="$(device_shell settings get global window_animation_scale | tr -d '\r')" || return 1
@@ -68,7 +72,9 @@ ready_pid() {
   device_shell cmd activity get-current-user >/dev/null || return 1
   after="$(device_shell pidof system_server | tr -d '\r')" || return 1
   [ "$before" = "$after" ] || return 1
-  printf '%s\n' "$before"
+  compositor_after="$(device_shell pidof surfaceflinger | tr -d '\r')" || return 1
+  [ "$compositor" = "$compositor_after" ] || return 1
+  printf '%s:%s\n' "$before" "$compositor"
 }
 deadline=$((SECONDS+1200))
 stable_since=0
@@ -93,7 +99,7 @@ if [ "$ready" != true ]; then
   echo "Android system services failed to become stable before the boot deadline" >&2
   exit 1
 fi
-echo "Android system services ready; system_server=$last_pid"
+echo "Android system services ready; system_server:surfaceflinger=$last_pid"
 test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = 37
 test "$(adb shell getconf PAGE_SIZE | tr -d '\r')" = 16384
 adb shell input keyevent 82

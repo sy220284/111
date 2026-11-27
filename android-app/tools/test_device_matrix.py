@@ -1,7 +1,7 @@
 import unittest
 import tempfile
 from pathlib import Path
-from device_matrix import verify_resources, CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd, MODES, SHARDS, shard_matrix, shard_classes, shard_job_name
+from device_matrix import verify_resources, verify_avd_metadata, CONFIG, PROFILES, dimensions, matrix, job_name, configure_avd, MODES, SHARDS, shard_matrix, shard_classes, shard_job_name
 
 class DeviceMatrixTests(unittest.TestCase):
     def test_two_distinct_current_phones_and_one_update_owner(self):
@@ -78,3 +78,26 @@ class DeviceMatrixTests(unittest.TestCase):
             self.assertIn("hw.lcd.density=520", lines)
             self.assertIn("hw.cpu.ncore=2", lines)
             self.assertIn("skin.path=_no_skin", lines)
+
+    def test_avd_minor_target_tools_and_image_must_match(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder); sdk=root/"sdk"; avd=root/"avds"; avd.mkdir()
+            tools=sdk/"cmdline-tools/22.0"; tools.mkdir(parents=True)
+            properties=tools/"source.properties"; properties.write_text("Pkg.Revision = 22.0\n")
+            image=sdk/"system-images/android-37.2/google_apis_ps16k/x86_64"; image.mkdir(parents=True)
+            config=avd/"test.avd/config.ini"; config.parent.mkdir()
+            config.write_text("image.sysdir.1=system-images/android-37.2/google_apis_ps16k/x86_64/\n")
+            metadata=avd/"test.ini"; metadata.write_text("target=android-37.2\n")
+            self.assertEqual("android-37.2",verify_avd_metadata(avd,"test",sdk,"22.0")["target"])
+            for value in ("android-0", "android-37", "android-37.0", ""):
+                metadata.write_text("target="+value+"\n")
+                with self.assertRaisesRegex(ValueError,"AVD target mismatch"):
+                    verify_avd_metadata(avd,"test",sdk,"22.0")
+            metadata.write_text("target=android-37.2\n")
+            properties.write_text("Pkg.Revision=12.0\n")
+            with self.assertRaisesRegex(ValueError,"revision mismatch"):
+                verify_avd_metadata(avd,"test",sdk,"22.0")
+            properties.write_text("Pkg.Revision=22.0\n")
+            config.write_text("image.sysdir.1=system-images/android-37.0/google_apis_ps16k/x86_64/\n")
+            with self.assertRaisesRegex(ValueError,"locked system image"):
+                verify_avd_metadata(avd,"test",sdk,"22.0")

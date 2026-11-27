@@ -69,6 +69,7 @@
     "nodeMin": "24.22.1",
     "bazel": "9.3.3",
     "deviceImage": "37.2",
+    "deviceCommandLineTools": "22.0",
     "deviceApi": 37,
     "deviceTarget": "google_apis_ps16k",
     "pillow": "13.0.0",

@@ -88,6 +88,27 @@ def configure_avd(path, profile):
     print(json.dumps({"avd": str(path), "profile": profile, **fields}, ensure_ascii=False))
 
 
+def verify_avd_metadata(root, name, sdk, tools_revision):
+    def properties(path):
+        return {key.strip(): value.strip() for line in path.read_text(encoding="utf-8").splitlines()
+                if "=" in line for key,value in [line.split("=",1)]}
+    tool=sdk/"cmdline-tools"/tools_revision/"source.properties"
+    if properties(tool).get("Pkg.Revision") != tools_revision:
+        raise ValueError("Android command-line tools revision mismatch")
+    metadata=properties(root/(name+".ini"))
+    expected="android-"+CONFIG["system_image_api"]
+    if metadata.get("target") != expected:
+        raise ValueError("AVD target mismatch: expected "+expected+", got "+str(metadata.get("target")))
+    config=properties(root/(name+".avd")/"config.ini")
+    image=Path(config.get("image.sysdir.1",""))
+    if not image.is_absolute():
+        image=sdk/image
+    actual=sdk/"system-images"/expected/CONFIG["target"]/CONFIG["arch"]
+    if image.resolve() != actual.resolve() or not image.is_dir():
+        raise ValueError("AVD image does not match the locked system image")
+    return {"target": expected, "command_line_tools": tools_revision, "image": str(actual)}
+
+
 def verify_resources(guest_cpus, meminfo):
     """Verify the booted guest, allowing memory reserved by the kernel."""
     match = re.search(r"(?m)^MemTotal:\s+(\d+)\s+kB\s*$", meminfo)
@@ -113,8 +134,15 @@ if __name__ == "__main__":
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--configure-avd", choices=sorted(PROFILES))
     mode.add_argument("--verify-resources", type=Path)
+    mode.add_argument("--verify-avd-metadata", action="store_true")
     parser.add_argument("--avd-name", default="test")
     args = parser.parse_args()
+    if args.verify_avd_metadata:
+        root=Path(os.environ["ANDROID_AVD_HOME"])
+        sdk=Path(os.environ["CODEX_EMULATOR_SDK"])
+        lock=json.loads((Path(__file__).resolve().parents[2]/"tools/dev/toolchain-lock.json").read_text())
+        print(json.dumps(verify_avd_metadata(root,args.avd_name,sdk,lock["project"]["deviceCommandLineTools"])))
+        raise SystemExit(0)
     if args.verify_resources:
         cpus = subprocess.check_output(["adb", "shell", "getconf", "_NPROCESSORS_ONLN"], text=True).strip()
         memory = subprocess.check_output(["adb", "shell", "cat", "/proc/meminfo"], text=True)

@@ -418,15 +418,25 @@ def prepare(group,stage):
         bazel_fetch(stage,False)
     elif group=="emulator":
         sdk=pathlib.Path(os.environ["ANDROID_HOME"])
-        manager=next(sdk.glob("cmdline-tools/*/bin/sdkmanager"))
+        bootstrap=next(sdk.glob("cmdline-tools/*/bin/sdkmanager"))
+        # Preinstalled tools can silently write target=android-0 for 37.x images.
+        # Install an exact package and use that path, never the first host copy.
+        revision=LOCK["deviceCommandLineTools"]
+        run(bootstrap,"cmdline-tools;"+revision)
+        tools=sdk/"cmdline-tools"/revision
+        properties={key.strip():value.strip() for line in (tools/"source.properties").read_text().splitlines()
+                    if "=" in line for key,value in [line.split("=",1)]}
+        need(properties.get("Pkg.Revision","").strip()==revision,"Android command-line tools revision mismatch")
+        manager=tools/"bin/sdkmanager"
         package="system-images;android-"+LOCK["deviceImage"]+";"+LOCK["deviceTarget"]+";x86_64"
         run(manager,"emulator","platform-tools",package,"platforms;android-"+str(LOCK["compileSdk"]))
-        for rel in ("emulator","platform-tools","cmdline-tools","licenses","platforms/android-"+str(LOCK["compileSdk"]),
+        for rel in ("emulator","platform-tools","cmdline-tools/"+revision,"licenses","platforms/android-"+str(LOCK["compileSdk"]),
                     package.replace(";","/")):
             src=sdk/rel;dest=stage/rel;dest.parent.mkdir(parents=True,exist_ok=True)
             shutil.copytree(src,dest,symlinks=True)
         print("EMULATOR_REVISION="+(stage/"emulator/source.properties").read_text(),flush=True)
         print("SYSTEM_IMAGE_REVISION="+(stage/package.replace(";","/")/"source.properties").read_text(),flush=True)
+        print("COMMAND_LINE_TOOLS_REVISION="+(stage/"cmdline-tools"/revision/"source.properties").read_text(),flush=True)
     elif group=="llvm":llvm_prepare(stage)
     elif group=="patcher":
         for name,sha in (("hdiffpatch_v"+LOCK["hdiffpatch"]+"_sdk_android_hpatchz.zip",LOCK["hdiffpatchAndroidSha256"]),
