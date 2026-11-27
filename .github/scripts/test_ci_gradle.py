@@ -73,3 +73,13 @@ exit 17
         build = ci.split("\n  build:\n", 1)[1].split("\n  runtime-test:\n", 1)[0]
         self.assertIn("-PcodexR8Candidate=true", build)
         self.assertIn('--mode full --report "$RUNNER_TEMP/r8-candidate/apk-audit.json"', build)
+
+    def test_target37_and_voice_use_real_device_runner(self):
+        root = ROOT / ".github/scripts/run-android-runtime-tests.sh"
+        script = root.read_text()
+        self.assertIn('adb shell pm grant "$PKG" "$PERMISSION"', script)
+        self.assertIn('adb shell pm revoke "$PKG" "$PERMISSION"', script)
+        self.assertEqual(script.count('run_suite Android17CandidateInstrumentedTest'), 3)
+        self.assertIn('run_suite RealtimeAudioFocusInstrumentedTest "$OUT/audio-focus.log"', script)
+        self.assertIn('run_suite RealtimeAudioFocusInstrumentedTest "$OUT/target37/audio-focus.log"', script)
+        subprocess.run(["bash", "-n", str(root)], check=True)
