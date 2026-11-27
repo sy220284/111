@@ -15,13 +15,14 @@ def run(id,sha,status="queued"):
             "pull_requests":[{"number":12}]}
 
 class QueueTests(unittest.TestCase):
-    def test_candidates_start_independently_and_producers_keep_shared_locks(self):
+    def test_latest_pr_supersedes_old_head_and_producers_keep_shared_locks(self):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / ".github/workflows/ci.yml").read_text()
         concurrency = workflow.split("\nconcurrency:\n", 1)[1].split("\njobs:\n", 1)[0]
         self.assertIn("github.event.pull_request.number || github.ref", concurrency)
-        self.assertIn("github.event.pull_request.head.sha || github.sha", concurrency)
-        self.assertIn("cancel-in-progress: false", concurrency)
+        self.assertIn("github.event_name == 'pull_request' && 'latest' || github.sha", concurrency)
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", concurrency)
+        self.assertNotIn("github.event.pull_request.head.sha", concurrency)
         native = (root / ".github/workflows/build-native-codex.yml").read_text()
         self.assertIn("group: android-native-codex-${{ inputs.native_key || github.sha }}", native)
         self.assertIn("group: android-v8-${{ matrix.v8_key }}", native)
