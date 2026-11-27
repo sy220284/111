@@ -41,6 +41,7 @@ jobs:
           sparse-checkout: |
             .github/scripts
             .github/ci
+            .github/workflows
       - name: 核验过期任务判定规则
         run: python3 -m unittest discover -s .github/scripts -p test_ci_queue_policy.py
       - name: 收敛被替代的验收并输出仓库队列
