@@ -124,6 +124,7 @@ jobs:
             /.github/actions/ci-rust/
             /.github/ci/
             /.github/actions/run-emulator/
+            /.github/actions/ci-emulator/
             /tools/dev/
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
@@ -156,6 +157,11 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
       - name: 一次加载源码，完整执行协议、功能和设计三类审计
         run: python3 android-app/tools/run_static_audit.py --repository . --output .
+      - name: 复用 Python 锁定依赖下载缓存
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
       - name: 验证截图收集与功能验收独立记录
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
@@ -205,6 +211,7 @@ jobs:
             /.github/actions/ci-rust/
             /.github/ci/
             /.github/actions/run-emulator/
+            /.github/actions/ci-emulator/
             /tools/dev/
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
@@ -227,6 +234,11 @@ jobs:
           printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证 Compose、协议测试与静态检查
         run: ./android-app/gradlew -p android-app --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+      - name: 复用 Python 锁定依赖下载缓存
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
@@ -301,6 +313,7 @@ jobs:
             /.github/actions/ci-rust/
             /.github/ci/
             /.github/actions/run-emulator/
+            /.github/actions/ci-emulator/
             /tools/dev/
             /android-app/tools/collect_ui_screenshots.py
             /android-app/tools/ui_evidence_manifest.py
@@ -341,11 +354,9 @@ jobs:
           CI_COMPILE_PROOF: ${{ toJSON(fromJSON(needs.plan.outputs.receipt).reused.compile) }}
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 .github/scripts/ui_shard_reuse.py --repo "$GITHUB_REPOSITORY" --source "$TEST_SOURCE_SHA" --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --shard ${{ matrix.shard }}
-      - name: 使用 Runner 模拟器（仅补齐指定镜像）
+      - name: 使用 Runner 模拟器及独立镜像缓存
         if: steps.shard-reuse.outputs.reused != 'true'
-        uses: ./.github/actions/ci-android
-        with:
-          mode: emulator
+        uses: ./.github/actions/ci-emulator
       - name: 允许模拟器硬件加速
         if: steps.shard-reuse.outputs.reused != 'true'
         run: |
@@ -446,6 +457,7 @@ jobs:
             /.github/actions/ci-rust/
             /.github/ci/
             /.github/actions/run-emulator/
+            /.github/actions/ci-emulator/
             /tools/dev/
             /android-app/tools/
             /docs/ui-assets/素材接入清单.json
@@ -461,6 +473,11 @@ jobs:
           CI_COMPILE_PROOF: ${{ toJSON(fromJSON(needs.plan.outputs.receipt).reused.compile) }}
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 android-app/tools/merge_ui_shards.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --root ui-shards
+      - name: 复用 Python 锁定依赖下载缓存
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
       - name: 安装独立视觉审计依赖
         continue-on-error: true
         timeout-minutes: 3
@@ -573,6 +590,7 @@ jobs:
             .github/actions/ci-rust
             .github/ci
             .github/actions/run-emulator
+            .github/actions/ci-emulator
             tools/dev
             tools/runtime
       - name: 使用 Runner Android SDK（仅补齐缺项）
@@ -675,12 +693,13 @@ jobs:
             .github/actions/ci-rust
             .github/ci
             .github/actions/run-emulator
+            .github/actions/ci-emulator
             tools/dev
             tools/runtime
-      - name: 一次准备 Runner Android 编译及设备环境
+      - name: 使用 Runner Android 编译环境
         uses: ./.github/actions/ci-android
         with:
-          mode: build-emulator
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -708,6 +727,8 @@ jobs:
           bash .github/scripts/create-android-update-fixture.sh
           ./android-app/gradlew -p android-app --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
           python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
+      - name: 使用 Runner 模拟器及独立镜像缓存
+        uses: ./.github/actions/ci-emulator
       - name: 允许模拟器硬件加速
         run: |
           sudo adduser "$USER" kvm || true
@@ -813,6 +834,7 @@ jobs:
             .github/actions/ci-rust
             .github/ci
             .github/actions/run-emulator
+            .github/actions/ci-emulator
             tools/dev
       - name: 使用 Runner Android SDK（仅补齐缺项）
         uses: ./.github/actions/ci-android

@@ -169,7 +169,8 @@ class ArtifactSelector:
         delivery = self.run(["git", "ls-tree", sha, "--",
                              "android-app/tools/prepare_android_remote_delivery.py",
                              "android-app/tools/test_prepare_android_remote_delivery.py"])
-        return (upstream, parent_cargo, provider_recipe(workflow), delivery)
+        rust_setup = self.run(["git", "ls-tree", sha, "--", ".github/actions/ci-rust/action.yml"])
+        return (upstream, parent_cargo, provider_recipe(workflow), delivery, rust_setup)
 
     def is_ancestor(self, old, new):
         try:

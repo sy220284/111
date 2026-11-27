@@ -19,3 +19,5 @@ runs:
           ~/.cargo/registry/index
           ~/.cargo/git/db
         key: cargo-source-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/codex/codex-rs/Cargo.lock') }}-${{ inputs.target || 'host' }}
+        restore-keys: |
+          cargo-source-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/codex/codex-rs/Cargo.lock') }}-

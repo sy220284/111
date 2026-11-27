@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Run the verified SDK image without any sdkmanager installation in consumers.
+# Boot an already available official SDK image; installation is owned by CI setup.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 : "${CODEX_EMULATOR_SDK:?missing verified emulator component}"
@@ -16,7 +16,7 @@ import json,sys
 p=json.load(open(sys.argv[1])); print("system-images;android-"+p["system_image_api"]+";"+p["target"]+";"+p["arch"])
 PY
 )"
-TOOLS_REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["project"]["deviceCommandLineTools"])' "$ROOT/tools/dev/toolchain-lock.json")"
+TOOLS_REVISION="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["command_line_tools"])' "$MATRIX")"
 MANAGER="$ANDROID_HOME/cmdline-tools/$TOOLS_REVISION/bin/avdmanager"
 test -x "$MANAGER"
 test -r /dev/kvm && test -w /dev/kvm

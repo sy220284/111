@@ -1,5 +1,5 @@
 name: 运行已核验的 Android 37.2 16KiB 设备镜像
-description: Boot a verified emulator bundle; never install SDK packages on the test runner.
+description: Boot the already available official Android SDK image and execute device checks.
 inputs:
   profile:
     required: true
