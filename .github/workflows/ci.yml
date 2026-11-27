@@ -95,6 +95,7 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
           python3 -m unittest discover -s android-app/tools -p 'test_architecture_callgraph.py'
           python3 -m unittest discover -s android-app/tools -p 'test_device_video.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_check_architecture_boundaries.py'
   native:
     needs: [plan, static-ui, preflight]
     if: always() && !cancelled() && needs.plan.result == 'success' && (needs.plan.outputs.run_package == 'true' || needs.plan.outputs.run_runtime == 'true') && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
@@ -173,6 +174,7 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
           python3 -m unittest discover -s android-app/tools -p 'test_architecture_callgraph.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_check_architecture_boundaries.py'
       - name: 一次加载源码，执行协议、功能、设计与架构调用候选审计
         run: python3 android-app/tools/run_static_audit.py --repository . --output .
       - name: 复用 Python 锁定依赖下载缓存
@@ -207,6 +209,7 @@ jobs:
             protocol-contract-audit.json
             static-audit-summary.json
             architecture-callgraph.json
+            architecture-boundaries.json
           if-no-files-found: ignore
           retention-days: 14
 

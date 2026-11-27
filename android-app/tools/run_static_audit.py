@@ -17,6 +17,7 @@ import check_design_system_tokens as tokens
 import check_ui_assets as assets
 import check_component_system as components
 import architecture_callgraph
+import check_architecture_boundaries as boundaries
 
 
 def json_report(out, name, data):
@@ -97,12 +98,18 @@ def architecture(inputs, out):
     return []
 
 
+def architecture_boundaries(inputs, out):
+    errors = boundaries.check(inputs.names(inputs.production))
+    json_report(out, "architecture-boundaries.json", {"rules": boundaries.OWNERS, "errors": errors})
+    return errors
+
+
 def run(root, out):
     inputs = AuditInputs(root)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     summary = {}
-    for name, check in (("protocol", protocol), ("functionality", functionality), ("design", design), ("architecture", architecture)):
+    for name, check in (("protocol", protocol), ("functionality", functionality), ("design", design), ("architecture", architecture), ("architecture_boundaries", architecture_boundaries)):
         try:
             if not inputs.production:
                 raise ValueError("缺少 Android 生产源码")

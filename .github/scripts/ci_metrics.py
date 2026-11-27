@@ -42,4 +42,19 @@ if __name__ == "__main__":
         print("截至最后完成任务的耗时：" + str(summary["elapsed_to_last_completed_minutes"]), file=out)
         for job in summary["jobs"]:
             print(f"- {job['name']}: {job['minutes']} 分钟 / {job['conclusion']}", file=out)
+    artifacts=[]
+    page=1
+    while True:
+        data=api(f"repos/{repo}/actions/runs/{run}/artifacts?per_page=100&page={page}")
+        artifacts.extend(data["artifacts"])
+        if len(artifacts)>=data["total_count"]:
+            break
+        if not data["artifacts"]:
+            raise ValueError("产物分页不完整")
+        page+=1
+    active=[a for a in artifacts if not a.get("expired")]
+    summary["artifact_count"]=len(active)
+    summary["artifact_bytes"]=sum(a["size_in_bytes"] for a in active)
+    with open(os.environ["GITHUB_STEP_SUMMARY"],"a",encoding="utf-8") as out:
+        print("当前运行尚存产物（截至采样）：" + str(summary["artifact_count"]) + " 件 / " + str(round(summary["artifact_bytes"]/1024**2,2)) + " MiB",file=out)
     print(json.dumps(summary, ensure_ascii=False))
