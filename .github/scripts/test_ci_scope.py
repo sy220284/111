@@ -25,7 +25,7 @@ class UnifiedScopeTests(unittest.TestCase):
         self.assertIn("pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*", ci)
         self.assertEqual(1, ci.count("needs: [plan, static-ui, preflight, host-android]"))
         self.assertIn("needs.ui-emulator.result == 'failure'", ci)
-        self.assertIn("保存供全矩阵核对的小型验收凭证\n        if: always()", ci)
+        self.assertIn("保存供全矩阵核对的小型验收凭证\n        if: ${{ !cancelled() }}", ci)
         runtime = ci.split("\n  runtime-test:", 1)[1].split("\n  verify-apk:", 1)[0]
         verify_apk = ci.split("\n  verify-apk:", 1)[1].split("\n  preflight:", 1)[0]
         self.assertIn("needs: [plan, native, runtime-x86, host-android, host-emulator, host-patcher]", runtime)
