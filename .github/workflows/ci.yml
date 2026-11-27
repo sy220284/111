@@ -156,6 +156,7 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_check_ui_assets.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_check_architecture_boundaries.py'
       - name: 一次加载源码，完整执行协议、功能和设计三类审计
         run: python3 android-app/tools/run_static_audit.py --repository . --output .
       - name: 复用 Python 锁定依赖下载缓存
@@ -188,6 +189,7 @@ jobs:
             interaction-coverage.json
             protocol-contract-audit.json
             static-audit-summary.json
+            architecture-boundaries.json
           if-no-files-found: ignore
           retention-days: 14
 

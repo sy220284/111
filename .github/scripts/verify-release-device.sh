@@ -8,6 +8,8 @@ PKG=io.github.sy220284.codexandroid
 test -n "${ANDROID_SERIAL:-}"
 HARNESS="${CODEX_DEVICE_TEST_HARNESS:?配置专用外部设备测试工具的绝对路径}"
 test -x "$HARNESS"
+# Device harness remains site-owned; record exact executable identity before running it.
+sha256sum "$HARNESS" | awk '{print $1}' > "$OUT/harness.sha256"
 test "$(adb -s "$ANDROID_SERIAL" get-state)" = device
 test "$(adb shell getprop ro.product.cpu.abi | tr -d '\r')" = arm64-v8a
 test "$(adb shell getprop ro.kernel.qemu | tr -d '\r')" != 1
@@ -15,6 +17,10 @@ adb shell getprop ro.build.version.sdk | tr -d '\r' > "$OUT/api.txt"
 EXPECTED_API="$(python3 -c 'import json; print(json.load(open("android-app/tools/device-matrix.json"))["api"])')"
 test "$(cat "$OUT/api.txt")" = "$EXPECTED_API"
 adb shell getprop ro.product.model | tr -d '\r' > "$OUT/model.txt"
+adb shell getprop ro.build.fingerprint | tr -d '\r' > "$OUT/device-fingerprint.txt"
+test -s "$OUT/device-fingerprint.txt"
+# All operations use the explicitly registered device, including the external harness.
+export ANDROID_SERIAL
 (cd "$DIR" && sha256sum -c SHA256SUMS.txt)
 APK="$DIR/codex-android-arm64-v8a-$RELEASE_VERSION.apk"
 test -s "$APK"
@@ -27,6 +33,7 @@ mkdir -p "$OUT/previous"
 gh release download "$PREVIOUS_TAG" --pattern 'codex-android-arm64-v8a-*.apk' --dir "$OUT/previous"
 OLD="$(find "$OUT/previous" -name '*.apk' -print -quit)"
 test -s "$OLD"
+sha256sum "$OLD" > "$OUT/previous-apk.sha256"
 adb install "$OLD" | tee "$OUT/previous-install.log"
 grep -Fxq Success "$OUT/previous-install.log"
 # Site-owned external UI suite seeds test data, exercises the real core, account,
@@ -42,6 +49,7 @@ adb pull "$INSTALLED" "$OUT/installed.apk"
 cmp "$APK" "$OUT/installed.apk"
 "$HARNESS" verify --package "$PKG" --version "$RELEASE_VERSION" --apk "$APK" --seed "$OUT/seed.json" --output "$OUT/runtime.json"
 python3 .github/scripts/verify_device_evidence.py "$OUT/runtime.json" "$RELEASE_VERSION" "$APK"
+test "$(sha256sum "$HARNESS" | awk '{print $1}')" = "$(cat "$OUT/harness.sha256")"
 # Store path expected by the publication job; no APK copies or account data in evidence.
 sha256sum "$APK" | sed 's#  candidate/#  .release-assets/#' > "$OUT/candidate.sha256"
 rm -rf "$OUT/previous" "$OUT/installed.apk"

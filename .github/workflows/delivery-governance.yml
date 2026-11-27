@@ -1,0 +1,90 @@
+name: 111 交付产物与版本治理
+
+on:
+  workflow_dispatch:
+    inputs:
+      apply_observations:
+        description: 清理符合规则的独立视觉证据（默认只盘点）
+        type: boolean
+        default: false
+      apply_retirements:
+        description: 执行经 main 台账明确登记的旧版本退役
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+
+# Same serialization lane as release.yml, never interrupt a publication.
+concurrency:
+  group: android-release-${{ github.repository }}-main
+  cancel-in-progress: false
+
+jobs:
+  inventory:
+    name: 全仓产物与退役台账盘点
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 验证治理规则
+        run: |
+          python3 -m unittest discover -s .github/scripts -p 'test_artifact_governance.py'
+          python3 -m unittest discover -s .github/scripts -p 'test_release_lifecycle.py'
+      - name: 只读盘点
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 .github/scripts/artifact_governance.py
+          python3 .github/scripts/release_lifecycle.py retire > release-retirement-plan.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: delivery-governance-inventory
+          path: |
+            artifact-inventory.json
+            release-retirement-plan.json
+          retention-days: 30
+          if-no-files-found: error
+  prune-observations:
+    name: 手动清理独立视觉证据
+    needs: inventory
+    if: github.ref == 'refs/heads/main' && inputs.apply_observations
+    permissions:
+      contents: read
+      actions: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: 重新盘点并核对后清理
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/artifact_governance.py --apply
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: delivery-governance-applied
+          path: artifact-inventory.json
+          retention-days: 30
+  retire-versions:
+    name: 手动退役明确登记的历史版本
+    needs: inventory
+    if: github.ref == 'refs/heads/main' && inputs.apply_retirements
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 核对标签、Release ID、提交及更高健康版本
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/release_lifecycle.py retire --apply

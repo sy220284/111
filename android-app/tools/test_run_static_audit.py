@@ -35,9 +35,10 @@ class StaticAuditTests(TestCase):
             out = root / "reports"
             with patch("run_static_audit.protocol", return_value=[]) as a, \
                  patch("run_static_audit.functionality", side_effect=ValueError("missing evidence")) as b, \
-                 patch("run_static_audit.design", return_value=[]) as c:
+                 patch("run_static_audit.design", return_value=[]) as c, \
+                 patch("run_static_audit.architecture_boundaries", return_value=[]) as d:
                 self.assertEqual(run(root, out), 1)
-                for rule in (a, b, c):
+                for rule in (a, b, c, d):
                     rule.assert_called_once()
                 self.assertIs(a.call_args.args[0], c.call_args.args[0])
             summary = json.loads((out / "static-audit-summary.json").read_text())
