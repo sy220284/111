@@ -199,6 +199,8 @@ jobs:
         if: steps.probe.outputs.available == 'false'
         env:
           SCCACHE_GHA_ENABLED: "on"
+          # Compile in the client process so process-group CPU observation remains accurate.
+          SCCACHE_CLIENT_SIDE: "1"
           SCCACHE_GHA_VERSION: ${{ matrix.v8_key }}
           SCCACHE_GHA_RW_MODE: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'READ_ONLY' || 'READ_WRITE' }}
         run: python3 tools/build/build_progress.py --label "V8 ${{ matrix.abi }}" -- bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
@@ -302,6 +304,8 @@ jobs:
         if: steps.v8-consume.outputs.rebuild == 'true'
         env:
           SCCACHE_GHA_ENABLED: "on"
+          # Compile in the client process so process-group CPU observation remains accurate.
+          SCCACHE_CLIENT_SIDE: "1"
           SCCACHE_GHA_VERSION: ${{ matrix.v8_key }}
           SCCACHE_GHA_RW_MODE: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository && 'READ_ONLY' || 'READ_WRITE' }}
         run: |

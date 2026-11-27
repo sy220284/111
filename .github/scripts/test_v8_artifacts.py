@@ -207,3 +207,23 @@ class V8ArtifactsTests(unittest.TestCase):
     def test_current_artifact_may_be_absent_when_historical_producer_exists(self):
         self.assertIsNone(current_artifact("o/r", 17, KEY,
             lambda *_: {"total_count":0,"artifacts":[]}, allow_missing=True))
+
+    def test_manual_prewarm_keeps_full_product_gate_and_cache_scope(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github/workflows/build-native-codex.yml").read_text()
+        producer, consumer = workflow.split("\n  v8:\n", 1)[1].split("\n  native:\n", 1)
+        recovery = consumer.split("\n  provider-contract:\n", 1)[0]
+        for block in (producer, recovery):
+            self.assertIn("SCCACHE_CLIENT_SIDE: \"1\"", block)
+            self.assertIn("SCCACHE_GHA_VERSION: ${{ matrix.v8_key }}", block)
+            self.assertIn("version: v0.20.1", block)
+            self.assertIn("'READ_ONLY' || 'READ_WRITE'", block)
+        self.assertIn("v8_only:", workflow)
+        self.assertIn("!(github.event_name == 'workflow_dispatch' && inputs.v8_only)", recovery)
+        self.assertIn('test "$V8" = success', workflow)
+        self.assertIn('test "$NATIVE" = skipped', workflow)
+        self.assertIn('test "$NATIVE" = success; test "$V8" = success', workflow)
+        shell = (root / "android-app/tools/prepare_android_v8.sh").read_text()
+        self.assertIn('--jobs v8', shell)
+        self.assertIn('v8_enable_sandbox = true', shell)
+        self.assertIn('v8_enable_pointer_compression = true', shell)

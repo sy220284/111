@@ -32,3 +32,5 @@ class BuildProgressTests(unittest.TestCase):
         self.assertEqual(progress_line(b'[v8 152.2.0] [3877/4484] CXX foo', None), (3877,4484))
         self.assertEqual(progress_line(b'[7/0]', (3,8)), (3,8))
         self.assertEqual(progress_line(b'no counter', (3,8)), (3,8))
+        self.assertEqual(progress_line(b'other message [8/9]', (3,8)), (3,8))
+        self.assertEqual(progress_line(b'[8/9] CXX foo', None), (8,9))

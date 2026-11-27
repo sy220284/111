@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Observe real build activity, size parallelism and terminate stalled process groups."""
 import argparse
+from datetime import datetime, timezone
 import os
 from pathlib import Path
 import re
@@ -14,7 +15,7 @@ import time
 MIB = 1024 ** 2
 PROC = Path('/proc')
 CGROUP = Path('/sys/fs/cgroup')
-NINJA = re.compile(rb'\[(\d+)/(\d+)\]')
+NINJA = re.compile(rb'(?:\[v8 [^\]]+\]\s+|^)\[(\d+)/(\d+)\]', re.M)
 
 
 def cgroup_dirs():
@@ -118,9 +119,10 @@ def run(command, idle=1800, maximum=10800, heartbeat=60, label='build'):
         disk = shutil.disk_usage(os.getcwd()).free // MIB
         counter = f'{progress[0]}/{progress[1]} ({100 * progress[0] / progress[1]:.1f}%)' if progress else 'not reported'
         elapsed = max(now - started, .001)
-        line = (f'{label}: elapsed={elapsed:.0f}s ninja={counter} '
+        observed = datetime.now(timezone.utc).isoformat(timespec='seconds')
+        line = (f'{label}: observed={observed} elapsed={elapsed:.0f}s ninja={counter} '
                 f'last_output={now-last_output:.0f}s last_activity={now-last_activity:.0f}s '
-                f'processes={len(previous)} cpu_seconds={cpu_ticks/os.sysconf("SC_CLK_TCK"):.1f} '
+                f'processes={len(previous)} sampled_cpu_seconds={cpu_ticks/os.sysconf("SC_CLK_TCK"):.1f} '
                 f'process_rss={rss}MiB available_memory={memory}MiB cpu_limit={cpus} free_disk={disk}MiB')
         print(('::notice title=Build progress::' if notice else '[build-progress] ') + line, flush=True)
         return line
@@ -168,7 +170,10 @@ def run(command, idle=1800, maximum=10800, heartbeat=60, label='build'):
                     selector.unregister(key.fileobj)
     finally:
         selector.close()
+        current, _ = group_sample(process.pid)
+        cpu_ticks += cpu_delta(previous, current)
         terminate_group(process)
+        previous, rss = group_sample(process.pid)
         process.stdout.close()
         signal.signal(signal.SIGTERM, old)
         signal.signal(signal.SIGINT, old_int)

@@ -95,7 +95,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     export V8_FROM_SOURCE=1
     : "${SCCACHE_PATH:?official sccache must be installed before building V8}"
     export SCCACHE="$SCCACHE_PATH"
-    "$SCCACHE" --version
+    "$SCCACHE" --version | grep -Fx "sccache 0.20.1"
     "$SCCACHE" --start-server
     JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs v8)"
     export GN_ARGS='v8_enable_sandbox=true v8_enable_pointer_compression=true android_static_analysis="off"'
@@ -143,6 +143,7 @@ TOML
       sha256sum "$SRC/Cargo.lock" | cut -d' ' -f1
       git -C "$SRC" submodule status --recursive
       cat "$TOOL_PROVENANCE"
+      printf 'sccache_version=%s\nsccache_sha256=%s\n' "$("$SCCACHE" --version)" "$(sha256sum "$SCCACHE" | cut -d' ' -f1)"
       cat "$GN_OUT/args.gn"
     } > "$CACHE/SOURCE_PROVENANCE"
     (cd "$CACHE" && sha256sum "$ARCHIVE" "$BINDING" BUILD_INPUTS SOURCE_PROVENANCE > SHA256SUMS)
