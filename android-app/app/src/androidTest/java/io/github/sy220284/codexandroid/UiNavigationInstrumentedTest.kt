@@ -267,6 +267,15 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("conversation-top-bar").assertExists()
         rule.onNodeWithText("今天想做什么？").assertExists()
         rule.onNodeWithTag("composer-send").assertIsDisplayed()
+        // A retained drawer must remain inaccessible while offscreen.
+        rule.onNodeWithTag("sidebar-thread-list").assertDoesNotExist()
+        rule.onNodeWithTag("nav-settings").assertDoesNotExist()
+        rule.onNodeWithContentDescription("打开侧边导航").performClick()
+        rule.onNodeWithTag("sidebar-thread-list").assertIsDisplayed()
+        rule.onNodeWithTag("sidebar-clipboard-query").assertDoesNotExist()
+        pressSystemBack()
+        rule.onNodeWithTag("sidebar-drawer").assertDoesNotExist()
+        rule.onNodeWithTag("composer-send").assertIsDisplayed()
     }
 
     @Test fun sidebarQuotaOpensLimitsWithoutFooterLabels() {

@@ -87,8 +87,8 @@ internal object SessionDirectoryEngine {
 @Composable
 internal fun collectSessionDirectory(vm: CodexViewModel, input: SessionDirectoryInput): State<Result<SessionDirectoryPresentation>?> {
     val latest by rememberUpdatedState(input)
-    val engine = remember(vm, input.scope.session, input.scope.account, input.scope.sectionId,
-        input.scope.archived, input.scope.fullText) { SessionDirectoryEngine.Cache() }
+    // Cache belongs to the account/session controller, not the drawer composition.
+    val engine = vm.sessions.directoryCache
     return produceCodexUiState<Result<SessionDirectoryPresentation>?>(null, vm, input.scope) {
         snapshotFlow { latest }.collectLatest { request ->
             if (!request.available) value = null

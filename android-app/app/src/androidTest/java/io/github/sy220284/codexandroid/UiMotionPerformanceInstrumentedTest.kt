@@ -253,6 +253,10 @@ class UiMotionPerformanceInstrumentedTest {
                 .put("p95_ms", sortedPhase[(kotlin.math.ceil(sortedPhase.size * .95).toInt() - 1).coerceAtLeast(0)] / 1_000_000.0))
         }
         report.put("phase_metrics", phaseReport)
+        // Keep per-frame phase samples aligned with intended vsync and total
+        // duration; aggregate percentiles cannot explain an individual slow frame.
+        report.put("phase_names", JSONArray(phaseNames))
+        report.put("phase_ns", JSONArray(frames.map { JSONArray(it.phasesNs) }))
         // A slow frame can finish after the next gesture begins. Attribute it
         // by its intended vsync on the same monotonic clock as the stage markers.
         val stageReport = JSONObject()

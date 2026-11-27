@@ -45,7 +45,7 @@ internal class SidebarUiState(initialIndex: Int = 0, initialOffset: Int = 0) {
 internal fun SidebarSessions(
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     modifier: Modifier = Modifier, uiState: SidebarUiState? = null,
-    continuationLabel: String? = null
+    continuationLabel: String? = null, active: Boolean = true
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
     val searchHistory by vm.sessions.recentSearches.state.collectAsState()
@@ -90,11 +90,11 @@ internal fun SidebarSessions(
     var managingSections by remember { mutableStateOf(false) }
     var moving by remember { mutableStateOf<Map<String, Set<String>>?>(null) }
     val response = data[if (state.archived) "archivedThreads" else "sidebarThreads"]
-    LaunchedEffect(section, state.archived, connected, sectionRevision, session, accountRevision) {
+    LaunchedEffect(active, section, state.archived, connected, sectionRevision, session, accountRevision) {
         val selected = section
         val archivedRequest = state.archived
         sectionError = ""
-        if (selected != null && connected) {
+        if (active && selected != null && connected) {
             try {
                 sectionRows = capabilityPages { cursor ->
                     vm.capabilityRequest("thread/list",
@@ -108,7 +108,8 @@ internal fun SidebarSessions(
             }
         }
     }
-    LaunchedEffect(vm) {
+    LaunchedEffect(vm, active) {
+        if (!active) return@LaunchedEffect
         vm.bridge.events.collect { event ->
             if (section != null && event.optString("method") in setOf(
                     "thread/section/changed", "thread/archived", "thread/unarchived", "thread/closed")) {
@@ -133,9 +134,25 @@ internal fun SidebarSessions(
     var rename by remember { mutableStateOf<JSONObject?>(null) }
     var name by rememberSaveable { mutableStateOf("") }
     var confirm by remember { mutableStateOf<Pair<String, List<String>>?>(null) }
-    LaunchedEffect(state.archived, connected) { vm.sessions.showArchive(state.archived && connected) }
+    // Closing keeps the normal directory and its visible rows warm, but ends
+    // transient search, selection and modal ownership just as disposal used to.
+    LaunchedEffect(active, session, accountRevision) {
+        if (!active) {
+            section = null
+            selection = false
+            selectedIds = emptySet()
+            menu = null
+            rename = null
+            name = ""
+            confirm = null
+            managingSections = false
+            moving = null
+        }
+    }
+    LaunchedEffect(active, state.archived, connected) { vm.sessions.showArchive(active && state.archived && connected) }
     DisposableEffect(vm) { onDispose { vm.sessions.showArchive(false) } }
-    LaunchedEffect(state.searching, state.fullText, state.archived, state.search, connected, section?.id, state.projectOnly) {
+    LaunchedEffect(active, state.searching, state.fullText, state.archived, state.search, connected, section?.id, state.projectOnly) {
+        if (!active) return@LaunchedEffect
         if (state.searching && state.fullText) {
             delay(250)
             vm.sessions.search(state.search, state.archived)
@@ -241,7 +258,7 @@ internal fun SidebarSessions(
                 }
             })
     }
-    if (managingSections || moving != null) {
+    if (active && (managingSections || moving != null)) {
         ThreadSectionSheet(vm, section, moving,
             onFilter = { section = it; sectionRevision++; managingSections = false },
             onMoved = { completedMoves ->
@@ -253,7 +270,7 @@ internal fun SidebarSessions(
             onDismiss = { managingSections = false; moving = null })
 
     }
-    menu?.let { row ->
+    menu?.takeIf { active }?.let { row ->
         val id = SessionListPolicy.id(row)
         val canEdit = canManage(row)
         val read = receipts[id]
@@ -283,7 +300,7 @@ internal fun SidebarSessions(
                     destructive = true, onClick = { confirm = "delete" to listOf(id) }, testTag = "session-delete"))
             })
     }
-    rename?.let { row ->
+    rename?.takeIf { active }?.let { row ->
         CodexDialogFrame(onDismissRequest = { rename = null }, title = { Text("重命名会话") },
             text = { ActionReplyRow(name, { name = it }, label = { Text("会话名称") },
                 singleLine = true, modifier = Modifier.fillMaxWidth(), directText = true) },
@@ -294,7 +311,7 @@ internal fun SidebarSessions(
             }, enabled = name.isNotBlank() && canManage(row)) { Text("保存名称") } },
             dismissButton = { CodexTextAction(onClick = { rename = null }) { Text("取消") } })
     }
-    confirm?.let { (kind, ids) ->
+    confirm?.takeIf { active }?.let { (kind, ids) ->
         val label = ThreadBulkActionPolicy.display(kind)
         CodexConfirmDialog(title = label + "会话",
             message = if (kind == "delete") "将永久删除所选会话及全部回答版本的历史记录，请核对范围。"

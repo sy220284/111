@@ -12,6 +12,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -70,7 +72,7 @@ val pages = listOf(
     Page("settings", "设置", "通用", "账户、功能、主机与外观", CodexGlyph.Settings)
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun CodexShell(vm: CodexViewModel) {
     var savedRoute by rememberSaveable { mutableStateOf(NavigationPolicy.startRoute) }
@@ -411,9 +413,12 @@ fun CodexShell(vm: CodexViewModel) {
                     drawerContainerColor = Ink.recessed,
                     drawerContentColor = Ink.parchment
                 ) {
-                    // Retain drawer geometry while closed, but do not run its list or data collectors.
-                    Box(Modifier.fillMaxWidth().fillMaxHeight()) {
-                        if (drawerOwnsInput) Sidebar(Modifier.fillMaxHeight(), selected,
+                    // Keep the first screen composed and its directory prepared while closed.
+                    // The offscreen drawer cannot receive focus or expose accessibility actions.
+                    Box(Modifier.fillMaxWidth().fillMaxHeight()
+                        .focusProperties { onEnter = { if (!drawerOwnsInput) cancelFocusChange() } }
+                        .focusGroup()) {
+                        Sidebar(Modifier.fillMaxHeight(), selected,
                     { id ->
                         if (id == "status") {
                             openSheet("status")
@@ -428,7 +433,7 @@ fun CodexShell(vm: CodexViewModel) {
                     } },
                     sidebarState, pendingThreadAction?.let { target ->
                         pages.firstOrNull { it.id == target }?.title ?: "当前操作"
-                    })
+                    }, active = drawerOwnsInput)
                     }
                 }
             }
@@ -498,7 +503,7 @@ private fun Sidebar(
     status: EngineStatus, approvals: Int, newThreadBlockReason: String?, onNewThread: () -> Unit,
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     sidebarState: SidebarUiState,
-    continuationLabel: String?
+    continuationLabel: String?, active: Boolean
 ) {
     val activeWorkspace by vm.activeWorkspace.collectAsState()
     val accountData by vm.data.collectEntries("limits")
@@ -571,7 +576,7 @@ private fun Sidebar(
         Box(Modifier.fillMaxWidth().weight(1f)) {
             SidebarSessions(vm, onOpenThread,
                 modifier = Modifier.fillMaxSize(), uiState = sidebarState,
-                continuationLabel = continuationLabel)
+                continuationLabel = continuationLabel, active = active)
         }
         HorizontalDivider(color = Ink.border.copy(alpha = .65f))
         Row(

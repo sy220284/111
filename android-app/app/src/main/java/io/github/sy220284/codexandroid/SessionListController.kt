@@ -65,6 +65,8 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     private var archiveDirty = true
     private var identity: String? = null
     private var identityEpoch = 0L
+    internal var directoryCache = SessionDirectoryEngine.Cache()
+        private set
     private val index = SessionIndexStore(vm.getApplication<android.app.Application>().cacheDir.resolve("session-index.db"))
     private var allowCacheRead = true
     private val pendingIds = linkedSetOf<String>()
@@ -148,6 +150,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     }
     fun invalidateIdentity() {
         identityEpoch += 1
+        directoryCache = SessionDirectoryEngine.Cache()
         identity = null
         allowCacheRead = false
         scope.launch {
