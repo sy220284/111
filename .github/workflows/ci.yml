@@ -17,10 +17,10 @@ permissions:
   actions: read
 
 concurrency:
-  # Candidate validation starts independently of older native production.
-  # Immutable native/V8/host inputs retain their own shared producer locks.
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event.pull_request.head.sha || github.sha }}
-  cancel-in-progress: false
+  # A new head supersedes the previous acceptance for the same PR, including
+  # queued reusable-workflow jobs. Distinct PRs and main keep independent lanes.
+  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'pull_request' && 'latest' || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   plan:
