@@ -608,13 +608,19 @@ jobs:
           run-id: ${{ needs.native.outputs.arm_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: 111-runtime-arm64-v8a
-          path: ${{ runner.temp }}/developer-runtime-bundle
+      - name: 直接获取并核验原始手机运行组件
+        id: runtime-bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNTIME_ID: ${{ needs.runtime-arm64.outputs.artifact_id }}
+          RUNTIME_SOURCE: ${{ needs.runtime-arm64.outputs.source }}
+          RUNTIME_KEY: ${{ needs.runtime-arm64.outputs.key }}
+        run: |
+          PIN="$(python3 .github/scripts/runtime_artifacts.py download --abi arm64-v8a --artifact-id "$RUNTIME_ID" --source "$RUNTIME_SOURCE" --key "$RUNTIME_KEY" --output "$RUNNER_TEMP/developer-runtime-bundle")"
+          echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
       - name: 核验并装配 ARM64 手机原生核心
         env:
-          RUNTIME_MANIFEST_SHA: ${{ needs.runtime-arm64.outputs.manifest_sha }}
+          RUNTIME_MANIFEST_SHA: ${{ steps.runtime-bundle.outputs.manifest_sha }}
         shell: bash
         run: |
           set -euo pipefail
@@ -710,13 +716,19 @@ jobs:
           run-id: ${{ needs.native.outputs.x86_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-x86
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
-        with:
-          name: 111-runtime-x86_64
-          path: ${{ runner.temp }}/developer-runtime-bundle
+      - name: 直接获取并核验原始手机运行组件
+        id: runtime-bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNTIME_ID: ${{ needs.runtime-x86.outputs.artifact_id }}
+          RUNTIME_SOURCE: ${{ needs.runtime-x86.outputs.source }}
+          RUNTIME_KEY: ${{ needs.runtime-x86.outputs.key }}
+        run: |
+          PIN="$(python3 .github/scripts/runtime_artifacts.py download --abi x86_64 --artifact-id "$RUNTIME_ID" --source "$RUNTIME_SOURCE" --key "$RUNTIME_KEY" --output "$RUNNER_TEMP/developer-runtime-bundle")"
+          echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
       - name: 装配仅供 Android 模拟器验收的真实内核 APK
         env:
-          RUNTIME_MANIFEST_SHA: ${{ needs.runtime-x86.outputs.manifest_sha }}
+          RUNTIME_MANIFEST_SHA: ${{ steps.runtime-bundle.outputs.manifest_sha }}
         run: |
           set -euo pipefail
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"

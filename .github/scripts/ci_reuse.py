@@ -42,9 +42,9 @@ ARTIFACTS = {
            *(f"ui-shard-{p}-{m}-{s}" for p in PROFILES for m in MODES for s in SHARDS),
            # Visual artifacts are observational, not required for functional reuse.
            *(f"codex-android-ui-device-evidence-api{API}-{p}-{m}" for p in PROFILES for m in MODES)},
-    "package": {"111-runtime-arm64-v8a", "codex-android-arm64-apk", "codex-android-arm64-git-corresponding-source",
+    "package": {"codex-android-arm64-apk", "codex-android-arm64-git-corresponding-source",
                 "codex-android-instrumentation-apk", "codex-android-arm64-apk-audit"},
-    "runtime": {"111-runtime-x86_64", "codex-android-real-runtime-evidence"},
+    "runtime": {"codex-android-real-runtime-evidence"},
 }
 SCHEMA = 3
 MAX_AGE = timedelta(days=2)
