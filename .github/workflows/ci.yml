@@ -2,13 +2,13 @@ name: 111 统一质量验收
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, validation/combined-111-reply-20261126]
   push:
     branches: [main]
   workflow_dispatch:
     inputs:
       runtime_x86:
-        description: 同时构建并运行 x86_64 真实内核专项
+        description: 手动全量验收（始终包含 x86_64 真实内核专项）
         type: boolean
         default: false
 
@@ -30,7 +30,32 @@ jobs:
     outputs:
       full: ${{ steps.plan.outputs.full }}
       runtime: ${{ steps.plan.outputs.runtime }}
-      manifest: ${{ steps.plan.outputs.manifest }}
+      receipt: ${{ steps.plan.outputs.receipt }}
+      native_key: ${{ steps.plan.outputs.native_key }}
+      run_static: ${{ steps.plan.outputs.run_static }}
+      run_compile: ${{ steps.plan.outputs.run_compile }}
+      compile_run_id: ${{ steps.plan.outputs.compile_run_id }}
+      compile_apk_id: ${{ steps.plan.outputs.compile_apk_id }}
+      compile_integrity_id: ${{ steps.plan.outputs.compile_integrity_id }}
+      run_ui: ${{ steps.plan.outputs.run_ui }}
+      run_package: ${{ steps.plan.outputs.run_package }}
+      run_preflight: ${{ steps.plan.outputs.run_preflight }}
+      run_compat: ${{ steps.plan.outputs.run_compat }}
+      run_runtime: ${{ steps.plan.outputs.run_runtime }}
+      run_sign: ${{ steps.plan.outputs.run_sign }}
+      device_matrix: ${{ steps.plan.outputs.device_matrix }}
+      device_shards: ${{ steps.plan.outputs.device_shards }}
+      device_api: ${{ steps.plan.outputs.device_api }}
+      device_image_api: ${{ steps.plan.outputs.device_image_api }}
+      device_sdk_platform: ${{ steps.plan.outputs.device_sdk_platform }}
+      device_runtime_profile: ${{ steps.plan.outputs.device_runtime_profile }}
+      device_release: ${{ steps.plan.outputs.device_release }}
+      device_target: ${{ steps.plan.outputs.device_target }}
+      device_ram: ${{ steps.plan.outputs.device_ram }}
+      device_cores: ${{ steps.plan.outputs.device_cores }}
+      device_disk: ${{ steps.plan.outputs.device_disk }}
+      device_mesa_threads: ${{ steps.plan.outputs.device_mesa_threads }}
+      device_emulator_options: ${{ steps.plan.outputs.device_emulator_options }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -40,32 +65,51 @@ jobs:
       - name: 分类并验证调度规则
         id: plan
         env:
-          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-          CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          GH_TOKEN: ${{ github.token }}
           CI_EVENT: ${{ github.event_name }}
           CI_REF: ${{ github.ref }}
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           CI_FORCE: ${{ github.event_name == 'workflow_dispatch' }}
           CI_RUNTIME: ${{ github.event_name == 'workflow_dispatch' && inputs.runtime_x86 }}
         run: |
           set -euo pipefail
-          python3 -m unittest discover -s .github/scripts -p 'test_ci_policy.py'
-          python3 -m unittest discover -s .github/scripts -p 'test_ci_execution.py'
-          python3 -m unittest discover -s .github/scripts -p 'test_ci_queue_policy.py'
-          python3 -m unittest discover -s .github/scripts -p 'test_ci_gate.py'
+          python3 .github/scripts/run_ci_script_tests.py plan
+          python3 -m unittest discover -s tools/build -p 'test_*.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_device_matrix.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_verify_ui_matrix_evidence.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_merge_ui_shards.py'
           python3 .github/scripts/ci_policy.py
   native:
-    needs: plan
-    if: needs.plan.outputs.full == 'true'
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     uses: ./.github/workflows/build-native-codex.yml
     with:
-      include_x86: ${{ needs.plan.outputs.runtime == 'true' }}
+      include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}
+      native_key: ${{ needs.plan.outputs.native_key }}
 
-  verify-ui:
-    name: Kotlin 编译、协议单元测试与 Android Lint
+  runtime-arm64:
+    needs: [plan, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: arm64-v8a
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  runtime-x86:
+    needs: [plan, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_runtime == 'true' && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    uses: ./.github/workflows/prepare-developer-runtime.yml
+    with:
+      abi: x86_64
+      source_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+
+  static-ui:
+    name: 协议、视觉规范与静态覆盖检查
     needs: plan
-    if: needs.plan.outputs.full == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    if: needs.plan.outputs.run_static == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     steps:
       - name: 仅检出 Android UI 源码
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -77,7 +121,12 @@ jobs:
             /upstream/codex/codex-rs/model-provider/catalogs/
             /.github/workflows/
             /.github/scripts/
+            /.github/actions/ci-android/
+            /.github/actions/ci-rust/
             /.github/ci/
+            /.github/actions/run-emulator/
+            /.github/actions/ci-emulator/
+            /tools/build/
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
             /docs/第五版接口与界面组件映射矩阵.md
@@ -89,122 +138,113 @@ jobs:
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs
             /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
-      - name: 安装 JDK 17
-        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
-        with:
-          distribution: temurin
-          java-version: "17"
-      - name: 安装 Android API 35
-        run: |
-          set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          test -x "$SDK_MANAGER"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
-      - name: 配置 Gradle 缓存
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-        with:
-          gradle-version: "8.11.1"
-      - name: 校验固定 Gradle Wrapper
-        shell: bash
-        run: |
-          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
-      - name: 验证 CI 触发范围与原生产物复用不变量
-        run: |
-          python3 -m unittest discover -s .github/scripts -p 'test_ci_scope.py'
-          python3 -m unittest discover -s .github/scripts -p 'test_native_reuse.py'
-      - name: 校验官方Rust协议方法、方向、DTO和通知清单
-        run: python3 -m unittest discover -s android-app/tools -p 'test_protocol_contract.py'
       - name: 阻断未经审查的官方协议及字段变更
         run: |
           python3 -B -m unittest discover -s android-app/tools -p 'test_review_upstream_protocol.py'
           python3 -B android-app/tools/review_upstream_protocol.py
-      - name: 对照Rust类型与稳定JSON Schema校验请求响应字段
+      - name: 统一静态审计规则回归
         run: |
-          python3 android-app/tools/check_protocol_schema_alignment.py \
-            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
-            --schemas upstream/codex/codex-rs/app-server-protocol/schema/json/v2 \
-            --thread-types upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs \
-            --turn-types upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/turn.rs \
-            --android-project android-app/app/src/main/java/io/github/sy220284/codexandroid/ProjectRequestContract.kt \
-            --android-turn android-app/app/src/main/java/io/github/sy220284/codexandroid/TurnRequestContract.kt \
-            --android-connection android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt \
-            --report protocol-contract-audit.json
+          python3 -m unittest discover -s android-app/tools -p 'test_protocol_contract.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_protocol_schema_alignment.py'
-      - name: 验证协议校验器正确区分请求与通知
-        run: python3 -m unittest discover -s android-app/tools -p 'test_verify_protocol_methods.py'
-      - name: 对照官方 Codex 接口清单，验证 UI 中所有协议方法
-        run: |
-          python3 android-app/tools/verify_protocol_methods.py \
-            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
-            --sources android-app/app/src/main/java
-      - name: UI调用表达式与普通协议字符串分层检查
-        run: python3 -m unittest discover -s android-app/tools -p 'test_audit_ui_rpc_calls.py'
-      - name: 审核技能与插件写入状态及检索关键词绑定
-        run: python3 -m unittest discover -s android-app/tools -p 'test_ui_mutation_keys.py'
-      - name: 自动核对可见页面与实际RPC引用并生成审计矩阵
-        run: |
-          python3 android-app/tools/audit_ui_feature_coverage.py \
-            --sources android-app/app/src/main/java \
-            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
-            --policy android-app/tools/ui_surface_policy.json \
-            --report ui-coverage.md \
-            --json-report ui-coverage.json
-      - name: 全量核查功能入口、路由、回归证据与官方协议方法
-        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_verify_protocol_methods.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_audit_ui_rpc_calls.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_ui_mutation_keys.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_full_feature_workflows.py'
-          python3 android-app/tools/check_full_feature_workflows.py \
-            --repository . \
-            --json-report full-feature-workflows.json \
-            --report full-feature-workflows.md
-      - name: 检查全页面及子页面共享交互覆盖
-        run: python3 android-app/tools/check_interaction_coverage.py --repository . --report interaction-coverage.json
-      - name: 从唯一协议策略核对 UI 组件映射文档
-        run: |
-          python3 android-app/tools/sync_ui_protocol_docs.py --check
           python3 -m unittest discover -s android-app/tools -p 'test_sync_ui_protocol_docs.py'
-      - name: 三方核验上游协议、Android 方法目录与界面层级
-        run: |
-          python3 android-app/tools/check_ui_protocol_matrix.py \
-            --matrix android-app/app/src/main/java/io/github/sy220284/codexandroid/UiProtocolMatrix.kt \
-            --policy android-app/tools/ui_surface_policy.json \
-            --protocol upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs \
-            --pages android-app/app/src/main/java/io/github/sy220284/codexandroid/AppNavigation.kt \
-            --features android-app/app/src/main/java/io/github/sy220284/codexandroid/UiFeatureCatalog.kt \
-            --sources android-app/app/src/main/java
-          python3 android-app/tools/test_check_ui_protocol_matrix.py
-      - name: 检查 Kotlin 源文件体量并阻断超大文件回归
-        run: |
-          python3 android-app/tools/check_kotlin_file_budget.py \
-            --sources android-app/app/src/main/java --max-lines 760
-      - name: 自动核验 Compose 主题颜色与设计文档一致
-        run: |
-          python3 android-app/tools/check_design_system_tokens.py \
-            --source android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt \
-            --spec docs/设计系统.md \
-            --tokens docs/ui-assets/tokens.json \
-            --motion android-app/app/src/main/java/io/github/sy220284/codexandroid/InteractionSystem.kt
-          python3 android-app/tools/test_check_design_system_tokens.py
-      - name: 逐份核验 UI 素材、Android 原生矢量资源、调用页面与测试声明
-        run: |
+          python3 -m unittest discover -s android-app/tools -p 'test_check_ui_protocol_matrix.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_check_design_system_tokens.py'
           python3 -m unittest discover -s android-app/tools -p 'test_check_ui_assets.py'
-          python3 android-app/tools/check_ui_assets.py --repository . --report ui-assets-audit.json --markdown ui-assets-audit.md
-      - name: 核验生产共享控件及旧控件迁移
-        run: |
           python3 -m unittest discover -s android-app/tools -p 'test_check_component_system.py'
-          python3 android-app/tools/check_component_system.py --repository . --report component-system-audit.json
+          python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
+      - name: 一次加载源码，完整执行协议、功能和设计三类审计
+        run: python3 android-app/tools/run_static_audit.py --repository . --output .
+      - name: 复用 Python 锁定依赖下载缓存
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
       - name: 验证截图收集与功能验收独立记录
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
           python3 -m unittest discover -s android-app/tools -p 'test_run_ui_device_checks.py'
+          python3 -m venv .ui-visual-test-venv
+          .ui-visual-test-venv/bin/pip install --require-hashes -r .github/ci/requirements.lock
+          .ui-visual-test-venv/bin/python -m unittest discover -s android-app/tools -p 'test_ui_visual_audit.py'
       - name: 验证自更新证据判定与安装完成条件
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
+      - name: 保存静态协议与 UI 规范报告
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: codex-android-ui-static-reports
+          path: |
+            component-system-audit.json
+            ui-assets-audit.json
+            ui-assets-audit.md
+            ui-coverage.md
+            ui-coverage.json
+            full-feature-workflows.md
+            full-feature-workflows.json
+            interaction-coverage.json
+            protocol-contract-audit.json
+            static-audit-summary.json
+          if-no-files-found: ignore
+          retention-days: 14
+
+  verify-ui:
+    name: Kotlin 编译、协议单元测试与 Android Lint
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_compile == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: 仅检出 Android UI 源码
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          filter: blob:none
+          sparse-checkout: |
+            /android-app/
+            /upstream/codex/codex-rs/model-provider/catalogs/
+            /.github/workflows/
+            /.github/scripts/
+            /.github/actions/ci-android/
+            /.github/actions/ci-rust/
+            /.github/ci/
+            /.github/actions/run-emulator/
+            /.github/actions/ci-emulator/
+            /tools/build/
+            /docs/设计系统.md
+            /docs/对标应用29项界面交付核对表-20261123.md
+            /docs/第五版接口与界面组件映射矩阵.md
+            /docs/接口协议动作清单与落地验收台账-20261122.md
+            /docs/ui-assets/
+            /upstream/codex/codex-rs/app-server-protocol/src/protocol/common.rs
+            /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/thread.rs
+            /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/turn.rs
+            /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs
+            /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
+          sparse-checkout-cone-mode: false
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
+        with:
+          mode: build
+      - name: 校验固定 Gradle Wrapper
+        shell: bash
+        run: |
+          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证 Compose、协议测试与静态检查
-        run: ./android-app/gradlew -p android-app :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+      - name: 复用 Python 锁定依赖下载缓存
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
           python3 -m venv .ci-schema-venv
-          .ci-schema-venv/bin/python -m pip install --disable-pip-version-check 'jsonschema==4.26.0'
+          .ci-schema-venv/bin/python -m pip install --require-hashes -r .github/ci/requirements.lock
           .ci-schema-venv/bin/python -m unittest discover \
             -s android-app/tools -p 'test_check_protocol_wire_fixtures.py'
           .ci-schema-venv/bin/python android-app/tools/check_protocol_wire_fixtures.py \
@@ -216,23 +256,15 @@ jobs:
             --fixtures android-app/app/build/protocol-fixtures/requests.json \
             --report wire-fixtures-audit.json
       - name: 保存测试与 Lint 报告
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-ui-check-reports
           path: |
-            component-system-audit.json
-            ui-assets-audit.json
-            ui-assets-audit.md
             android-app/app/build/reports/tests/
+            android-app/app/build/reports/android-test-dependencies.txt
             android-app/app/build/reports/lint-results-debug.html
             android-app/app/build/test-results/testDebugUnitTest/
-            ui-coverage.md
-            ui-coverage.json
-            full-feature-workflows.md
-            full-feature-workflows.json
-            interaction-coverage.json
-            protocol-contract-audit.json
             wire-fixtures-audit.json
             android-app/app/build/protocol-fixtures/requests.json
           if-no-files-found: ignore
@@ -248,62 +280,120 @@ jobs:
           retention-days: 14
 
 
+      - name: 生成 UI 测试安装包字节凭证
+        run: |
+          cd android-app/app/build/outputs/apk
+          sha256sum debug/app-debug.apk androidTest/debug/app-debug-androidTest.apk > "$RUNNER_TEMP/ui-apk-sha256.txt"
+      - name: 保存 UI 测试安装包字节凭证
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ui-apk-integrity
+          path: ${{ runner.temp }}/ui-apk-sha256.txt
+          if-no-files-found: error
+          retention-days: 14
+
   ui-emulator:
-    name: Android 35 · ${{ matrix.width_dp }}dp UI 交互与截图验收
-    needs: verify-ui
+    name: Android ${{ matrix.android_release }} (API ${{ matrix.api }}) · ${{ matrix.profile }} ${{ matrix.mode }} UI 交互与截图验收 · ${{ matrix.shard }}
+    needs: [plan, verify-ui]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.verify-ui.result == 'success' || (needs.verify-ui.result == 'skipped' && needs.plan.outputs.run_compile == 'false'))
     strategy:
       fail-fast: false
-      matrix:
-        width_dp: [360, 393, 411]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+      matrix: ${{ fromJSON(needs.plan.outputs.device_shards) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     steps:
       - name: 检出截图采集器
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
           filter: blob:none
           sparse-checkout: |
+            /.github/scripts/
+            /.github/actions/ci-android/
+            /.github/actions/ci-rust/
+            /.github/ci/
+            /.github/actions/run-emulator/
+            /.github/actions/ci-emulator/
+            /tools/build/
             /android-app/tools/collect_ui_screenshots.py
             /android-app/tools/ui_evidence_manifest.py
             /android-app/tools/run_ui_device_checks.py
+            /android-app/tools/run_ui_motion_checks.py
+            /android-app/tools/ui_visual_audit.py
+            /android-app/tools/requirements-ui-visual.txt
+            /android-app/tools/device_matrix.py
+            /android-app/tools/device-matrix.json
             /android-app/tools/verify_self_update_open.py
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
       - name: 取回 UI APK
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: codex-android-ui-apks
+          name: ${{ needs.plan.outputs.run_compile == 'true' && 'codex-android-ui-apks' || '' }}
+          artifact-ids: ${{ needs.plan.outputs.compile_apk_id }}
           path: apks
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.plan.outputs.compile_run_id }}
+      - name: 取回 UI 安装包字节凭证
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: ${{ needs.plan.outputs.run_compile == 'true' && 'ui-apk-integrity' || '' }}
+          artifact-ids: ${{ needs.plan.outputs.compile_integrity_id }}
+          path: apk-integrity
+          github-token: ${{ github.token }}
+          run-id: ${{ needs.plan.outputs.compile_run_id }}
+      - name: 校验安装包完整性后启动模拟器
+        run: |
+          set -euo pipefail
+          cd apks
+          sha256sum -c ../apk-integrity/ui-apk-sha256.txt
+      - name: 核对原始成功分片及真实安装包输入
+        id: shard-reuse
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_COMPILE_PROOF: ${{ toJSON(fromJSON(needs.plan.outputs.receipt).reused.compile) }}
+          TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 .github/scripts/ui_shard_reuse.py --repo "$GITHUB_REPOSITORY" --source "$TEST_SOURCE_SHA" --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --shard ${{ matrix.shard }}
+      - name: 使用 Runner 模拟器及独立镜像缓存
+        if: steps.shard-reuse.outputs.reused != 'true'
+        uses: ./.github/actions/ci-emulator
       - name: 允许模拟器硬件加速
+        if: steps.shard-reuse.outputs.reused != 'true'
         run: |
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
       - name: 在真实 Android 环境验证侧栏导航并生成首页截图
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        if: steps.shard-reuse.outputs.reused != 'true'
+        uses: ./.github/actions/run-emulator
+        env:
+          TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          # All nine jobs use the shared SwiftShader GLES configuration.
+          # Retain full guest CPU/memory and resolution; no hardware GPU assumed.
+          LP_NUM_THREADS: ${{ needs.plan.outputs.device_mesa_threads }}
         with:
-          api-level: 35
-          arch: x86_64
-          # 使用 AOSP 系统镜像，避免不参与测试的 Pixel Launcher 进程
-          # 在动态切换 360/393/411dp 后产生 ANR 系统弹窗，污染证据截图。
-          target: default
-          disable-animations: true
-          emulator-boot-timeout: 900
+          profile: ${{ matrix.profile }}
           script: |
+            python3 android-app/tools/device_matrix.py --verify-resources ui-device-resources.json
             adb install -r apks/debug/app-debug.apk
             adb shell appops set io.github.sy220284.codexandroid MANAGE_EXTERNAL_STORAGE allow
             adb install -r apks/androidTest/debug/app-debug-androidTest.apk
-            # The three phone-width checks share the same Android 35 APK, and never run 320dp.
-            adb shell wm size ${{ matrix.width_dp }}x800
-            adb shell wm density 160
+            # New AVDs already boot at the matrix's physical baseline. Validate
+            # the actual state before motion or adaptive setup, without forcing HOME to relayout.
+            test "$(adb shell getprop ro.build.version.sdk | tr -d '\r')" = "${{ matrix.api }}"
+            baseline_font_scale="$(adb shell settings get system font_scale | tr -d '\r')"
+            case "$baseline_font_scale" in
+              null|1.0) ;;
+              *) printf 'Unexpected initial AVD font scale: %s\n' "$baseline_font_scale" >&2; exit 1 ;;
+            esac
             # The emulator has a hardware keyboard. Explicitly allow the software IME,
             # otherwise performTextInput succeeds while keyboard screenshots are false positives.
             adb shell settings put secure show_ime_with_hard_keyboard 1
             test "$(adb shell settings get secure show_ime_with_hard_keyboard | tr -d '\r')" = "1"
             adb shell ime list -s
             test "$(adb shell ime list -s | tr -d '\r' | grep -c .)" -gt 0
-            test "$(adb shell wm size | awk '/Override size:/ {print $3}' | tr -d '\r')" = "${{ matrix.width_dp }}x800"
-            test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "160"
+            test "$(adb shell wm size | awk '/(Override|Physical) size:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.width_px }}x${{ matrix.height_px }}"
+            test "$(adb shell wm density | awk '/(Override|Physical) density:/ {value=$3} END {print value}' | tr -d '\r')" = "${{ matrix.density_dpi }}"
             # The instrumentation test captures the home screen after a visible
             # Compose assertion, so slow devices cannot record the splash screen.
             adb shell am start -W -n io.github.sy220284.codexandroid/.MainActivity
@@ -312,37 +402,179 @@ jobs:
             # so the overlay cannot cover screenshots of later business pages.
             # One runner preserves raw JUnit logs, screenshot evidence and classified
             # failure details; it must fail the job even when adb returns success.
-            python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode baseline
-            # All pages and component tests repeat at short/tall windows and large text.
-            python3 android-app/tools/run_ui_device_checks.py --width ${{ matrix.width_dp }} --mode adaptive
-            # Screenshot reports are advisory; functional tests above remain mandatory.
-            # Only the 393dp emulator replaces the running app, then presses the
+            python3 android-app/tools/run_ui_device_checks.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --shard ${{ matrix.shard }}
+            # Motion is measured once per physical profile, on its baseline device.
+            # Only the designated mainstream emulator replaces the running app, then presses the
             # system installer's actual Install and Open buttons. Execute after
             # screenshots: package replacement kills the old app process.
-            if [ "${{ matrix.width_dp }}" = "393" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
-      - name: 保存 UI 设备测试与真实屏幕截图
-        if: always()
+            if [ "${{ matrix.self_update }}" = "true" ]; then bash -o pipefail -c 'python3 android-app/tools/verify_self_update_open.py --apk apks/debug/app-debug.apk --commit "${{ github.event.pull_request.head.sha || github.sha }}" --report self-update-open.json --screenshot self-update-after-open.png 2>&1 | tee self-update-open.log'; fi
+            # Run observational performance after mandatory functional testing.
+            # A bounded diagnostic may fail or time out; keep its actual exit code.
+            if [ "${{ matrix.motion }}" = "true" ]; then bash -c 'status=0; timeout --kill-after=10s 360s python3 android-app/tools/run_ui_motion_checks.py --profile "${{ matrix.profile }}" || status=$?; printf "%s\\n" "$status" > ui-motion-exit; echo "Performance observation exit=$status (non-blocking)"'; fi
+      - name: 保存独立分流的原始日志、截图与验收凭证
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: codex-android-ui-device-evidence-${{ matrix.width_dp }}dp
+          name: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-${{ matrix.shard }}
           path: |
+            ui-shard-input.json
+            ui-shard-origin.json
+            ui-device-resources.json
             ui-instrument-result.log
             ui-baseline-diagnosis.json
             ui-adaptive-result.log
             ui-adaptive-diagnosis.json
+            ui-motion-exit
+            ui-motion.log
+            ui-motion-diagnosis.json
+            ui-motion-performance.json
+            ui-motion-environment.json
+            ui-motion-failure.*
             ui-screenshots-adaptive/
             self-update-open.log
             self-update-open.json
             self-update-after-open.png
             ui-screenshots/
+          if-no-files-found: error
+          retention-days: 14
+
+  ui-collect:
+    name: UI 分流证据汇总 · ${{ matrix.profile }} ${{ matrix.mode }}
+    needs: [plan, ui-emulator]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.ui-emulator.result == 'success' || needs.ui-emulator.result == 'failure')
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.device_matrix) }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          sparse-checkout: |
+            /.github/scripts/
+            /.github/actions/ci-android/
+            /.github/actions/ci-rust/
+            /.github/ci/
+            /.github/actions/run-emulator/
+            /.github/actions/ci-emulator/
+            /tools/build/
+            /android-app/tools/
+            /docs/ui-assets/素材接入清单.json
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*
+          path: ui-shards
+      - name: 核对并汇总两个独立模拟器的完整用例和截图
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CI_COMPILE_PROOF: ${{ toJSON(fromJSON(needs.plan.outputs.receipt).reused.compile) }}
+          TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 android-app/tools/merge_ui_shards.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --root ui-shards
+      - name: 复用 Python 锁定依赖下载缓存
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
+      - name: 安装独立视觉审计依赖
+        continue-on-error: true
+        timeout-minutes: 3
+        run: |
+          python3 -m venv .ui-visual-venv
+          .ui-visual-venv/bin/pip install --require-hashes -r .github/ci/requirements.lock
+      - name: 截图内容及历史视觉变化审计（仅记录）
+        if: always() && !cancelled()
+        continue-on-error: true
+        timeout-minutes: 3
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: .ui-visual-venv/bin/python android-app/tools/ui_visual_audit.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --repo "$GITHUB_REPOSITORY"
+      - name: 保存视觉审计基线与差异
+        if: always() && !cancelled()
+        continue-on-error: true
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: codex-android-ui-visual-api${{ matrix.api }}-${{ matrix.profile }}-${{ matrix.mode }}
+          path: ui-visual-evidence/
+          if-no-files-found: warn
+          retention-days: 90
+      - name: 保存 UI 设备测试与真实屏幕截图
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: codex-android-ui-device-evidence-api${{ matrix.api }}-${{ matrix.profile }}-${{ matrix.mode }}
+          path: |
+            ui-instrument-result.log
+            ui-baseline-diagnosis.json
+            ui-adaptive-result.log
+            ui-adaptive-diagnosis.json
+            ui-motion-exit
+            ui-motion.log
+            ui-motion-diagnosis.json
+            ui-motion-performance.json
+            ui-motion-environment.json
+            ui-motion-failure.*
+            ui-screenshots-adaptive/
+            self-update-open.log
+            self-update-open.json
+            self-update-after-open.png
+            ui-screenshots/
+            ui-shards/*/*.log
+            ui-shards/*/ui-*-diagnosis.json
+            ui-shards/*/ui-device-resources.json
+            ui-shards/*/ui-shard-input.json
+            ui-shards/*/ui-shard-origin.json
           if-no-files-found: ignore
           retention-days: 14
 
-  build:
-    needs: [plan, native]
-    if: needs.plan.outputs.full == 'true' && needs.native.result == 'success'
+      - name: 保存供全矩阵核对的小型验收凭证
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ui-proof-${{ matrix.profile }}-${{ matrix.mode }}
+          path: |
+            ui-${{ matrix.mode }}-diagnosis.json
+            ui-visual-evidence/report.json
+            ui-motion-diagnosis.json
+            ui-motion-performance.json
+            ui-motion-environment.json
+            ui-motion-exit
+            self-update-open.json
+          if-no-files-found: error
+          retention-days: 14
+
+  ui-evidence:
+    name: 四组 UI 用例与证据一致性验收
+    needs: [plan, ui-collect]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.ui-collect.result == 'success' || needs.ui-collect.result == 'failure')
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          sparse-checkout: |
+            android-app/tools
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          pattern: ui-proof-*
+          path: ui-proofs
+      - name: 核对四种配置、八台独立设备的实际用例集合与证据
+        if: always() && !cancelled()
+        env:
+          TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: python3 android-app/tools/verify_ui_matrix_evidence.py ui-proofs
+
+  build:
+    needs: [plan, native, runtime-arm64]
+    if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
     steps:
       - name: 检出 Android 工程及源码版本标记
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -355,21 +587,17 @@ jobs:
             upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
-      - name: 安装 Java 17
-        uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
+            .github/actions/run-emulator
+            .github/actions/ci-emulator
+            tools/build
+            tools/runtime
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          distribution: temurin
-          java-version: "17"
-      - name: 安装 Android 平台
-        run: |
-          set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          test -x "$SDK_MANAGER"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
-      - name: 安装 Gradle
-        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-        with:
-          gradle-version: "8.11.1"
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -381,11 +609,25 @@ jobs:
           run-id: ${{ needs.native.outputs.arm_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-arm64
+      - name: 直接获取并核验原始手机运行组件
+        id: runtime-bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNTIME_ID: ${{ needs.runtime-arm64.outputs.artifact_id }}
+          RUNTIME_SOURCE: ${{ needs.runtime-arm64.outputs.source }}
+          RUNTIME_KEY: ${{ needs.runtime-arm64.outputs.key }}
+        run: |
+          PIN="$(python3 .github/scripts/runtime_artifacts.py download --abi arm64-v8a --artifact-id "$RUNTIME_ID" --source "$RUNTIME_SOURCE" --key "$RUNTIME_KEY" --output "$RUNNER_TEMP/developer-runtime-bundle")"
+          echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
       - name: 核验并装配 ARM64 手机原生核心
+        env:
+          RUNTIME_MANIFEST_SHA: ${{ steps.runtime-bundle.outputs.manifest_sha }}
         shell: bash
         run: |
           set -euo pipefail
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          CODEX_RUNTIME_PREPARED="$(python3 tools/build/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
+          export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
           head -n 1 CODEX_UPSTREAM_COMMIT
       - name: 下载并校验官方安卓增量恢复组件
@@ -395,16 +637,16 @@ jobs:
         shell: bash
         run: bash .github/scripts/create-android-update-fixture.sh
       - name: 编译 Android APK 和设备测试包（单元测试由独立 UI 工作流执行）
-        run: ./android-app/gradlew -p android-app :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
+        run: ./android-app/gradlew -p android-app --dependency-verification strict :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
       - name: 验证 ARM64 APK 的原生功能组件和 ABI
         shell: bash
         run: |
           set -euo pipefail
           APK="android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk"
-          test -s "$APK"
           test -s "android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
           python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full --report "$RUNNER_TEMP/arm64-apk-audit.json"
           python3 .github/scripts/verify_git_corresponding_source.py "$APK" "$RUNNER_TEMP/git-corresponding-source.tar.xz"
+
       - name: 保存完整 APK 审计及字节摘要
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -437,11 +679,11 @@ jobs:
 
 
   runtime-test:
-    name: Android 35 真实内核及异常恢复验收（手动 x86_64）
-    needs: [plan, native]
-    if: needs.native.result == 'success' && needs.plan.outputs.runtime == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
+    name: Android ${{ needs.plan.outputs.device_release }} (API ${{ needs.plan.outputs.device_api }}) 真实内核及异常恢复验收（x86_64）
+    needs: [plan, native, runtime-x86]
+    if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.plan.outputs.run_runtime == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
       - name: 检出同提交 Android 工程与原生配方
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -454,13 +696,17 @@ jobs:
             upstream/codex/codex-rs/model-provider/catalogs
             CODEX_UPSTREAM_COMMIT
             .github/scripts
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
+            .github/actions/run-emulator
+            .github/actions/ci-emulator
+            tools/build
+            tools/runtime
+      - name: 使用 Runner Android 编译环境
+        uses: ./.github/actions/ci-android
         with:
-          distribution: temurin
-          java-version: "17"
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
-        with:
-          gradle-version: "8.11.1"
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -471,32 +717,44 @@ jobs:
           run-id: ${{ needs.native.outputs.x86_run_id }}
           github-token: ${{ github.token }}
           path: ${{ runner.temp }}/native-x86
+      - name: 直接获取并核验原始手机运行组件
+        id: runtime-bundle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUNTIME_ID: ${{ needs.runtime-x86.outputs.artifact_id }}
+          RUNTIME_SOURCE: ${{ needs.runtime-x86.outputs.source }}
+          RUNTIME_KEY: ${{ needs.runtime-x86.outputs.key }}
+        run: |
+          PIN="$(python3 .github/scripts/runtime_artifacts.py download --abi x86_64 --artifact-id "$RUNTIME_ID" --source "$RUNTIME_SOURCE" --key "$RUNTIME_KEY" --output "$RUNNER_TEMP/developer-runtime-bundle")"
+          echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
       - name: 装配仅供 Android 模拟器验收的真实内核 APK
+        env:
+          RUNTIME_MANIFEST_SHA: ${{ steps.runtime-bundle.outputs.manifest_sha }}
         run: |
           set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "ndk;27.2.12479018"
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
+          CODEX_RUNTIME_PREPARED="$(python3 tools/build/component-bundle.py install runtime-x86 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
+          export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
-          ./android-app/gradlew -p android-app -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          ./android-app/gradlew -p android-app --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
           python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
+      - name: 使用 Runner 模拟器及独立镜像缓存
+        uses: ./.github/actions/ci-emulator
       - name: 允许模拟器硬件加速
         run: |
           sudo adduser "$USER" kvm || true
           sudo chmod 666 /dev/kvm
       - name: 执行真实内核启动、终端、回收与恢复
-        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2
+        uses: ./.github/actions/run-emulator
         with:
-          api-level: 35
-          arch: x86_64
-          target: default
-          disable-animations: true
-          emulator-boot-timeout: 900
-          script: bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
+          profile: ${{ needs.plan.outputs.device_runtime_profile }}
+          script: |
+            python3 android-app/tools/device_matrix.py --verify-resources runtime-evidence/device-resources.json
+            bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
       - name: 保存真实内核验收证据
-        if: always()
+        if: ${{ !cancelled() }}
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: codex-android-real-runtime-evidence
@@ -508,8 +766,8 @@ jobs:
   verify-apk:
     name: ARM64 手机安装包二次核验
     needs: [plan, build]
-    # x86 runtime has its own mandatory result in the final gate.
-    if: needs.build.result == 'success'
+    # Independent integrity verification; the final gate still requires runtime when selected.
+    if: needs.build.result == 'success' && needs.plan.outputs.run_package == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -528,7 +786,7 @@ jobs:
         with:
           name: codex-android-arm64-apk
           path: apks
-      - name: 取回完整 APK 审计凭证
+      - name: 取回同一构建的完整审计凭证
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: codex-android-arm64-apk-audit
@@ -539,9 +797,9 @@ jobs:
   preflight:
     name: 发布脚本回归检查
     needs: plan
-    if: needs.plan.outputs.full == 'true'
+    if: needs.plan.outputs.run_preflight == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -557,26 +815,26 @@ jobs:
           bash -n .github/scripts/prepare-release-assets.sh
           bash -n .github/scripts/prepare-android-patcher.sh
           bash -n .github/scripts/create-android-update-fixture.sh
-          python3 -m unittest discover -s .github/scripts -p 'test_*.py'
+          python3 .github/scripts/run_ci_script_tests.py preflight
           python3 android-app/tools/prepare_android_code_mode.py --check \
             upstream/codex/codex-rs/install-context/src/lib.rs \
             --host-source upstream/codex/codex-rs/code-mode-host/src/main.rs \
             --features-source upstream/codex/codex-rs/features/src/lib.rs
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_android_code_mode.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_prepare_android_remote_delivery.py'
+          python3 android-app/tools/prepare_android_remote_delivery.py --check upstream/codex/codex-rs
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
           bash -n android-app/tools/package_native_runtime.sh
           bash -n android-app/tools/prepare_android_v8.sh
           bash -n android-app/tools/build_android_git.sh
           python3 -m unittest discover -s android-app/tools -p 'test_adapt_android_v8_build.py'
 
-
-
   release-signing-smoke:
     name: PR 内验证 Release 签名构建
-    needs: plan
-    if: needs.plan.outputs.full == 'true' && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'))
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
+    needs: [plan, static-ui, preflight]
+    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_sign == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -585,24 +843,20 @@ jobs:
             android-app
             upstream/codex/codex-rs/model-provider/catalogs
             .github/scripts
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3 # v4
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
+            .github/actions/run-emulator
+            .github/actions/ci-emulator
+            tools/build
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          distribution: temurin
-          java-version: '17'
-      - uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4.4.3
-        with:
-          gradle-version: '8.11.1'
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
           printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
-      - name: 配置 Android API 35
-        shell: bash
-        run: |
-          set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          test -x "$SDK_MANAGER"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0"
       - name: 生成仅本次 CI 有效的测试签名
         shell: bash
         run: |
@@ -611,9 +865,11 @@ jobs:
           keytool -genkeypair -noprompt -keystore "$STORE" -storetype PKCS12 \
             -alias 111-release -keyalg RSA -keysize 2048 -validity 1 \
             -storepass ci-only-password -keypass ci-only-password -dname "CN=111 CI signing smoke"
-          echo "CODEX_RELEASE_KEYSTORE_PATH=$STORE" >> "$GITHUB_ENV"
-          echo "CODEX_RELEASE_PASSWORD=ci-only-password" >> "$GITHUB_ENV"
-          echo "CODEX_RELEASE_KEY_ALIAS=111-release" >> "$GITHUB_ENV"
+          {
+            echo "CODEX_RELEASE_KEYSTORE_PATH=$STORE"
+            echo "CODEX_RELEASE_PASSWORD=ci-only-password"
+            echo "CODEX_RELEASE_KEY_ALIAS=111-release"
+          } >> "$GITHUB_ENV"
       - name: 校验并装配正式版增量恢复组件
         shell: bash
         run: bash .github/scripts/prepare-android-patcher.sh arm64-v8a
@@ -621,7 +877,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 \
@@ -629,19 +885,42 @@ jobs:
           APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
           test -s "$APK"
           python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode ui-smoke
-          unzip -Z1 "$APK" | grep -Fxq 'lib/arm64-v8a/libhpatchz.so'
           test ! -e "android-app/app/build/outputs/apk/release/app-x86_64-release.apk"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
           BADGE="$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | sed -n '1p')"
           [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
           [[ "$BADGE" == *"versionCode='999'"* ]]
           [[ "$BADGE" == *"versionName='0.1.0-111.999'"* ]]
+          cp "$APK" "$RUNNER_TEMP/unoptimized-arm64.apk"
+      - name: 编译 R8 与资源压缩专项候选包
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./android-app/gradlew -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
+            -PcodexR8Candidate=true -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a \
+            -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
+          APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
+          test -s "$APK"
+          test -s android-app/app/build/outputs/mapping/release/mapping.txt
+          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode ui-smoke
+          mkdir -p "$RUNNER_TEMP/r8-candidate"
+          cp "$APK" "$RUNNER_TEMP/r8-candidate/"
+          cp android-app/app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/r8-candidate/"
+          wc -c "$RUNNER_TEMP/unoptimized-arm64.apk" "$APK" | tee "$RUNNER_TEMP/r8-candidate/sizes.txt"
+      - name: 保存仅供专项验收的压缩候选包及体积证据
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: r8-arm64-candidate-not-for-release
+          path: ${{ runner.temp }}/r8-candidate/
+          if-no-files-found: error
+          retention-days: 14
 
 
   compatibility:
     name: MXC 和 Code Mode Host 源码适配预演
     needs: plan
-    if: needs.plan.outputs.full == 'true'
+    if: needs.plan.outputs.run_compat == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -659,8 +938,6 @@ jobs:
             /android-app/tools/rehearse_upstream_upgrade.py
             /android-app/tools/test_rehearse_upstream_upgrade.py
           sparse-checkout-cone-mode: false
-      - name: 检验增量合并、冲突与数据保护
-        run: python3 -B -m unittest discover -s .github/scripts -p 'test_merge_codex_upstream.py' -v
       - name: 检验升级预演逻辑的正常和异常场景
         run: python3 -m unittest discover -s android-app/tools -p 'test_rehearse_upstream_upgrade.py'
       - name: 只检出候选 Cargo.toml 固定的 MXC 提交
@@ -694,7 +971,7 @@ jobs:
 
   quality:
     name: 111 合并验收
-    needs: [plan, native, verify-ui, ui-emulator, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
+    needs: [plan, native, runtime-arm64, runtime-x86, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -702,17 +979,37 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          filter: blob:none
           sparse-checkout: |
-            .github/scripts
-            .github/ci
+            /.github/scripts/
+            /.github/ci/
+            /android-app/tools/
+            /android-app/app/gradle.lockfile
+            /android-app/gradle/verification-metadata.xml
+          sparse-checkout-cone-mode: false
           persist-credentials: false
       - name: 汇总并强制核对所有适用验收
         env:
+          GH_TOKEN: ${{ github.token }}
           RESULTS: ${{ toJSON(needs) }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 .github/scripts/ci_gate.py
+      - name: 强制核对已审查的 Gradle 依赖基线
+        if: needs.plan.outputs.full == 'true'
+        run: |
+          set -euo pipefail
+          test -s android-app/app/gradle.lockfile || { echo "::error::须审查并提交真实依赖锁文件"; exit 1; }
+          test -s android-app/gradle/verification-metadata.xml || { echo "::error::须审查并提交依赖验证元数据"; exit 1; }
+      - name: 保存可核验的验收凭证
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-acceptance-receipt
+          path: ci-acceptance-receipt.json
+          if-no-files-found: error
+          retention-days: 30
       - name: 记录任务耗时、取消与资源使用
         if: ${{ !cancelled() }}
         timeout-minutes: 2

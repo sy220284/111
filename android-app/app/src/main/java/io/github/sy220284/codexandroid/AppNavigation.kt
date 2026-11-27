@@ -12,10 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.graphics.Brush
@@ -69,7 +72,7 @@ val pages = listOf(
     Page("settings", "设置", "通用", "账户、功能、主机与外观", CodexGlyph.Settings)
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
 fun CodexShell(vm: CodexViewModel) {
     var savedRoute by rememberSaveable { mutableStateOf(NavigationPolicy.startRoute) }
@@ -81,26 +84,18 @@ fun CodexShell(vm: CodexViewModel) {
     val scope = rememberCoroutineScope()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
+    val platformView = androidx.compose.ui.platform.LocalView.current
+    LaunchedEffect(selected) {
+        focusManager.clearFocus(force = true)
+        androidx.core.view.ViewCompat.getWindowInsetsController(platformView)
+            ?.hide(androidx.core.view.WindowInsetsCompat.Type.ime())
+        keyboard?.hide()
+    }
     val firstThreadStarting by vm.firstThreadStarting.collectAsState()
     val switching by vm.threadSwitching.collectAsState()
     val activeThread by vm.activeThread.collectAsState()
-    val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
-    val libraryResponse = libraryData["sidebarThreads"] ?: libraryData["threads"]
-    val answerVersions by vm.answerVersions.state.collectAsState()
-    val conversationTitle = remember(activeThread, libraryResponse, answerVersions) {
-        activeThread?.let { id ->
-            val rows = records(libraryResponse)
-            (rows.firstOrNull { it.optString("id") == answerVersions.root(id) }
-                ?: rows.firstOrNull { it.optString("id") == id })
-                ?.let { PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview")) }
-                ?.takeIf { it.isNotBlank() }
-        }
-    }
     val status by vm.bridge.status.collectAsState()
     val pendingCount by vm.bridge.prompts.collectProjection { it.size }
-    val otherPendingCount by vm.bridge.prompts.collectProjection { all ->
-        all.size - all.forThread(activeThread).size
-    }
     val reduceMotion by UiPreferences.reducedMotion.collectAsState()
     fun openDrawer() {
         focusManager.clearFocus()
@@ -135,6 +130,8 @@ fun CodexShell(vm: CodexViewModel) {
     )
     var activeSheet by remember { mutableStateOf<String?>(null) }
     var requestedSheet by remember { mutableStateOf<String?>(null) }
+    // A drawer exit and a full incoming page must not render concurrently.
+    var requestedPage by remember { mutableStateOf<String?>(null) }
     fun openSheet(route: String) {
         focusManager.clearFocus()
         keyboard?.hide()
@@ -197,7 +194,7 @@ fun CodexShell(vm: CodexViewModel) {
                 return@move
             }
         }
-        if (page.id != destination) {
+        if ((requestedPage ?: selected) != destination) {
             backHistory = (backHistory + destination).takeLast(18)
             // Each specialized screen owns its initial read and refresh lifecycle.
             // Only account and diagnostics delegate an entry refresh to the shell.
@@ -208,10 +205,15 @@ fun CodexShell(vm: CodexViewModel) {
         }
         activeSheet = null
         requestedSheet = null
-        savedRoute = destination
+        if (drawer.isOpen || drawer.targetValue == DrawerValue.Open) {
+            requestedPage = destination
+            closeDrawer()
+        } else {
+            requestedPage = null
+            savedRoute = destination
+        }
         focusManager.clearFocus()
         keyboard?.hide()
-        closeDrawer()
     }
     // An older saved route may still point to a screen now owned by an overlay.
     LaunchedEffect(Unit) {
@@ -263,6 +265,12 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     val drawerOwnsInput = drawer.isOpen || drawer.targetValue == DrawerValue.Open
+    LaunchedEffect(requestedPage, drawerOwnsInput) {
+        if (!drawerOwnsInput) requestedPage?.let { route ->
+            savedRoute = route
+            requestedPage = null
+        }
+    }
     LaunchedEffect(requestedSheet, drawerOwnsInput) {
         if (!drawerOwnsInput) requestedSheet?.let { route ->
             activeSheet = route
@@ -270,8 +278,11 @@ fun CodexShell(vm: CodexViewModel) {
         }
     }
     var drawerWasOpen by remember { mutableStateOf(false) }
-    LaunchedEffect(drawerOwnsInput, status) {
-        if (drawerOwnsInput && status == EngineStatus.Connected) vm.sessions.refreshIfStale()
+    LaunchedEffect(drawer.isOpen, drawer.targetValue, status) {
+        if (drawer.isOpen && drawer.targetValue == DrawerValue.Open && status == EngineStatus.Connected)
+            vm.sessions.refreshIfStale()
+    }
+    LaunchedEffect(drawerOwnsInput) {
         if (!drawerOwnsInput && drawerWasOpen) {
             pendingThreadAction = null
             sidebarState.searching = false
@@ -296,21 +307,27 @@ fun CodexShell(vm: CodexViewModel) {
                 contentWindowInsets = WindowInsets.safeDrawing,
                 snackbarHost = { CodexOperationSnackbarHost(operationSnacks) },
                 topBar = {
+                    val pageTitleStyle = MaterialTheme.typography.titleMedium.let {
+                        it.copy(lineHeight = it.fontSize * 1.5f)
+                    }
                     if (selected == NavigationPolicy.startRoute) {
-                        ChatWorkTopBar(
-                            conversationTitle = conversationTitle,
+                        ChatNavigationTopBar(
+                            vm = vm,
+                            activeThread = activeThread,
                             newThreadBlockReason = newThreadBlockReason,
-                            otherPendingCount = otherPendingCount,
                             onApprovals = { move("approvals") },
                             onMenu = { openDrawer() },
                             onNewThread = { vm.newThread(); move("chat") }
                         )
                     } else TopAppBar(
+                        expandedHeight = maxOf(64.dp, with(LocalDensity.current) {
+                            pageTitleStyle.lineHeight.toDp()
+                        } * 2 + 16.dp),
                         title = {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(page.title, modifier = Modifier.testTag("screen-title"), maxLines = 1,
+                                Text(page.title, modifier = Modifier.fillMaxWidth().testTag("screen-title"), maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
-                                    style = MaterialTheme.typography.titleMedium)
+                                    style = pageTitleStyle)
                                 // 顶栏保留当前页面，正文只呈现一次功能介绍。
                             }
                         },
@@ -396,9 +413,12 @@ fun CodexShell(vm: CodexViewModel) {
                     drawerContainerColor = Ink.recessed,
                     drawerContentColor = Ink.parchment
                 ) {
-                    // Retain drawer geometry while closed, but do not run its list or data collectors.
-                    Box(Modifier.fillMaxWidth().fillMaxHeight()) {
-                        if (drawerOwnsInput) Sidebar(Modifier.fillMaxHeight(), selected,
+                    // Keep the first screen composed and its directory prepared while closed.
+                    // The offscreen drawer cannot receive focus or expose accessibility actions.
+                    Box(Modifier.fillMaxWidth().fillMaxHeight()
+                        .focusProperties { onEnter = { if (!drawerOwnsInput) cancelFocusChange() } }
+                        .focusGroup()) {
+                        Sidebar(Modifier.fillMaxHeight(), selected,
                     { id ->
                         if (id == "status") {
                             openSheet("status")
@@ -413,7 +433,8 @@ fun CodexShell(vm: CodexViewModel) {
                     } },
                     sidebarState, pendingThreadAction?.let { target ->
                         pages.firstOrNull { it.id == target }?.title ?: "当前操作"
-                    })
+                    }, active = drawerOwnsInput,
+                        publishDirectory = !drawer.isAnimationRunning && drawer.currentValue == drawer.targetValue)
                     }
                 }
             }
@@ -440,6 +461,42 @@ fun CodexShell(vm: CodexViewModel) {
     }
 }
 
+/** Collect chat-only title/prompt state in the chat header's own restart scope.
+ * Settings, drawer geometry and the work shell no longer observe session-list changes. */
+@Composable
+private fun ChatNavigationTopBar(
+    vm: CodexViewModel,
+    activeThread: String?,
+    newThreadBlockReason: String?,
+    onApprovals: () -> Unit,
+    onMenu: () -> Unit,
+    onNewThread: () -> Unit
+) {
+    val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
+    val libraryResponse = libraryData["sidebarThreads"] ?: libraryData["threads"]
+    val answerVersions by vm.answerVersions.state.collectAsState()
+    val conversationTitle = remember(activeThread, libraryResponse, answerVersions) {
+        activeThread?.let { id ->
+            val rows = records(libraryResponse)
+            (rows.firstOrNull { it.optString("id") == answerVersions.root(id) }
+                ?: rows.firstOrNull { it.optString("id") == id })
+                ?.let { PresentationPolicy.threadTitle(it.optString("name"), it.optString("preview")) }
+                ?.takeIf { it.isNotBlank() }
+        }
+    }
+    val otherPendingCount by vm.bridge.prompts.collectProjection { all ->
+        all.size - all.forThread(activeThread).size
+    }
+    ChatWorkTopBar(
+        conversationTitle = conversationTitle,
+        newThreadBlockReason = newThreadBlockReason,
+        otherPendingCount = otherPendingCount,
+        onApprovals = onApprovals,
+        onMenu = onMenu,
+        onNewThread = onNewThread
+    )
+}
+
 /** 功能常驻、会话独立滚动，保持底部新会话和账号入口固定。 */
 @Composable
 private fun Sidebar(
@@ -447,7 +504,7 @@ private fun Sidebar(
     status: EngineStatus, approvals: Int, newThreadBlockReason: String?, onNewThread: () -> Unit,
     vm: CodexViewModel, onOpenThread: (String) -> Unit,
     sidebarState: SidebarUiState,
-    continuationLabel: String?
+    continuationLabel: String?, active: Boolean, publishDirectory: Boolean
 ) {
     val activeWorkspace by vm.activeWorkspace.collectAsState()
     val accountData by vm.data.collectEntries("limits")
@@ -520,7 +577,8 @@ private fun Sidebar(
         Box(Modifier.fillMaxWidth().weight(1f)) {
             SidebarSessions(vm, onOpenThread,
                 modifier = Modifier.fillMaxSize(), uiState = sidebarState,
-                continuationLabel = continuationLabel)
+                continuationLabel = continuationLabel, active = active,
+                publishDirectory = publishDirectory)
         }
         HorizontalDivider(color = Ink.border.copy(alpha = .65f))
         Row(
@@ -604,3 +662,4 @@ private fun SidebarRoute(
         )
     )
 }
+

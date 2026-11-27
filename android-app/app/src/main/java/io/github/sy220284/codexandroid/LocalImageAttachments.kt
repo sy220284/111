@@ -21,6 +21,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
@@ -32,23 +34,30 @@ import java.util.UUID
 object LocalImageAttachments {
     const val MAX_FILES = 3
     private const val MAX_BYTES = 12L * 1024 * 1024
-    private const val FOLDER = "codex-turn-images"
+    internal const val MAX_AUDIO_BYTES = 50L * 1024 * 1024
+    private const val MAX_VIDEO_BYTES = 100L * 1024 * 1024
+    private const val FOLDER = PortableMediaFormat.ATTACHMENTS
 
     fun directory(context: Context): File = File(context.filesDir, FOLDER)
 
     suspend fun importFrom(context: Context, uri: Uri): String = withContext(Dispatchers.IO) {
-        val type = context.contentResolver.getType(uri)
-        val ext = when (type) {
-            "image/jpeg" -> "jpg"
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            else -> throw IllegalArgumentException("仅支持 JPEG、PNG、WebP 图片")
-        }
-        val folder = directory(context).apply { check(exists() || mkdirs()) { "无法建立图片缓存目录" } }
+        val resolver = context.contentResolver
+        val type = resolver.getType(uri)
+        // Android's document providers may report a generic container MIME. Use
+        // their display name only to choose an allowed decoder, never to build a path.
+        val name = if (MediaImportFormat.requiresName(type)) {
+            resolver.query(uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null)
+                ?.use { if (it.moveToFirst()) it.getString(0) else null }
+        } else null
+        val ext = MediaImportFormat.extension(type, name)
+        val folder = directory(context).apply { check(exists() || mkdirs()) { "无法建立媒体附件目录" } }
         val output = File(folder, UUID.randomUUID().toString() + "." + ext)
+        require(PortableMediaFormat.original(output.name)) { "媒体格式尚未登记持久化和迁移规则" }
+        val kind = LocalMediaAttachmentPolicy.kind(output.path)
+        val limit = when (kind) { "audio" -> MAX_AUDIO_BYTES; "video" -> MAX_VIDEO_BYTES; else -> MAX_BYTES }
         try {
             val source = context.contentResolver.openInputStream(uri)
-                ?: throw IllegalStateException("无法打开所选图片")
+                ?: throw IllegalStateException("无法打开所选媒体")
             source.use { input ->
                 output.outputStream().use { destination ->
                     val buffer = ByteArray(8192)
@@ -56,21 +65,47 @@ object LocalImageAttachments {
                     while (true) {
                         val count = input.read(buffer)
                         if (count < 0) break
+                        currentCoroutineContext().ensureActive()
                         total += count
-                        require(total <= MAX_BYTES) { "单张图片上限 12 MB" }
+                        require(total <= limit) { "单个附件上限 ${limit / 1024 / 1024} MB" }
                         destination.write(buffer, 0, count)
                     }
-                    require(total > 0L) { "图片内容为空" }
+                    require(total > 0L) { "媒体内容为空" }
                 }
             }
             // Validate the actual file signature after copying, not just
             // the provider's MIME label. Unsupported/corrupt files stay local.
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeFile(output.absolutePath, bounds)
-            require(bounds.outWidth > 0 && bounds.outHeight > 0) { "图片文件无法解码" }
-            output.canonicalPath
+            when (kind) {
+                "video" -> {
+                    currentCoroutineContext().ensureActive()
+                    VideoAttachmentPreparation.inspect(output).canonicalPath
+                }
+                "audio" -> {
+                    val extractor = android.media.MediaExtractor()
+                    try {
+                        extractor.setDataSource(output.absolutePath)
+                        val tracks = (0 until extractor.trackCount).mapNotNull {
+                            extractor.getTrackFormat(it).getString(android.media.MediaFormat.KEY_MIME)
+                        }
+                        require(tracks.any { it.startsWith("audio/") } && tracks.none { it.startsWith("video/") }) {
+                            "请选择有效的独立音频文件；含视频轨的文件请作为视频导入"
+                        }
+                    } finally { extractor.release() }
+                    output.canonicalPath
+                }
+                else -> {
+                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    BitmapFactory.decodeFile(output.absolutePath, bounds)
+                    require(bounds.outWidth > 0 && bounds.outHeight > 0) { "图片文件无法解码" }
+                    output.canonicalPath
+                }
+            }
         } catch (failure: Exception) {
-            output.delete()
+            LocalMediaAttachmentPolicy.recoveryPaths(output.path).forEach { path ->
+                val file = File(path)
+                if (file.exists() && !file.delete())
+                    failure.addSuppressed(IllegalStateException("无法清理未完成的媒体附件"))
+            }
             throw failure
         }
     }
@@ -81,9 +116,10 @@ object LocalImageAttachments {
             AttachmentRetentionPolicy.prune(directory(context), referenced)
         }
 
-    suspend fun preserveForHistory(context: Context, paths: List<String>) {
+    suspend fun preserveForHistory(context: Context, paths: List<String>, clientId: String? = null) {
         if (paths.isNotEmpty()) withContext(Dispatchers.IO) {
             AttachmentRetentionPolicy.preserveForHistory(directory(context), paths)
+            if (clientId != null) MediaHistoryStore.record(directory(context), clientId, paths)
         }
     }
 
@@ -91,9 +127,13 @@ object LocalImageAttachments {
     suspend fun release(context: Context, path: String) = withContext(Dispatchers.IO) {
         val folder = directory(context).canonicalFile
         val target = File(path).canonicalFile
-        require(target.parentFile == folder) { "图片路径不属于本应用的私有附件目录" }
-        if (target.exists() && !AttachmentRetentionPolicy.isHistorical(folder, target))
-            check(target.delete()) { "无法清理图片附件" }
+        require(target.parentFile == folder) { "媒体路径不属于本应用的私有附件目录" }
+        for (owned in LocalMediaAttachmentPolicy.recoveryPaths(target.path)) {
+            val file = File(owned).canonicalFile
+            require(file.parentFile == folder) { "附件路径不属于私有目录" }
+            if (file.exists() && !AttachmentRetentionPolicy.isHistorical(folder, file))
+                check(file.delete()) { "无法清理媒体附件" }
+        }
     }
 }
 
@@ -104,23 +144,35 @@ fun LocalImageAttachmentStrip(
 ) {
     if (paths.isEmpty()) return
     var previewPath by remember { mutableStateOf<String?>(null) }
+    // The preview registry owns availability; thumbnail decoding is presentation only.
+    val previews = paths.filter { LocalMediaAttachmentPolicy.kind(it) != "audio" }
+        .flatMap { owner ->
+            val pictures = if (LocalMediaAttachmentPolicy.kind(owner) == "video")
+                LocalMediaAttachmentPolicy.recoveryPaths(owner).filter { it.endsWith(".jpg") && File(it).isFile }
+                else listOf(owner)
+            pictures.map { it to owner }
+        }.toMap()
     Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
-        Text("待发送图片 · ${paths.size}/${LocalImageAttachments.MAX_FILES}",
+        Text("${if (paths.all { LocalMediaAttachmentPolicy.kind(it) == "image" }) "待发送图片" else "待发送媒体"} · ${paths.size}/${LocalImageAttachments.MAX_FILES}",
             style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             paths.forEachIndexed { idx, path ->
                 key(path) {
-                    val image by rememberAttachmentImage(path, 160)
-                    val thumbnail = image.bitmap
+                    val kind = LocalMediaAttachmentPolicy.kind(path)
+                    val preview = if (kind == "video") LocalMediaAttachmentPolicy.frames(path) else path
+                    val thumbnail = if (kind == "audio") null else {
+                        val image by rememberAttachmentImage(preview, 160)
+                        image.bitmap
+                    }
                     Surface(shape = RoundedCornerShape(13.dp),
                         color = Ink.panel,
                         border = BorderStroke(1.dp, Ink.border)) {
                         Row(Modifier.padding(5.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 Modifier.size(48.dp).clip(RoundedCornerShape(9.dp))
-                                    .clickable { previewPath = path }
-                                    .semantics { contentDescription = "预览附件图片 ${idx + 1}" },
+                                    .clickable(enabled = preview in previews) { previewPath = preview }
+                                    .semantics { contentDescription = if (kind == "image") "预览附件图片 ${idx + 1}" else "媒体附件 ${idx + 1}" },
                                 contentAlignment = Alignment.Center
                             ) {
                                 thumbnail?.let { image ->
@@ -131,12 +183,12 @@ fun LocalImageAttachmentStrip(
                             }
                             Spacer(Modifier.width(7.dp))
                             Column {
-                                Text("图片 ${idx + 1}", style = MaterialTheme.typography.labelMedium)
+                                Text("${when (kind) { "video" -> "视频"; "audio" -> "音频"; else -> "图片" }} ${idx + 1}", style = MaterialTheme.typography.labelMedium)
                                 Text("${File(path).length() / 1024} KB",
                                     color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                             }
                             CodexIconAction(onClick = { onRemove(path) }, modifier = Modifier.size(48.dp)) {
-                                CodexIcon(CodexGlyph.Close, contentDescription = "移除图片 ${idx + 1}",
+                                CodexIcon(CodexGlyph.Close, contentDescription = if (kind == "image") "移除图片 ${idx + 1}" else "移除媒体附件 ${idx + 1}",
                                     tint = Ink.red)
                             }
                         }
@@ -144,10 +196,10 @@ fun LocalImageAttachmentStrip(
                 }
             }
         }
-        previewPath?.takeIf { it in paths }?.let { path ->
-            AttachmentPreviewDialog(paths, path,
+        previewPath?.takeIf { it in previews }?.let { path ->
+            AttachmentPreviewDialog(previews.keys.toList(), path,
                 onDismiss = { previewPath = null }, onRemove = {
-                    onRemove(it)
+                    previews[it]?.let(onRemove)
                     previewPath = null
                 })
         }

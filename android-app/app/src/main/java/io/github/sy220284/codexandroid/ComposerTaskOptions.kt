@@ -60,6 +60,15 @@ internal object ComposerModelPolicy {
             (0 until array.length()).map { array.optString(it) }.filter { it.isNotBlank() }.distinct()
         }.orEmpty()
 
+    fun requireMediaInput(catalog: List<JSONObject>, modelId: String, required: Set<String>) {
+        if (required.isEmpty() || modelId.isBlank()) return
+        val decision = MediaRoutePolicy.decide(catalog, modelId, required)
+        require(decision.acceptsNative) { decision.reason }
+    }
+
+    fun requireImageInput(catalog: List<JSONObject>, modelId: String, hasImages: Boolean) =
+        requireMediaInput(catalog, modelId, if (hasImages) setOf("image") else emptySet())
+
     fun withEffort(options: ComposerTaskOptions, effort: String): ComposerTaskOptions {
         val key = "${options.modelProvider}/${options.model}"
         return options.copy(effort = effort,

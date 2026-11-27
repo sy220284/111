@@ -15,8 +15,7 @@ test -x "$STRIP"
 TARGET="android-app/app/src/main/jniLibs/$ABI"
 mkdir -p "$TARGET"
 NEEDS_CPP_RUNTIME=0
-ENTRIES=("codex-app-server:libcodex_server.so" "codex-code-mode-host:libcodex_code_mode_host.so" "rg:libcodex_rg.so")
-if [ "$ABI" = "x86_64" ]; then ENTRIES+=("git:libcodex_git.so"); fi
+ENTRIES=("codex-app-server:libcodex_server.so" "codex-code-mode-host:libcodex_code_mode_host.so")
 for ENTRY in "${ENTRIES[@]}"; do
   NAME="${ENTRY%%:*}"; LIB="${ENTRY#*:}"
   mapfile -t MATCHES < <(find "$SRC_DIR" -type f -name "$NAME")
@@ -76,7 +75,13 @@ if [ "$NEEDS_CPP_RUNTIME" -eq 1 ]; then
 fi
 
 
-# Assemble published tools without compiling CPython, Node, curl or Git HTTPS.
+# Consume a verified 777 runtime component produced outside APK assembly.
+: "${CODEX_RUNTIME_PREPARED:?missing verified 111 runtime component}"
+case "$ABI" in
+  arm64-v8a) CLANG="$(dirname "$STRIP")/aarch64-linux-android29-clang";;
+  x86_64) CLANG="$(dirname "$STRIP")/x86_64-linux-android29-clang";;
+esac
 SOURCE_OUTPUT="${CODEX_GIT_SOURCE_OUTPUT:-${RUNNER_TEMP:-android-app/build}/git-corresponding-source.tar.xz}"
-python3 android-app/tools/prepare_prebuilt_developer_runtime.py "$ABI" "$TARGET" \
-  android-app/app/src/main/assets/development-runtime --git-source-output "$SOURCE_OUTPUT"
+python3 android-app/tools/prepare_prebuilt_developer_runtime.py "$ABI" --prepared-dir "$CODEX_RUNTIME_PREPARED" \
+  --native "$TARGET" --assets android-app/app/src/main/assets/development-runtime \
+  --clang "$CLANG" --git-source-output "$SOURCE_OUTPUT"

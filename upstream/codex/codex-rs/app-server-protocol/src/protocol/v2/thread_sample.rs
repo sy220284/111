@@ -1,6 +1,7 @@
 //! One model response on an ephemeral fork that inherits the source's configuration and context.
 
 use super::ThreadSource;
+use super::UserInput;
 use crate::JsonSchema;
 use crate::RequestId;
 use crate::TS;
@@ -15,11 +16,19 @@ use std::collections::HashMap;
 pub struct ThreadSampleParams {
     pub thread_id: String,
     /// The loaded source's latest turn, which must be finished (completed, failed, or interrupted) unless `allowInProgressTurn` is true.
+    /// For media sampling only, an empty string denotes a verified idle source with no turns.
     pub expected_turn_id: String,
     /// Allow sampling the latest turn before it finishes.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub allow_in_progress_turn: bool,
     pub prompt: String,
+    /// Optional local image/audio and time-axis text, using the ordinary turn input contract.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub media: Vec<UserInput>,
+    /// Required for media samples; binds admission to the native provider credential scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[ts(optional = nullable)]
+    pub media_scope: Option<String>,
     /// Override the model for this sample.
     /// Omit or pass `null` to inherit the source thread's model.
     #[ts(optional = nullable)]
@@ -66,3 +75,24 @@ pub struct ThreadSampleCancelParams {
 #[serde(rename_all = "camelCase")]
 #[ts(export_to = "v2/")]
 pub struct ThreadSampleCancelResponse {}
+
+/// Read-only binding for a media sample. This does not dispatch model inference.
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export_to = "v2/")]
+pub struct ThreadSampleScopeParams {
+    pub thread_id: String,
+    #[ts(optional = nullable)]
+    pub model: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct ThreadSampleScopeResponse {
+    pub scope: String,
+    pub model: String,
+    pub model_provider: String,
+    /// Effective native model modalities, including learned rejection evidence.
+    pub input_modalities: Vec<codex_protocol::openai_models::InputModality>,
+}

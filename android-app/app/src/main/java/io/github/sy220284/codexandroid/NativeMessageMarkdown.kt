@@ -1,10 +1,15 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.DisableSelection
@@ -44,7 +49,6 @@ internal object MessageMarkdown {
     private val fence = Regex("^(\u0060{3,}|~{3,})(.*)$")
     private val delimiter = Regex("^:?-{3,}:?$")
     private val rule = Regex("^(?:-{3,}|\\*{3,}|_{3,})$")
-    private val inline = Regex("(\\u0060[^\\u0060]+\\u0060|\\*\\*[^*]+\\*\\*|__[^_]+__|\\*[^*]+\\*|\\[[^\\]\\n]+\\]\\(https?://[^\\s)]+\\))")
     private fun cells(line: String): List<String> =
         line.trim().removePrefix("|").removeSuffix("|").split(Regex("(?<!\\\\)\\|"))
             .map { it.trim().replace("\\|", "|") }
@@ -55,26 +59,8 @@ internal object MessageMarkdown {
             }
 
     /** Only commit complete blocks while streaming; blank lines inside code are not boundaries. */
-    fun stablePrefixLength(source: String, from: Int = 0): Int {
-        var start = from
-        var stable = from
-        var opening: String? = null
-        while (start < source.length) {
-            val end = source.indexOf('\n', start)
-            if (end < 0) break
-            val line = source.substring(start, end).trim()
-            val current = opening
-            if (current != null) {
-                if (line.length >= current.length && line.all { it == current.first() }) opening = null
-            } else {
-                val marker = fence.matchEntire(line)
-                if (marker != null) opening = marker.groupValues[1]
-                else if (line.isBlank()) stable = end + 1
-            }
-            start = end + 1
-        }
-        return stable
-    }
+    fun stablePrefixLength(source: String, from: Int = 0): Int =
+        ReplyStablePrefixScanner(from).scan(source)
 
     fun blocks(source: String): List<MessageBlock> {
         val result = mutableListOf<MessageBlock>()
@@ -96,6 +82,7 @@ internal object MessageMarkdown {
             when {
                 marker != null -> {
                     flush()
+                    val fenceStart = i
                     val opening = marker.groupValues[1]
                     val language = marker.groupValues[2].trim().substringBefore(' ')
                     val content = mutableListOf<String>()
@@ -105,7 +92,32 @@ internal object MessageMarkdown {
                         if (end.length >= opening.length && end.all { it == opening.first() }) break
                         content.add(lines[i++])
                     }
-                    result.add(MessageBlock("code", content.joinToString("\n"), label = language))
+                    val code = content.joinToString("\n")
+                    val closed = i < lines.size
+                    val rich = if (closed && marker.groupValues[2].trim() == language)
+                        RichReplyContent.parse(language, code) else null
+                    result.add(if (rich != null) MessageBlock(rich.kind, code, label = language,
+                        rows = rich.rows, source = lines.subList(fenceStart, i + 1).joinToString("\n"))
+                    else MessageBlock("code", code, label = language))
+                }
+                trimmed == "\$\$" || trimmed == "\\[" -> {
+                    val ending = if (trimmed == "\$\$") "\$\$" else "\\]"
+                    val end = (i + 1 until lines.size).firstOrNull { lines[it].trim() == ending }
+                    val sourceMath = end?.let { lines.subList(i + 1, it).joinToString("\n") }
+                    val math = sourceMath?.let { RichReplyContent.parse("codex-math", it) }
+                    if (math != null && end != null && sourceMath != null) {
+                        flush()
+                        result.add(MessageBlock("math", sourceMath, rows = math.rows,
+                            source = lines.subList(i, end + 1).joinToString("\n")))
+                        i = end
+                    } else paragraph.add(line)
+                }
+                ((trimmed.startsWith("\$\$") && trimmed.endsWith("\$\$")) ||
+                    (trimmed.startsWith("\\[") && trimmed.endsWith("\\]"))) && trimmed.length > 4 -> {
+                    val equation = trimmed.substring(2, trimmed.length - 2)
+                    val math = RichReplyContent.parse("codex-math", equation)
+                    if (math != null) { flush(); result.add(MessageBlock("math", equation, rows = math.rows, source = line)) }
+                    else paragraph.add(line)
                 }
                 tableHeader(lines, i) -> {
                     flush()
@@ -137,9 +149,12 @@ internal object MessageMarkdown {
                 listItem != null -> {
                     flush()
                     val prefix = listItem.groupValues[1]
-                    result.add(MessageBlock("bullet", listItem.groupValues[2],
+                    val body = listItem.groupValues[2]
+                    val task = Regex("^\\[([ xX])\\]\\s+(.+)$").matchEntire(body)
+                    result.add(MessageBlock("bullet", task?.groupValues?.get(2) ?: body,
                         ((line.length - trimmed.length) / 2).coerceIn(0, 3),
-                        if (prefix.first().isDigit()) prefix else "•"))
+                        if (task != null) if (task.groupValues[1].isBlank()) "☐" else "☑"
+                        else if (prefix.first().isDigit()) prefix else "•"))
                 }
                 else -> paragraph.add(line)
             }
@@ -150,111 +165,117 @@ internal object MessageMarkdown {
     }
 
     /** Uses exactly the same inline token boundaries as the visible Compose text. */
-    internal data class CopyPart(val visible: String, val prefix: String = "", val suffix: String = "")
-    fun copyParts(source: String): List<CopyPart> = buildList {
-        var offset = 0
-        for (match in inline.findAll(source)) {
-            if (match.range.first > offset) add(CopyPart(source.substring(offset, match.range.first)))
-            val part = match.value
-            add(when {
-                part.startsWith("[") -> {
-                    val separator = part.lastIndexOf("](")
-                    CopyPart(part.substring(1, separator), "[", part.substring(separator))
-                }
-                part.startsWith("**") || part.startsWith("__") ->
-                    CopyPart(part.drop(2).dropLast(2), part.take(2), part.takeLast(2))
-                else -> CopyPart(part.drop(1).dropLast(1), part.take(1), part.takeLast(1))
-            })
-            offset = match.range.last + 1
-        }
-        if (offset < source.length) add(CopyPart(source.substring(offset)))
-    }
+    internal data class CopyPart(val visible: String, val prefix: String = "", val suffix: String = "",
+        val styles: Set<String> = emptySet(), val url: String? = null, val original: String? = null)
+    fun copyParts(source: String): List<CopyPart> = ReplyInlineMarkdown.parts(source)
 
-    fun inlineText(source: String) = buildAnnotatedString {
-        var offset = 0
-        for (match in inline.findAll(source)) {
-            append(source.substring(offset, match.range.first))
-            val part = match.value
-            when {
-                part.startsWith("[") -> {
-                    val separator = part.lastIndexOf("](")
-                    val url = part.substring(separator + 2, part.length - 1)
-                    withLink(LinkAnnotation.Url(url, TextLinkStyles(style =
-                        SpanStyle(textDecoration = TextDecoration.Underline)))) {
-                        append(part.substring(1, separator))
-                    }
+    fun inlineText(source: String, openFile: ((String) -> Unit)? = null) =
+        inlineText(copyParts(source), openFile)
+
+    fun inlineText(parts: List<CopyPart>, openFile: ((String) -> Unit)? = null) = buildAnnotatedString {
+        for (part in parts) {
+            val style = SpanStyle(
+                fontWeight = if ("strong" in part.styles) FontWeight.Bold else null,
+                fontStyle = if ("emphasis" in part.styles || "math" in part.styles) FontStyle.Italic else null,
+                fontFamily = if ("code" in part.styles) FontFamily.Monospace else null,
+                textDecoration = if ("strike" in part.styles) TextDecoration.LineThrough else null)
+            withStyle(style) {
+                val url = part.url
+                if (url == null) append(part.visible)
+                else if (ReplyLinkPolicy.web(url)) withLink(LinkAnnotation.Url(url, TextLinkStyles(style =
+                    SpanStyle(textDecoration = TextDecoration.Underline)))) { append(part.visible) }
+                else {
+                    val path = ReplyLinkPolicy.file(url)
+                    if (path == null || openFile == null) append(part.visible)
+                    else withLink(LinkAnnotation.Clickable(url, TextLinkStyles(style =
+                        SpanStyle(textDecoration = TextDecoration.Underline)), { openFile(path) })) { append(part.visible) }
                 }
-                part.startsWith("**") || part.startsWith("__") ->
-                    withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(part.drop(2).dropLast(2)) }
-                part.startsWith('\u0060') ->
-                    withStyle(SpanStyle(fontFamily = FontFamily.Monospace)) { append(part.drop(1).dropLast(1)) }
-                else -> withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(part.drop(1).dropLast(1)) }
             }
-            offset = match.range.last + 1
         }
-        append(source.substring(offset))
     }
 }
 
-/** Keeps the already verified block boundary while an append-only message grows. */
-private class MarkdownBoundary {
-    private var prefix = ""
-    fun target(source: String, streaming: Boolean): String {
-        if (!streaming) return source
-        val from = if (source.startsWith(prefix)) prefix.length else 0
-        prefix = source.take(MessageMarkdown.stablePrefixLength(source, from))
-        return prefix
-    }
-}
+/** Prepared content is scoped to its block; callbacks remain live without
+ * invalidating the token cache on each frame or session callback change. */
+internal val LocalPreparedReplyBlock = staticCompositionLocalOf<PreparedReplyBlock?> { null }
 
 @Composable
+private fun replyInline(source: String): AnnotatedString {
+    val prepared = checkNotNull(LocalPreparedReplyBlock.current)
+    val parts = prepared.inline.getValue(source)
+    val openFile = LocalReplyFileOpen.current
+    val currentOpen by rememberUpdatedState(openFile)
+    val canOpen = openFile != null
+    return remember(parts, canOpen) {
+        MessageMarkdown.inlineText(parts, if (canOpen) ({ path -> currentOpen?.invoke(path) }) else null)
+    }
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
 internal fun NativeMessageMarkdown(source: String, streaming: Boolean = false) {
-    // Keep the already formatted prefix while a long answer is extending. A single conflated
-    // collector finishes each background parse; the next delta cannot cancel it repeatedly.
-    val boundary = remember { MarkdownBoundary() }
-    val target = remember(source, streaming) { boundary.target(source, streaming) }
-    val latest by rememberUpdatedState(target)
-    var parsed by remember { mutableStateOf<Pair<String, List<MessageBlock>>?>(null) }
+    val latest by rememberUpdatedState(source to streaming)
+    var document by remember { mutableStateOf<ReplyDocumentEngine.Document?>(null) }
     LaunchedEffect(Unit) {
-        snapshotFlow { latest }.conflate().collect { value ->
-            if (value.length >= 4096) {
-                val previous = parsed
-                val blocks = withContext(Dispatchers.Default) {
-                    if (previous != null && value.startsWith(previous.first) &&
-                        MessageMarkdown.stablePrefixLength(previous.first) == previous.first.length) {
-                        previous.second + MessageMarkdown.blocks(value.substring(previous.first.length))
-                    } else MessageMarkdown.blocks(value)
-                }
-                withContext(Dispatchers.Main.immediate) { parsed = value to blocks }
-            }
+        // Keep one serial worker per message. Conflation drops obsolete render
+        // requests, never protocol events or received text.
+        val engine = ReplyDocumentEngine()
+        snapshotFlow { latest }.conflate().collect { (text, live) ->
+            val prepared = withContext(Dispatchers.Default) { engine.prepare(text, live) }
+            document = prepared
         }
     }
-    val ready = if (target.length < 4096) target to remember(target) { MessageMarkdown.blocks(target) }
-        else parsed?.takeIf { (prefix, _) -> prefix == target ||
-            (target.startsWith(prefix) && MessageMarkdown.stablePrefixLength(prefix) == prefix.length) }
-    val prefix = ready?.first.orEmpty()
-    val tail = source.substring(prefix.length)
-    val unfinished = if (tail.isEmpty()) emptyList() else if (tail.length < 4096) {
-        remember(tail) { MessageMarkdown.blocks(tail) }
-    } else listOf(MessageBlock("stream-tail", tail))
-    val blocks = ready?.second.orEmpty() + unfinished
+    val ready = document?.takeIf { source.startsWith(it.prefix) }
+    val tail = source.substring(ready?.prefix?.length ?: 0)
+    val blocks = ready?.blocks.orEmpty() +
+        (if (tail.isEmpty()) emptyList() else listOf(PreparedReplyBlock.tail(tail)))
+    PreparedMarkdownPage(ReplyRenderPage(blocks, 0))
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+internal fun PreparedMarkdownPage(page: ReplyRenderPage) {
+    val blocks = page.blocks
     MessageSelectionContainer(blocks) {
         Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            blocks.forEach { block ->
+            var headingIndex = page.firstHeading
+            blocks.forEachIndexed { blockIndex, prepared ->
+                val block = prepared.block
+                key(blockIndex, block.kind) {
+                CompositionLocalProvider(LocalPreparedReplyBlock provides prepared) {
                 when (block.kind) {
                     "code" -> MessageCodeBlock(block)
+                    in RichReplyContent.kinds -> NativeRichReplyBlock(block)
                     "table" -> MessageTable(block)
                     "rule" -> HorizontalDivider(color = Ink.border)
-                    "heading" -> Text(MessageMarkdown.inlineText(block.text), fontWeight = FontWeight.SemiBold,
-                        style = if (block.level <= 2) MaterialTheme.typography.titleMedium else MaterialTheme.typography.titleSmall)
+                    "heading" -> {
+                        val index = headingIndex++
+                        val navigation = LocalReplyHeadingNavigation.current
+                        val requester = remember(index) { BringIntoViewRequester() }
+                        LaunchedEffect(navigation, index) {
+                            if (navigation?.heading == index) {
+                                withFrameNanos { }
+                                requester.bringIntoView()
+                                navigation.onReached()
+                            }
+                        }
+                        Text(replyInline(block.text), Modifier.bringIntoViewRequester(requester),
+                            fontWeight = FontWeight.SemiBold, style = when (block.level) {
+                                1 -> MaterialTheme.typography.titleLarge
+                                2 -> MaterialTheme.typography.titleMedium
+                                else -> MaterialTheme.typography.titleSmall
+                            })
+                    }
                     "bullet" -> Row(Modifier.fillMaxWidth().padding(start = (block.level * 12).dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(block.label, color = Ink.muted)
-                        Text(MessageMarkdown.inlineText(block.text), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
+                        Text(replyInline(block.text), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                     }
                     "quote" -> MessageQuote(block)
                     "stream-tail" -> Text(block.text, style = MaterialTheme.typography.bodyLarge)
-                    else -> Text(MessageMarkdown.inlineText(block.text), style = MaterialTheme.typography.bodyLarge)
+                    else -> Text(replyInline(block.text), style = MaterialTheme.typography.bodyLarge)
+                }
+                }
                 }
             }
         }
@@ -278,8 +299,22 @@ private fun MessageCodeBlock(block: MessageBlock) {
                 }
             }
             HorizontalDivider(color = Ink.border)
-            Text(block.text, Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
-                fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+            val prepared = checkNotNull(LocalPreparedReplyBlock.current)
+            if (prepared.codeSlices.isEmpty()) {
+                Text(ReplyCodeHighlight.render(block.text, prepared.codeTokens), Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(12.dp),
+                    fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodySmall)
+            } else {
+                Text("长代码 · 区域内滚动 · 顶部复制完整代码", Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                // Bound the inner viewport; never measure the entire code block on the UI thread.
+                LazyColumn(Modifier.fillMaxWidth().height(360.dp).horizontalScroll(rememberScrollState())
+                    .testTag("message-code-virtual"), contentPadding = PaddingValues(12.dp)) {
+                    itemsIndexed(prepared.codeSlices, key = { _, slice -> slice.start }) { _, slice ->
+                        Text(ReplyCodeHighlight.render(slice.text, slice.tokens), fontFamily = FontFamily.Monospace,
+                            style = MaterialTheme.typography.bodySmall, softWrap = false)
+                    }
+                }
+            }
         }
     }
 }
@@ -289,7 +324,7 @@ private fun MessageQuote(block: MessageBlock) {
     val copy = rememberConversationCopy()
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), verticalAlignment = Alignment.Top) {
         Box(Modifier.fillMaxHeight().width(3.dp).background(Ink.border, RoundedCornerShape(2.dp)))
-        Text(MessageMarkdown.inlineText(block.text), Modifier.padding(start = 12.dp).weight(1f),
+        Text(replyInline(block.text), Modifier.padding(start = 12.dp).weight(1f),
             color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
         DisableSelection {
             CodexIconAction(onClick = { copy(block.text, CopyContentFormat.Literal) },
@@ -303,7 +338,12 @@ private fun MessageQuote(block: MessageBlock) {
 @Composable
 private fun MessageTable(block: MessageBlock) {
     val rows = block.rows
-    val count = rows.maxOfOrNull { it.size } ?: return
+    val count = checkNotNull(LocalPreparedReplyBlock.current).tableColumns
+    if (count == 0) return
+    var columnPage by remember(block) { mutableIntStateOf(0) }
+    val firstColumn = columnPage * 12
+    val endColumn = minOf(count, firstColumn + 12)
+    val visibleColumns = endColumn - firstColumn
     val copy = rememberConversationCopy()
     var selecting by remember(block) { mutableStateOf(false) }
     var first by remember(block) { mutableStateOf<Pair<Int, Int>?>(null) }
@@ -316,8 +356,10 @@ private fun MessageTable(block: MessageBlock) {
         return row in minOf(a.first, b.first)..maxOf(a.first, b.first) &&
             column in minOf(a.second, b.second)..maxOf(a.second, b.second)
     }
-    Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-        color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val cellWidth = maxOf(maxWidth / visibleColumns, (82 * codexEffectiveFontScale()).dp)
+        Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+            color = Ink.canvas, border = BorderStroke(1.dp, Ink.border)) {
         Column {
             DisableSelection {
             Row(Modifier.fillMaxWidth().padding(start = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -341,12 +383,21 @@ private fun MessageTable(block: MessageBlock) {
                 }
             }
             }
+            if (count > 12) DisableSelection {
+                Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    CodexTextAction(onClick = { columnPage-- }, enabled = columnPage > 0,
+                        modifier = Modifier.testTag("message-table-previous-columns")) { Text("上一组列") }
+                    Text("${firstColumn + 1}–$endColumn / $count", Modifier.weight(1f), color = Ink.muted,
+                        style = MaterialTheme.typography.labelSmall)
+                    CodexTextAction(onClick = { columnPage++ }, enabled = endColumn < count,
+                        modifier = Modifier.testTag("message-table-next-columns")) { Text("下一组列") }
+                }
+            }
             HorizontalDivider(color = Ink.border)
-            Column(Modifier.horizontalScroll(rememberScrollState())) {
-                rows.forEachIndexed { index, row ->
+            val renderRow: @Composable (Int, List<String>) -> Unit = { index, row ->
                     Row(Modifier.background(if (index == 0) Ink.recessed else Ink.canvas)) {
-                        repeat(count) { column ->
-                            val cell = Modifier.width(132.dp).then(if (selecting)
+                        for (column in firstColumn until endColumn) {
+                            val cell = Modifier.width(cellWidth).then(if (selecting)
                                 Modifier.background(if (selected(index, column)) Ink.border else
                                     if (index == 0) Ink.recessed else Ink.canvas)
                                     .clickable {
@@ -356,26 +407,45 @@ private fun MessageTable(block: MessageBlock) {
                                 else Modifier).padding(10.dp)
                             val value = row.getOrElse(column) { "" }
                             if (selecting) DisableSelection {
-                                val styled = MessageMarkdown.inlineText(value)
+                                val styled = replyInline(value)
                                 Text(AnnotatedString(styled.text, spanStyles = styled.spanStyles), cell,
                                     color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
                                     fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
-                            } else Text(MessageMarkdown.inlineText(value), cell,
+                            } else Text(replyInline(value), cell,
                                 color = Ink.parchment, style = MaterialTheme.typography.bodySmall,
                                 fontWeight = if (index == 0) FontWeight.SemiBold else FontWeight.Normal)
                         }
                     }
                     if (index != rows.lastIndex) HorizontalDivider(color = Ink.border)
+            }
+            val horizontal = rememberScrollState()
+            LaunchedEffect(columnPage) { horizontal.scrollTo(0) }
+            if (rows.size <= 24) {
+                Column(Modifier.horizontalScroll(horizontal)) {
+                    rows.forEachIndexed { index, row -> renderRow(index, row) }
+                }
+            } else {
+                Text("长表格 · 区域内滚动 · 支持跨行选取", Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                    color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                // A fixed cross-axis width preserves the same column alignment across all lazy rows.
+                Column(Modifier.horizontalScroll(horizontal).width(cellWidth * visibleColumns)) {
+                    renderRow(0, rows.first())
+                    LazyColumn(Modifier.fillMaxWidth().height(360.dp).testTag("message-table-virtual")) {
+                        items(rows.size - 1, key = { it + 1 }) { index ->
+                            renderRow(index + 1, rows[index + 1])
+                        }
+                    }
                 }
             }
         }
+    }
     }
 }
 
 /** Compose 1.8 SelectionContainer writes its selected visible text through LocalClipboard.
  * Match that text against the same rendered token stream, never against an unrelated answer. */
 @Composable
-private fun MessageSelectionContainer(blocks: List<MessageBlock>, content: @Composable () -> Unit) {
+private fun MessageSelectionContainer(blocks: List<PreparedReplyBlock>, content: @Composable () -> Unit) {
     val platform = LocalClipboard.current
     val context = LocalContext.current
     val latest = rememberUpdatedState(blocks)
@@ -385,7 +455,7 @@ private fun MessageSelectionContainer(blocks: List<MessageBlock>, content: @Comp
                 val visible = clipEntry?.clipData?.takeIf { it.itemCount == 1 }?.getItemAt(0)?.text?.toString()
                 if (visible.isNullOrEmpty()) { platform.setClipEntry(clipEntry); return }
                 val snapshot = latest.value
-                val selection = withContext(Dispatchers.Default) { MessageSelectionCopy.resolve(snapshot, visible) }
+                val selection = withContext(Dispatchers.Default) { MessageSelectionCopy.resolvePrepared(snapshot, visible) }
                 // When repeated visible text has incompatible original formatting, retain the actual
                 // platform selection rather than guess which source location the user selected.
                 if (selection == null) platform.setClipEntry(clipEntry)

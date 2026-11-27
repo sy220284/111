@@ -1,0 +1,33 @@
+name: GitHub Android 模拟器环境
+description: Reuse the hosted SDK; cache only the requested official system image.
+runs:
+  using: composite
+  steps:
+    - name: 确定实际 SDK 和镜像包
+      id: image
+      shell: bash
+      run: bash .github/scripts/ci-emulator-sdk.sh locate
+    - name: 恢复指定官方系统镜像
+      id: image-cache
+      if: steps.image.outputs.present == 'false'
+      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+      with:
+        path: ${{ steps.image.outputs.path }}
+        key: android-system-image-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.key }}
+    - name: 核验缓存镜像完整性
+      if: steps.image-cache.outputs.cache-hit == 'true'
+      shell: bash
+      run: bash .github/scripts/ci-emulator-sdk.sh verify-cache
+    - name: 官方 SDK 缺项安装与实际镜像核验
+      shell: bash
+      run: bash .github/scripts/ci-emulator-sdk.sh install
+    - name: 生成官方镜像完整性清单
+      if: steps.image.outputs.present == 'false' && steps.image-cache.outputs.cache-hit != 'true'
+      shell: bash
+      run: bash .github/scripts/ci-emulator-sdk.sh seal
+    - name: 缓存已安装的官方系统镜像
+      if: steps.image.outputs.present == 'false' && steps.image-cache.outputs.cache-hit != 'true'
+      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+      with:
+        path: ${{ steps.image.outputs.path }}
+        key: android-system-image-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.key }}

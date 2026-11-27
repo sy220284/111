@@ -34,7 +34,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
     val errors by vm.errors.collectEntries(key, "goalWrite")
     val loading by vm.loading.collectProjection { it.intersect(setOf(key, "goalWrite")) }
     val goal = data[key]?.optJSONObject("goal")
-    val panelDraft by vm.taskPanelDrafts.collectProjection { it[active] ?: TaskPanelDraft() }
+    val panelDraft = vm.taskPanelDraft(active)
     val objective = panelDraft.goalText
     val status = panelDraft.goalStatus
     val budget = panelDraft.goalBudget
@@ -245,7 +245,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     val data by vm.data.collectEntries(*queueKeys.toTypedArray())
     val errors by vm.errors.collectEntries(*(queueKeys + "queueWrite").toTypedArray())
     val loading by vm.loading.collectProjection { it.intersect((queueKeys + "queueWrite").toSet()) }
-    val draft by vm.taskPanelDrafts.collectProjection { it[active]?.queueText.orEmpty() }
+    val draft = vm.taskPanelDraft(active).queueText
     var pendingDelete by remember(active) { mutableStateOf<JSONObject?>(null) }
     var pendingEdit by remember(active) { mutableStateOf<JSONObject?>(null) }
     var editText by rememberSaveable(active) { mutableStateOf("") }

@@ -116,7 +116,6 @@ internal object DomesticProviderCredentials {
     fun matchesStoredEndpoint(context: Context, preset: DomesticModelPreset, endpoint: String): Boolean =
         has(context, preset) && decrypt(context, preset).first == endpoint.trim().trimEnd('/')
 
-    @Synchronized
     fun bootstrap(context: Context): DomesticCredentialBootstrap {
         val result = JSONObject()
         val loaded = mutableSetOf<String>()

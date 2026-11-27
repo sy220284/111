@@ -28,19 +28,22 @@ internal data class GlobalWorkSnapshot(
     val realtimeVoiceActive: Boolean = false,
     val inFlightUserRequests: Int = 0,
     val localMutations: Int = 0,
-    val pendingRestore: Boolean = false
+    val pendingRestore: Boolean = false,
+    val screenShareActive: Boolean = false,
+    val mediaAnalysisActive: Boolean = false,
+    val liveScreenAnalysisActive: Boolean = false
 ) {
     val hasActiveWork: Boolean
         get() = visibleTurnRunning || executingThreads > 0 ||
             creatingThread || terminalRunning || pendingApprovals > 0 ||
             inFlightRequests > 0 || localMutations > 0 || loginBusy || planApprovalBusy ||
-            switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting || realtimeVoiceActive
+            switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting || realtimeVoiceActive || screenShareActive || mediaAnalysisActive || liveScreenAnalysisActive
 
     /** Foreground protection tracks deliberate work, not passive catalog polling. */
     val requiresForegroundProtection: Boolean
         get() = visibleTurnRunning || executingThreads > 0 || creatingThread || terminalRunning ||
             terminalStarting || pendingApprovals > 0 || realtimeVoiceActive || loginBusy ||
-            planApprovalBusy || securitySaveBusy || switchingThread || inFlightUserRequests > 0 || localMutations > 0 || dataTransferBusy
+            planApprovalBusy || securitySaveBusy || switchingThread || inFlightUserRequests > 0 || localMutations > 0 || dataTransferBusy || mediaAnalysisActive || liveScreenAnalysisActive
 
     val canDisruptCoreOrData: Boolean
         get() = !hasActiveWork && !dataTransferBusy && !pendingRestore
@@ -57,6 +60,8 @@ internal data class GlobalWorkSnapshot(
                 switchingThread || terminalStarting || securitySaveBusy || coreStarting || restarting ->
                 "请求或授权操作正在处理，请完成后再备份、恢复或重启"
             realtimeVoiceActive -> "实时语音尚未结束，请先结束或恢复语音连接"
+            mediaAnalysisActive || liveScreenAnalysisActive -> "媒体分析仍在进行，请先结束分析"
+            screenShareActive -> "屏幕共享尚未结束，请先停止共享"
             hasActiveWork -> "仍有会话任务、终端命令或审批待处理，请完成后再操作"
             else -> ""
         }
@@ -81,7 +86,10 @@ internal fun CodexViewModel.globalWorkSnapshot(): GlobalWorkSnapshot = GlobalWor
     realtimeVoiceActive = realtimeVoiceLease.active.value,
     inFlightUserRequests = bridge.userRpcRequests.value,
     localMutations = AppDataTransfer.localMutations.value,
-    pendingRestore = AppDataTransfer.state.value.pendingRestore
+    pendingRestore = AppDataTransfer.state.value.pendingRestore,
+    screenShareActive = screenShareSession.state.value.token != null,
+    mediaAnalysisActive = composerContent.mediaAnalysis.state.value.busy,
+    liveScreenAnalysisActive = composerContent.liveScreenAnalysis.state.value.running
 )
 
 
@@ -91,7 +99,7 @@ internal fun CodexViewModel.globalWorkChanges(): Flow<GlobalWorkSnapshot> {
         running, threadExecutions, firstThreadStarting, terminalSession, bridge.prompts,
         AppDataTransfer.state, AppDataTransfer.localMutations, loading, bridge.activeRpcRequests, bridge.writing, bridge.userRpcRequests,
         loginBusy, planApprovalBusy, threadSwitching, terminalStarting, securitySaveBusy,
-        bridge.status, bridge.retirementBusy, connectionRestarter.busy, realtimeVoiceLease.active
+        bridge.status, bridge.retirementBusy, connectionRestarter.busy, realtimeVoiceLease.active, screenShareSession.state, composerContent.mediaAnalysis.state, composerContent.liveScreenAnalysis.state
     )
     return combine(*sources) { globalWorkSnapshot() }.distinctUntilChanged()
 }

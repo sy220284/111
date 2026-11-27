@@ -6,6 +6,9 @@ on:
       include_x86:
         type: boolean
         default: false
+      native_key:
+        type: string
+        default: ''
     outputs:
       arm_run_id:
         value: ${{ jobs.verified.outputs.arm_run_id }}
@@ -22,10 +25,11 @@ permissions:
   actions: read
 
 concurrency:
-  # Keep independent branches from blocking each other; supersede stale PR builds.
-  # Native V8 compilation takes hours; keep builds of distinct revisions alive
-  # so fixing one ABI does not discard another ABI's expensive progress.
-  group: android-native-codex-${{ github.event.pull_request.number || github.ref_name }}-${{ github.sha }}
+  # Serialize identical native inputs; each consumer checks for the completed
+  # artifact after acquiring the lock. Unlike PR acceptance, never replace a
+  # different waiting consumer merely because another branch requested it.
+  group: android-native-codex-${{ inputs.native_key || github.sha }}
+  queue: max
   cancel-in-progress: false
 
 jobs:
@@ -48,15 +52,22 @@ jobs:
           sparse-checkout: |
             .github/scripts
             .github/ci
+            tools/build
       - name: 查找已验证的 ARM64 手机核心及手动选定的测试核心
         id: detect
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           INCLUDE_X86: ${{ inputs.include_x86 }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ABI_MATRIX_JSON: '[{"rust_target":"aarch64-linux-android","clang":"aarch64-linux-android29-clang","clangxx":"aarch64-linux-android29-clang++","abi":"arm64-v8a","elf_arch":"AArch64"},{"rust_target":"x86_64-linux-android","clang":"x86_64-linux-android29-clang","clangxx":"x86_64-linux-android29-clang++","abi":"x86_64","elf_arch":"X86-64"}]'
         run: |
           set -euo pipefail
+          if [ -n "$PR_NUMBER" ]; then
+            LIVE_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)"
+            test "$LIVE_HEAD" = "$CANDIDATE_SHA" || { echo "::error::候选已被新 head 替代，停止占用原生构建锁"; exit 1; }
+          fi
           MISSING='[]'
           for ABI in $(jq -r '.[].abi' <<< "$ABI_MATRIX_JSON"); do
             if [ "$ABI" = 'x86_64' ] && [ "$INCLUDE_X86" != 'true' ]; then
@@ -76,7 +87,11 @@ jobs:
             fi
             case "$RESULT" in
               0) echo "$ABI 复用已验证原生内核" ;;
-              3) MISSING="$(jq -c --arg abi "$ABI" --argjson missing "$MISSING" '$missing + map(select(.abi == $abi))' <<< "$ABI_MATRIX_JSON")" ;;
+              3)
+                TARGET="$(jq -r --arg abi "$ABI" '.[] | select(.abi==$abi) | .rust_target' <<< "$ABI_MATRIX_JSON")"
+                V8_KEY="$(python3 .github/scripts/v8_artifacts.py key --target "$TARGET")"
+                MISSING="$(jq -c --arg abi "$ABI" --arg key "$V8_KEY" --argjson missing "$MISSING" '$missing + map(select(.abi == $abi) + {v8_key:$key})' <<< "$ABI_MATRIX_JSON")"
+                ;;
               *) exit "$RESULT" ;;
             esac
           done
@@ -95,11 +110,85 @@ jobs:
             echo "只编译缺失或已改变的 ABI：$MISSING"
           fi
 
+  v8:
+    name: V8 官方源码产物 · ${{ matrix.abi }}
+    # V8 official sources do not depend on provider model-contract results.
+    needs: reuse
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.reuse.outputs.matrix) }}
+    concurrency:
+      group: android-v8-${{ matrix.v8_key }}
+      queue: max
+      cancel-in-progress: false
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          filter: blob:none
+          sparse-checkout: |
+            /.github/scripts/
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
+            /.github/actions/run-emulator/
+            /tools/build/
+            /.github/workflows/
+            /android-app/tools/prepare_android_v8.sh
+            /android-app/tools/adapt_android_v8_build.py
+            /android-app/tools/v8_toolchain_provenance.py
+            /upstream/codex/codex-rs/Cargo.lock
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
+        with:
+          mode: v8
+      - name: 使用官方 Rust 和 Cargo 缓存
+        uses: ./.github/actions/ci-rust
+        with:
+          target: ${{ matrix.rust_target }}
+      - name: 回归独立 V8 凭证规则（手动专项）
+        if: github.event_name == 'workflow_dispatch'
+        run: python3 -m unittest discover -s .github/scripts -p test_v8_artifacts.py
+      - name: 查询同输入的已验收 V8 官方源码产物
+        id: restore
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/v8_artifacts.py restore --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 使用官方 LLVM 21（仅补齐缺项）
+        if: steps.restore.outputs.restored == 'false'
+        run: bash .github/scripts/ci-llvm.sh
+      - name: 从官方源码编译 V8
+        if: steps.restore.outputs.restored == 'false'
+        run: python3 tools/build/build_progress.py -- bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+      - name: 独立核验完整 V8 文件、来源及构建输入
+        run: python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 发布本次已核验的 V8 二进制及来源凭证
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v8-binary-${{ matrix.v8_key }}
+          # Same-run producer reruns replace the name only after verification;
+          # consumers resolve the new immutable ID and independently check its digest.
+          overwrite: true
+          compression-level: 0
+          path: .android-v8-cache/${{ matrix.rust_target }}/*
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
+
   native:
     name: 编译 ${{ matrix.abi }} 核心
-    needs: reuse
-    if: needs.reuse.outputs.reuse != 'true'
-    runs-on: ubuntu-latest
+    # Do not spend hours compiling Android binaries for a source revision that
+    # has already failed the native host contract. A verified receipt also qualifies.
+    needs: [reuse, provider-contract, v8]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.reuse.outputs.reuse != 'true' && needs.v8.result == 'success' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
+    runs-on: ubuntu-24.04
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -119,6 +208,10 @@ jobs:
           fetch-depth: 0
           sparse-checkout: |
             .github/scripts
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
+            tools/build
             .github/ci
             upstream/codex
             CODEX_UPSTREAM_COMMIT
@@ -127,9 +220,22 @@ jobs:
             android-app/tools/test_resolve_codex_catalog_version.py
             android-app/tools/prepare_android_code_mode.py
             android-app/tools/test_prepare_android_code_mode.py
+            android-app/tools/prepare_android_realtime_privacy.py
+            android-app/tools/test_prepare_android_realtime_privacy.py
+            android-app/tools/prepare_android_remote_delivery.py
+            android-app/tools/test_prepare_android_remote_delivery.py
             android-app/tools/prepare_android_v8.sh
             android-app/tools/adapt_android_v8_build.py
+            android-app/tools/v8_toolchain_provenance.py
             android-app/tools/build_android_git.sh
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
+        with:
+          mode: native
+      - name: 使用官方 Rust 和 Cargo 缓存
+        uses: ./.github/actions/ci-rust
+        with:
+          target: ${{ matrix.rust_target }}
       - name: 检查源码快照版本
         run: |
           set -euo pipefail
@@ -139,42 +245,34 @@ jobs:
             --lock upstream/codex/codex-rs/models-manager/android-client-release.txt
           grep -Fq 'android_catalog_client_version()' upstream/codex/codex-rs/models-manager/src/lib.rs
           python3 -m unittest discover -s android-app/tools -p 'test_resolve_codex_catalog_version.py'
-      - name: 配置 Android SDK/NDK
-        shell: bash
+      # Check the pristine lock before any Android adaptation modifies Cargo.lock.
+      - name: 下载并核验独立 V8 产物及原始构建输入
+        id: v8-consume
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/v8_artifacts.py consume --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 为 V8 恢复补齐官方 SDK 缺项
+        if: steps.v8-consume.outputs.rebuild == 'true'
+        run: bash .github/scripts/ci-android-sdk.sh v8
+      - name: 使用官方 LLVM 21（仅补齐缺项）
+        if: steps.v8-consume.outputs.rebuild == 'true'
+        run: bash .github/scripts/ci-llvm.sh
+      - name: 从固定官方源码重建并核验 V8 产物
+        if: steps.v8-consume.outputs.rebuild == 'true'
         run: |
           set -euo pipefail
-          TOOL="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          test -x "$TOOL"
-          "$TOOL" "ndk;27.2.12479018"
-          NDK="$ANDROID_HOME/ndk/27.2.12479018"
-          test -x "$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/${{ matrix.clang }}"
-          echo "ANDROID_NDK_HOME=$NDK" >> "$GITHUB_ENV"
-      - name: 安装 Codex 源码锁定的 Rust 1.99.1 和 Android 目标
-        uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
+          python3 tools/build/build_progress.py -- bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+          python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 保存独立恢复产物与来源凭证
+        if: steps.v8-consume.outputs.rebuild == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          toolchain: "1.99.1"
-          targets: ${{ matrix.rust_target }}
-      - name: 验证当前 Rust 工具链与安卓标准库
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd upstream/codex/codex-rs
-          rustup target add "${{ matrix.rust_target }}" --toolchain 1.99.1
-          rustc --version
-          cargo --version
-          rustup show active-toolchain
-          rustup target list --installed | grep -Fx "${{ matrix.rust_target }}"
-          test -d "$(rustc --print sysroot)/lib/rustlib/${{ matrix.rust_target }}/lib"
-      - name: 缓存 Rust 构建依赖
-        uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-        with:
-          workspaces: upstream/codex/codex-rs
-          key: codex-android-${{ matrix.rust_target }}
-      - name: 缓存沙箱版本的 Android V8 静态库与绑定
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: .android-v8-cache/${{ matrix.rust_target }}
-          key: android-v8-${{ matrix.rust_target }}-152.2.0-sandbox-${{ hashFiles('android-app/tools/prepare_android_v8.sh', 'android-app/tools/adapt_android_v8_build.py') }}
+          name: v8-recovery-${{ matrix.v8_key }}
+          overwrite: true
+          compression-level: 0
+          path: .android-v8-cache/${{ matrix.rust_target }}/*
+          if-no-files-found: error
+          retention-days: 90
       - name: 将 Android 平台接入上游现有 OpenSSL 源码编译配置
         shell: bash
         run: |
@@ -201,12 +299,11 @@ jobs:
             --host-source "$GITHUB_WORKSPACE/upstream/codex/codex-rs/code-mode-host/src/main.rs" \
             --features-source "$GITHUB_WORKSPACE/upstream/codex/codex-rs/features/src/lib.rs"
           python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_code_mode.py
-      - name: 准备已核验的 Android V8 沙箱库
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash android-app/tools/prepare_android_v8.sh \
-            "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+          python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_realtime_privacy.py
+          python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_realtime_privacy.py" \
+            "$GITHUB_WORKSPACE/upstream/codex/codex-rs/codex-api/src/endpoint/realtime_websocket/methods.rs"
+          python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_remote_delivery.py
+          python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_remote_delivery.py" "$GITHUB_WORKSPACE/upstream/codex/codex-rs"
       - name: 使用 Android Bionic 编译 App Server 与 Code Mode Host
         shell: bash
         run: |
@@ -245,24 +342,12 @@ jobs:
           fi
           export "CARGO_TARGET_${TARGET_ENV}_RUSTFLAGS=$RUST_LINK_FLAGS"
           cd upstream/codex/codex-rs
-          cargo build --locked --release \
+          python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" -- cargo build --locked --offline --release \
             -p codex-app-server --bin codex-app-server \
             -p codex-code-mode-host --bin codex-code-mode-host \
             --target "$TARGET"
-          # Package native ripgrep for Codex local project searching.
-          # Cargo verifies the immutable crates.io release against its registry checksum.
-          cargo install ripgrep --version 15.2.0 --locked --no-default-features \
-            --target "$TARGET" --root "$RUNNER_TEMP/ripgrep-install" --jobs 2
-          test -s "$RUNNER_TEMP/ripgrep-install/bin/rg"
-          cp "$RUNNER_TEMP/ripgrep-install/bin/rg" "target/$TARGET/release/rg"
-          COMPONENTS=(codex-app-server codex-code-mode-host rg)
-          # ARM64 shipping Git comes from the precompiled release at APK assembly.
-          # Retain the established optional x86 emulator-only local Git.
-          if [ "$TARGET" = "x86_64-linux-android" ]; then
-            bash "$GITHUB_WORKSPACE/android-app/tools/build_android_git.sh" \
-              "$TARGET" "$BIN" "${{ matrix.clang }}" "target/$TARGET/release/git"
-            COMPONENTS+=(git)
-          fi
+          # Git, rg and other CLI tools are imported from the verified 777 runtime.
+          COMPONENTS=(codex-app-server codex-code-mode-host)
           for NAME in "${COMPONENTS[@]}"; do
             CORE="target/$TARGET/release/$NAME"
             test -s "$CORE"
@@ -279,7 +364,7 @@ jobs:
             done
             sha256sum "$CORE"
           done
-      - name: 上传原生内核与构建清单
+      - name: 上传原生内核二进制
         id: native-upload
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -287,8 +372,6 @@ jobs:
           path: |
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-app-server
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-code-mode-host
-            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/rg
-            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/git
           if-no-files-found: error
           retention-days: 90
       - name: 生成按源码指纹索引的原生构建凭证
@@ -305,12 +388,23 @@ jobs:
           path: ${{ runner.temp }}/native-index.json
           if-no-files-found: error
           retention-days: 90
+      - name: 上传 V8 官方源码构建来源及校验证据
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v8-source-evidence-${{ matrix.abi }}-${{ steps.index.outputs.fingerprint }}
+          path: |
+            .android-v8-cache/${{ matrix.rust_target }}/BUILD_INPUTS
+            .android-v8-cache/${{ matrix.rust_target }}/SOURCE_PROVENANCE
+            .android-v8-cache/${{ matrix.rust_target }}/SHA256SUMS
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90
 
   provider-contract:
     name: 国内服务商目录与模型能力 Rust 回归测试
     needs: reuse
     if: needs.reuse.outputs.provider_reuse != 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
       CARGO_INCREMENTAL: "0"
@@ -324,26 +418,53 @@ jobs:
           fetch-depth: 0
           sparse-checkout: |
             .github/scripts
+            .github/actions/ci-android
+            .github/actions/ci-rust
+            .github/ci
+            tools/build
             .github/ci
             upstream/codex
-      - uses: dtolnay/rust-toolchain@df2a88e9fe4098bad09cb42c3dec7187f15861fc # master
-        with:
-          toolchain: "1.99.1"
-      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
-        with:
-          workspaces: upstream/codex/codex-rs
-          key: codex-provider-contract-host
+            android-app/tools/prepare_android_remote_delivery.py
+            android-app/tools/test_prepare_android_remote_delivery.py
+      - name: 使用官方 Rust 和 Cargo 缓存
+        uses: ./.github/actions/ci-rust
       - name: 执行国内目录、端点绑定及合成工具回传测试
         working-directory: upstream/codex/codex-rs
         run: |
           set -euo pipefail
           cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
+          cargo test --locked -p codex-models-manager --lib image_input
           cargo test --locked -p codex-model-provider --lib domestic_
           cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
           cargo test --locked -p codex-api --lib body_model_reporting
+          cargo test --locked -p codex-app-server --test all media_sample_native_
+      - name: 验证工作站真实文件安全读取并构建 Linux 执行器
+        working-directory: upstream/codex/codex-rs
+        run: |
+          set -euo pipefail
+          python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_remote_delivery.py
+          python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_remote_delivery.py" --exec-only .
+          cargo test --locked -p codex-exec-server --lib local_file_system_read::tests::android_delivery_ 2>&1 | tee "$RUNNER_TEMP/android-delivery-rust-tests.log"
+          grep -F "test local_file_system_read::tests::android_delivery_enforces_the_actual_read_limit ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
+          grep -F "test local_file_system_read::tests::android_delivery_rejects_leaf_and_parent_links ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
+          grep -F "test local_file_system_read::tests::android_delivery_chunk_returns_verified_digest_and_bounded_ranges ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
+          grep -F "test local_file_system_read::tests::android_delivery_chunk_rejects_leaf_and_parent_links ... ok" "$RUNNER_TEMP/android-delivery-rust-tests.log"
+          cargo build --locked -p codex-exec-server-cli --bin codex-exec-server
+          mkdir -p "$RUNNER_TEMP/android-delivery-executor"
+          install -m 0755 target/debug/codex-exec-server "$RUNNER_TEMP/android-delivery-executor/codex-exec-server"
+          "$RUNNER_TEMP/android-delivery-executor/codex-exec-server" --help
+          cp "$RUNNER_TEMP/android-delivery-rust-tests.log" "$RUNNER_TEMP/android-delivery-executor/RUST_TESTS.log"
+          git rev-parse HEAD > "$RUNNER_TEMP/android-delivery-executor/SOURCE_COMMIT"
+          (cd "$RUNNER_TEMP/android-delivery-executor" && sha256sum codex-exec-server SOURCE_COMMIT RUST_TESTS.log > SHA256SUMS && sha256sum -c SHA256SUMS)
       - name: 生成 Rust 回归凭证
         id: provider-index
         run: python3 .github/scripts/native_index.py provider --out "$RUNNER_TEMP/provider-index.json" --github-output "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: android-delivery-executor-linux-x86_64-${{ steps.provider-index.outputs.fingerprint }}
+          path: ${{ runner.temp }}/android-delivery-executor/
+          if-no-files-found: error
+          retention-days: 90
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: provider-index-${{ steps.provider-index.outputs.fingerprint }}
@@ -353,7 +474,7 @@ jobs:
 
   verified:
     name: 原生核心统一验收
-    needs: [reuse, native, provider-contract]
+    needs: [reuse, native, provider-contract, v8]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -366,15 +487,13 @@ jobs:
           REUSE: ${{ needs.reuse.result }}
           REUSED: ${{ needs.reuse.outputs.reuse }}
           NATIVE: ${{ needs.native.result }}
+          V8: ${{ needs.v8.result }}
           TEST: ${{ needs.provider-contract.result }}
           PROVIDER_REUSED: ${{ needs.reuse.outputs.provider_reuse }}
           ARM: ${{ needs.reuse.outputs.arm_run_id }}
-          X86: ${{ needs.reuse.outputs.x86_run_id }}
-          INCLUDE_X86: ${{ inputs.include_x86 }}
         run: |
           set -euo pipefail
           test "$REUSE" = success
           test -n "$ARM"
-          if [ "$INCLUDE_X86" = true ]; then test -n "$X86"; fi
-          if [ "$REUSED" = true ]; then test "$NATIVE" = skipped; else test "$NATIVE" = success; fi
+          if [ "$REUSED" = true ]; then test "$NATIVE" = skipped; test "$V8" = skipped; else test "$NATIVE" = success; test "$V8" = success; fi
           if [ "$PROVIDER_REUSED" = true ]; then test "$TEST" = skipped; else test "$TEST" = success; fi

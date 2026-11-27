@@ -27,7 +27,7 @@ MATRIX_ROW = re.compile(
 )
 
 
-def verify(matrix_source: str, policy_source: str, official_source: str) -> list[str]:
+def verify(matrix_source: str, policy_source: str, official_source: str, *, contracts=None, document=None) -> list[str]:
     errors: list[str] = []
     declarations = list(MATRIX_ROW.finditer(matrix_source))
     matrix = {
@@ -42,14 +42,14 @@ def verify(matrix_source: str, policy_source: str, official_source: str) -> list
     if len(matrix) != len(declarations):
         errors.append("UiProtocolMatrix 包含重复方法名")
     try:
-        document = json.loads(policy_source)
+        document = json.loads(policy_source) if document is None else document
         policy = document["methods"]
     except (ValueError, KeyError, TypeError) as exc:
         return errors + ["UI 分层策略无法解析：" + str(exc)]
     if not isinstance(policy, dict):
         return errors + ["UI 分层策略 methods 必须是对象"]
     try:
-        official = parse_contracts(official_source)
+        official = parse_contracts(official_source) if contracts is None else contracts
     except ValueError as exc:
         return errors + ["官方协议解析失败：" + str(exc)]
     for name in sorted(official.keys() - matrix.keys()):
@@ -95,14 +95,14 @@ NON_UI_EXPOSURES = {"后台内部", "平台不适用"}
 
 
 def verify_ui_entrypoints(page_source: str, feature_source: str,
-                          policy_source: str, sources: Path | None = None) -> list[str]:
+                          policy_source: str, sources: Path | None = None, *, files=None, document=None) -> list[str]:
     """Fail closed when internal/Host/transport methods gain a normal UI entry.
 
     UI entrypoints are explicitly declared. An upstream method never becomes
     an Android navigation action merely because it exists in the protocol.
     """
     errors: list[str] = []
-    policy = json.loads(policy_source)["methods"]
+    policy = (json.loads(policy_source) if document is None else document)["methods"]
     pages = PAGE_LINE.findall(page_source)
     features = FEATURE_LINE.findall(feature_source)
     if not pages or not features:
@@ -123,9 +123,10 @@ def verify_ui_entrypoints(page_source: str, feature_source: str,
             entry = policy.get(method)
             if entry and entry["surface"] in NON_UI_EXPOSURES:
                 errors.append(f"后台接口被放入 UI 页面：{route} -> {method}")
-    if sources is not None:
-        for path in sources.rglob("*.kt"):
-            content = path.read_text(encoding="utf-8")
+    if files is None and sources is not None:
+        files={path:path.read_text(encoding="utf-8") for path in sources.rglob("*.kt")}
+    if files is not None:
+        for path,content in files.items():
             if "@Composable" not in content:
                 continue
             for match in UI_CALL.finditer(content):

@@ -15,10 +15,15 @@ internal object SessionListPolicy {
     fun title(row: JSONObject) = PresentationPolicy.threadTitle(row.optString("name"), row.optString("preview"))
     fun recency(row: JSONObject) = sequenceOf("recencyAt", "updatedAt", "createdAt")
         .map { row.optLong(it, 0) }.firstOrNull { it > 0 } ?: 0
-    fun ordered(rows: List<JSONObject>, pinned: Set<String>, sort: SessionSort = SessionSort.Recent) = rows
-        .filter { id(it).isNotBlank() }.distinctBy(::id)
-        .sortedWith(compareByDescending<JSONObject> { id(it) in pinned }
-            .thenByDescending { sort.timestamp(it) }.thenByDescending(::id))
+    private data class SortKey(val row: JSONObject, val id: String, val pinned: Boolean, val timestamp: Long)
+    fun ordered(rows: List<JSONObject>, pinned: Set<String>, sort: SessionSort = SessionSort.Recent): List<JSONObject> {
+        val seen = hashSetOf<String>()
+        return rows.mapNotNull { row ->
+            val id = id(row)
+            if (id.isBlank() || !seen.add(id)) null else SortKey(row, id, id in pinned, sort.timestamp(row))
+        }.sortedWith(compareByDescending<SortKey> { it.pinned }.thenByDescending { it.timestamp }
+            .thenByDescending { it.id }).map { it.row }
+    }
     fun titleMatches(row: JSONObject, query: String) =
         query.isBlank() || title(row).contains(query.trim(), ignoreCase = true)
     fun unread(receipt: JSONObject?) = receipt?.optJSONObject("firstUnread") != null
@@ -47,6 +52,7 @@ internal object SessionListPolicy {
 internal class SessionListController(private val vm: CodexViewModel, private val scope: CoroutineScope) {
     private val preferences = vm.getApplication<android.app.Application>()
         .getSharedPreferences("session-list-preferences", Context.MODE_PRIVATE)
+    val recentSearches = SessionSearchHistoryController(vm.getApplication<android.app.Application>(), scope)
     val pins = MutableStateFlow(preferences.getStringSet("pinned", emptySet()).orEmpty().toSet())
     val receipts = MutableStateFlow<Map<String, JSONObject>>(emptyMap())
     val searching = MutableStateFlow(false)
@@ -59,6 +65,8 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     private var archiveDirty = true
     private var identity: String? = null
     private var identityEpoch = 0L
+    internal var directoryCache = SessionDirectoryEngine.Cache()
+        private set
     private val index = SessionIndexStore(vm.getApplication<android.app.Application>().cacheDir.resolve("session-index.db"))
     private var allowCacheRead = true
     private val pendingIds = linkedSetOf<String>()
@@ -142,6 +150,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     }
     fun invalidateIdentity() {
         identityEpoch += 1
+        directoryCache = SessionDirectoryEngine.Cache()
         identity = null
         allowCacheRead = false
         scope.launch {

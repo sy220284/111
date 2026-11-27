@@ -605,6 +605,12 @@ client_request_definitions! {
         serialization: None,
         response: v2::ThreadSampleResponse,
     },
+    #[experimental("thread/sample/scope")]
+    ThreadSampleScope => "thread/sample/scope" {
+        params: v2::ThreadSampleScopeParams,
+        serialization: None,
+        response: v2::ThreadSampleScopeResponse,
+    },
     #[experimental("thread/sample/cancel")]
     ThreadSampleCancel => "thread/sample/cancel" {
         params: v2::ThreadSampleCancelParams,

@@ -6,7 +6,7 @@ import org.json.JSONObject
 internal object TimelineEvidenceText {
     fun render(item: TimelineItem): String {
         if (item.evidence.isBlank()) return item.text
-        val raw = try { JSONObject(item.evidence) } catch (_: org.json.JSONException) { return item.evidence }
+        val raw = try { AgentReplyContract.sanitize(JSONObject(item.evidence)) } catch (_: org.json.JSONException) { return item.evidence }
         return buildString {
             for ((key, title) in listOf("command" to "执行命令", "cwd" to "工作目录",
                 "exitCode" to "退出码", "aggregatedOutput" to "执行输出", "output" to "输出",

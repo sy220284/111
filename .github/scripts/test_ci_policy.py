@@ -12,6 +12,14 @@ class PolicyTests(unittest.TestCase):
         self.assertFalse(maintenance_only(["AGENTS.md", "unknown"]))
         self.assertFalse(plan(["AGENTS.md"])["full"])
         self.assertTrue(plan(["AGENTS.md"], force=True)["full"])
+    def test_user_toolchain_distribution_does_not_trigger_build_or_release(self):
+        for path in (".github/workflows/dev-toolchain.yml",".github/workflows/prepare-host-toolchain.yml",
+                     ".github/workflows/prepare-aux-toolchain.yml","tools/dev/ci_host.py","tools/dev/auxiliary.py","tools/dev/new-user-tool.py","tools/dev/run-build-offline.sh"):
+            self.assertFalse(plan([path])["full"],path)
+            self.assertFalse(matches(path,"release"),path)
+        for path in (".github/actions/ci-android/action.yml","tools/build/component-bundle.py","tools/runtime/runtime-lock.json"):
+            self.assertTrue(plan([path])["full"],path)
+
     def test_release_inputs(self):
         self.assertTrue(matches("android-app/tools/prepare_prebuilt_developer_runtime.py", "release"))
         self.assertTrue(matches(".github/release-version", "release"))
@@ -19,7 +27,20 @@ class PolicyTests(unittest.TestCase):
     def test_native_and_runtime_changes_enable_real_core(self):
         for path in ["upstream/codex/codex-rs/core/src/lib.rs", "android-app/tools/prepare_android_mxc.py", "android-app/app/src/main/java/io/github/sy220284/codexandroid/CodexConnection.kt"]:
             self.assertTrue(plan([path])["runtime"])
-        self.assertFalse(plan(["android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt"])["runtime"])
+        self.assertTrue(plan(["android-app/app/src/main/java/io/github/sy220284/codexandroid/VisualSystem.kt"])["runtime"])
+        self.assertFalse(plan(["AGENTS.md"])["runtime"])
+
+    def test_device_matrix_changes_require_real_core(self):
+        for path in ["android-app/tools/device-matrix.json", "android-app/tools/device_matrix.py", ".github/scripts/run-android-runtime-tests.sh"]:
+            self.assertTrue(plan([path])["runtime"])
+            self.assertTrue(plan([path])["full"])
+
+    def test_security_boundary_changes_trigger_real_runtime(self):
+        base = "android-app/app/src/main/java/io/github/sy220284/codexandroid/"
+        for name in ["BackupDataPolicy.kt", "LocalDataArchive.kt", "LocalRestoreTransaction.kt",
+                     "TerminalSessionContract.kt", "TerminalCommandPolicy.kt", "DeveloperToolStatus.kt",
+                     "RealtimeVoiceController.kt", "DomesticProviderCredentials.kt"]:
+            self.assertTrue(plan([base + name])["runtime"], name)
 
     def test_runtime_forces_full(self):
         self.assertTrue(plan([], runtime=True)["full"])
@@ -42,8 +63,3 @@ class PolicyTests(unittest.TestCase):
         self.assertNotIn("github.event.pull_request.head.sha", concurrency)
         self.assertIn("ref: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
         self.assertIn("python3 .github/scripts/ci_gate.py", workflow)
-    def test_new_runtime_and_release_inputs(self):
-        self.assertTrue(plan([".github/scripts/run-android-runtime-tests.sh"])["runtime"])
-        self.assertTrue(plan(["android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/RuntimeOwnershipInstrumentedTest.kt"])["runtime"])
-        self.assertTrue(matches("android-app/gradle/wrapper/gradle-wrapper.properties", "release"))
-        self.assertFalse(plan(["android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/UiNavigationInstrumentedTest.kt"])["runtime"])

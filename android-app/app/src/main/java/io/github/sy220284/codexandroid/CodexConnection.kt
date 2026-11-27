@@ -308,12 +308,14 @@ class CodexConnection internal constructor(private val appContext: Context,
             else -> 45_000L
         },
         sendPermit: (() -> Boolean)? = null,
-        expectedSession: Long? = null
-    ): JSONObject = requestForSession(method, params, timeoutMillis, null, sendPermit, expectedSession)
+        expectedSession: Long? = null,
+        onRequestId: ((Long) -> Unit)? = null
+    ): JSONObject = requestForSession(method, params, timeoutMillis, null, sendPermit, expectedSession, onRequestId)
 
     private suspend fun requestForSession(
         method: String, params: JSONObject?, timeoutMillis: Long?, startupEpoch: Long?,
-        sendPermit: (() -> Boolean)?, expectedSession: Long? = null
+        sendPermit: (() -> Boolean)?, expectedSession: Long? = null,
+        onRequestId: ((Long) -> Unit)? = null
     ): JSONObject {
         ProtocolDirectionPolicy.requireClientSend(method)
         val id = sequence.getAndIncrement()
@@ -331,6 +333,7 @@ class CodexConnection internal constructor(private val appContext: Context,
             token
         }
         try {
+            onRequestId?.invoke(id)
             suspend fun exchange(): JSONObject {
                 write(epoch, RpcWireRequest.envelope(method, id, params), sendPermit,
                     priority = RpcScheduling.priority(method))

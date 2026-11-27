@@ -1,6 +1,7 @@
 mod domestic_catalog;
 mod domestic_probe;
 pub use domestic_probe::verify_domestic_model;
+pub use models_identity::media_analysis_scope;
 pub use domestic_catalog::is_domestic_live_catalog;
 mod amazon_bedrock;
 mod auth;

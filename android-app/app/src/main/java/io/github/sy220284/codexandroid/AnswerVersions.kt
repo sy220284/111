@@ -11,8 +11,14 @@ internal data class AnswerVersionChoice(val index: Int, val versions: List<Answe
 internal data class AnswerVersionState(
     val versions: List<AnswerVersion> = emptyList(), val selections: Map<String, String> = emptyMap()
 ) {
-    fun root(id: String) = versions.firstOrNull { it.threadId == id }?.root ?: id
-    fun members(id: String) = (listOf(root(id)) + versions.filter { it.root == root(id) }.map { it.threadId }).distinct()
+    private val rootsByThread by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        buildMap { versions.forEach { if (it.threadId !in this) put(it.threadId, it.root) } }
+    }
+    private val threadsByRoot by lazy(LazyThreadSafetyMode.PUBLICATION) {
+        versions.groupBy { it.root }.mapValues { (root, values) -> (listOf(root) + values.map { it.threadId }).distinct() }
+    }
+    fun root(id: String) = rootsByThread[id] ?: id
+    fun members(id: String) = root(id).let { threadsByRoot[it] ?: listOf(it) }
     fun choice(thread: String, turn: String): AnswerVersionChoice? {
         val match = versions.firstOrNull { it.root == root(thread) && it.turnId == turn && turn.isNotBlank() } ?: return null
         val options = versions.filter { it.root == match.root && it.slot == match.slot }
@@ -53,6 +59,8 @@ internal data class AnswerVersionState(
         return matching.groupBy { root(SessionListPolicy.id(it)) }.map { (root, hits) ->
             val representative = hits.firstOrNull { SessionListPolicy.id(it) == selections[root] }
                 ?: hits.firstOrNull { SessionListPolicy.id(it) == root } ?: hits.maxByOrNull(SessionListPolicy::recency)!!
+            // Directory records are immutable snapshots. Copy the top-level object
+            // before applying a family title; no JSON stringify/parse round trip.
             JSONObject(representative.toString()).apply {
                 byId[root]?.optString("name")?.takeIf { it.isNotBlank() && it != "null" }?.let { put("name", it) }
             }

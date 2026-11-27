@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Distinguish intentionally skipped publication from a broken release chain."""
+"""One final result for actual release, explicit waiting, or no release."""
 import json
 import os
 
-CHAIN = ("release", "device-ready", "device", "publish", "cleanup")
+CHAIN = ("developer-runtime", "release", "device-ready", "device", "publish", "cleanup")
+REASONS = {"waiting-ci": "等待完整验收", "waiting-native": "等待原生内核",
+           "already-published": "当前源码已发布", "no-client-change": "无客户端发布变更"}
 
 def verdict(jobs, event, ref, eligible):
     if set(jobs) != {"preflight", "check-release", *CHAIN}:
@@ -21,16 +23,16 @@ def verdict(jobs, event, ref, eligible):
         return "当前触发条件无需发布"
     if results["check-release"] != "success":
         raise ValueError("发布候选识别失败")
-    should = jobs["check-release"].get("outputs", {}).get("should_release")
-    if should not in ("true", "false"):
-        raise ValueError("缺少发布候选决策")
-    if should == "false":
+    decision = jobs["check-release"].get("outputs", {}).get("decision")
+    if decision in REASONS:
         if any(results[k] != "skipped" for k in CHAIN):
-            raise ValueError("无需发布时出现额外执行")
-        return "当前无可发布候选"
+            raise ValueError("未选定发布时出现额外执行")
+        return REASONS[decision]
+    if decision != "publish":
+        raise ValueError("缺少有效发布决策")
     for key in CHAIN:
         if results[key] != "success":
-            raise ValueError(f"正式发布未完成：{key}={results[key]}")
+            raise ValueError(f"正式发布链未完成：{key}={results[key]}")
     return "正式发布与清理均已完成"
 
 if __name__ == "__main__":

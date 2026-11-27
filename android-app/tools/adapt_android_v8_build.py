@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Make pinned rusty_v8's Android x86_64 cross-build use the host toolchain.
+"""Make pinned rusty_v8's Android cross-builds use the host toolchain.
 
 Chromium host tools are compiled and run on GitHub Actions Linux; the Android
 target uses the NDK sysroot. Downloading a Debian image for Linux host tools is
@@ -12,7 +12,7 @@ OLD = '''    if target_arch == "x86_64" {
       maybe_install_sysroot("amd64");
     }
     gn_args.push(format!(r#"v8_target_cpu="{arch}""#).to_string());'''
-NEW = '''    // Android x86_64 uses the NDK target sysroot and runner Linux host tools.
+NEW = '''    // Android uses the NDK target sysroot and runner Linux host tools.
     gn_args.push(format!(r#"v8_target_cpu="{arch}""#).to_string());'''
 
 OLD_SYSROOT = '''    gn_args.push("use_sysroot=true".to_string());
@@ -27,7 +27,7 @@ def adapt(source: str) -> str:
     if NEW in source and NEW_SYSROOT in source:
         return source
     for before, after, label in (
-        (OLD, NEW, "Android x86_64 sysroot installer"),
+        (OLD, NEW, "Android host sysroot installer"),
         (OLD_SYSROOT, NEW_SYSROOT, "Android GN sysroot flag"),
     ):
         if source.count(before) != 1:
@@ -45,7 +45,7 @@ def main() -> None:
     adapted = adapt(original)
     if not args.check and adapted != original:
         args.file.write_text(adapted, encoding="utf-8")
-    print("Android x86_64 V8 host sysroot adaptation verified")
+    print("Android V8 host sysroot adaptation verified")
 
 
 if __name__ == "__main__":

@@ -714,6 +714,30 @@ impl ThreadRequestProcessor {
         .map(|()| None)
     }
 
+    pub(crate) async fn thread_sample_scope(
+        &self,
+        params: codex_app_server_protocol::ThreadSampleScopeParams,
+    ) -> Result<codex_app_server_protocol::ThreadSampleScopeResponse, JSONRPCErrorError> {
+        let id = ThreadId::from_string(&params.thread_id)
+            .map_err(|error| invalid_request(error.to_string()))?;
+        let parent = self.thread_manager.get_thread(id).await
+            .map_err(|_| invalid_request("thread/sample requires a loaded source"))?;
+        self.config_manager.check_thread_model_provider(parent.config().await.as_ref())
+            .await.map_err(|error| config_load_error(&error))?;
+        let snapshot = parent.config_snapshot().await;
+        if snapshot.ephemeral || snapshot.session_source.is_non_root_agent() {
+            return Err(invalid_request("sample source must be a persistent root thread"));
+        }
+        let model = params.model.filter(|model| !model.trim().is_empty()).unwrap_or(snapshot.model);
+        let scope = parent.media_analysis_scope().await.map_err(|error| invalid_request(error.to_string()))?;
+        let config = parent.config().await;
+        let model_info = parent.model_info(&model, &config.to_models_manager_config()).await;
+        Ok(codex_app_server_protocol::ThreadSampleScopeResponse {
+            scope, model, model_provider: snapshot.model_provider_id,
+            input_modalities: model_info.input_modalities.clone(),
+        })
+    }
+
     pub(crate) async fn thread_sample(
         &self,
         params: ThreadSampleParams,

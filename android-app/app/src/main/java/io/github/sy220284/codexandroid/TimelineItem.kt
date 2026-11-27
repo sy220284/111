@@ -13,6 +13,8 @@ class TimelineItem private constructor(
         this(id, kind, text, status, evidence, turnId, phase, null)
 
     val text: String get() = stream?.text ?: staticText
+    internal val displayChunks: TimelineTextChunks? get() = stream?.displayChunks()
+    internal val hasDisplayText: Boolean get() = displayChunks?.hasNonWhitespace ?: text.isNotBlank()
     val evidence: String get() = stream?.evidence ?: staticEvidence
     internal val hasEvidence: Boolean get() = stream != null || staticEvidence.isNotBlank()
     internal fun metadata(): JSONObject? = stream?.metadata ?: if (staticEvidence.isBlank()) null

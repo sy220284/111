@@ -727,12 +727,17 @@ impl ModelProvider for ConfiguredModelProvider {
         config_model_catalog: Option<ModelsResponse>,
         settings: ModelCatalogSettings,
     ) -> SharedModelsManager {
+        let endpoint = Arc::new(
+            OpenAiModelsEndpoint::new(
+                self.info.clone(), self.auth_manager.clone(), self.gateway_auth_manager.clone(),
+            ).with_runtime_auth(self.catalog_runtime_auth.clone()),
+        );
         if let Some(model_catalog) = config_model_catalog {
             return Arc::new(StaticModelsManager::new(
                 self.auth_manager.clone(),
                 model_catalog,
                 codex_models_manager::ModelOrigin::ExplicitConfig,
-            ));
+            ).with_media_input_policy(settings, endpoint));
         }
         if let Some(profile) = crate::domestic_catalog::profile(self.info.base_url.as_deref())
             .filter(|profile| profile.catalog == "manual" && self.info.model_catalog_url.is_none()
@@ -749,16 +754,8 @@ impl ModelProvider for ConfiguredModelProvider {
                 self.auth_manager.clone(),
                 ModelsResponse { models },
                 codex_models_manager::ModelOrigin::Bundled,
-            ));
+            ).with_media_input_policy(settings, endpoint));
         }
-        let endpoint = Arc::new(
-            OpenAiModelsEndpoint::new(
-                self.info.clone(),
-                self.auth_manager.clone(),
-                self.gateway_auth_manager.clone(),
-            )
-            .with_runtime_auth(self.catalog_runtime_auth.clone()),
-        );
         let auth_manager = self.auth_manager.clone();
         let manager = OpenAiModelsManager::with_settings(settings, endpoint, auth_manager);
         if self.info.model_catalog_url.is_some()

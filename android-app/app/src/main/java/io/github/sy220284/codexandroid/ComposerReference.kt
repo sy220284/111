@@ -22,7 +22,10 @@ internal object ComposerInputPolicy {
         require(images.size <= LocalImageAttachments.MAX_FILES) { "图片数量超限" }
         images.forEach {
             val file = File(it).canonicalFile
-            require(file.parentFile == folder && file.isFile && file.length() > 0L) { "图片附件已失效，请重新添加" }
+            require(LocalMediaAttachmentPolicy.ownedPaths(file.path).all { path ->
+                val owned = File(path).canonicalFile
+                owned.parentFile == folder && owned.isFile && owned.length() > 0L
+            }) { "媒体附件或视频解析结果已失效，请重新添加" }
         }
         references.forEach {
             val file = File(it.path).canonicalFile

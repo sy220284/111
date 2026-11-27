@@ -2,7 +2,6 @@ package io.github.sy220284.codexandroid
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.ui.platform.testTag
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
@@ -83,7 +82,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     var referenceQuery by remember(draftOwner) { mutableStateOf<String?>(null) }
     var sessionAction by remember(draftOwner) { mutableStateOf("") }
     var pendingContextRoute by remember { mutableStateOf<String?>(null) }
-    var pendingImagePick by remember { mutableStateOf(false) }
     var stopRequestedForTurn by remember { mutableStateOf<String?>(null) }
     val stopping = busy && (("interrupt" in loading) ||
         (stopRequestedForTurn != null && stopRequestedForTurn == activeTurn &&
@@ -117,6 +115,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val configured = scopedCatalog["composerThread:$thread"]?.optJSONObject("thread")
     val inheritedModel = configured?.value("model")?.takeIf { it.isNotBlank() && it != "null" }
     val shownModel = selectedModel.ifBlank { inheritedModel.orEmpty() }
+    val mediaRequirements by loadCodexUiState<Result<Set<String>>?>(null, attachedImages) {
+        codexLoadResult { LocalMediaAttachmentPolicy.modalities(attachedImages) }
+    }
+    val mediaRoute = MediaRoutePolicy.decide(availableModels, shownModel,
+        mediaRequirements?.getOrNull().orEmpty())
     val shownEffort = snapshot.options.effort.ifBlank {
         if (selectedModel.isBlank()) configured?.value("reasoningEffort")?.takeIf { it.isNotBlank() && it != "null" }.orEmpty() else ""
     }
@@ -148,13 +151,29 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     } else null
     val offerPlanApproval = latestPlan != null
     val keyboard = LocalSoftwareKeyboardController.current
-    // Pickers use the actual remaining quota, so no selected image silently vanishes.
-    val oneImagePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickVisualMedia()
-    ) { uri -> vm.importPickedImages(listOfNotNull(uri)) }
-    val twoImagePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(2)
-    ) { selected -> vm.importPickedImages(selected) }
+    val sharing by screenShareSession.state.collectAsState()
+    val activeMediaAnalysis by vm.composerContent.mediaAnalysis.state.collectAsState()
+    val mediaResults by vm.composerContent.mediaAnalysis.results.collectAsState()
+    val mediaModel = if (remote == null) shownModel else null
+    val analysisModel = if (thread != null) mediaModel else null
+    val mediaAnalysis = mediaResults[draftOwner]?.takeIf {
+        it.revision == previewAccountRevision && it.epoch == previewEpoch && it.selection == selectedModel &&
+            mediaModel != null && (mediaModel.isBlank() || it.model == mediaModel)
+    } ?: MediaAnalysisController.State()
+    var mediaChoice by remember(draftOwner, mediaModel, previewAccountRevision, previewEpoch) { mutableStateOf<Triple<String, MediaAnalysisMode, Boolean>?>(null) }
+    var reviewMedia by remember(draftOwner, mediaModel, previewAccountRevision, previewEpoch) { mutableStateOf(false) }
+    LaunchedEffect(draftOwner, analysisModel, selectedModel, previewAccountRevision, previewEpoch, status, busy) {
+        if (!busy && status == EngineStatus.Connected) {
+            vm.composerContent.mediaAnalysis.restore(draftOwner, analysisModel)
+            vm.composerContent.liveScreenAnalysis.restore(draftOwner, analysisModel)
+        }
+    }
+    val screenConsent = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        vm.composerContent.finishScreenShare(if (result.resultCode == android.app.Activity.RESULT_OK) result.data else null)
+    }
+    val mediaPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        vm.importPickedImages(uris)
+    }
     val cameraPicker = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         vm.composerContent.finishCamera(success)
     }
@@ -167,9 +186,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         vm.composerContent.importDocuments(uris)
     }
-    val threeImagePicker = rememberLauncherForActivityResult(
-        ActivityResultContracts.PickMultipleVisualMedia(LocalImageAttachments.MAX_FILES)
-    ) { selected -> vm.importPickedImages(selected) }
     // Page-owned handoff: close the context menu before opening the next page.
     LaunchedEffect(composerMenu, pendingContextRoute) {
         if (composerMenu != "context-tools") {
@@ -180,18 +196,6 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     "thread-memory" -> composerMenu = destination
                     else -> navigate(destination)
                 }
-            }
-        }
-    }
-    LaunchedEffect(pendingImagePick) {
-        if (pendingImagePick) {
-            pendingImagePick = false
-            val request = PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-            when ((LocalImageAttachments.MAX_FILES - attachedImages.size).coerceAtLeast(0)) {
-                0 -> vm.reportFullAttachmentSelection(thread)
-                1 -> oneImagePicker.launch(request)
-                2 -> twoImagePicker.launch(request)
-                else -> threeImagePicker.launch(request)
             }
         }
     }
@@ -303,11 +307,13 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 actionLabel = when {
                     status is EngineStatus.Unavailable -> "重新连接"
+                    !busy && !switching && !mediaRoute.acceptsNative -> "选择模型"
                     !busy && !switching && snapshot.hasInput -> "重试发送"
                     else -> null
                 },
                 onAction = {
                     if (status is EngineStatus.Unavailable) vm.connect()
+                    else if (!busy && !switching && !mediaRoute.acceptsNative) composerMenu = "models"
                     else if (!busy && !switching) {
                         vm.submitComposerDraft(snapshot, "queue", thread, activeTurn, expectedRunning = false, expectedOwner = draftOwner)
                     }
@@ -326,9 +332,25 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexNotice(it, NoticeTone.Warning)
             }
             if (attachmentBusy) {
-                AtlasOperationProgress("正在导入图片 ${imported.imported}/${imported.requested}…",
+                AtlasOperationProgress("正在导入媒体 ${imported.imported}/${imported.requested}…",
                     progress = if (imported.requested > 0) imported.imported.toFloat() / imported.requested else null)
             }
+            if (sharing.token != null) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (sharing.stopping) "正在停止屏幕共享" else if (!sharing.capturing) "等待屏幕共享授权" else if (sharing.owner != draftOwner)
+                        "其他会话正在共享屏幕" else if (sharing.hasFrame) "屏幕共享中 · 可添加最近画面"
+                        else "屏幕共享中 · 等待画面", Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
+                    if (sharing.owner == draftOwner && sharing.hasFrame && !attachmentBusy && remote == null &&
+                        sharing.revision == previewAccountRevision && attachedImages.size < LocalImageAttachments.MAX_FILES) {
+                        CodexTextAction(onClick = { vm.composerContent.attachSharedScreen(draftOwner) }) { Text("添加画面") }
+                    }
+                    CodexTextAction(onClick = { vm.composerContent.stopScreenShare() }) { Text("停止") }
+                }
+            } else if (sharing.message.isNotBlank()) {
+                CodexNotice(sharing.message, NoticeTone.Warning)
+            }
+            LiveScreenAnalysisPanel(vm, draftOwner, analysisModel, draft,
+                sharing, previewAccountRevision, enabled = !busy && !attachmentBusy && !activeMediaAnalysis.busy && remote == null)
             if (documentBusy) AtlasOperationProgress("正在导入本机文件")
             errors["composerDocuments"]?.let { ErrorText(it) }
             if (attachmentError.isNotBlank()) {
@@ -495,10 +517,28 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     if (composerMenu == "add" && remote == null) CodexFloatingActionMenu(title = "添加内容",
                         showDescriptions = false, onDismiss = { closeComposerMenu("add") },
                         actions = buildList {
-                            add(CodexSheetAction("照片", CodexGlyph.Photo, onClick = {
-                                if (vm.beginImageSelection(draftOwner)) pendingImagePick = true
+                            add(CodexSheetAction("媒体附件", CodexGlyph.Photo, onClick = {
+                                if (vm.beginImageSelection(draftOwner)) {
+                                    try { mediaPicker.launch(arrayOf("image/jpeg", "image/png", "image/webp", "audio/*", "video/mp4", "application/ogg")) }
+                                    catch (failure: Exception) {
+                                        vm.importPickedImages(emptyList())
+                                        vm.composerContent.pickerFailure(failure)
+                                    }
+                                }
                             }, enabled = attachedImages.size < LocalImageAttachments.MAX_FILES,
-                                description = "选择本机图片", testTag = "composer-add-photos"))
+                                description = "图片、音频、MP4 视频统一添加；按模型能力处理", testTag = "composer-add-media"))
+                            add(CodexSheetAction("共享屏幕", CodexGlyph.Photo, onClick = {
+                                if (sharing.token == null) vm.composerContent.beginScreenShare(draftOwner)?.let { request ->
+                                    try { screenConsent.launch(request) }
+                                    catch (failure: Exception) {
+                                        vm.composerContent.finishScreenShare(null)
+                                        vm.composerContent.pickerFailure(failure)
+                                    }
+                                }
+                                else if (sharing.owner == draftOwner) vm.composerContent.attachSharedScreen(draftOwner)
+                            }, enabled = sharing.token == null || (sharing.owner == draftOwner && sharing.hasFrame &&
+                                attachedImages.size < LocalImageAttachments.MAX_FILES),
+                                description = "实时本地采集，手动添加画面后随消息分析", testTag = "composer-share-screen"))
                             add(CodexSheetAction("文件", CodexGlyph.Description, onClick = {
                                 if (vm.composerContent.beginDocument(draftOwner, selectedWorkspace)) {
                                     try { documentPicker.launch(arrayOf("*/*")) }
@@ -573,11 +613,51 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 },
                 attachmentContent = {
                     LocalImageAttachmentStrip(attachedImages) { vm.removeComposerImage(draftOwner, it) }
+                    if (attachedImages.isNotEmpty() && !mediaRoute.acceptsNative) {
+                        Text(mediaRoute.reason, style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                        if (!busy && modelOptionsEnabled) CodexTextAction(onClick = { composerMenu = "models" }) { Text("选择支持媒体的模型") }
+                    }
+                    if ((mediaModel != null || mediaAnalysis.owner == draftOwner) && remote == null) MediaAnalysisActions(
+                        paths = attachedImages, state = mediaAnalysis, owner = draftOwner,
+                        enabled = mediaModel != null && !busy && !firstThreadStarting && !switching && !attachmentBusy && !transferBusy && !restarting,
+                        onChoose = { path, mode -> mediaChoice = Triple(path, mode, false) },
+                        onContinue = { path, mode -> mediaChoice = Triple(path, mode, true) },
+                        onSelectRecord = { vm.composerContent.mediaAnalysis.selectRecord(draftOwner, it) },
+                        onCancel = { vm.composerContent.mediaAnalysis.cancel() },
+                        onReview = { reviewMedia = true },
+                        onDismiss = { vm.composerContent.mediaAnalysis.dismiss(draftOwner) }
+                    )
                     ComposerReferenceStrip(snapshot.references) { vm.composerContent.removeReference(draftOwner, it) }
                 }
             )
 
         }
+    }
+    mediaChoice?.let { (path, mode, resume) ->
+        CodexConfirmDialog(
+            title = mode.label,
+            message = "将所选媒体及会话上下文发送给当前模型 " + shownModel.ifBlank { "（沿用会话模型）" } +
+                "，可能产生费用。结果供审阅，不自动执行任务或发送对话。" +
+                if (thread == null) "将先建立会话，不额外发送普通任务。" else "",
+            detail = when (mode) {
+                MediaAnalysisMode.Understand -> "图片和音频使用原生输入，视频复用时间轴抽帧及音轨。"
+                MediaAnalysisMode.VisualOnly -> "明确仅分析视频画面，不发送音轨。"
+                MediaAnalysisMode.Transcription -> "使用支持音频的当前模型转录；视频按音轨分段，已完成部分不重复请求。"
+            },
+            confirmLabel = "确认分析",
+            onConfirm = {
+                mediaChoice = null
+                mediaModel?.let { vm.composerContent.mediaAnalysis.start(draftOwner, it, path, mode, draft, resume) }
+            },
+            onDismiss = { mediaChoice = null }
+        )
+    }
+    if (reviewMedia && mediaAnalysis.owner == draftOwner && mediaAnalysis.result != null) {
+        MediaAnalysisReview(mediaAnalysis, onDismiss = { reviewMedia = false },
+            onApply = { textOnly ->
+                vm.composerContent.mediaAnalysis.apply(draftOwner, textOnly)
+                reviewMedia = false
+            })
     }
     if (composerMenu == "thread-memory" && thread != null) {
         MemoryManagementSheet(vm, thread) { closeComposerMenu("thread-memory") }

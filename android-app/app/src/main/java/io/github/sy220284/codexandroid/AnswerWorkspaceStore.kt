@@ -2,7 +2,6 @@ package io.github.sy220284.codexandroid
 
 import java.io.File
 import java.nio.file.Files
-import java.security.MessageDigest
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
@@ -15,8 +14,8 @@ import org.json.JSONObject
 internal class AnswerWorkspaceStore(private val root: File, private val checkpoints: File) {
     data class Prepared(val directory: File, val originalWorkspace: String)
     private val lock = Mutex()
-    private val blobs = File(checkpoints, "objects")
-    private val manifests = File(checkpoints, "manifests")
+    private val blobs = File(checkpoints, AnswerCheckpointFormat.OBJECTS)
+    private val manifests = File(checkpoints, AnswerCheckpointFormat.MANIFESTS)
     companion object {
         private const val VERSIONS = ".111-answer-workspaces"
         fun isolated(root: File, path: String): Boolean =
@@ -32,11 +31,10 @@ internal class AnswerWorkspaceStore(private val root: File, private val checkpoi
             require(profile in setOf(":workspace", ":read-only") && (expectedPermission == null || profile == expectedPermission)) { "内核未确认回答版本的隔离权限" }
         }
     }
-    private fun key(id: String): String = UUID.fromString(id).toString()
     private fun stored(id: String?): File? {
         if (id == null) return null
-        val name = try { key(id) } catch (_: IllegalArgumentException) { return null }
-        return File(manifests, "$name.json").takeIf { it.isFile }
+        val name = try { AnswerCheckpointFormat.manifestName(id) } catch (_: IllegalArgumentException) { return null }
+        return File(manifests, name).takeIf { it.isFile }
     }
     fun hasBaseline(id: String?) = stored(id) != null
     private fun ensureStore() {
@@ -72,24 +70,12 @@ internal class AnswerWorkspaceStore(private val root: File, private val checkpoi
         }
     }
     private fun saveManifest(id: String, manifest: JSONObject) {
-        val target = File(manifests, key(id) + ".json")
+        val target = File(manifests, AnswerCheckpointFormat.manifestName(id))
         val stage = Files.createTempFile(manifests.toPath(), ".stage-", ".tmp").toFile()
         try {
             stage.writeText(manifest.toString())
             check(!target.exists() && stage.renameTo(target)) { "无法提交执行前文件快照" }
         } finally { Files.deleteIfExists(stage.toPath()) }
-    }
-    private fun digest(file: File): String {
-        val sha = MessageDigest.getInstance("SHA-256")
-        file.inputStream().buffered().use { input ->
-            val buffer = ByteArray(65536)
-            while (true) {
-                val count = input.read(buffer)
-                if (count < 0) break
-                sha.update(buffer, 0, count)
-            }
-        }
-        return sha.digest().joinToString("") { "%02x".format(it.toInt() and 255) }
     }
     private fun scan(source: File): JSONObject {
         val rows = JSONArray()
@@ -111,14 +97,14 @@ internal class AnswerWorkspaceStore(private val root: File, private val checkpoi
                     require(file.isFile && file.name != ".git") { "工作区包含特殊文件或外部 Git 工作树：${file.name}" }
                     val size = file.length()
                     val modified = file.lastModified()
-                    val hash = digest(file)
+                    val hash = AnswerCheckpointFormat.digest(file)
                     val blob = File(blobs, hash)
                     if (!blob.isFile) {
                         check(blobs.usableSpace >= size) { "剩余存储空间不足，无法保存文件快照" }
                         val stage = Files.createTempFile(blobs.toPath(), ".stage-", ".tmp").toFile()
                         try {
                             Files.copy(file.toPath(), stage.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING)
-                            check(stage.length() == size && digest(stage) == hash) { "复制期间文件变化：${file.name}" }
+                            check(stage.length() == size && AnswerCheckpointFormat.digest(stage) == hash) { "复制期间文件变化：${file.name}" }
                             check(stage.renameTo(blob)) { "无法保存文件快照对象" }
                             created += blob
                         } finally { Files.deleteIfExists(stage.toPath()) }
@@ -151,12 +137,12 @@ internal class AnswerWorkspaceStore(private val root: File, private val checkpoi
                     check(file.isDirectory || file.mkdirs()) { "无法建立目录：${file.name}" }
                 } else {
                     val hash = entry.getString("hash")
-                    require(hash.matches(Regex("[a-f0-9]{64}"))) { "快照对象编号无效" }
+                    require(AnswerCheckpointFormat.isObjectName(hash)) { "快照对象编号无效" }
                     val blob = File(blobs, hash)
                     val size = entry.getLong("size")
                     check(blob.isFile && blob.length() == size && file.parentFile!!.usableSpace >= size) { "快照对象缺失或可用空间不足" }
                     Files.copy(blob.toPath(), file.toPath())
-                    check(file.length() == size && digest(file) == hash) { "回答文件快照校验失败：${file.name}" }
+                    check(file.length() == size && AnswerCheckpointFormat.digest(file) == hash) { "回答文件快照校验失败：${file.name}" }
                 }
             }
             check(!target.exists() && stage.renameTo(target)) { "无法提交独立工作目录" }

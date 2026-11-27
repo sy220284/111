@@ -5,12 +5,13 @@ from pathlib import Path
 import sys
 
 
+def oversized_sources(files,maximum):
+    counts=[(name,len(code.splitlines())) for name,code in sorted(files.items())]
+    return [(name,count) for name,count in counts if count>maximum]
+
 def oversized_kotlin_files(folder: Path, maximum: int) -> list[tuple[str, int]]:
-    return [
-        (str(path.relative_to(folder)), sum(1 for _ in path.open(encoding="utf-8")))
-        for path in sorted(folder.rglob("*.kt"))
-        if sum(1 for _ in path.open(encoding="utf-8")) > maximum
-    ]
+    return oversized_sources({str(p.relative_to(folder)):p.read_text(encoding="utf-8")
+                              for p in folder.rglob("*.kt")},maximum)
 
 
 def main() -> int:
@@ -23,12 +24,7 @@ def main() -> int:
     files = sorted(args.sources.rglob("*.kt"))
     if not files:
         parser.error("源码目录内不存在 Kotlin 文件")
-    failures = []
-    for path in files:
-        with path.open(encoding="utf-8") as handle:
-            count = sum(1 for _ in handle)
-        if count > args.max_lines:
-            failures.append((path.relative_to(args.sources), count))
+    failures = oversized_kotlin_files(args.sources,args.max_lines)
     print(f"检查 Kotlin 文件 {len(files)} 个；单文件预算 {args.max_lines} 行")
     for path, count in failures:
         print(f"超出预算：{path} 共 {count} 行", file=sys.stderr)

@@ -1,0 +1,33 @@
+{
+  "source": {
+    "repository": "sy220284/777",
+    "head": "15437765368eecfbdbee7d9e372a74195efff0e4",
+    "run": 44730301955
+  },
+  "packageArchive": {
+    "id": 14627402419,
+    "name": "777-toolchain-runtime-cache-latest",
+    "sha256": "80d13981c67fcae39177237a1000ae2544d7d767f2800138d186351ab2835b6e",
+    "size": 63285019,
+    "version": "arm64-v8a",
+    "root": "runtime-cache",
+    "probe": null
+  },
+  "runtime777": {
+    "abi": "arm64-v8a",
+    "git": "2.56.1",
+    "curl": "8.23.0",
+    "jq": "1.8.2",
+    "ripgrep": "15.2.0",
+    "python": "3.14.10",
+    "pip": "26.3-1",
+    "node": "26.13.1",
+    "npm": "11.6.2",
+    "gitPackageSha256": "3343f56fc99e2f0631a553a39789769495435cb07b6ffb3c71a7fcb7bd561e95"
+  },
+  "runtimeX86": {
+    "ripgrep": "16.0.0",
+    "ripgrepRecipeCommit": "3ad460e73d924ca38cdfded88373e8213f149dde",
+    "ripgrepSourceSha256": "17e7a1a0db80ed9618a0963c7ae4aecb8fce25c70cf7ebed514daf2b38a0d153"
+  }
+}

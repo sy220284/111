@@ -1,9 +1,9 @@
 {
-  "reviewedBaseline": "87de5e932dd03bb9efece4a6dd3eab4c5de45701",
-  "reviewedCandidate": "239fb67cf9dc095f412595945135990c1e089fde",
+  "reviewedBaseline": "492e383a43190d3c31e587a826416d039f041c82",
+  "reviewedCandidate": "db3c3bd164991def3c68be2855ad57c636d38758",
   "reviewRecord": "docs/接口协议动作清单与落地验收台账-20261122.md",
   "roots": {
-    "upstream/codex/codex-rs/app-server-protocol": "dc922920a65a8467e126d81ab5ab2e44a75caaad",
+    "upstream/codex/codex-rs/app-server-protocol": "720bab398d32211e21b86bdb092b8fe542e49e29",
     "upstream/codex/codex-rs/config/src/config_toml.rs": "fbc9f11aeb84ee2f33fecd91466e5ff4e43521f4",
     "upstream/codex/codex-rs/protocol/src/hooks.rs": "4a5e33487ace22e800ee8463aae74e029daf3740",
     "upstream/codex/codex-rs/protocol/src/protocol.rs": "79584c8c3e6ba00b2b80bd925183104cc73d1eac",
@@ -14,6 +14,9 @@
     "模型目录 forceRefresh、国内模型验证、服务商范围已对接",
     "MCP 启动耗时、Hook 真实结果及失败策略已适配，待设备验收",
     "企业 configServer 专用启动授权按部署场景单独实施；Daybreak 保留官方默认",
-    "Guardian 与动态工具结果遵循后台权限规则；客户端搜索服务选择字段删除，现有 web_search 控件继续有效"
+    "Guardian 与动态工具结果遵循后台权限规则；客户端搜索服务选择字段删除，现有 web_search 控件继续有效",
+    "独立媒体分析扩展实验 thread/sample 的原生媒体输入与凭据绑定，新增只读 thread/sample/scope；后台归属、取消、用户授权及模型隔离已同步，待新提交 CI 与真机验收",
+    "样本作用域回执增加原生有效 inputModalities；整组媒体预检先于解析和计费请求，保留核心逐请求验证；同一结果的持久化和模型切换隔离新增回归。",
+    "审查 thread/sample 的 expectedTurnId 空字符串语义：仅媒体请求且非运行轮次采样可用；原生确认来源为持久根会话、确无历史轮次、空闲及凭据一致，普通采样仍要求有效轮次；Android 明确授权并迁移草稿，新增零历史和非空来源拒绝测试，待同版验收。"
   ]
 }

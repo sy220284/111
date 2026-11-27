@@ -14,11 +14,11 @@ internal object AttachmentRetentionPolicy {
 
     fun preserveForHistory(root: File, paths: List<String>) {
         val directory = root.canonicalFile
-        paths.forEach { path ->
+        paths.flatMap(LocalMediaAttachmentPolicy::ownedPaths).distinct().forEach { path ->
             val image = File(path).canonicalFile
-            require(image.parentFile == directory && image.isFile) { "图片附件已失效，请重新添加" }
+            require(image.parentFile == directory && image.isFile) { "媒体附件已失效，请重新添加" }
             val marker = historyMarker(directory, image)
-            check(marker.parentFile.isDirectory || marker.parentFile.mkdirs()) { "无法保存历史图片记录" }
+            check(marker.parentFile.isDirectory || marker.parentFile.mkdirs()) { "无法保存历史媒体记录" }
             marker.createNewFile()
         }
     }
@@ -30,14 +30,16 @@ internal object AttachmentRetentionPolicy {
         if (!root.exists()) return 0
         require(root.isDirectory) { "私有附件路径不是文件夹" }
         val dir = root.canonicalFile
-        val protected = referenced.map { File(it).canonicalPath }.toSet()
+        val protected = referenced.flatMap { path ->
+            if (File(path).extension == "mp4") LocalMediaAttachmentPolicy.recoveryPaths(path) else listOf(path)
+        }.map { File(it).canonicalPath }.toSet()
         val entries = root.listFiles() ?: throw IllegalStateException("无法读取私有附件目录")
         var deleted = 0
         for (entry in entries) {
             val file = entry.canonicalFile
             if (!file.isFile || file.parentFile != dir || file.path in protected || isHistorical(dir, file) ||
                 file.lastModified() >= nowMillis - ORPHAN_TTL_MILLIS) continue
-            check(file.delete()) { "无法清理无引用的旧图片：" + file.name }
+            check(file.delete()) { "无法清理无引用的旧媒体：" + file.name }
             deleted++
         }
         return deleted

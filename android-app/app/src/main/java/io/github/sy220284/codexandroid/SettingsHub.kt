@@ -6,7 +6,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -29,19 +29,20 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val isAccountLoaded = data["account"] != null
     val isSignedIn = data["account"]?.optJSONObject("account") != null
     val darkMode by UiPreferences.darkMode.collectAsState()
-    val groups = NavigationPolicy.featureGroups.map { group ->
+    val groups = remember { NavigationPolicy.featureGroups.map { group ->
         group to group.routes.mapNotNull { id ->
             pages.firstOrNull { it.id == id &&
                 NavigationPolicy.showInSettingsGroup(id, "") }
         }
     }.filter { (group, entries) ->
         entries.isNotEmpty() || "update" in group.routes
-    }
+    } }
+    val detailRoutes = remember { setOf("environments", "features", "plugins", "mcp", "config") }
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
         state = listState,
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(11.dp)
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         item(key = "overview") {
             MaterialPanel(Modifier.fillMaxWidth().testTag("settings-overview")) {
@@ -90,42 +91,40 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             }
         }
-        items(groups, key = { it.first.title }) { (group, entries) ->
-            Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
-                Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 9.dp),
+        groups.forEach { (group, entries) ->
+            item(key = "settings-group:" + group.title) {
+                Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 20.dp, bottom = 9.dp),
                     color = Ink.muted, style = MaterialTheme.typography.titleMedium)
-                if (entries.isNotEmpty()) {
-                    Surface(shape = RoundedCornerShape(15.dp), color = Ink.canvas,
-                        border = BorderStroke(1.dp, Ink.border),
-                        shadowElevation = 0.dp, tonalElevation = 0.dp) {
-                        Column {
-                            entries.forEach { entry ->
-                                SettingRouteRow(page = entry, showDetail = entry.id in setOf("environments", "features", "plugins", "mcp", "config"), detail = when(entry.id) {
-                                    "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
-                                    "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
-                                    "environments" -> "本机或其他设备"
-                                    "models" -> "默认模型与推理偏好"
-                                    "appearance" -> if (darkMode) "深色" else "浅色"
-                                    "plugins" -> "安装与管理"
-                                    "features" -> "常用能力与全部内核功能"
-                                    "mcp" -> "外部工具连接"
-                                    "config" -> "高级运行设置"
-                                    else -> ""
-                                }) {
-                                    SettingsDeepLink.select(entry.id, null)
-                                    when(entry.id) {
-                                        "about" -> showAbout = true
-                                        else -> navigate(entry.id)
-                                    }
-                                }
-                            }
+            }
+            itemsIndexed(entries, key = { _, entry -> "settings-route:" + entry.id }) { index, entry ->
+                val top = if (index == 0) 15.dp else 0.dp
+                val bottom = if (index == entries.lastIndex) 15.dp else 0.dp
+                Surface(shape = RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
+                    color = Ink.canvas, border = BorderStroke(1.dp, Ink.border),
+                    shadowElevation = 0.dp, tonalElevation = 0.dp) {
+                    SettingRouteRow(page = entry, showDetail = entry.id in detailRoutes, detail = when(entry.id) {
+                        "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
+                        "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
+                        "environments" -> "本机或其他设备"
+                        "models" -> "默认模型与推理偏好"
+                        "appearance" -> if (darkMode) "深色" else "浅色"
+                        "plugins" -> "安装与管理"
+                        "features" -> "常用能力与全部内核功能"
+                        "mcp" -> "外部工具连接"
+                        "config" -> "高级运行设置"
+                        else -> ""
+                    }) {
+                        SettingsDeepLink.select(entry.id, null)
+                        when(entry.id) {
+                            "about" -> showAbout = true
+                            else -> navigate(entry.id)
                         }
                     }
                 }
-                if ("update" in group.routes) {
-                    AppUpdateCard(vm = vm)
-                    LocalDataTransferCard(vm)
-                }
+            }
+            if ("update" in group.routes) {
+                item(key = "settings-update") { Box(Modifier.padding(top = 9.dp)) { AppUpdateCard(vm = vm) } }
+                item(key = "settings-transfer") { Box(Modifier.padding(top = 9.dp)) { LocalDataTransferCard(vm) } }
             }
         }
     }

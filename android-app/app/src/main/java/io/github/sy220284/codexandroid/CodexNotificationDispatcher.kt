@@ -11,10 +11,11 @@ import org.json.JSONObject
  * discarded. A separate file keeps orchestration out of the UI ViewModel.
  */
 internal object CodexNotificationDispatcher {
-    suspend fun dispatch(vm: CodexViewModel, message: JSONObject) {
+    suspend fun dispatch(vm: CodexViewModel, notification: CoreNotification) {
         with(vm) {
-        val method = message.optString("method")
-        val params = message.optJSONObject("params") ?: JSONObject()
+        val message = notification.wire
+        val method = notification.method
+        val params = notification.params
         val threadId = params.optString("threadId")
         if (method == "local/unsupportedServerRequest") return HostRequestFeedback.report(params, errors)
         // MCP registration and OAuth are agent/runtime responsibilities.
@@ -142,14 +143,20 @@ internal object CodexNotificationDispatcher {
         }
         if (threadId.isNotBlank() && method == "turn/started") sessions.refreshChanged(threadId)
         if (threadId.isNotBlank() && method == "turn/completed") {
-            val completedId = params.optJSONObject("turn")?.optString("id")
+            val turn = params.optJSONObject("turn") ?: return
+            val completedId = turn.optString("id")
+            val turnStatus = turn.optString("status")
+            if (completedId.isBlank() || turnStatus !in setOf("completed", "interrupted", "failed")) return
             val execution = threadExecutions.value[threadId]
             val validCompletion = execution?.turnId.isNullOrBlank() ||
                 completedId.isNullOrBlank() || execution?.turnId == completedId
-            if (!validCompletion) return
+            if (!validCompletion) {
+                // An older terminal event may enrich history but must never finish a newer active turn.
+                TimelineEventEngine.applyEvent(vm, notification)
+                return
+            }
             threadExecutions.value = ThreadExecutionPolicy.finish(
                 threadExecutions.value, threadId)
-            val turnStatus = params.optJSONObject("turn")?.optString("status")
             if (turnStatus == "interrupted") queuePausedThreads.value = queuePausedThreads.value + threadId
             val completed = turnStatus == "completed"
             if (!completed) {
@@ -157,13 +164,17 @@ internal object CodexNotificationDispatcher {
                     ?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }
                 threadFailures.value = ThreadExecutionPolicy.failureUpdated(
                     threadFailures.value, threadId, reason)
+                if (threadId == activeThread.value &&
+                    (execution?.images?.isNotEmpty() == true || reason.contains("模型已明确拒绝图片输入") || reason.contains("模型已明确拒绝音频输入"))) {
+                    refreshComposerCatalog()
+                }
             } else threadFailures.value = threadFailures.value - threadId
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, threadId,
                 if (completed) ThreadActivity.Idle else ThreadActivity.Failed)
-            if (threadId == activeThread.value) {
-                conversationState.update { it.copy(running = false, turnId = null) }
-            }
+            // Publish the prepared terminal text and running state atomically.
+            TimelineEventEngine.applyEvent(vm, notification, completedId)
+            if (!bridge.isCurrentEvent(message)) return
             sessions.refreshChanged(threadId)
             accountMetrics.refresh()
             val finishedImages = execution?.images.orEmpty()
@@ -208,17 +219,12 @@ internal object CodexNotificationDispatcher {
                 }
             }
         }
-        if (threadId.isNotBlank() && (threadId == hydratingThread || threadId != activeThread.value) &&
-            method in TimelineEventReducer.methods) {
-            liveTimelines.event(threadId, method, params, threadExecutions.value.keys)
-            return
-        }
-        if (threadId.isNotBlank() && threadId != activeThread.value) return
-        when (method) {
-            in TimelineEventReducer.methods - "turn/completed" ->
-                timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
-            "turn/diff/updated" -> latestDiff.value = params.optString("diff")
-            "turn/completed" -> timeline.value = TimelineEventReducer.reduce(method, params, timeline.value)
+        when {
+            method in TimelineEventReducer.methods && method != "turn/completed" -> {
+                if (threadId.isBlank() || !TimelineEventEngine.applyEvent(vm, notification)) return
+            }
+            threadId.isNotBlank() && (threadId != activeThread.value || threadId == hydratingThread) -> return
+            method == "turn/diff/updated" -> latestDiff.value = params.optString("diff")
         }
         if (!threadSwitching.value && !running.value && !loadingEarlier.value && !timelineCompacting && method in TimelineEventReducer.methods && timeline.value.size > TimelineWindowStore.COMPACT_AT) {
             val epoch = timelineEpoch

@@ -1,0 +1,118 @@
+name: 111 辅助工具链统一生产
+on:
+  workflow_call:
+    inputs:
+      group:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+    outputs:
+      descriptor:
+        value: ${{ jobs.prepare.outputs.descriptor }}
+permissions:
+  contents: read
+  actions: read
+jobs:
+  fingerprint:
+    name: ${{ inputs.group }} 辅助工具输入指纹
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      key: ${{ steps.key.outputs.key }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - id: key
+        env:
+          HOST_GROUP: ${{ inputs.group }}
+        run: |
+          set -euo pipefail
+          KEY="$(python3 tools/dev/ci_host.py key --group "$HOST_GROUP")"
+          echo "key=$KEY" >> "$GITHUB_OUTPUT"
+  prepare:
+    name: 111 辅助组件 · ${{ inputs.group }}
+    needs: fingerprint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    concurrency:
+      group: 111-host-${{ inputs.group }}-${{ needs.fingerprint.outputs.key }}
+      cancel-in-progress: false
+      queue: max
+    outputs:
+      descriptor: ${{ steps.restore.outputs.descriptor || steps.emit.outputs.descriptor }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 查找同输入的已断网验收组件
+        id: restore
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HOST_GROUP: ${{ inputs.group }}
+          HOST_KEY: ${{ needs.fingerprint.outputs.key }}
+        run: python3 tools/dev/ci_host.py restore --group "$HOST_GROUP" --key "$HOST_KEY"
+      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+        if: steps.restore.outputs.reused != 'true' && inputs.group == 'emulator'
+        with:
+          distribution: temurin
+          java-version: "17"
+      - name: 生成独立组件
+        if: steps.restore.outputs.reused != 'true'
+        env:
+          HOST_GROUP: ${{ inputs.group }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/stage" "$RUNNER_TEMP/bundles"
+          python3 tools/dev/auxiliary.py prepare "$HOST_GROUP" "$RUNNER_TEMP/stage/$HOST_GROUP"
+          python3 tools/build/component-bundle.py pack "$HOST_GROUP" "$RUNNER_TEMP/stage/$HOST_GROUP" "$RUNNER_TEMP/bundles/$HOST_GROUP" --head "$(git rev-parse HEAD)" > "$RUNNER_TEMP/$HOST_GROUP.sha256"
+          rm -rf "$RUNNER_TEMP/stage/$HOST_GROUP"
+          python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/host" host-install --artifacts-dir "$RUNNER_TEMP/bundles" --pins-dir "$RUNNER_TEMP" --source-sha "$(git rev-parse HEAD)" --components "$HOST_GROUP" > "$RUNNER_TEMP/host-paths.json"
+      - name: 生成并断网验证独立组件
+        if: steps.restore.outputs.reused != 'true'
+        env:
+          HOST_GROUP: ${{ inputs.group }}
+        run: |
+          set -euo pipefail
+          COMPONENT="$(jq -er --arg name "$HOST_GROUP" '.[$name]' "$RUNNER_TEMP/host-paths.json")"
+          EXTRA=()
+          if [ "$HOST_GROUP" = emulator ]; then
+            sudo chmod 666 /dev/kvm
+            EXTRA+=("JAVA_HOME=$JAVA_HOME" "RUNNER_TEMP=$RUNNER_TEMP")
+          fi
+          bash tools/dev/run-without-network.sh "${EXTRA[@]}" python3 tools/dev/auxiliary.py verify "$HOST_GROUP" "$COMPONENT"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: steps.restore.outputs.reused != 'true'
+        id: upload-component
+        with:
+          name: 111-toolchain-${{ inputs.group }}
+          path: ${{ runner.temp }}/bundles/${{ inputs.group }}/
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 90
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: steps.restore.outputs.reused != 'true'
+        id: upload-pins
+        with:
+          name: 111-toolchain-${{ inputs.group }}-manifest-pins-${{ needs.fingerprint.outputs.key }}
+          path: ${{ runner.temp }}/${{ inputs.group }}.sha256
+          if-no-files-found: error
+          retention-days: 90
+      - name: 交付固定产物编号与输入指纹
+        if: steps.restore.outputs.reused != 'true'
+        id: emit
+        env:
+          HOST_GROUP: ${{ inputs.group }}
+          HOST_KEY: ${{ needs.fingerprint.outputs.key }}
+          ID_COMPONENT: ${{ steps.upload-component.outputs.artifact-id }}
+          ID_PINS: ${{ steps.upload-pins.outputs.artifact-id }}
+        run: |
+          set -euo pipefail
+          python3 tools/dev/ci_host.py emit --group "$HOST_GROUP" --key "$HOST_KEY" --ids \
+            "111-toolchain-$HOST_GROUP=$ID_COMPONENT" "111-toolchain-$HOST_GROUP-manifest-pins-$HOST_KEY=$ID_PINS"

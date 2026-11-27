@@ -19,8 +19,8 @@ V2_TYPE = re.compile(r'^v2::([A-Za-z]\w+)$')
 
 def verify(source: str, schema_dir: Path, thread_source: str,
            project_contract: str, connection_source: str,
-           turn_source: str, turn_contract: str) -> tuple[list[str], dict]:
-    methods = parse_contracts(source)
+           turn_source: str, turn_contract: str, *, contracts=None) -> tuple[list[str], dict]:
+    methods = parse_contracts(source) if contracts is None else contracts
     errors: list[str] = []
     stable_dtos = 0
     experimental_client = 0

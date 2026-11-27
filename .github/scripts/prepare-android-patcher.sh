@@ -9,7 +9,11 @@ ZIP_SHA256="d7b98bcd3efb05436e08bcf525136c81e7dc6713bc58260770a2793818167fb7"
 URL="https://github.com/sisong/HDiffPatch/releases/download/v${SDK_VERSION}/${ZIP_NAME}"
 DIR="$(mktemp -d)"
 trap 'rm -rf "$DIR"' EXIT
-curl --fail --location --retry 3 --retry-delay 2 "$URL" -o "$DIR/$ZIP_NAME"
+if [ -n "${CODEX_PATCHER_HOME:-}" ]; then
+  cp "$CODEX_PATCHER_HOME/$ZIP_NAME" "$DIR/$ZIP_NAME"
+else
+  curl --fail --location --retry 3 --retry-delay 2 "$URL" -o "$DIR/$ZIP_NAME"
+fi
 printf '%s  %s\n' "$ZIP_SHA256" "$DIR/$ZIP_NAME" | sha256sum -c -
 unzip -q "$DIR/$ZIP_NAME" -d "$DIR/unpacked"
 

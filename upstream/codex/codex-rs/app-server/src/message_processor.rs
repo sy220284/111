@@ -1487,6 +1487,8 @@ impl MessageProcessor {
                 .thread_sample(params, Arc::clone(&session.rpc_gate), request_context)
                 .await
                 .map(|response| Some(response.into())),
+            ClientRequest::ThreadSampleScope { params, .. } => self.thread_processor
+                .thread_sample_scope(params).await.map(|response| Some(response.into())),
             ClientRequest::ThreadSampleCancel { params, .. } => {
                 self.outgoing
                     .cancel_thread_sample_request(&ConnectionRequestId {

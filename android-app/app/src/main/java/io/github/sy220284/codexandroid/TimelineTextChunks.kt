@@ -5,16 +5,30 @@ import org.json.JSONObject
 
 /** Persistent chunks share their previous nodes, without copying accumulated text on append.
  * Only a reader requesting the complete value materializes that snapshot. */
-internal class TimelineTextChunks private constructor(private val last: Node?, val length: Int) {
+internal class TimelineTextChunks private constructor(private val last: Node?, val length: Int, val hasNonWhitespace: Boolean) {
     private class Node(val previous: Node?, val value: String)
     fun append(value: String): TimelineTextChunks =
-        if (value.isEmpty()) this else TimelineTextChunks(Node(last, value), length + value.length)
+        if (value.isEmpty()) this else TimelineTextChunks(Node(last, value), length + value.length,
+            hasNonWhitespace || value.isNotBlank())
+
+    /** Return only the shared-chain append, or null for a replacement snapshot. */
+    fun suffixSince(previous: TimelineTextChunks): List<String>? {
+        if (previous.length > length) return null
+        val added = ArrayList<String>()
+        var cursor = last
+        while (cursor !== previous.last) {
+            if (cursor == null) return null
+            added.add(cursor.value)
+            cursor = cursor.previous
+        }
+        return added.asReversed()
+    }
 
     val text: String by lazy(LazyThreadSafetyMode.PUBLICATION) { tail(length) }
 
     fun tail(limit: Int): String {
         var remaining = limit.coerceIn(0, length)
-        val parts = ArrayDeque<String>()
+        val parts = java.util.ArrayDeque<String>()
         var cursor = last
         while (cursor != null && remaining > 0) {
             val part = cursor.value.takeLast(remaining)
@@ -25,7 +39,7 @@ internal class TimelineTextChunks private constructor(private val last: Node?, v
         return parts.joinToString("")
     }
     companion object {
-        fun from(text: String) = TimelineTextChunks(null, 0).append(text)
+        fun from(text: String) = TimelineTextChunks(null, 0, false).append(text)
     }
 }
 
@@ -54,6 +68,7 @@ internal class TimelineNativeStream private constructor(
             put(field, if (field == "summary") JSONArray(parts.map { it.text }) else parts.first().text)
         }.toString()
     }
+    fun displayChunks(): TimelineTextChunks? = if (field == "text") parts.first() else null
     fun outputTail(limit: Int) = parts.firstOrNull()?.tail(limit).orEmpty()
     fun definitelyDifferent(other: TimelineNativeStream): Boolean =
         field == other.field && base == other.base &&

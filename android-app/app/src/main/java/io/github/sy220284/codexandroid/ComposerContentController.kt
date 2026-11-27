@@ -19,6 +19,9 @@ import java.util.UUID
 
 /** Capture the owner before launching an external picker; results never follow the visible page. */
 internal class ComposerContentController(private val vm: CodexViewModel) {
+    private val mediaAdapter: MediaAnalysisAdapter = NativeMediaAnalysisAdapter(vm)
+    internal val mediaAnalysis = MediaAnalysisController(vm, mediaAdapter)
+    internal val liveScreenAnalysis = LiveScreenAnalysisController(vm, mediaAdapter)
     private data class Target(val thread: String?, val workspace: String)
     private var pendingDocument: Target? = null
     private var cameraFile: File? = null
@@ -93,6 +96,79 @@ internal class ComposerContentController(private val vm: CodexViewModel) {
             ThreadComposerDrafts.text(drafts, target.thread, listOf(old, recognized).filter { it.isNotBlank() }.joinToString("\n"))
         }
     }
+    private var pendingShareToken: String? = null
+
+    fun beginScreenShare(owner: String): Intent? {
+        if (!vm.globalWorkSnapshot().canStartNewTask || pendingShareToken != null) return null
+        val token = screenShareSession.reserve(owner, vm.catalogWarmup.accountRevision.value) ?: return null
+        pendingShareToken = token
+        return try {
+            context.getSystemService(android.media.projection.MediaProjectionManager::class.java).createScreenCaptureIntent()
+        } catch (failure: Exception) {
+            pendingShareToken = null
+            screenShareSession.finish(token, "无法启动屏幕共享授权")
+            report("无法启动屏幕共享授权")
+            null
+        }
+    }
+
+    fun finishScreenShare(consent: Intent?) {
+        val token = pendingShareToken ?: return
+        pendingShareToken = null
+        val state = screenShareSession.state.value
+        if (state.token != token) return
+        if (consent == null || state.revision != vm.catalogWarmup.accountRevision.value ||
+            !vm.globalWorkSnapshot().canStartNewTask) {
+            screenShareSession.finish(token)
+            return
+        }
+        try { ScreenShareService.start(context, token, consent) }
+        catch (failure: Exception) { screenShareSession.finish(token, "无法启动屏幕共享服务") }
+    }
+
+    fun stopScreenShare() {
+        pendingShareToken = null
+        liveScreenAnalysis.stop()
+        ScreenShareService.stop(context)
+    }
+
+    fun attachSharedScreen(owner: String) {
+        if (!vm.globalWorkSnapshot().canStartNewTask) return
+        val revision = vm.catalogWarmup.accountRevision.value
+        val bytes = screenShareSession.snapshot(owner, revision) ?: run {
+            report("当前会话尚未取得共享画面")
+            return
+        }
+        if (!vm.beginImageSelection(owner)) { bytes.fill(0); return }
+        vm.viewModelScope.launch {
+            var temp: File? = null
+            var submitted = false
+            try {
+                val file = withContext(Dispatchers.IO) {
+                    val dir = File(context.cacheDir, "codex-camera")
+                    check(dir.isDirectory || dir.mkdirs()) { "无法建立共享画面临时目录" }
+                    val output = File.createTempFile("screen-", ".jpg", dir)
+                    temp = output
+                    output.writeBytes(bytes)
+                    output
+                }
+                check(revision == vm.catalogWarmup.accountRevision.value) { "账号已变化，请重新截取共享画面" }
+                val uri = FileProvider.getUriForFile(context, context.packageName + ".composerprovider", file)
+                vm.importPickedImages(listOf(uri))
+                submitted = true
+                vm.attachmentImport.first { !it.inProgress }
+            } catch (cancel: kotlinx.coroutines.CancellationException) {
+                throw cancel
+            } catch (failure: Exception) {
+                report(failure.message ?: "共享画面添加失败")
+            } finally {
+                if (!submitted) vm.importPickedImages(emptyList())
+                bytes.fill(0)
+                temp?.let { if (it.exists() && !it.delete()) report("无法清理共享画面临时文件") }
+            }
+        }
+    }
+
     fun pickerFailure(failure: Exception) = report(failure.message ?: "无法打开系统输入来源")
     val documentOwner = MutableStateFlow<String?>(null)
     fun beginDocument(thread: String?, workspace: String): Boolean {
