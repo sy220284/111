@@ -22,6 +22,7 @@ jobs:
     name: 手动发布脚本回归检查
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - run: python3 -m unittest discover -s .github/scripts -p 'test_*.py'
@@ -162,7 +163,7 @@ jobs:
     # acceptance result explicitly instead of inheriting an implicit success().
     if: always() && needs.check-release.result == 'success' && needs.check-release.outputs.should_release == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 40
     permissions:
       contents: read
       actions: read
@@ -335,8 +336,9 @@ jobs:
   device-ready:
     name: ARM64 专用设备基础设施检查
     needs: [check-release, release]
-    if: needs.release.result == 'success'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' }}
     runs-on: ubuntu-latest
+    timeout-minutes: 3
     steps:
       - name: 检查设备已正式配置
         env:
@@ -350,10 +352,10 @@ jobs:
   device:
     name: 最终签名 APK ARM64 真机验收
     needs: [check-release, release, device-ready]
-    if: needs.device-ready.result == 'success'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.device-ready.result == 'success' }}
     environment: arm64-release
     runs-on: [self-hosted, linux, 111-release-device]
-    timeout-minutes: 45
+    timeout-minutes: 35
     permissions:
       contents: read
       actions: read
@@ -383,9 +385,9 @@ jobs:
   publish:
     name: 远端回读后正式公开
     needs: [check-release, release, device]
-    if: needs.device.result == 'success'
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.device.result == 'success' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
     permissions:
       contents: write
       actions: read
@@ -431,7 +433,7 @@ jobs:
 
   cleanup:
     needs: publish
-    if: needs.publish.result == 'success'
+    if: ${{ !cancelled() && needs.publish.result == 'success' }}
     permissions:
       contents: write
     runs-on: ubuntu-latest
@@ -522,3 +524,22 @@ jobs:
                   ) from exc
               print(f"已删除：{release['tag_name']}")
           PY
+
+  outcome:
+    name: 正式发布结果验收
+    needs: [preflight, check-release, release, device-ready, device, publish, cleanup]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          ref: main
+          persist-credentials: false
+      - name: 验证发布链路与真实状态
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          TRIGGER_ELIGIBLE: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main' && github.event.workflow_run.head_repository.full_name == github.repository }}
+        run: python3 .github/scripts/release_outcome.py

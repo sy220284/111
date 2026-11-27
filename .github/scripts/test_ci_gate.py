@@ -1,4 +1,6 @@
 import unittest
+import json
+from ci_policy import required_jobs
 from ci_gate import verify, FULL, ALL
 
 def fixture(full=True, runtime=False, pr=True):
@@ -8,6 +10,7 @@ def fixture(full=True, runtime=False, pr=True):
         jobs[k]["result"] = "success"
     if full and pr: jobs["release-signing-smoke"]["result"] = "success"
     if runtime: jobs["runtime-test"]["result"] = "success"
+    jobs["plan"]["outputs"]["manifest"] = json.dumps({"full": full, "runtime": runtime, "required": sorted(required_jobs(full, runtime, "pull_request" if pr else "push", "refs/heads/main"))})
     return jobs
 
 class GateTests(unittest.TestCase):
@@ -39,3 +42,8 @@ class GateTests(unittest.TestCase):
         jobs = fixture()
         jobs["plan"]["outputs"].pop("runtime")
         with self.assertRaises(ValueError): verify(jobs, "pull_request", "refs/pull/1/merge")
+    def test_manifest_mismatch_blocks(self):
+        jobs = fixture()
+        jobs["plan"]["outputs"]["manifest"] = json.dumps({"full": True, "runtime": False, "required": []})
+        with self.assertRaises(ValueError):
+            verify(jobs, "pull_request", "refs/pull/1/merge")

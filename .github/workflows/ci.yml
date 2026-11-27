@@ -30,6 +30,7 @@ jobs:
     outputs:
       full: ${{ steps.plan.outputs.full }}
       runtime: ${{ steps.plan.outputs.runtime }}
+      manifest: ${{ steps.plan.outputs.manifest }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -41,11 +42,14 @@ jobs:
         env:
           CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          CI_EVENT: ${{ github.event_name }}
+          CI_REF: ${{ github.ref }}
           CI_FORCE: ${{ github.event_name == 'workflow_dispatch' }}
           CI_RUNTIME: ${{ github.event_name == 'workflow_dispatch' && inputs.runtime_x86 }}
         run: |
           set -euo pipefail
           python3 -m unittest discover -s .github/scripts -p 'test_ci_policy.py'
+          python3 -m unittest discover -s .github/scripts -p 'test_ci_execution.py'
           python3 -m unittest discover -s .github/scripts -p 'test_ci_gate.py'
           python3 -m unittest discover -s .github/scripts -p 'test_retain_check_artifacts.py'
           python3 -m unittest discover -s .github/scripts -p 'test_repository_steward.py'
@@ -62,7 +66,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.full == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 20
     steps:
       - name: 仅检出 Android UI 源码
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -253,7 +257,7 @@ jobs:
       matrix:
         width_dp: [360, 393, 411]
     runs-on: ubuntu-latest
-    timeout-minutes: 65
+    timeout-minutes: 30
     steps:
       - name: 检出截图采集器
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -339,7 +343,7 @@ jobs:
     needs: [plan, native]
     if: needs.plan.outputs.full == 'true' && needs.native.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 25
     steps:
       - name: 检出 Android 工程及源码版本标记
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -435,10 +439,10 @@ jobs:
 
   runtime-test:
     name: Android 35 真实内核及异常恢复验收（手动 x86_64）
-    needs: [plan, native, build]
-    if: needs.build.result == 'success' && needs.plan.outputs.runtime == 'true'
+    needs: [plan, native]
+    if: needs.native.result == 'success' && needs.plan.outputs.runtime == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 35
     steps:
       - name: 检出同提交 Android 工程与原生配方
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -504,15 +508,11 @@ jobs:
 
   verify-apk:
     name: ARM64 手机安装包二次核验
-    needs: [plan, build, runtime-test]
-    # ARM64 integrity is independent of emulator architecture. An explicitly
-    # requested x86 runtime test must still succeed; a non-requested test stays skipped.
-    if: >-
-      always() && needs.build.result == 'success' &&
-      (needs.runtime-test.result == 'success' ||
-      (needs.runtime-test.result == 'skipped' && needs.plan.outputs.runtime != 'true'))
+    needs: [plan, build]
+    # x86 runtime has its own mandatory result in the final gate.
+    if: needs.build.result == 'success'
     runs-on: ubuntu-latest
-    timeout-minutes: 8
+    timeout-minutes: 5
     steps:
       # Jobs have separate workspaces. The APK and its audit script are both
       # required; the upload artifact contains only the APK, not repository files.
@@ -577,7 +577,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.full == 'true' && (github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && github.ref != 'refs/heads/main'))
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -644,7 +644,7 @@ jobs:
     needs: plan
     if: needs.plan.outputs.full == 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -696,14 +696,16 @@ jobs:
   quality:
     name: 111 合并验收
     needs: [plan, native, verify-ui, ui-emulator, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-          sparse-checkout: .github/scripts
+          sparse-checkout: |
+            .github/scripts
+            .github/ci
           persist-credentials: false
       - name: 汇总并强制核对所有适用验收
         env:
@@ -712,3 +714,10 @@ jobs:
           REF: ${{ github.ref }}
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 .github/scripts/ci_gate.py
+      - name: 记录任务耗时、取消与资源使用
+        if: ${{ !cancelled() }}
+        timeout-minutes: 2
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 .github/scripts/ci_metrics.py

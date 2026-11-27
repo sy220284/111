@@ -27,7 +27,12 @@
       ".github/scripts/prepare-android-patcher.sh",
       ".github/scripts/prepare-release-assets.sh",
       ".github/scripts/verify_git_corresponding_source.py",
-      ".github/release-version"
+      ".github/release-version",
+      "android-app/gradle/wrapper/gradle-wrapper.jar",
+      "android-app/gradle/wrapper/gradle-wrapper.properties",
+      "android-app/gradlew",
+      "android-app/gradlew.bat",
+      "android-app/gradle/libs.versions.toml"
     ],
     "prefixes": [
       "android-app/app/src/main/",
@@ -69,11 +74,21 @@
       "android-app/gradle/wrapper/gradle-wrapper.jar",
       "android-app/gradle/wrapper/gradle-wrapper.properties",
       ".github/workflows/build-native-codex.yml",
-      ".github/scripts/audit_apk_contents.py"
+      ".github/scripts/audit_apk_contents.py",
+      ".github/scripts/run-android-runtime-tests.sh",
+      ".github/scripts/prepare-android-patcher.sh",
+      ".github/scripts/create-android-update-fixture.sh",
+      "android-app/gradle.properties",
+      "android-app/settings.gradle.kts",
+      "android-app/build.gradle.kts",
+      "android-app/gradle/libs.versions.toml"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",
-      "upstream/codex/.cargo/"
+      "upstream/codex/.cargo/",
+      "android-app/app/src/androidTest/",
+      "android-app/app/src/main/jniLibs/",
+      "android-app/app/src/main/assets/"
     ]
   }
 }

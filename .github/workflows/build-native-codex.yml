@@ -32,7 +32,7 @@ jobs:
   reuse:
     name: 复用已验证原生内核（源码及编译配置一致）
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     outputs:
       arm_run_id: ${{ steps.detect.outputs.arm_run_id }}
       x86_run_id: ${{ steps.detect.outputs.x86_run_id }}
@@ -100,7 +100,7 @@ jobs:
     needs: reuse
     if: needs.reuse.outputs.reuse != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 360
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -311,7 +311,7 @@ jobs:
     needs: reuse
     if: needs.reuse.outputs.provider_reuse != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 90
+    timeout-minutes: 60
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_BUILD_JOBS: "2"
@@ -354,8 +354,9 @@ jobs:
   verified:
     name: 原生核心统一验收
     needs: [reuse, native, provider-contract]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       arm_run_id: ${{ needs.reuse.outputs.arm_run_id }}
       x86_run_id: ${{ needs.reuse.outputs.x86_run_id }}
@@ -368,9 +369,12 @@ jobs:
           TEST: ${{ needs.provider-contract.result }}
           PROVIDER_REUSED: ${{ needs.reuse.outputs.provider_reuse }}
           ARM: ${{ needs.reuse.outputs.arm_run_id }}
+          X86: ${{ needs.reuse.outputs.x86_run_id }}
+          INCLUDE_X86: ${{ inputs.include_x86 }}
         run: |
           set -euo pipefail
           test "$REUSE" = success
           test -n "$ARM"
+          if [ "$INCLUDE_X86" = true ]; then test -n "$X86"; fi
           if [ "$REUSED" = true ]; then test "$NATIVE" = skipped; else test "$NATIVE" = success; fi
           if [ "$PROVIDER_REUSED" = true ]; then test "$TEST" = skipped; else test "$TEST" = success; fi

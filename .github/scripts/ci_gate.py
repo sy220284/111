@@ -2,8 +2,7 @@
 import json
 import os
 
-FULL = {"native", "verify-ui", "ui-emulator", "build", "verify-apk", "preflight", "compatibility"}
-ALL = FULL | {"release-signing-smoke", "runtime-test", "plan"}
+from ci_policy import FULL_JOBS as FULL, ALL_JOBS as ALL, required_jobs
 
 def verify(jobs, event, ref):
     if set(jobs) != ALL:
@@ -14,13 +13,11 @@ def verify(jobs, event, ref):
     if any(outputs.get(k) not in {"true", "false"} for k in ("full", "runtime")):
         raise ValueError("调度凭证不完整")
     full, runtime = (outputs[k] == "true" for k in ("full", "runtime"))
-    if runtime and not full:
-        raise ValueError("真实内核验收必须包含完整 CI")
-    required = set(FULL) if full else set()
-    if full and (event == "pull_request" or (event == "workflow_dispatch" and ref != "refs/heads/main")):
-        required.add("release-signing-smoke")
-    if runtime:
-        required.add("runtime-test")
+    required = required_jobs(full, runtime, event, ref)
+    manifest = json.loads(outputs.get("manifest", "{}"))
+    if (manifest.get("full") is not full or manifest.get("runtime") is not runtime
+            or manifest.get("required") != sorted(required)):
+        raise ValueError("验收计划与统一策略不一致")
     for name in ALL - {"plan"}:
         expected = "success" if name in required else "skipped"
         if jobs[name]["result"] != expected:
@@ -36,6 +33,9 @@ def main():
             print(f"- {name}: {result['result']}", file=out)
         try:
             verify(jobs, os.environ["EVENT"], os.environ["REF"])
+            manifest = json.loads(jobs["plan"]["outputs"]["manifest"])
+            if manifest.get("source") != os.environ["SOURCE"]:
+                raise ValueError("验收计划源码 SHA 不一致")
         except ValueError as exc:
             print(f"结论：失败 — {exc}", file=out)
             raise
