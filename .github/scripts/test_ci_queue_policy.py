@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
-from ci_queue_policy import eligible, reconcile
+from unittest.mock import patch
+from ci_queue_policy import eligible, reconcile, pages, active_runs
 
 REPO = "o/r"
 OLD = "a"*40
@@ -12,6 +13,23 @@ def run(id=1, sha=OLD, status="queued"):
             "event":"pull_request","path":".github/workflows/ci.yml","status":status,"pull_requests":[{"number":12}]}
 
 class QueueTests(unittest.TestCase):
+    @patch("ci_queue_policy.gh")
+    def test_api_pagination_with_existing_query(self, gh):
+        import json
+        gh.side_effect = [json.dumps({"workflow_runs": list(range(100))}),
+                          json.dumps({"workflow_runs": [100]})]
+        self.assertEqual(list(range(101)), list(pages(REPO, "actions/runs?status=queued", "workflow_runs")))
+        self.assertEqual([
+            ("api", "repos/o/r/actions/runs?status=queued&per_page=100&page=1"),
+            ("api", "repos/o/r/actions/runs?status=queued&per_page=100&page=2"),
+        ], [call.args for call in gh.call_args_list])
+
+    @patch('ci_queue_policy.pages')
+    def test_active_runs_encodes_branch_and_all_active_states(self, pages):
+        pages.return_value = []
+        self.assertEqual([], list(active_runs(REPO, 'feature/topic')))
+        self.assertEqual([f'actions/runs?status={status}&branch=feature%2Ftopic' for status in ('queued', 'in_progress', 'waiting', 'requested', 'pending')], [call.args[1] for call in pages.call_args_list])
+
     def test_latest_pr_supersedes_old_head_and_producers_keep_shared_locks(self):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / ".github/workflows/ci.yml").read_text()

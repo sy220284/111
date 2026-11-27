@@ -1,8 +1,35 @@
 #!/usr/bin/env python3
 """Cancel only CI belonging to the exact same obsolete or closed same-repo PR."""
 import argparse
+import json
 import subprocess
-from retain_check_artifacts import active_runs, api, gh
+from urllib.parse import quote
+
+def gh(*args):
+    return subprocess.check_output(["gh", *args], text=True)
+
+
+def api(repo, path):
+    return json.loads(gh("api", f"repos/{repo}/{path}"))
+
+
+def pages(repo, path, field=None):
+    separator = "&" if "?" in path else "?"
+    page = 1
+    while True:
+        response = api(repo, f"{path}{separator}per_page=100&page={page}")
+        rows = response[field] if field else response
+        yield from rows
+        if len(rows) < 100:
+            return
+        page += 1
+
+
+def active_runs(repo, branch=None):
+    # Unfiltered first page is insufficient when many checks have run.
+    scope = "" if branch is None else "&branch=" + quote(branch, safe="")
+    for status in ("queued", "in_progress", "waiting", "requested", "pending"):
+        yield from pages(repo, f"actions/runs?status={status}{scope}", "workflow_runs")
 
 UNFINISHED = {"queued", "pending", "waiting", "requested", "in_progress"}
 

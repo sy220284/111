@@ -3,11 +3,6 @@
     "files": [
       "AGENTS.md",
       "README.md",
-      ".github/workflows/retain-check-artifacts.yml",
-      ".github/scripts/retain_check_artifacts.py",
-      ".github/scripts/test_retain_check_artifacts.py",
-      ".github/scripts/repository_steward.py",
-      ".github/scripts/test_repository_steward.py",
       "upstream/codex/README.md",
       ".github/workflows/dev-toolchain.yml",
       ".github/workflows/prepare-host-toolchain.yml",
