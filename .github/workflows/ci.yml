@@ -82,9 +82,10 @@ jobs:
           python3 .github/scripts/ci_policy.py
   native:
     needs: [plan, static-ui, preflight]
-    if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
+    if: always() && !cancelled() && needs.plan.result == 'success' && (needs.plan.outputs.run_package == 'true' || needs.plan.outputs.run_runtime == 'true') && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')
     uses: ./.github/workflows/build-native-codex.yml
     with:
+      include_arm: ${{ needs.plan.outputs.run_package == 'true' }}
       include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}
       native_key: ${{ needs.plan.outputs.native_key }}
 

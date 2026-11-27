@@ -50,7 +50,9 @@ def main():
         print("compile_run_id="+str(receipt["reused"].get("compile", {}).get("run_id", os.environ["GITHUB_RUN_ID"])),file=stream)
         for name, key in (("codex-android-ui-apks","compile_apk_id"), ("ui-apk-integrity","compile_integrity_id")):
             print(key+"="+str(receipt["reused"].get("compile",{}).get("artifacts",{}).get(name,{}).get("id","")),file=stream)
-        print("native_key="+(native_key(source) if "package" in receipt["execute"] else ""),file=stream)
+        abis = [abi for group, abi in (("package", "arm64-v8a"), ("runtime", "x86_64"))
+                if group in receipt["execute"]]
+        print("native_key="+(native_key(source, abis) if abis else ""),file=stream)
         for key, value in {"device_matrix": json.dumps(matrix(), separators=(",", ":")), "device_shards": json.dumps(shard_matrix(), separators=(",", ":")), "device_api": CONFIG["api"], "device_image_api": CONFIG["system_image_api"], "device_sdk_platform": CONFIG["sdk_platform"], "device_runtime_profile": CONFIG["runtime_profile"], "device_release": CONFIG["android_release"], "device_target": CONFIG["target"], "device_ram": CONFIG["ram"], "device_cores": CONFIG["cores"], "device_disk": CONFIG["disk"], "device_mesa_threads": CONFIG["mesa_threads"], "device_emulator_options": CONFIG["emulator_options"]}.items():
             print(f"{key}={value}", file=stream)
         for key in ("full", "runtime", "maintenance"):

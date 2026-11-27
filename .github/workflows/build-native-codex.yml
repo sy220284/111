@@ -3,6 +3,9 @@ name: 编译 Android 原生 Codex 核心
 on:
   workflow_call:
     inputs:
+      include_arm:
+        type: boolean
+        default: true
       include_x86:
         type: boolean
         default: false
@@ -16,6 +19,9 @@ on:
         value: ${{ jobs.verified.outputs.x86_run_id }}
   workflow_dispatch:
     inputs:
+      include_arm:
+        type: boolean
+        default: true
       include_x86:
         type: boolean
         default: false
@@ -58,6 +64,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
+          INCLUDE_ARM: ${{ inputs.include_arm }}
           INCLUDE_X86: ${{ inputs.include_x86 }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
           CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
@@ -68,12 +75,14 @@ jobs:
             LIVE_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)"
             test "$LIVE_HEAD" = "$CANDIDATE_SHA" || { echo "::error::候选已被新 head 替代，停止占用原生构建锁"; exit 1; }
           fi
+          if [ "$INCLUDE_ARM" != true ] && [ "$INCLUDE_X86" != true ]; then
+            echo "::error::必须请求至少一种 ABI"
+            exit 2
+          fi
           MISSING='[]'
           for ABI in $(jq -r '.[].abi' <<< "$ABI_MATRIX_JSON"); do
-            if [ "$ABI" = 'x86_64' ] && [ "$INCLUDE_X86" != 'true' ]; then
-              echo 'x86_64 原生编译仅在手动专项验收时启用'
-              continue
-            fi
+            if [ "$ABI" = 'arm64-v8a' ] && [ "$INCLUDE_ARM" != true ]; then continue; fi
+            if [ "$ABI" = 'x86_64' ] && [ "$INCLUDE_X86" != true ]; then continue; fi
             RESULT=0
             python3 .github/scripts/select_native_artifacts.py \
               --repo "$GITHUB_REPOSITORY" --abis "$ABI" --compiler-only \
@@ -491,9 +500,13 @@ jobs:
           TEST: ${{ needs.provider-contract.result }}
           PROVIDER_REUSED: ${{ needs.reuse.outputs.provider_reuse }}
           ARM: ${{ needs.reuse.outputs.arm_run_id }}
+          X86: ${{ needs.reuse.outputs.x86_run_id }}
+          INCLUDE_ARM: ${{ inputs.include_arm }}
+          INCLUDE_X86: ${{ inputs.include_x86 }}
         run: |
           set -euo pipefail
           test "$REUSE" = success
-          test -n "$ARM"
+          if [ "$INCLUDE_ARM" = true ]; then test -n "$ARM"; else test -z "$ARM"; fi
+          if [ "$INCLUDE_X86" = true ]; then test -n "$X86"; else test -z "$X86"; fi
           if [ "$REUSED" = true ]; then test "$NATIVE" = skipped; test "$V8" = skipped; else test "$NATIVE" = success; test "$V8" = success; fi
           if [ "$PROVIDER_REUSED" = true ]; then test "$TEST" = skipped; else test "$TEST" = success; fi

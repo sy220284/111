@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 from ci_reuse import (GROUPS, JOB_NAMES, ARTIFACTS, affected, candidate, make_plan, run_names, artifact_index,
-                      validate, check_shape)
+                      validate, check_shape, actual_jobs)
 
 class ReuseTests(unittest.TestCase):
     def setUp(self):
@@ -33,7 +33,7 @@ class ReuseTests(unittest.TestCase):
             self.assertEqual({},candidate("o/r",self.run,self.target,self.now))
             self.assertEqual({},candidate("o/r",dict(self.run,conclusion="failure"),self.target,self.now))
             self.assertIsNone(candidate("o/r",dict(self.run,head_repository={"full_name":"other/r"}),self.target,self.now))
-            self.assertIsNone(candidate("o/r",self.run,self.target,self.now+timedelta(days=3)))
+            self.assertIsNone(candidate("o/r",self.run,self.target,self.now+timedelta(days=8)))
         self.assertEqual(set(GROUPS),affected(".github/workflows/ci.yml"))
         self.assertEqual(set(GROUPS),affected("new-unclassified-file"))
         self.assertEqual(set(),affected("tools/dev/ci_host.py"))
@@ -46,10 +46,11 @@ class ReuseTests(unittest.TestCase):
              patch("ci_reuse.candidate",return_value={"compile":proof,"ui":proof,"package":proof}), \
              patch("ci_reuse.tree",return_value="new"):
             record=make_plan("o/r",self.target,required)
-            self.assertEqual({"runtime","package"},set(record["execute"]))
-            self.assertEqual({"compile":proof,"ui":proof},record["reused"])
+            self.assertEqual({"runtime"},set(record["execute"]))
+            self.assertEqual({"compile":proof,"ui":proof,"package":proof},record["reused"])
+            self.assertEqual({"native","runtime-x86","runtime-test"},actual_jobs(record["execute"]))
             with patch("ci_reuse.api",return_value=self.run):
-                self.assertEqual({"runtime","package"},validate("o/r",record,self.target,required,now=self.now))
+                self.assertEqual({"runtime"},validate("o/r",record,self.target,required,now=self.now))
                 record["reused"]["ui"]=dict(proof,tree="tampered")
                 with self.assertRaises(ValueError): validate("o/r",record,self.target,required,now=self.now)
     def test_manual_force_never_reuses(self):
@@ -115,3 +116,10 @@ class ReuseTests(unittest.TestCase):
         with patch("ci_reuse.ancestor",return_value=True),patch("ci_reuse.delta",return_value=[]), \
              patch("ci_reuse.run_names",return_value=({"统一变更分类":records["统一变更分类"]},self.now)):
             self.assertEqual({},candidate("o/r",run,self.target,self.now))
+
+    def test_independent_runtime_changes_do_not_invalidate_arm_package(self):
+        self.assertEqual({"runtime", "preflight"}, affected(".github/scripts/run-android-runtime-tests.sh"))
+        self.assertEqual({"native", "runtime-arm64", "build", "verify-apk"}, actual_jobs({"package"}))
+        self.assertEqual({"native", "runtime-x86", "runtime-test"}, actual_jobs({"runtime"}))
+        self.assertNotIn("native", actual_jobs({"compile", "ui"}))
+        self.assertEqual({"ui", "runtime", "preflight"}, affected("tools/build/run-emulator.sh"))
