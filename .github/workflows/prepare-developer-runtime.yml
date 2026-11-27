@@ -60,7 +60,7 @@ jobs:
         run: |
           set -euo pipefail
           case "$ABI" in arm64-v8a) TARGET=aarch64-linux-android;; x86_64) TARGET=x86_64-linux-android;; *) exit 2;; esac
-          CLANG="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/${TARGET}29-clang"
+          CLANG="$ANDROID_HOME/ndk/30.0.16248370/toolchains/llvm/prebuilt/linux-x86_64/bin/${TARGET}29-clang"
           python3 android-app/tools/prepare_prebuilt_developer_runtime.py "$ABI" --prepared-dir "$RUNNER_TEMP/runtime" --native "$RUNNER_TEMP/cli-native" --assets "$RUNNER_TEMP/cli-assets" --clang "$CLANG" --git-source-output "$RUNNER_TEMP/git-source.tar.xz"
       - name: 生成可复用离线组件并回读
         if: steps.reuse.outputs.reused != 'true'

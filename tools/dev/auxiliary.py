@@ -88,19 +88,19 @@ def llvm_prepare(stage):
     # apt's signed repository metadata authenticates the package bytes; keep
     # the exact dpkg package versions as provenance alongside the binary tree.
     run("sudo","apt-get","update")
-    if any(not re.search(r"(?m)^\s*Candidate:\s+(?!\(none\))\S+",output("apt-cache","policy",name)) for name in ("clang-21","libclang-21-dev","llvm-21","lld-21")):
+    if any(not re.search(r"(?m)^\s*Candidate:\s+(?!\(none\))\S+",output("apt-cache","policy",name)) for name in ("clang-23","libclang-23-dev","llvm-23","lld-23")):
         with tempfile.TemporaryDirectory() as d:
             key=pathlib.Path(d)/"llvm.asc"
             download("https://apt.llvm.org/llvm-snapshot.gpg.key",key)
             fingerprints=[l.split(":")[9] for l in output("gpg","--batch","--with-colons","--show-keys",key).splitlines() if l.startswith("fpr:")]
             need(fingerprints and fingerprints[0]=="6084F3CF814B57C1CF12EFD515CF4D18AF4F7421","LLVM signing key mismatch")
             run("sudo","install","-m","0644",key,"/usr/share/keyrings/111-llvm-snapshot.asc")
-            run("sudo","bash","-c","printf '%s\\n' 'deb [signed-by=/usr/share/keyrings/111-llvm-snapshot.asc] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main' > /etc/apt/sources.list.d/111-llvm.list")
+            run("sudo","bash","-c","printf '%s\\n' 'deb [signed-by=/usr/share/keyrings/111-llvm-snapshot.asc] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' > /etc/apt/sources.list.d/111-llvm.list")
             run("sudo","apt-get","update")
-    packages=("clang-21","libclang-21-dev","llvm-21","lld-21","ninja-build","pkg-config","libssl-dev")
+    packages=("clang-23","libclang-23-dev","llvm-23","lld-23","ninja-build","pkg-config","libssl-dev")
     run("sudo","apt-get","install","-y","--no-install-recommends",*packages)
     (stage/"packages.tsv").write_text(output("dpkg-query","-W","-f=${Package}\\t${Version}\\n",*packages)+"\n")
-    prefix=pathlib.Path("/usr/lib/llvm-21")
+    prefix=pathlib.Path("/usr/lib/llvm-23")
     binroot=stage/"bin";lib=stage/"lib";binroot.mkdir();lib.mkdir()
     bins=("clang","clang++","llvm-ar","llvm-nm","llvm-ranlib","llvm-strip","llvm-readelf","llvm-objdump","ld.lld")
     seen={}
@@ -135,7 +135,7 @@ def llvm_prepare(stage):
 def llvm_verify(stage):
     env={"LD_LIBRARY_PATH":str(stage/"lib"),"LIBCLANG_PATH":str(stage/"lib"),"PATH":str(stage/"bin")+os.pathsep+os.environ["PATH"]}
     result=subprocess.check_output([str(stage/"bin/clang"),"--version"],env=dict(os.environ,**env),text=True)
-    need(re.search(r"clang version 21\.",result),"LLVM version mismatch")
+    need(re.search(r"clang version 23\.",result),"LLVM version mismatch")
     with tempfile.TemporaryDirectory() as d:
         src=pathlib.Path(d)/"probe.c";exe=pathlib.Path(d)/"probe"
         src.write_text("int main(void){return 0;}\n")

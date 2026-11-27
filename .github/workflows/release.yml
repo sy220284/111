@@ -284,8 +284,8 @@ jobs:
         run: |
           set -euo pipefail
           DIR="android-app/app/build/outputs/apk/release"
-          AAPT="$ANDROID_HOME/build-tools/35.0.0/aapt"
-          APKSIGNER="$ANDROID_HOME/build-tools/35.0.0/apksigner"
+          AAPT="$ANDROID_HOME/build-tools/37.0.0/aapt"
+          APKSIGNER="$ANDROID_HOME/build-tools/37.0.0/apksigner"
           VERSION="${{ needs.check-release.outputs.version }}"
           CODE="${{ needs.check-release.outputs.version_code }}"
           APK="$DIR/app-arm64-v8a-release.apk"

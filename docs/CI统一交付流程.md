@@ -103,7 +103,7 @@ UI 分片复用只从本次可信编译来源的直接成功模拟器作业读�
 
 ### 官方环境与缓存边界
 
-- 编译使用 Runner 预装 JDK 17 与 SDK；仅缺失的官方包才安装，Gradle Wrapper 与 Cargo 使用官方依赖缓存，Python 缓存下载文件但每次仍按摘要锁安装。无需生产或下载标准工具链整包。
+- 编译使用 Runner 预装 JDK 25 与 SDK；仅缺失的官方包才安装，Gradle Wrapper 与 Cargo 使用官方依赖缓存，Python 缓存下载文件但每次仍按摘要锁安装。无需生产或下载标准工具链整包。
 - 模拟器在设备验收作业内使用 Runner SDK，独立缓存仅包含设备矩阵指定的系统镜像目录，键由系统镜像 API、类型与 ABI 决定；设备尺寸、测试及普通 CI 改动不使镜像缓存失效。预装镜像直接使用，缓存未命中才从官方 SDK 安装，实际启动、API、16 KiB 与功能验收不变。真实内核 APK 先构建，成功后才准备模拟器镜像。
 - V8、原生核心及手机运行时仍按现有专用产物契约装配并核验。用户下载的宿主工具链继续独立手动维护，不成为 CI 输入。
 
@@ -151,3 +151,7 @@ V8 独立构建仅受应用锁文件中的 V8 包记录、V8 官方固定源码�
 ### Actions 运行环境
 
 仓库根目录 `.github/workflows/` 与 `.github/actions/`（含独立用户工具链工作流）使用原生 Node.js 24 的官方 Actions 版本，均固定完整提交 SHA；不修改上游镜像自带的工作流。checkout、cache、upload-artifact、download-artifact、setup-java 和 setup-gradle 统一升级，Java 编译问题注释显式保留。Gradle 保留官方默认的增强缓存，产物仍使用默认 ZIP 格式，既有名称、ID、摘要和发布门禁不变。专用 ARM64 自托管发布 Runner 必须满足 Node.js 24 Actions 的最低版本 2.327.1（如在 Docker 容器内使用 checkout 持久化凭证则至少 2.329.0），实际设备仍需通过原有发布验收。日常依赖维护仍按非产品变更基础检查执行，不新增定时任务。
+
+### 基础技术栈候选与版本边界
+
+本候选将 Android 编译环境升级至 AGP 9.5.1、Gradle 9.9.2、Kotlin 2.4.21（AGP 内置 Kotlin）、JDK 25、compileSdk 37 / Build Tools 37.0.0、NDK r30（30.0.16248370）、LLVM 23；Compose BOM 为 2026.11.01，Activity 1.13.0、Core 1.19.1、Lifecycle 2.11.1。Gradle Wrapper 采用官方发布文件及 SHA-256，依赖图和校验元数据必须由真实解析生成、复查并在严格模式完整构建。官方 Codex 当前 Rust 1.99.1 / V8 152.2.0 保持配套。minSdk 29、JVM 17 和 targetSdk 35 保持：目标 SDK 37 必须在局域网权限、后台语音、横屏/大屏、原生加载及安装更新完成产品适配并验收后切换。构建 SDK 37 与模拟器独立平台参数、37.2 16KiB 镜像不混用。工具链生产工作流同步 JDK、SDK、NDK、LLVM、Wrapper 和严格依赖基线，独立断网验收不变。具体产品影响见 [技术栈升级与产品适配评估](基础技术栈升级与产品适配评估-20261127.md)。

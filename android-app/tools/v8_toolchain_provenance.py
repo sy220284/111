@@ -19,11 +19,11 @@ def provenance(root):
             record={"sha256":hashlib.file_digest(stream,"sha256").hexdigest()}
         if name!="libclang":
             version=subprocess.check_output([str(path),"--version"],text=True).strip()
-            if not version or name=="clang" and not re.search(r"clang version 21\.",version):
+            if not version or name=="clang" and not re.search(r"clang version 23\.",version):
                 raise ValueError("Unexpected LLVM tool version: "+name)
             record["version"]=version
         records[name]=record
-    records["packages"]=subprocess.check_output(["dpkg-query","-W","-f=${Package}\\t${Version}\\n","clang-21","libclang-21-dev","llvm-21","lld-21","ninja-build","pkg-config","libssl-dev"],text=True)
+    records["packages"]=subprocess.check_output(["dpkg-query","-W","-f=${Package}\\t${Version}\\n","clang-23","libclang-23-dev","llvm-23","lld-23","ninja-build","pkg-config","libssl-dev"],text=True)
     return records
 
 if __name__=="__main__":

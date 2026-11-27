@@ -36,24 +36,24 @@
     }
   },
   "project": {
-    "jdk": "17",
+    "jdk": "25",
     "jvmTarget": "17",
-    "gradle": "8.11.1",
-    "gradleDistributionSha256": "f397b287023acdba1e9f6fc5ea72d22dd63669d59ed4a289a29b1a76eee151c6",
-    "agp": "8.9.2",
-    "kotlin": "2.1.20",
-    "composeBom": "2025.04.01",
+    "gradle": "9.9.2",
+    "gradleDistributionSha256": "971fcd7150ca4ba04852c0b2ca0d2d0ab9468e14b03473eab19528809914c76b",
+    "agp": "9.5.1",
+    "kotlin": "2.4.21",
+    "composeBom": "2026.11.01",
     "minSdk": 29,
-    "compileSdk": 35,
+    "compileSdk": 37,
     "targetSdk": 35,
-    "buildTools": "35.0.0",
-    "ndk": "27.2.12479018",
+    "buildTools": "37.0.0",
+    "ndk": "30.0.16248370",
     "rust": "1.99.1",
     "rustTargets": [
       "aarch64-linux-android",
       "x86_64-linux-android"
     ],
-    "llvmMajor": "21",
+    "llvmMajor": "23",
     "v8": "152.2.0",
     "v8Commit": "2768994f664e8a6e3aba27503606c58339136e2a",
     "nodeMin": "24.22.1",
@@ -78,6 +78,6 @@
     "minSdk": 36,
     "buildTools": "37.0.0",
     "deviceImage": "37.0",
-    "reason": "不得覆盖111专用构建锁、Gradle缓存、Android API 35/NDK及37.2设备镜像。"
+    "reason": "不得直接覆盖111专用构建锁、Gradle依赖图、Android最低支持版本、目标SDK及37.2设备镜像；各组件按本项目实际兼容验收选择。"
   }
 }

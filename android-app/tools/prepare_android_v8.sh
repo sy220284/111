@@ -43,7 +43,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     }
     git -C "$SRC" submodule update --init --recursive --depth 1
     : "${LLVM_HOME:?missing official LLVM}" "${LIBCLANG_PATH:?missing official libclang}"
-    "$LLVM_HOME/bin/clang" --version | grep -E 'clang version 21\.'
+    "$LLVM_HOME/bin/clang" --version | grep -E 'clang version 23\.'
     test -s "$LIBCLANG_PATH/libclang.so"
     command -v ninja
     command -v pkg-config
@@ -56,7 +56,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     ln -s "$ANDROID_HOME" "$SRC/third_party/android_sdk/public"
     CFG="$SRC/build/config/android/config.gni"
     if ! grep -Eq '^[[:space:]]*android_ndk_version[[:space:]]*=' "$CFG"; then
-      printf '\ndeclare_args() {\n  android_ndk_version = "r27"\n}\n' >> "$CFG"
+      printf '\ndeclare_args() {\n  android_ndk_version = "r30"\n}\n' >> "$CFG"
     fi
     mkdir -p "$SRC/build/rust"
     if [ ! -e "$SRC/build/rust/known-target-triples.txt" ]; then

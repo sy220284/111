@@ -7,13 +7,13 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: 优先选择 Runner 预装 JDK 17
+    - name: 优先选择 Runner 预装 JDK 25
       id: java
       shell: bash
       run: |
-        if [ -x "${JAVA_HOME_17_X64:-/nonexistent}/bin/java" ]; then
-          printf 'JAVA_HOME=%s\n' "$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
-          printf '%s/bin\n' "$JAVA_HOME_17_X64" >> "$GITHUB_PATH"
+        if [ -x "${JAVA_HOME_25_X64:-/nonexistent}/bin/java" ]; then
+          printf 'JAVA_HOME=%s\n' "$JAVA_HOME_25_X64" >> "$GITHUB_ENV"
+          printf '%s/bin\n' "$JAVA_HOME_25_X64" >> "$GITHUB_PATH"
           echo 'present=true' >> "$GITHUB_OUTPUT"
         else
           echo 'present=false' >> "$GITHUB_OUTPUT"
@@ -23,7 +23,7 @@ runs:
       with:
         distribution: temurin
         problem-matcher: true
-        java-version: '17'
+        java-version: '25'
     - name: 核对预装 SDK 并补齐缺项
       shell: bash
       env:
@@ -33,7 +33,7 @@ runs:
       if: inputs.mode == 'build'
       shell: bash
       run: |
-        printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
+        printf '%s  %s\n' 621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
     - name: 使用项目 Gradle Wrapper 和官方依赖缓存
       if: inputs.mode == 'build'
       uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1

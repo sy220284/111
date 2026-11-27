@@ -63,7 +63,7 @@ jobs:
         with:
           distribution: temurin
           problem-matcher: true
-          java-version: "17"
+          java-version: "25"
       - name: 生成独立组件
         if: steps.restore.outputs.reused != 'true'
         env:

@@ -121,10 +121,10 @@ def expected_inputs(root, target):
         raise ValueError("Unexpected Rust compiler version")
     ndk = Path(os.environ["ANDROID_NDK_HOME"], "source.properties").read_bytes().splitlines()
     revisions = [x for x in ndk if x.startswith(b"Pkg.Revision")]
-    if len(revisions) != 1 or revisions[0].split(b"=",1)[1].strip() != b"27.2.12479018":
+    if len(revisions) != 1 or revisions[0].split(b"=",1)[1].strip() != b"30.0.16248370":
         raise ValueError("Unexpected NDK revision")
     result = (f"source={SOURCE}\nversion={VERSION}\ntarget={target}\n".encode() + rust
-              + b"Pkg.Revision=27.2.12479018\n" + host_identity())
+              + b"Pkg.Revision=30.0.16248370\n" + host_identity())
     lock = v8_lock_identity((root/LOCK_PATH).read_text())
     return result + f"v8-package={lock}\n".encode() + "".join(f"{sha256(root/p)}  {p}\n" for p in INPUTS).encode()
 

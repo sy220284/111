@@ -10,7 +10,6 @@ pluginManagement {
         eachPlugin {
             when (requested.id.id) {
                 "com.android.application" -> requested.version?.let { useModule("com.android.tools.build:gradle:$it") }
-                "org.jetbrains.kotlin.android" -> requested.version?.let { useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:$it") }
                 "org.jetbrains.kotlin.plugin.compose" -> requested.version?.let { useModule("org.jetbrains.kotlin:compose-compiler-gradle-plugin:$it") }
             }
         }

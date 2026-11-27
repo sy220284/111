@@ -23,7 +23,7 @@ class ConsolidationTests(unittest.TestCase):
         self.assertIn("actions/setup-java@",action)
         self.assertIn("gradle/actions/setup-gradle@",action)
         self.assertNotIn("download-artifact",action)
-        self.assertIn("JAVA_HOME_17_X64",action)
+        self.assertIn("JAVA_HOME_25_X64",action)
         self.assertIn("steps.java.outputs.present == 'false'",action)
         self.assertNotIn("system-images",sdk)
         emulator=(ROOT/".github/actions/ci-emulator/action.yml").read_text()

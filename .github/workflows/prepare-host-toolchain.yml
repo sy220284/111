@@ -64,16 +64,16 @@ jobs:
         with:
           distribution: temurin
           problem-matcher: true
-          java-version: "17"
+          java-version: "25"
       - name: 准备独立 SDK 与 Gradle 缓存
         if: steps.restore.outputs.reused != 'true'
         run: |
           set -euo pipefail
           SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "platform-tools"
+          "$SDK_MANAGER" "platforms;android-37" "build-tools;37.0.0" "platforms;android-36" "build-tools;36.0.0" "ndk;30.0.16248370" "platform-tools"
           mkdir -p "$RUNNER_TEMP/gradle-home" "$RUNNER_TEMP/stage/android-sdk" "$RUNNER_TEMP/stage/gradle" "$RUNNER_TEMP/bundles"
           echo "GRADLE_USER_HOME=$RUNNER_TEMP/gradle-home" >> "$GITHUB_ENV"
-          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
+          printf '%s  %s\n' 621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证已提交的 Gradle 依赖基线与所有 Android 变体
         if: steps.restore.outputs.reused != 'true'
         run: |
@@ -101,7 +101,7 @@ jobs:
           set -euo pipefail
           cp -aL "$JAVA_HOME" "$RUNNER_TEMP/stage/jdk"
           SDK="$RUNNER_TEMP/stage/android-sdk"
-          for path in platforms/android-35 platforms/android-36 build-tools/35.0.0 build-tools/36.0.0 ndk/27.2.12479018 platform-tools licenses cmdline-tools; do
+          for path in platforms/android-37 platforms/android-36 build-tools/37.0.0 build-tools/36.0.0 ndk/30.0.16248370 platform-tools licenses cmdline-tools; do
             mkdir -p "$SDK/$(dirname "$path")"
             cp -a "$ANDROID_HOME/$path" "$SDK/$path"
           done
