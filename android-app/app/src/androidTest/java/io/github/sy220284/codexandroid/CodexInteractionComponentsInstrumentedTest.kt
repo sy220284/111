@@ -97,7 +97,10 @@ class CodexInteractionComponentsInstrumentedTest {
                 androidx.compose.ui.viewinterop.AndroidView(factory = { context ->
                     android.webkit.WebView(context).apply {
                         view.set(this)
-                        McpAppSandbox.attach(this, html, { true }, { port.set(it) }, { raw ->
+                        McpAppSandbox.attach(this, html, { true }, {
+                            assertEquals(McpAppSandbox.PAGE, url)
+                            port.set(it)
+                        }, { raw ->
                             val msg = org.json.JSONObject(raw)
                             when (msg.optString("method")) {
                                 "test/isolation" -> {
@@ -111,7 +114,14 @@ class CodexInteractionComponentsInstrumentedTest {
                     }
                 })
             }
-            rule.waitUntil(20000L) { finished.get() }
+            try {
+                rule.waitUntil(20000L) { finished.get() }
+            } catch (timeout: androidx.compose.ui.test.ComposeTimeoutException) {
+                var page: String? = null
+                rule.runOnIdle { page = view.get()?.url }
+                throw AssertionError("MCP 往返未完成：page=$page, nativePort=${port.get() != null}, " +
+                    "isolationReceipt=${receipt.get() != null}", timeout)
+            }
             val isolated = requireNotNull(receipt.get())
             org.junit.Assert.assertTrue(isolated.getBoolean("parentDenied"))
             org.junit.Assert.assertTrue(isolated.getBoolean("storageDenied"))

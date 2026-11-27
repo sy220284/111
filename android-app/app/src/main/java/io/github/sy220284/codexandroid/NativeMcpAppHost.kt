@@ -24,6 +24,7 @@ import kotlinx.coroutines.withTimeoutOrNull
  * iframe with no network, navigation, file access, storage, Android JS object or device permissions. */
 internal object McpAppSandbox {
     const val HOST = "https://111-mcp-host.invalid"
+    const val PAGE = HOST + "/"
     const val VIEW = "https://111-mcp-app.invalid/view"
     const val CSP = "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; media-src data: blob:; connect-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
     fun shell(source: String): String {
@@ -78,7 +79,7 @@ window.addEventListener("message", e => {
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
                 request.isForMainFrame || request.url.toString() != "about:srcdoc"
             override fun onPageFinished(view: WebView, url: String) {
-                if (!owns() || attached || url.trimEnd('/') != HOST) return
+                if (!owns() || attached || url != PAGE) return
                 attached = true
                 val pair = view.createWebMessageChannel()
                 pair[0].setWebMessageCallback(object : WebMessagePort.WebMessageCallback() {
@@ -90,7 +91,10 @@ window.addEventListener("message", e => {
                 view.postWebMessage(WebMessage("111-native-port", arrayOf(pair[1])), Uri.parse(HOST))
             }
         }
-        view.loadDataWithBaseURL(HOST + "/", shell(source), "text/html", "UTF-8", null)
+        // Chromium uses about:blank as the visible/callback URL when historyUrl is
+        // null, even with an HTTPS base origin. Bind both to the trusted shell so
+        // onPageFinished can authenticate it before transferring the native port.
+        view.loadDataWithBaseURL(PAGE, shell(source), "text/html", "UTF-8", PAGE)
     }
 
 }

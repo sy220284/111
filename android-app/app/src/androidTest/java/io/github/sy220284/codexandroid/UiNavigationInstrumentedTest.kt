@@ -1104,7 +1104,13 @@ class UiNavigationInstrumentedTest {
         val tail = TimelineItem("scroll-tail", "agentMessage", "当前阶段成果", "inProgress", turnId = "scroll-live")
         try {
             rule.runOnUiThread { vm.timeline.value = history + tail }
-            val viewport = rule.onNodeWithTag("conversation-timeline")
+            // Presentation preparation runs outside Compose's idle clock. Wait
+            // for its real tail, then address the LazyColumn's own scroll node.
+            rule.waitUntil(10_000L) {
+                rule.onAllNodesWithText("当前阶段成果").fetchSemanticsNodes().isNotEmpty()
+            }
+            val viewport = rule.onNodeWithTag("conversation-timeline", useUnmergedTree = true)
+                .assertIsDisplayed()
             viewport.performScrollToIndex(12)
             rule.waitForIdle()
             val anchor = rule.onNodeWithText("历史阅读锚点 12")
@@ -1140,6 +1146,9 @@ class UiNavigationInstrumentedTest {
                 (0 until 80).joinToString("\n\n") { "第二阶段阅读位置 $it" }, "inProgress",
                 turnId = "anchor-turn", phase = "final_answer")
             rule.runOnUiThread { vm.timeline.value = listOf(partial, final) }
+            rule.waitUntil(10_000L) {
+                rule.onAllNodesWithText("第二阶段阅读位置", substring = true).fetchSemanticsNodes().isNotEmpty()
+            }
             viewport.performScrollToIndex(1)
             viewport.performTouchInput { swipeUp() }
             rule.waitForIdle()
