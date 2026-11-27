@@ -55,6 +55,7 @@ jobs:
           sparse-checkout: |
             .github/scripts
             .github/ci
+            tools/dev
       - name: 查找已验证的 ARM64 手机核心及手动选定的测试核心
         id: detect
         shell: bash

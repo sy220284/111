@@ -16,6 +16,7 @@ def run(command, idle=1800, maximum=10800):
     def terminate(signum, frame):
         raise SystemExit(128 + signum)
     old = signal.signal(signal.SIGTERM, terminate)
+    old_int = signal.signal(signal.SIGINT, terminate)
     try:
         while True:
             now = time.monotonic()
@@ -48,6 +49,7 @@ def run(command, idle=1800, maximum=10800):
                 process.wait()
         process.stdout.close()
         signal.signal(signal.SIGTERM, old)
+        signal.signal(signal.SIGINT, old_int)
 
 if __name__ == "__main__":
     p = argparse.ArgumentParser(description=__doc__)

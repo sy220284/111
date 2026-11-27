@@ -42,6 +42,7 @@ def download(endpoint, destination, expected, *, stall=180, maximum=900, interva
             def interrupted(signum, frame):
                 raise SystemExit(128 + signum)
             previous_term = signal.signal(signal.SIGTERM, interrupted)
+            previous_int = signal.signal(signal.SIGINT, interrupted)
             start = last_change = last_log = time.monotonic()
             previous = 0
             failure = None
@@ -66,6 +67,7 @@ def download(endpoint, destination, expected, *, stall=180, maximum=900, interva
             finally:
                 stop(process)
                 signal.signal(signal.SIGTERM, previous_term)
+                signal.signal(signal.SIGINT, previous_int)
             errors.seek(0)
             detail = errors.read(16384).decode("utf-8", errors="replace").strip()
         if process.returncode == 0 and failure is None and destination.stat().st_size == expected:
