@@ -26,10 +26,9 @@ INPUTS = ("android-app/tools/prepare_android_v8.sh",
           "android-app/tools/adapt_android_v8_build.py",
           "android-app/tools/v8_toolchain_provenance.py",
           "upstream/codex/codex-rs/Cargo.lock",
-          "tools/dev/toolchain-lock.json")
-# Actual V8 source/lock and production recipe; transfer and watchdog code is not a compiler input.
-KEY_INPUTS = (*INPUTS, "tools/dev/auxiliary.py", "tools/dev/component-bundle.py",
-              "tools/dev/host_components.py", "tools/dev/run-without-network.sh")
+          ".github/scripts/ci-android-sdk.sh")
+KEY_INPUTS = (*INPUTS, ".github/actions/ci-android/action.yml",
+              ".github/actions/ci-rust/action.yml", ".github/scripts/ci-llvm.sh")
 PRODUCER = ".github/scripts/v8_artifacts.py"
 LIMIT = 3 * 1024**3
 
@@ -46,13 +45,8 @@ def key(target, sha="HEAD"):
     if target not in TARGETS:
         raise ValueError("Unsupported V8 target")
     recipe = producer_recipe(git("show", f"{sha}:{WORKFLOW}"))
-    # The host production recipes remain part of the input contract; unrelated
-    # consumer code, transport budgets and other workflow jobs do not.
-    host = git("show", f"{sha}:.github/workflows/prepare-host-toolchain.yml")
-    aux = git("show", f"{sha}:.github/workflows/prepare-aux-toolchain.yml")
     inputs = [git("rev-parse", f"{sha}:{p}") for p in KEY_INPUTS]
-    return hashlib.sha256(json.dumps([target, recipe, job_recipe(host,"android"),
-        job_recipe(host,"rust"), job_recipe(aux,"prepare"), inputs], separators=(",",":")).encode()).hexdigest()
+    return hashlib.sha256(json.dumps([target, recipe, inputs], separators=(",",":")).encode()).hexdigest()
 
 
 def names(target):

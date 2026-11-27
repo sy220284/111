@@ -3,7 +3,7 @@
 import json
 import os
 
-CHAIN = ("developer-runtime", "host-android", "host-patcher", "release", "device-ready", "device", "publish", "cleanup")
+CHAIN = ("developer-runtime", "release", "device-ready", "device", "publish", "cleanup")
 REASONS = {"waiting-ci": "等待完整验收", "waiting-native": "等待原生内核",
            "already-published": "当前源码已发布", "no-client-change": "无客户端发布变更"}
 

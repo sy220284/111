@@ -30,14 +30,18 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                 for dependency in upstream:
                     self.assertIn("needs." + dependency + ".result == 'success'", condition)
         terminal = jobs["release-result"]
-        self.assertIn("needs: [preflight, check-release, developer-runtime, host-android, host-patcher, release, device-ready, device, publish, cleanup]", terminal)
-        self.assertIn("!cancelled()", terminal)
-        self.assertIn("python3 .github/scripts/release_outcome.py", terminal)
-        # 防谎报语义已外移到 release_outcome.py：完整发布链逐项强制成功。
-        outcome = (Path(__file__).resolve().parent / "release_outcome.py").read_text(encoding="utf-8")
-        self.assertIn('"device-ready", "device", "publish", "cleanup"', outcome)
-        self.assertIn('results[key] != "success"', outcome)
-        self.assertIn("正式发布链未完成", outcome)
+        from release_outcome import CHAIN, verdict
+        dependencies = re.search(r"^    needs: \[(.+)\]$",terminal,re.M).group(1).split(", ")
+        self.assertEqual({"preflight","check-release",*CHAIN},set(dependencies))
+        self.assertIn("!cancelled()",terminal)
+        self.assertIn("python3 .github/scripts/release_outcome.py",terminal)
+        fixture={"preflight":{"result":"skipped"},"check-release":{"result":"success","outputs":{"decision":"publish"}},
+                 **{key:{"result":"success"} for key in CHAIN}}
+        self.assertIn("已完成",verdict(fixture,"workflow_run","refs/heads/main",True))
+        for key in CHAIN:
+            with self.subTest(job=key):
+                with self.assertRaises(ValueError):
+                    verdict(fixture|{key:{"result":"skipped"}},"workflow_run","refs/heads/main",True)
 
     def test_all_real_android_jobs_are_required(self):
         for workflow, names in REQUIRED_JOBS.items():

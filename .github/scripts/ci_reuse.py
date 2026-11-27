@@ -67,7 +67,8 @@ UI_TEST_TOOLS = {
 SAFE_DOCS = {"README.md", "AGENTS.md", "docs/CI统一交付流程.md"}
 
 def affected(path):
-    if path in SAFE_DOCS:
+    from ci_policy import maintenance_only
+    if path in SAFE_DOCS or maintenance_only([path]):
         return set()
     if path in RELEASE_ONLY or (path.startswith(".github/scripts/test_") and path.endswith(".py")):
         return {"preflight"}
@@ -257,14 +258,6 @@ def validate(repo, record, source, required, *, now=None):
 def actual_jobs(groups):
     groups = set(groups)
     jobs = set().union(*(GROUPS[g] for g in groups))
-    if groups & {"compile", "package", "runtime", "sign", "ui"}:
-        jobs.add("host-android")
-    if groups & {"static", "compile", "ui"}:
-        jobs.add("host-wheelhouse")
-    if groups & {"ui", "runtime"}:
-        jobs.add("host-emulator")
-    if groups & {"package", "runtime", "sign"}:
-        jobs.add("host-patcher")
     return jobs
 
 def native_key(source):

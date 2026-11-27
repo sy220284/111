@@ -36,6 +36,8 @@ class ReuseTests(unittest.TestCase):
             self.assertIsNone(candidate("o/r",self.run,self.target,self.now+timedelta(days=3)))
         self.assertEqual(set(GROUPS),affected(".github/workflows/ci.yml"))
         self.assertEqual(set(GROUPS),affected("new-unclassified-file"))
+        self.assertEqual(set(),affected("tools/dev/ci_host.py"))
+        self.assertEqual(set(),affected(".github/workflows/dev-toolchain.yml"))
         self.assertEqual({"preflight"},affected(".github/scripts/generate-release-notes.py"))
     def test_receipt_revalidation_and_runtime_dependency(self):
         proof={"run_id":12,"source":self.source,"tree":"old","artifacts":{}}

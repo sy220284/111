@@ -40,6 +40,7 @@
     }
   ],
   "system_image_api": "37.2",
+  "command_line_tools": "22.0",
   "sdk_platform": "35",
   "runtime_profile": "mainstream",
   "minimum_ui_tests": 150,

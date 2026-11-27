@@ -7,7 +7,7 @@ W = ROOT / ".github/workflows"
 class UnifiedScopeTests(unittest.TestCase):
     def test_single_ci_entry_and_complete_gate(self):
         ci = (W / "ci.yml").read_text()
-        for key in ("plan:", "host-android:", "host-wheelhouse:", "host-emulator:", "host-patcher:", "native:", "runtime-arm64:", "runtime-x86:", "static-ui:", "verify-ui:", "ui-emulator:", "ui-collect:", "ui-evidence:", "build:", "runtime-test:", "verify-apk:", "preflight:", "release-signing-smoke:", "compatibility:", "quality:"):
+        for key in ("plan:", "native:", "runtime-arm64:", "runtime-x86:", "static-ui:", "verify-ui:", "ui-emulator:", "ui-collect:", "ui-evidence:", "build:", "runtime-test:", "verify-apk:", "preflight:", "release-signing-smoke:", "compatibility:", "quality:"):
             self.assertIn("  " + key, ci)
         self.assertIn("name: 111 合并验收", ci)
         self.assertIn("python3 .github/scripts/ci_gate.py", ci)
@@ -15,20 +15,20 @@ class UnifiedScopeTests(unittest.TestCase):
             self.assertFalse((W / old).exists())
     def test_ui_modes_and_independent_integrity_can_run_in_parallel(self):
         ci = (W / "ci.yml").read_text()
-        self.assertIn("needs: [plan, verify-ui, host-android, host-emulator]", ci)
+        self.assertIn("needs: [plan, verify-ui]", ci)
         self.assertIn("--mode ${{ matrix.mode }}", ci)
         self.assertIn("pattern: ui-proof-*", ci)
-        self.assertIn("needs: [plan, ui-emulator, host-wheelhouse]", ci)
+        self.assertIn("needs: [plan, ui-emulator]", ci)
         self.assertIn("needs: [plan, ui-collect]", ci)
         self.assertIn("needs.ui-collect.result == 'failure'", ci)
         self.assertIn("--shard ${{ matrix.shard }}", ci)
         self.assertIn("pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*", ci)
-        self.assertEqual(1, ci.count("needs: [plan, static-ui, preflight, host-android]"))
+        self.assertEqual(3, ci.count("needs: [plan, static-ui, preflight]"))
         self.assertIn("needs.ui-emulator.result == 'failure'", ci)
         self.assertIn("保存供全矩阵核对的小型验收凭证\n        if: ${{ !cancelled() }}", ci)
         runtime = ci.split("\n  runtime-test:", 1)[1].split("\n  verify-apk:", 1)[0]
         verify_apk = ci.split("\n  verify-apk:", 1)[1].split("\n  preflight:", 1)[0]
-        self.assertIn("needs: [plan, native, runtime-x86, host-android, host-emulator, host-patcher]", runtime)
+        self.assertIn("needs: [plan, native, runtime-x86]", runtime)
         self.assertIn("needs: [plan, build]", verify_apk)
         self.assertNotIn("needs.runtime-test", verify_apk)
     def test_ui_emulator_reads_the_physical_baseline_before_device_tests(self):
@@ -64,15 +64,15 @@ class UnifiedScopeTests(unittest.TestCase):
                                         capture_output=True, text=True)
                 self.assertEqual(expected, result.returncode, result.stderr)
 
-    def test_host_toolchain_is_consumed_by_actual_builds(self):
-        for name in ("ci.yml", "release.yml", "build-native-codex.yml"):
+    def test_user_toolchain_is_not_consumed_by_ci(self):
+        for name in ("ci.yml","release.yml","build-native-codex.yml"):
             source=(W/name).read_text()
-            self.assertIn("./.github/actions/install-host-toolchain",source)
-            self.assertNotIn("actions/setup-java@",source)
-            self.assertNotIn("gradle/actions/setup-gradle@",source)
+            for obsolete in ("install-host-toolchain","prepare-host-toolchain","prepare-aux-toolchain","ci_host.py","check-ci-toolchain.sh","111-toolchain-","android_descriptor"):
+                self.assertNotIn(obsolete,source)
+            self.assertIn("./.github/actions/ci-android",source)
         self.assertIn("cargo build --locked --offline --release",(W/"build-native-codex.yml").read_text())
-        self.assertNotIn("reactivecircus/android-emulator-runner@",(W/"ci.yml").read_text())
         self.assertIn("./.github/actions/run-emulator",(W/"ci.yml").read_text())
+
     def test_release_consumes_only_unified_main_gate(self):
         release = (W / "release.yml").read_text()
         self.assertIn("workflows: ['111 统一质量验收']", release)

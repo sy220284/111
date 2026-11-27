@@ -26,7 +26,7 @@ CACHE="$(realpath "$CACHE")"
 EXPECTED_INPUTS="$(mktemp)"
 TOOL_PROVENANCE="$(mktemp)"
 trap 'rm -f "$EXPECTED_INPUTS" "$TOOL_PROVENANCE"' EXIT
-# Resolve and record the verified portable tools before expensive source work.
+# Resolve and record the actual official host tools before expensive source work.
 python3 "$GITHUB_WORKSPACE/android-app/tools/v8_toolchain_provenance.py" > "$TOOL_PROVENANCE"
 python3 "$GITHUB_WORKSPACE/.github/scripts/v8_artifacts.py" inputs --target "$TARGET" > "$EXPECTED_INPUTS"
 test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
@@ -42,7 +42,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
       echo "Pinned V8 source commit mismatch" >&2; exit 1;
     }
     git -C "$SRC" submodule update --init --recursive --depth 1
-    : "${LLVM_HOME:?missing verified LLVM component}" "${LIBCLANG_PATH:?missing verified libclang}"
+    : "${LLVM_HOME:?missing official LLVM}" "${LIBCLANG_PATH:?missing official libclang}"
     "$LLVM_HOME/bin/clang" --version | grep -E 'clang version 21\.'
     test -s "$LIBCLANG_PATH/libclang.so"
     command -v ninja

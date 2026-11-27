@@ -1,0 +1,33 @@
+name: GitHub Android CI 编译环境
+description: Reuse hosted JDK and SDK; install only missing official build packages.
+inputs:
+  mode:
+    required: true
+    description: build, native or v8
+runs:
+  using: composite
+  steps:
+    - name: 优先选择 Runner 预装 JDK 17
+      id: java
+      shell: bash
+      run: |
+        if [ -x "${JAVA_HOME_17_X64:-/nonexistent}/bin/java" ]; then
+          printf 'JAVA_HOME=%s\n' "$JAVA_HOME_17_X64" >> "$GITHUB_ENV"
+          printf '%s/bin\n' "$JAVA_HOME_17_X64" >> "$GITHUB_PATH"
+          echo 'present=true' >> "$GITHUB_OUTPUT"
+        else
+          echo 'present=false' >> "$GITHUB_OUTPUT"
+        fi
+    - if: steps.java.outputs.present == 'false'
+      uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+      with:
+        distribution: temurin
+        java-version: '17'
+    - name: 核对预装 SDK 并补齐缺项
+      shell: bash
+      env:
+        CI_ANDROID_MODE: ${{ inputs.mode }}
+      run: bash .github/scripts/ci-android-sdk.sh "$CI_ANDROID_MODE"
+    - name: 使用项目 Gradle Wrapper 和官方依赖缓存
+      if: inputs.mode == 'build'
+      uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a

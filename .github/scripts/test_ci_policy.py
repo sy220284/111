@@ -12,6 +12,14 @@ class PolicyTests(unittest.TestCase):
         self.assertFalse(maintenance_only(["AGENTS.md", "unknown"]))
         self.assertFalse(plan(["AGENTS.md"])["full"])
         self.assertTrue(plan(["AGENTS.md"], force=True)["full"])
+    def test_user_toolchain_distribution_does_not_trigger_build_or_release(self):
+        for path in (".github/workflows/dev-toolchain.yml",".github/workflows/prepare-host-toolchain.yml",
+                     ".github/workflows/prepare-aux-toolchain.yml","tools/dev/ci_host.py","tools/dev/auxiliary.py"):
+            self.assertFalse(plan([path])["full"],path)
+            self.assertFalse(matches(path,"release"),path)
+        for path in (".github/actions/ci-android/action.yml","tools/dev/component-bundle.py","tools/dev/toolchain-lock.json"):
+            self.assertTrue(plan([path])["full"],path)
+
     def test_release_inputs(self):
         self.assertTrue(matches("android-app/tools/prepare_prebuilt_developer_runtime.py", "release"))
         self.assertTrue(matches(".github/release-version", "release"))

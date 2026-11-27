@@ -169,28 +169,12 @@ jobs:
       abi: arm64-v8a
       source_sha: ${{ needs.check-release.outputs.release_sha }}
 
-  host-android:
-    needs: check-release
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.decision == 'publish' }}
-    uses: ./.github/workflows/prepare-host-toolchain.yml
-    with:
-      group: android
-      source_sha: ${{ needs.check-release.outputs.release_sha }}
-
-  host-patcher:
-    needs: check-release
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.decision == 'publish' }}
-    uses: ./.github/workflows/prepare-aux-toolchain.yml
-    with:
-      group: patcher
-      source_sha: ${{ needs.check-release.outputs.release_sha }}
-
   release:
     name: 签名并保存唯一 ARM64 候选 APK
-    needs: [check-release, developer-runtime, host-android, host-patcher]
+    needs: [check-release, developer-runtime]
     # The PR-only preflight is skipped for workflow_run. Check the actual
     # acceptance result explicitly instead of inheriting an implicit success().
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.developer-runtime.result == 'success' && needs.host-android.result == 'success' && needs.check-release.outputs.decision == 'publish' && needs.host-patcher.result == 'success' }}
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.developer-runtime.result == 'success' && needs.check-release.outputs.decision == 'publish' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
@@ -203,18 +187,10 @@ jobs:
           ref: ${{ needs.check-release.outputs.release_sha }}
           fetch-depth: 0
 
-      - name: 安装已验收的 patcher 组件
-        uses: ./.github/actions/install-host-toolchain
+      - name: 使用 Runner Android SDK（仅补齐缺项）
+        uses: ./.github/actions/ci-android
         with:
-          group: patcher
-          descriptor: ${{ needs.host-patcher.outputs.descriptor }}
-          token: ${{ github.token }}
-      - name: 安装已断网验收的 Android 工具组件
-        uses: ./.github/actions/install-host-toolchain
-        with:
-          group: android
-          descriptor: ${{ needs.host-android.outputs.descriptor }}
-          token: ${{ github.token }}
+          mode: build
       - name: 校验固定 Gradle Wrapper
         shell: bash
         run: |
@@ -300,7 +276,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash tools/dev/run-build-offline.sh ./android-app/gradlew -p android-app --offline --dependency-verification strict :app:lintRelease :app:assembleRelease \
+          ./android-app/gradlew -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName="${{ needs.check-release.outputs.version }}" \
@@ -561,7 +537,7 @@ jobs:
 
   release-result:
     name: 正式发布闭环验收
-    needs: [preflight, check-release, developer-runtime, host-android, host-patcher, release, device-ready, device, publish, cleanup]
+    needs: [preflight, check-release, developer-runtime, release, device-ready, device, publish, cleanup]
     if: ${{ !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     timeout-minutes: 3

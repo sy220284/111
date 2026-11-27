@@ -32,14 +32,6 @@ def changed(base, head):
     return [p.decode("utf-8") for p in subprocess.check_output(
         ["git", "diff", "--no-renames", "--name-only", "-z", base, head, "--"]).split(b"\0") if p]
 
-def toolchain_changed(paths):
-    # Shared audit is needed only when its actual inputs or workflow contract change.
-    return any(p.startswith(("tools/dev/", "tools/runtime/", ".github/workflows/", ".github/actions/", "android-app/gradle/", "android-app/tools/", "android-app/buildSrc/", "upstream/codex/codex-rs/.cargo/"))
-               or p == "upstream/codex/.github/actions/publish-dotslash/requirements.txt"
-               or p.startswith("upstream/codex/codex-rs/") and p.rsplit("/", 1)[-1] in {"Cargo.toml", "Cargo.lock", "rust-toolchain.toml", "rust-toolchain"}
-               or p.startswith("android-app/") and (p.endswith((".gradle", ".gradle.kts", "gradle.properties", "gradle.lockfile")) or p.rsplit("/", 1)[-1] in {"gradlew", "gradlew.bat"})
-               or p in {"<initial-or-unknown-base>", ".github/actionlint.yaml"} for p in paths)
-
 def main():
     result = plan(changed(os.environ.get("CI_BASE", ""), os.environ["CI_HEAD"]),
                   os.environ.get("CI_FORCE") == "true", os.environ.get("CI_RUNTIME") == "true")
@@ -53,7 +45,6 @@ def main():
     receipt = make_plan(os.environ["GITHUB_REPOSITORY"], source, required, force)
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
         print("receipt="+json.dumps(receipt,separators=(",",":")),file=stream)
-        print("toolchain_check="+str(force or toolchain_changed(result["changed"])).lower(),file=stream)
         for group in GROUPS:
             print(f"run_{group}={str(group in receipt['execute']).lower()}",file=stream)
         print("compile_run_id="+str(receipt["reused"].get("compile", {}).get("run_id", os.environ["GITHUB_RUN_ID"])),file=stream)

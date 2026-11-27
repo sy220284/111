@@ -140,8 +140,7 @@ if __name__ == "__main__":
     if args.verify_avd_metadata:
         root=Path(os.environ["ANDROID_AVD_HOME"])
         sdk=Path(os.environ["CODEX_EMULATOR_SDK"])
-        lock=json.loads((Path(__file__).resolve().parents[2]/"tools/dev/toolchain-lock.json").read_text())
-        print(json.dumps(verify_avd_metadata(root,args.avd_name,sdk,lock["project"]["deviceCommandLineTools"])))
+        print(json.dumps(verify_avd_metadata(root,args.avd_name,sdk,CONFIG["command_line_tools"])))
         raise SystemExit(0)
     if args.verify_resources:
         cpus = subprocess.check_output(["adb", "shell", "getconf", "_NPROCESSORS_ONLN"], text=True).strip()
