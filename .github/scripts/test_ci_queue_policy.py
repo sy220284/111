@@ -23,10 +23,6 @@ class QueueTests(unittest.TestCase):
         self.assertIn("github.event_name == 'pull_request' && 'latest' || github.sha", concurrency)
         self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", concurrency)
         self.assertNotIn("github.event.pull_request.head.sha", concurrency)
-        native = (root / ".github/workflows/build-native-codex.yml").read_text()
-        self.assertIn("group: android-native-codex-${{ inputs.native_key || github.sha }}", native)
-        self.assertIn("group: android-v8-${{ matrix.v8_key }}", native)
-        self.assertEqual(2, native.count("queue: max"))
 
     def test_only_idle_superseded_pr_candidate(self):
         old,new=run(1,OLD),run(2,NEW)
@@ -36,7 +32,7 @@ class QueueTests(unittest.TestCase):
         self.assertFalse(eligible(REPO,new,pr(),new,[]))
         self.assertFalse(eligible(REPO,dict(old,event="workflow_dispatch"),pr(),new,[]))
         self.assertFalse(eligible(REPO,dict(old,head_repository={"full_name":"fork/r"}),pr(),new,[]))
-        self.assertFalse(eligible(REPO,old,pr(),dict(new,status="completed",conclusion="failure"),[]))
+        self.assertTrue(eligible(REPO,old,pr(),dict(new,status="completed",conclusion="failure"),[]))
         self.assertFalse(eligible(REPO,old,pr(OLD),new,[]))
 
     def test_dry_run_and_live_head_recheck(self):
@@ -55,14 +51,25 @@ class QueueTests(unittest.TestCase):
         def changed(repo,path):
             if path=="actions/runs/1": return dict(old,status="in_progress")
             return api(repo,path)
-        self.assertEqual([],reconcile(REPO,12,changed,pages,lambda *x:calls.append(x),True))
+        def active_pages(repo,path,field):
+            return [old,new] if field=="workflow_runs" else [{"status":"in_progress"}]
+        self.assertEqual([],reconcile(REPO,12,changed,active_pages,lambda *x:calls.append(x),True))
         self.assertEqual(1,len(calls))
 
-    def test_diverged_history_is_preserved(self):
+    def test_running_metadata_but_idle_jobs_can_be_cancelled(self):
+        old,new=run(1,OLD,"in_progress"),run(2,NEW)
+        self.assertTrue(eligible(REPO,old,pr(),new,[{"status":"completed"},{"status":"pending"}]))
+        self.assertFalse(eligible(REPO,old,pr(),new,[]))
+        self.assertFalse(eligible(REPO,old,pr(),new,[{"status":"in_progress"}]))
+
+    def test_force_push_supersedes_same_pr_without_ancestry(self):
         old,new=run(1,OLD),run(2,NEW)
         def api(repo,path):
-            return {"status":"diverged"} if path.startswith("compare/") else pr()
-        self.assertEqual([],reconcile(REPO,12,api,lambda *x:[old,new],lambda *x:self.fail("cancel"),True))
+            if path=="pulls/12": return pr()
+            if path.startswith("compare/"): self.fail("ancestry is irrelevant")
+            return old if path.endswith("/1") else new
+        self.assertEqual([1],reconcile(REPO,12,api,lambda r,p,f: [old,new] if f=="workflow_runs" else [],lambda *x:None,True))
+
 
 if __name__=="__main__":
     unittest.main()

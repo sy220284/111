@@ -39,7 +39,7 @@ jobs:
   reuse:
     name: 复用已验证原生内核（源码及编译配置一致）
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 8
     outputs:
       arm_run_id: ${{ steps.detect.outputs.arm_run_id }}
       x86_run_id: ${{ steps.detect.outputs.x86_run_id }}
@@ -55,15 +55,22 @@ jobs:
           sparse-checkout: |
             .github/scripts
             .github/ci
+            tools/dev
       - name: 查找已验证的 ARM64 手机核心及手动选定的测试核心
         id: detect
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           INCLUDE_X86: ${{ inputs.include_x86 }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
           ABI_MATRIX_JSON: '[{"rust_target":"aarch64-linux-android","clang":"aarch64-linux-android29-clang","clangxx":"aarch64-linux-android29-clang++","abi":"arm64-v8a","elf_arch":"AArch64"},{"rust_target":"x86_64-linux-android","clang":"x86_64-linux-android29-clang","clangxx":"x86_64-linux-android29-clang++","abi":"x86_64","elf_arch":"X86-64"}]'
         run: |
           set -euo pipefail
+          if [ -n "$PR_NUMBER" ]; then
+            LIVE_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER" --jq .head.sha)"
+            test "$LIVE_HEAD" = "$CANDIDATE_SHA" || { echo "::error::候选已被新 head 替代，停止占用原生构建锁"; exit 1; }
+          fi
           MISSING='[]'
           for ABI in $(jq -r '.[].abi' <<< "$ABI_MATRIX_JSON"); do
             if [ "$ABI" = 'x86_64' ] && [ "$INCLUDE_X86" != 'true' ]; then
@@ -132,8 +139,9 @@ jobs:
 
   v8:
     name: V8 官方源码产物 · ${{ matrix.abi }}
-    needs: [reuse, provider-contract, host-android, host-rust, host-llvm]
-    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) && needs.host-llvm.result == 'success' }}
+    # V8 official sources do not depend on provider model-contract results.
+    needs: [reuse, host-android, host-rust, host-llvm]
+    if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && needs.host-llvm.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -143,7 +151,7 @@ jobs:
       queue: max
       cancel-in-progress: false
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 180
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -191,7 +199,7 @@ jobs:
         run: python3 .github/scripts/v8_artifacts.py restore --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
       - name: 从官方源码编译 V8
         if: steps.restore.outputs.restored == 'false'
-        run: bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+        run: python3 tools/dev/build_progress.py -- bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
       - name: 独立核验完整 V8 文件、来源及构建输入
         run: python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
       - name: 发布本次已核验的 V8 二进制及来源凭证
@@ -210,10 +218,10 @@ jobs:
     name: 编译 ${{ matrix.abi }} 核心
     # Do not spend hours compiling Android binaries for a source revision that
     # has already failed the native host contract. A verified receipt also qualifies.
-    needs: [reuse, provider-contract, v8, host-android, host-rust]
+    needs: [reuse, provider-contract, v8, host-android, host-rust, host-llvm]
     if: ${{ !cancelled() && needs.reuse.result == 'success' && needs.host-rust.result == 'success' && (inputs.android_descriptor != '' || needs.host-android.result == 'success') && needs.reuse.outputs.reuse != 'true' && needs.v8.result == 'success' && (needs.provider-contract.result == 'success' || (needs.provider-contract.result == 'skipped' && needs.reuse.outputs.provider_reuse == 'true')) }}
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -274,9 +282,31 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_resolve_codex_catalog_version.py'
       # Check the pristine lock before any Android adaptation modifies Cargo.lock.
       - name: 下载并核验独立 V8 产物及原始构建输入
+        id: v8-consume
         env:
           GH_TOKEN: ${{ github.token }}
         run: python3 .github/scripts/v8_artifacts.py consume --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 为损坏或缺失 V8 产物恢复固定 LLVM
+        if: steps.v8-consume.outputs.rebuild == 'true'
+        uses: ./.github/actions/install-host-toolchain
+        with:
+          group: llvm
+          descriptor: ${{ needs.host-llvm.outputs.descriptor }}
+          token: ${{ github.token }}
+      - name: 从固定官方源码重建异常 V8 产物
+        if: steps.v8-consume.outputs.rebuild == 'true'
+        run: python3 tools/dev/build_progress.py -- bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+      - name: 强制核验恢复后的 V8 字节、来源与构建输入
+        if: steps.v8-consume.outputs.rebuild == 'true'
+        run: python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
+      - name: 保存独立恢复产物与来源凭证
+        if: steps.v8-consume.outputs.rebuild == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: v8-recovery-${{ matrix.v8_key }}
+          path: .android-v8-cache/${{ matrix.rust_target }}/*
+          if-no-files-found: error
+          retention-days: 90
       - name: 将 Android 平台接入上游现有 OpenSSL 源码编译配置
         shell: bash
         run: |
@@ -346,7 +376,7 @@ jobs:
           fi
           export "CARGO_TARGET_${TARGET_ENV}_RUSTFLAGS=$RUST_LINK_FLAGS"
           cd upstream/codex/codex-rs
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline --release \
+          python3 "$GITHUB_WORKSPACE/tools/dev/build_progress.py" -- bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline --release \
             -p codex-app-server --bin codex-app-server \
             -p codex-code-mode-host --bin codex-code-mode-host \
             --target "$TARGET"
@@ -409,7 +439,7 @@ jobs:
     needs: [reuse, host-rust]
     if: needs.reuse.outputs.provider_reuse != 'true' && needs.host-rust.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 90
+    timeout-minutes: 60
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_BUILD_JOBS: "2"
@@ -481,8 +511,9 @@ jobs:
   verified:
     name: 原生核心统一验收
     needs: [reuse, native, provider-contract, v8]
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       arm_run_id: ${{ needs.reuse.outputs.arm_run_id }}
       x86_run_id: ${{ needs.reuse.outputs.x86_run_id }}
