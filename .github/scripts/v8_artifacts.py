@@ -13,7 +13,7 @@ import sys
 import zipfile
 from datetime import datetime
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/dev'))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/build'))
 from transfer_progress import download, TransferUnavailable
 from build_recipe import job_recipe
 

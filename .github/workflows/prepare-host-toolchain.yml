@@ -109,7 +109,7 @@ jobs:
           cp -a "$GRADLE_USER_HOME/caches/modules-2" "$RUNNER_TEMP/stage/gradle/caches/"
           find "$RUNNER_TEMP/stage/gradle" -type f -name '*.lock' -delete
           for c in jdk android-sdk gradle; do
-            python3 tools/dev/component-bundle.py pack "$c" "$RUNNER_TEMP/stage/$c" "$RUNNER_TEMP/bundles/$c" --head "$(git rev-parse HEAD)" > "$RUNNER_TEMP/$c.sha256"
+            python3 tools/build/component-bundle.py pack "$c" "$RUNNER_TEMP/stage/$c" "$RUNNER_TEMP/bundles/$c" --head "$(git rev-parse HEAD)" > "$RUNNER_TEMP/$c.sha256"
             rm -rf "$RUNNER_TEMP/stage/$c"
           done
           python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/host" host-install --artifacts-dir "$RUNNER_TEMP/bundles" --pins-dir "$RUNNER_TEMP" --source-sha "$(git rev-parse HEAD)" --components jdk android-sdk gradle > "$RUNNER_TEMP/host-paths.json"
@@ -236,7 +236,7 @@ jobs:
           cargo +1.99.1 fetch --locked --target x86_64-linux-android
           cd "$GITHUB_WORKSPACE"
           for c in rust cargo; do
-            python3 tools/dev/component-bundle.py pack "$c" "$RUNNER_TEMP/stage/$c" "$RUNNER_TEMP/bundles/$c" --head "$(git rev-parse HEAD)" > "$RUNNER_TEMP/$c.sha256"
+            python3 tools/build/component-bundle.py pack "$c" "$RUNNER_TEMP/stage/$c" "$RUNNER_TEMP/bundles/$c" --head "$(git rev-parse HEAD)" > "$RUNNER_TEMP/$c.sha256"
             rm -rf "$RUNNER_TEMP/stage/$c"
           done
           python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/host" host-install --artifacts-dir "$RUNNER_TEMP/bundles" --pins-dir "$RUNNER_TEMP" --source-sha "$(git rev-parse HEAD)" --components rust cargo > "$RUNNER_TEMP/host-paths.json"

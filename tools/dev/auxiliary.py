@@ -175,7 +175,7 @@ def prepare(group,stage):
 def verify(group,stage):
     if group=="wheelhouse":wheelhouse_verify(stage)
     elif group=="llvm":llvm_verify(stage)
-    elif group=="emulator":run("bash",ROOT/"tools/dev/run-emulator.sh","--probe",env={"CODEX_EMULATOR_SDK":str(stage),"EMULATOR_PROFILE":"mainstream"})
+    elif group=="emulator":run("bash",ROOT/"tools/build/run-emulator.sh","--probe",env={"CODEX_EMULATOR_SDK":str(stage),"EMULATOR_PROFILE":"mainstream"})
     elif group=="patcher":
         env={"CODEX_PATCHER_HOME":str(stage)}
         run("bash",ROOT/".github/scripts/prepare-android-patcher.sh","arm64-v8a","x86_64",cwd=ROOT,env=env)

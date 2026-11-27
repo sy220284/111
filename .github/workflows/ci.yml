@@ -75,6 +75,7 @@ jobs:
         run: |
           set -euo pipefail
           python3 .github/scripts/run_ci_script_tests.py plan
+          python3 -m unittest discover -s tools/build -p 'test_*.py'
           python3 -m unittest discover -s android-app/tools -p 'test_device_matrix.py'
           python3 -m unittest discover -s android-app/tools -p 'test_verify_ui_matrix_evidence.py'
           python3 -m unittest discover -s android-app/tools -p 'test_merge_ui_shards.py'
@@ -125,7 +126,7 @@ jobs:
             /.github/ci/
             /.github/actions/run-emulator/
             /.github/actions/ci-emulator/
-            /tools/dev/
+            /tools/build/
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
             /docs/第五版接口与界面组件映射矩阵.md
@@ -212,7 +213,7 @@ jobs:
             /.github/ci/
             /.github/actions/run-emulator/
             /.github/actions/ci-emulator/
-            /tools/dev/
+            /tools/build/
             /docs/设计系统.md
             /docs/对标应用29项界面交付核对表-20261123.md
             /docs/第五版接口与界面组件映射矩阵.md
@@ -314,7 +315,7 @@ jobs:
             /.github/ci/
             /.github/actions/run-emulator/
             /.github/actions/ci-emulator/
-            /tools/dev/
+            /tools/build/
             /android-app/tools/collect_ui_screenshots.py
             /android-app/tools/ui_evidence_manifest.py
             /android-app/tools/run_ui_device_checks.py
@@ -458,7 +459,7 @@ jobs:
             /.github/ci/
             /.github/actions/run-emulator/
             /.github/actions/ci-emulator/
-            /tools/dev/
+            /tools/build/
             /android-app/tools/
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
@@ -591,7 +592,7 @@ jobs:
             .github/ci
             .github/actions/run-emulator
             .github/actions/ci-emulator
-            tools/dev
+            tools/build
             tools/runtime
       - name: 使用 Runner Android SDK（仅补齐缺项）
         uses: ./.github/actions/ci-android
@@ -625,7 +626,7 @@ jobs:
         run: |
           set -euo pipefail
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-          CODEX_RUNTIME_PREPARED="$(python3 tools/dev/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
+          CODEX_RUNTIME_PREPARED="$(python3 tools/build/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
           export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
           head -n 1 CODEX_UPSTREAM_COMMIT
@@ -700,7 +701,7 @@ jobs:
             .github/ci
             .github/actions/run-emulator
             .github/actions/ci-emulator
-            tools/dev
+            tools/build
             tools/runtime
       - name: 使用 Runner Android 编译环境
         uses: ./.github/actions/ci-android
@@ -732,7 +733,7 @@ jobs:
         run: |
           set -euo pipefail
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-          CODEX_RUNTIME_PREPARED="$(python3 tools/dev/component-bundle.py install runtime-x86 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
+          CODEX_RUNTIME_PREPARED="$(python3 tools/build/component-bundle.py install runtime-x86 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
           export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh x86_64 "$RUNNER_TEMP/native-x86" "$STRIP"
           bash .github/scripts/prepare-android-patcher.sh x86_64
@@ -847,7 +848,7 @@ jobs:
             .github/ci
             .github/actions/run-emulator
             .github/actions/ci-emulator
-            tools/dev
+            tools/build
       - name: 使用 Runner Android SDK（仅补齐缺项）
         uses: ./.github/actions/ci-android
         with:

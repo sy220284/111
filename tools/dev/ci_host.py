@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verified producer/consumer contract shared by developer, CI and release builds."""
+"""Verified producer/consumer contract for the independently distributed user toolchain."""
 import argparse
 import hashlib
 import json
@@ -12,10 +12,9 @@ from urllib.parse import urlencode
 from host_components import api, complete_index, download_artifact, install, environment, timestamp, require, JOB_NAMES, GROUPS
 from build_recipe import job_recipe
 
-WORKFLOWS = {".github/workflows/dev-toolchain.yml", ".github/workflows/ci.yml",
-             ".github/workflows/build-native-codex.yml", ".github/workflows/release.yml"}
+WORKFLOWS = {".github/workflows/dev-toolchain.yml"}
 # Keep actual production and verification inputs, not download/monitoring consumers.
-RECIPE = ("tools/dev/component-bundle.py", "tools/dev/host_components.py",
+RECIPE = ("tools/build/component-bundle.py", "tools/dev/host_components.py",
           "tools/dev/toolchain-lock.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py")
 HEX = re.compile(r"[0-9a-f]{64}")
 SHA = re.compile(r"[0-9a-f]{40}")
@@ -34,7 +33,7 @@ def key(group, source="HEAD"):
         paths += ["tools/dev/auxiliary.py"]
         if group=="wheelhouse":
             paths += ["tools/dev/requirements-host.lock","android-app/tools/requirements-ui-visual.txt","upstream/codex/.github/actions/publish-dotslash/requirements.txt"]
-        if group=="emulator": paths += ["android-app/tools/device-matrix.json","android-app/tools/device_matrix.py","tools/dev/run-emulator.sh",".github/actions/run-emulator"]
+        if group=="emulator": paths += ["android-app/tools/device-matrix.json","android-app/tools/device_matrix.py","tools/build/run-emulator.sh",".github/actions/run-emulator"]
         if group=="patcher": paths += [".github/scripts/prepare-android-patcher.sh",".github/scripts/create-android-update-fixture.sh"]
     raw=subprocess.check_output(["git","ls-tree","-r","-z",source,"--",*paths])
     result=[]

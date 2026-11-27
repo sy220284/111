@@ -71,7 +71,7 @@ jobs:
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/stage" "$RUNNER_TEMP/bundles"
           python3 tools/dev/auxiliary.py prepare "$HOST_GROUP" "$RUNNER_TEMP/stage/$HOST_GROUP"
-          python3 tools/dev/component-bundle.py pack "$HOST_GROUP" "$RUNNER_TEMP/stage/$HOST_GROUP" "$RUNNER_TEMP/bundles/$HOST_GROUP" --head "$(git rev-parse HEAD)" > "$RUNNER_TEMP/$HOST_GROUP.sha256"
+          python3 tools/build/component-bundle.py pack "$HOST_GROUP" "$RUNNER_TEMP/stage/$HOST_GROUP" "$RUNNER_TEMP/bundles/$HOST_GROUP" --head "$(git rev-parse HEAD)" > "$RUNNER_TEMP/$HOST_GROUP.sha256"
           rm -rf "$RUNNER_TEMP/stage/$HOST_GROUP"
           python3 tools/dev/ai-toolchain.py --root "$RUNNER_TEMP/host" host-install --artifacts-dir "$RUNNER_TEMP/bundles" --pins-dir "$RUNNER_TEMP" --source-sha "$(git rev-parse HEAD)" --components "$HOST_GROUP" > "$RUNNER_TEMP/host-paths.json"
       - name: 生成并断网验证独立组件

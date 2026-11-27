@@ -23,7 +23,8 @@
     ],
     "prefixes": [
       "docs/",
-      "upstream/codex/sdk/"
+      "upstream/codex/sdk/",
+      "tools/dev/"
     ]
   },
   "release": {
@@ -47,13 +48,7 @@
       "android-app/gradle/wrapper/gradle-wrapper.jar",
       "android-app/gradle/wrapper/gradle-wrapper.properties",
       "android-app/gradle/libs.versions.toml",
-      "tools/dev/component-bundle.py",
-      "tools/dev/run-emulator.sh",
-      "tools/dev/run-build-offline.sh",
-      "tools/dev/run-without-network.sh",
-      "tools/dev/build_progress.py",
-      "tools/dev/build_recipe.py",
-      "tools/dev/transfer_progress.py"
+      "tools/build/component-bundle.py"
     ],
     "prefixes": [
       "android-app/app/src/main/",
@@ -134,13 +129,11 @@
       "android-app/gradle/libs.versions.toml",
       "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/LiveServiceInstrumentedTest.kt",
       "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/V8ComponentAssertions.kt",
-      "tools/dev/component-bundle.py",
-      "tools/dev/run-emulator.sh",
-      "tools/dev/run-build-offline.sh",
-      "tools/dev/run-without-network.sh",
-      "tools/dev/build_progress.py",
-      "tools/dev/build_recipe.py",
-      "tools/dev/transfer_progress.py"
+      "tools/build/component-bundle.py",
+      "tools/build/run-emulator.sh",
+      "tools/build/build_progress.py",
+      "tools/build/build_recipe.py",
+      "tools/build/transfer_progress.py"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",

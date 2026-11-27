@@ -258,7 +258,7 @@ jobs:
         run: |
           set -euo pipefail
           STRIP="$ANDROID_HOME/ndk/27.2.12479018/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-strip"
-          CODEX_RUNTIME_PREPARED="$(python3 tools/dev/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
+          CODEX_RUNTIME_PREPARED="$(python3 tools/build/component-bundle.py install runtime-arm64 "$RUNNER_TEMP/developer-runtime-bundle" "$RUNNER_TEMP/developer-runtime-installed" --manifest-sha "$RUNTIME_MANIFEST_SHA")"
           export CODEX_RUNTIME_PREPARED
           bash android-app/tools/package_native_runtime.sh arm64-v8a "$RUNNER_TEMP/native-arm64" "$STRIP"
 

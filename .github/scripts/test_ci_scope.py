@@ -44,7 +44,7 @@ class UnifiedScopeTests(unittest.TestCase):
         self.assertIn("null|1.0", before_motion)
 
     def test_emulator_boot_dismisses_keyguard_without_injecting_input_and_checks_home_focus(self):
-        script = (ROOT / "tools/dev/run-emulator.sh").read_text()
+        script = (ROOT / "tools/build/run-emulator.sh").read_text()
         self.assertNotIn("input keyevent 82", script)
         self.assertIn("device_shell wm dismiss-keyguard", script)
         self.assertIn("Android HOME focused and stable", script)

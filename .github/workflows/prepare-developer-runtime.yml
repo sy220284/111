@@ -70,8 +70,8 @@ jobs:
         run: |
           set -euo pipefail
           case "$ABI" in arm64-v8a) COMPONENT=runtime-arm64;; x86_64) COMPONENT=runtime-x86;; *) exit 2;; esac
-          PIN="$(python3 tools/dev/component-bundle.py pack "$COMPONENT" "$RUNNER_TEMP/runtime" "$RUNNER_TEMP/runtime-bundle" --head "$(git rev-parse HEAD)")"
-          python3 tools/dev/component-bundle.py install "$COMPONENT" "$RUNNER_TEMP/runtime-bundle" "$RUNNER_TEMP/installed" --manifest-sha "$PIN"
+          PIN="$(python3 tools/build/component-bundle.py pack "$COMPONENT" "$RUNNER_TEMP/runtime" "$RUNNER_TEMP/runtime-bundle" --head "$(git rev-parse HEAD)")"
+          python3 tools/build/component-bundle.py install "$COMPONENT" "$RUNNER_TEMP/runtime-bundle" "$RUNNER_TEMP/installed" --manifest-sha "$PIN"
           echo "manifest_sha=$PIN" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         id: upload

@@ -12,11 +12,12 @@ import re
 import subprocess
 import tempfile
 import time
-from transfer_progress import download
-
 HERE = pathlib.Path(__file__).resolve().parent
+BUILD = HERE.parent / "build"
+sys.path.insert(0, str(BUILD))
+from transfer_progress import download
 LOCK = json.loads((HERE/"toolchain-lock.json").read_text())
-spec = importlib.util.spec_from_file_location("component_bundle", HERE/"component-bundle.py")
+spec = importlib.util.spec_from_file_location("component_bundle", BUILD/"component-bundle.py")
 bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
 ANDROID = ("jdk", "android-sdk", "gradle")

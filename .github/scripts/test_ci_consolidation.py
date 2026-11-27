@@ -7,10 +7,11 @@ class ConsolidationTests(unittest.TestCase):
         dev=(ROOT/".github/workflows/dev-toolchain.yml").read_text()
         self.assertIn("workflow_dispatch:",dev)
         self.assertNotIn("  push:",dev)
-        for p in ("ci.yml","release.yml","build-native-codex.yml"):
+        for p in ("ci.yml","release.yml","build-native-codex.yml","prepare-developer-runtime.yml"):
             source=(ROOT/".github/workflows"/p).read_text()
             for forbidden in ("prepare-host-toolchain","prepare-aux-toolchain","install-host-toolchain","check-ci-toolchain.sh","111-toolchain-","host-android","host-rust","host-llvm","host-emulator","host-wheelhouse","host-patcher"):
                 self.assertNotIn(forbidden,source,p)
+            self.assertNotIn("tools/dev/", source, p)
     def test_standard_environment_uses_only_official_sources(self):
         sdk=(ROOT/".github/scripts/ci-android-sdk.sh").read_text()
         self.assertIn('if [ ! -s "$SDK/$2" ]',sdk)
@@ -31,7 +32,7 @@ class ConsolidationTests(unittest.TestCase):
         self.assertIn('system-images/$IMAGE',image)
         self.assertNotIn("toolchain-lock.json",image)
         self.assertNotIn("download-artifact",emulator)
-        self.assertNotIn("toolchain-lock.json",(ROOT/"tools/dev/run-emulator.sh").read_text())
+        self.assertNotIn("toolchain-lock.json",(ROOT/"tools/build/run-emulator.sh").read_text())
         self.assertNotIn("toolchain-lock.json",(ROOT/"android-app/tools/device_matrix.py").read_text())
         ci=(ROOT/".github/workflows/ci.yml").read_text()
         self.assertEqual(2,ci.count("uses: ./.github/actions/ci-emulator"))

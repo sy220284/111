@@ -13,14 +13,14 @@ from datetime import datetime
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT / "tools/dev"))
+sys.path.insert(0, str(ROOT / "tools/build"))
 from transfer_progress import download
 from build_recipe import job_recipe
 
 WORKFLOW = ".github/workflows/prepare-developer-runtime.yml"
 INPUTS = (
     "tools/runtime", "android-app/tools/prepare_prebuilt_developer_runtime.py",
-    "android-app/tools/developer_tool_launcher.c", "tools/dev/component-bundle.py",
+    "android-app/tools/developer_tool_launcher.c", "tools/build/component-bundle.py",
     ".github/scripts/ci-android-sdk.sh",
 )
 ABI_NAMES = {"arm64-v8a": ("runtime-arm64", "ARM64 工具链产物核验"),

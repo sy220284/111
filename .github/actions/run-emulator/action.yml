@@ -14,4 +14,4 @@ runs:
       env:
         EMULATOR_PROFILE: ${{ inputs.profile }}
         EMULATOR_SCRIPT: ${{ inputs.script }}
-      run: bash tools/dev/run-emulator.sh
+      run: bash tools/build/run-emulator.sh
