@@ -77,17 +77,30 @@ def instrumentation_command(classes, arguments=None):
     return ["adb", "shell", shlex.join(command)]
 
 
-def execute_instrumentation(classes, log_path, arguments=None):
+def execute_instrumentation(classes, log_path, arguments=None, timeout=None):
     command = instrumentation_command(classes, arguments)
+    timed_out = False
     with Path(log_path).open("w", encoding="utf-8") as evidence:
         with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                               text=True, errors="replace") as process:
-            for line in process.stdout:
-                evidence.write(line)
-                print(line, end="", flush=True)
+            if timeout is None:
+                for line in process.stdout:
+                    evidence.write(line)
+                    print(line, end="", flush=True)
+            else:
+                try:
+                    output, _ = process.communicate(timeout=timeout)
+                except subprocess.TimeoutExpired:
+                    timed_out = True
+                    process.kill()
+                    output, _ = process.communicate()
+                evidence.write(output)
+                print(output, end="", flush=True)
             code = process.wait()
     log = Path(log_path).read_text(encoding="utf-8")
     result = parse_instrumentation(log, code)
+    if timed_out:
+        result.update(status="failed", category="diagnostic_timeout", timeout_seconds=timeout)
     result["test_ids"] = completed_test_ids(log)
     if result["status"] == "passed" and (len(result["test_ids"]) != result["tests"] or len(set(result["test_ids"])) != result["tests"]):
         result.update(status="failed", evidence_category="missing_or_duplicate_test_ids")

@@ -81,9 +81,12 @@ def main():
             # diagnostic execution identifies actual CPU stacks; it never
             # supplies acceptance evidence or replaces the failed measurement.
             profile = execute_instrumentation(["UiMotionPerformanceInstrumentedTest"],
-                "ui-motion-failure.profile.log", {"expectedRenderer": "Pipeline=Skia (OpenGL)", "methodTrace": "true"})
+                "ui-motion-failure.profile.log", {"expectedRenderer": "Pipeline=Skia (OpenGL)", "methodTrace": "true"}, timeout=180)
             result["sampled_diagnostic"] = profile
             Path("ui-motion-diagnosis.json").write_text(json.dumps(result, indent=2))
+            if profile.get("category") == "diagnostic_timeout":
+                print("Independent method sampling exceeded 180 seconds; original frames and failure retained")
+                adb("shell", "am", "force-stop", package)
             trace = "ui-motion-failure.trace"
             pulled = subprocess.run(["adb", "pull", DEVICE_ROOT + "/" + trace, trace], check=False)
             if pulled.returncode != 0:

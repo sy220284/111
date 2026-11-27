@@ -6,6 +6,20 @@ from run_ui_device_checks import parse_instrumentation, assert_device, clear_dev
 
 
 class DeviceEvidenceTest(unittest.TestCase):
+    def test_bounded_diagnostic_retains_partial_output_and_cannot_pass(self):
+        import sys
+        import tempfile
+        from pathlib import Path
+        from run_ui_device_checks import execute_instrumentation
+        command = [sys.executable, "-u", "-c", "import time; print('partial device evidence', flush=True); time.sleep(30)"]
+        with tempfile.TemporaryDirectory() as folder, patch("run_ui_device_checks.instrumentation_command", return_value=command):
+            path = Path(folder) / "diagnostic.log"
+            result = execute_instrumentation(["Diagnostic"], path, timeout=.2)
+            self.assertIn("partial device evidence", path.read_text())
+            self.assertEqual("failed", result["status"])
+            self.assertEqual("diagnostic_timeout", result["category"])
+            self.assertEqual(0, result["tests"])
+
     def test_instrumentation_arguments_survive_android_shell_parsing(self):
         renderer = "Pipeline=Skia (Vulkan)"
         literal = "one 'two' ; $(echo unexpected) & three"
