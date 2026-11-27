@@ -24,7 +24,7 @@ SYSTEM = {"libc.so", "libm.so", "libdl.so", "liblog.so", "libz.so", "libandroid.
 
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-LOCK = json.loads((ROOT / "tools/dev/toolchain-lock.json").read_text())
+LOCK = json.loads((ROOT / "tools/runtime/runtime-lock.json").read_text())
 sys.path.insert(0, str(ROOT / "tools/runtime"))
 from runtime_versions import package_records, verify_versions, versions_for
 VERSIONS = versions_for("arm64-v8a")

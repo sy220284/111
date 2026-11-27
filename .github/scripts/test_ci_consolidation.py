@@ -40,3 +40,15 @@ class ConsolidationTests(unittest.TestCase):
         runtime=(ROOT/".github/workflows/prepare-developer-runtime.yml").read_text()
         self.assertNotIn("sdkmanager",runtime)
         self.assertIn("mode: native",runtime)
+
+    def test_product_runtime_does_not_install_user_toolchain(self):
+        for path in ("tools/runtime/build-111-runtime.sh", "tools/runtime/fetch-arm64-packages.py", "tools/runtime/runtime_versions.py", "android-app/tools/prepare_prebuilt_developer_runtime.py"):
+            source = (ROOT / path).read_text()
+            self.assertNotIn("tools/dev/ai-toolchain.py", source, path)
+            self.assertNotIn("tools/dev/toolchain-lock.json", source, path)
+        self.assertIn("fetch-arm64-packages.py", (ROOT / "tools/runtime/build-111-runtime.sh").read_text())
+        import json
+        user = json.loads((ROOT / "tools/dev/toolchain-lock.json").read_text())
+        product = json.loads((ROOT / "tools/runtime/runtime-lock.json").read_text())
+        self.assertNotIn("runtime-cache", user["shared"])
+        self.assertEqual("arm64-v8a", product["packageArchive"]["version"])

@@ -9,8 +9,7 @@ test ! -e "$OUT"
 TEMP="$(mktemp -d)"
 trap 'rm -rf "$TEMP"' EXIT
 if [ "$ABI" = arm64-v8a ]; then
-  python3 "$ROOT/tools/dev/ai-toolchain.py" --root "$TEMP/shared" shared-install --components runtime-cache --artifacts-dir "$TEMP/downloads" --download > "$TEMP/shared.json"
-  cp -a "$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["runtime-cache"])' "$TEMP/shared.json")" "$TEMP/cache"
+  python3 "$ROOT/tools/runtime/fetch-arm64-packages.py" "$TEMP/cache"
 else
   mkdir -p "$TEMP/cache"
   for component in git node python; do

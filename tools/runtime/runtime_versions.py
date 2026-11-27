@@ -6,7 +6,7 @@ import re
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-LOCK = json.loads((ROOT / "tools/dev/toolchain-lock.json").read_text())
+LOCK = json.loads((ROOT / "tools/runtime/runtime-lock.json").read_text())
 TOOLS = ("git", "curl", "jq", "ripgrep", "python", "pip", "node", "npm")
 PACKAGES = (
     ("git", "git", "git"), ("git", "curl", "curl"), ("git", "jq", "jq"),

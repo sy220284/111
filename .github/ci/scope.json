@@ -23,7 +23,8 @@
       "tools/dev/requirements-host.lock",
       "tools/dev/test_auxiliary.py",
       "tools/dev/test_host_components.py",
-      "tools/dev/test_toolchain.py"
+      "tools/dev/test_toolchain.py",
+      "tools/dev/toolchain-lock.json"
     ],
     "prefixes": [
       "docs/",
@@ -51,7 +52,6 @@
       "android-app/gradle/wrapper/gradle-wrapper.jar",
       "android-app/gradle/wrapper/gradle-wrapper.properties",
       "android-app/gradle/libs.versions.toml",
-      "tools/dev/toolchain-lock.json",
       "tools/dev/component-bundle.py",
       "tools/dev/run-emulator.sh",
       "tools/dev/run-build-offline.sh",
@@ -139,7 +139,6 @@
       "android-app/gradle/libs.versions.toml",
       "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/LiveServiceInstrumentedTest.kt",
       "android-app/app/src/androidTest/java/io/github/sy220284/codexandroid/V8ComponentAssertions.kt",
-      "tools/dev/toolchain-lock.json",
       "tools/dev/component-bundle.py",
       "tools/dev/run-emulator.sh",
       "tools/dev/run-build-offline.sh",

@@ -17,7 +17,7 @@ class PolicyTests(unittest.TestCase):
                      ".github/workflows/prepare-aux-toolchain.yml","tools/dev/ci_host.py","tools/dev/auxiliary.py"):
             self.assertFalse(plan([path])["full"],path)
             self.assertFalse(matches(path,"release"),path)
-        for path in (".github/actions/ci-android/action.yml","tools/dev/component-bundle.py","tools/dev/toolchain-lock.json"):
+        for path in (".github/actions/ci-android/action.yml","tools/dev/component-bundle.py","tools/runtime/runtime-lock.json"):
             self.assertTrue(plan([path])["full"],path)
 
     def test_release_inputs(self):
