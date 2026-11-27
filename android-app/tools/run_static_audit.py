@@ -16,6 +16,7 @@ import check_kotlin_file_budget as budget
 import check_design_system_tokens as tokens
 import check_ui_assets as assets
 import check_component_system as components
+import architecture_callgraph
 
 
 def json_report(out, name, data):
@@ -89,12 +90,19 @@ def design(inputs, out):
     return errors
 
 
+def architecture(inputs, out):
+    report = architecture_callgraph.scan(inputs)
+    json_report(out, "architecture-callgraph.json", report)
+    print(f"架构调用候选：{report['source_files']} 源文件，{report['edge_count']} 关系，{len(report['cycle_candidates'])} 循环候选（供审查）")
+    return []
+
+
 def run(root, out):
     inputs = AuditInputs(root)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     summary = {}
-    for name, check in (("protocol", protocol), ("functionality", functionality), ("design", design)):
+    for name, check in (("protocol", protocol), ("functionality", functionality), ("design", design), ("architecture", architecture)):
         try:
             if not inputs.production:
                 raise ValueError("缺少 Android 生产源码")

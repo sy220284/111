@@ -15,7 +15,7 @@ GROUPS = {
     "static": {"static-ui"},
     "compile": {"verify-ui"},
     "ui": {"ui-emulator", "ui-collect", "ui-evidence"},
-    "package": {"native", "runtime-arm64", "build", "verify-apk"},
+    "package": {"runtime-arm64", "build", "verify-apk"},
     "preflight": {"preflight"},
     "compat": {"compatibility"},
     "runtime": {"runtime-x86", "runtime-test"},
@@ -31,7 +31,7 @@ JOB_NAMES = {
     "package": {"原生核心统一验收", "ARM64 工具链产物核验", "build", "ARM64 手机安装包二次核验"},
     "preflight": {"发布脚本回归检查"},
     "compat": {"MXC 和 Code Mode Host 源码适配预演"},
-    "runtime": {"x86_64 工具链产物核验", f"Android {RELEASE} (API {API}) 真实内核及异常恢复验收（x86_64）"},
+    "runtime": {"原生核心统一验收", "x86_64 工具链产物核验", f"Android {RELEASE} (API {API}) 真实内核及异常恢复验收（x86_64）"},
     "sign": {"PR 内验证 Release 签名构建"},
 }
 ARTIFACTS = {
@@ -47,7 +47,7 @@ ARTIFACTS = {
     "runtime": {"codex-android-real-runtime-evidence"},
 }
 SCHEMA = 3
-MAX_AGE = timedelta(days=2)
+MAX_AGE = timedelta(days=7)
 # Unknown paths or changed recipes invalidate all groups. The exceptions
 # below are limited to known unrelated consumers of a changed file.
 RELEASE_ONLY = {
@@ -67,11 +67,24 @@ UI_TEST_TOOLS = {
 SAFE_DOCS = {"README.md", "AGENTS.md", "docs/CI统一交付流程.md"}
 
 def affected(path):
-    from ci_policy import maintenance_only
-    if path in SAFE_DOCS or maintenance_only([path]):
+    from ci_policy import acceptance_inputs_unchanged
+    if path in SAFE_DOCS or acceptance_inputs_unchanged(path):
         return set()
     if path in RELEASE_ONLY or (path.startswith(".github/scripts/test_") and path.endswith(".py")):
         return {"preflight"}
+    # Explicitly scoped consumers. Unknown paths still invalidate all groups.
+    if path in {"android-app/tools/architecture_callgraph.py", "android-app/tools/test_architecture_callgraph.py", "android-app/tools/run_static_audit.py", "android-app/tools/test_run_static_audit.py", "android-app/tools/device_video.py", "android-app/tools/test_device_video.py", ".github/workflows/ui-diagnostic.yml", ".github/scripts/select_ui_diagnostic_apks.py"}:
+        return {"static", "preflight"}
+    if path in {".github/scripts/run-android-runtime-tests.sh"}:
+        return {"runtime", "preflight"}
+    if path in {".github/scripts/ci-emulator-sdk.sh", ".github/actions/ci-emulator/action.yml",
+                ".github/actions/run-emulator/action.yml", "tools/build/run-emulator.sh"}:
+        return {"ui", "runtime", "preflight"}
+    if path in {"android-app/tools/rehearse_upstream_upgrade.py",
+                "android-app/tools/test_rehearse_upstream_upgrade.py"}:
+        return {"compat", "preflight"}
+    if path in {".github/scripts/audit_apk_contents.py", ".github/scripts/verify_git_corresponding_source.py"}:
+        return {"package", "runtime", "sign", "preflight"}
     if path.startswith("android-app/app/src/test/"):
         return {"static", "compile", "ui", "preflight"}
     if path.startswith("android-app/app/src/androidTest/"):
@@ -217,9 +230,6 @@ def make_plan(repo, source, required, force=False):
                         reused[group] = found[group]
             if required <= reused.keys():
                 break
-    # Native preparation must execute if the runtime group really executes.
-    if "runtime" in required and "runtime" not in reused:
-        reused.pop("package",None)
     return {"schema":SCHEMA, "source":source, "tree":tree(source),
             "required":sorted(required), "execute":sorted(required-reused.keys()), "reused":reused}
 
@@ -233,8 +243,6 @@ def check_shape(record, source, required):
         raise ValueError("CI receipt groups missing, duplicated or unexpected")
     if "ui" in execute and "compile" not in required:
         raise ValueError("UI device acceptance requires an authenticated compiled APK")
-    if "runtime" in execute and "package" not in execute:
-        raise ValueError("Actual runtime requires actual native preparation")
 
 def validate(repo, record, source, required, *, now=None):
     check_shape(record,source,required)
@@ -258,11 +266,14 @@ def validate(repo, record, source, required, *, now=None):
 def actual_jobs(groups):
     groups = set(groups)
     jobs = set().union(*(GROUPS[g] for g in groups))
+    # A shared prerequisite, not a member of the ARM64 APK acceptance group.
+    if groups & {"package", "runtime"}:
+        jobs.add("native")
     return jobs
 
-def native_key(source):
+def native_key(source, abis=("arm64-v8a", "x86_64")):
     from native_index import fingerprint
     from select_native_artifacts import ArtifactSelector
     selector=ArtifactSelector()
-    return fingerprint([selector.signature(source,"arm64-v8a"),
-                        selector.signature(source,"x86_64"),selector.test_signature(source)])
+    return fingerprint([[(abi, selector.signature(source, abi)) for abi in sorted(abis)],
+                        selector.test_signature(source)])

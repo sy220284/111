@@ -79,3 +79,19 @@ class GateTests(unittest.TestCase):
         with self.assertRaises(ValueError): verify(jobs,"pull_request","refs/pull/1/merge")
         jobs["plan"]["outputs"]["compile_integrity_id"]="22"
         self.assertIn("ui-emulator",verify(jobs,"pull_request","refs/pull/1/merge"))
+
+    def test_runtime_only_reuses_arm64_package_without_rebuilding(self):
+        data=fixture()
+        record=json.loads(data["plan"]["outputs"]["receipt"])
+        record["execute"].remove("package")
+        record["reused"]["package"]={"run_id":12}
+        data["plan"]["outputs"]["receipt"]=json.dumps(record)
+        for job in ("runtime-arm64", "build", "verify-apk"):
+            data[job]["result"]="skipped"
+        required=verify(data,"pull_request","refs/pull/1/merge")
+        self.assertIn("native", required)
+        self.assertIn("runtime-test", required)
+        self.assertNotIn("build", required)
+        data["native"]["result"]="skipped"
+        with self.assertRaises(ValueError):
+            verify(data,"pull_request","refs/pull/1/merge")

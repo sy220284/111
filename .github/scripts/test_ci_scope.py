@@ -23,7 +23,11 @@ class UnifiedScopeTests(unittest.TestCase):
         self.assertIn("needs.ui-collect.result == 'failure'", ci)
         self.assertIn("--shard ${{ matrix.shard }}", ci)
         self.assertIn("pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*", ci)
-        self.assertEqual(3, ci.count("needs: [plan, static-ui, preflight]"))
+        compile_job = ci.split("\n  verify-ui:\n", 1)[1].split("\n  ui-emulator:\n", 1)[0]
+        self.assertIn("    needs: plan\n", compile_job)
+        for job in ("native", "release-signing-smoke"):
+            block = ci.split("\n  " + job + ":\n", 1)[1]
+            self.assertIn("needs: [plan, static-ui, preflight]", block.split("    runs-on:", 1)[0].split("    uses:", 1)[0])
         self.assertIn("needs.ui-emulator.result == 'failure'", ci)
         self.assertIn("保存供全矩阵核对的小型验收凭证\n        if: ${{ !cancelled() }}", ci)
         runtime = ci.split("\n  runtime-test:", 1)[1].split("\n  verify-apk:", 1)[0]
@@ -84,3 +88,16 @@ class UnifiedScopeTests(unittest.TestCase):
         self.assertIn("workflow_call:", native)
         self.assertIn("native_index.py create", native)
         self.assertNotIn("gh workflow run", native)
+
+    def test_release_skips_native_lookup_when_version_already_exists_or_inputs_unchanged(self):
+        release=(W/"release.yml").read_text()
+        self.assertLess(release.index("decision=already-published"), release.index("select_native_artifacts.py"))
+        self.assertLess(release.index("decision=no-client-change"), release.index("select_native_artifacts.py"))
+
+    def test_native_producer_only_requests_required_abis(self):
+        ci=(W/"ci.yml").read_text()
+        native=ci.split("\n  native:\n",1)[1].split("\n  runtime-arm64:\n",1)[0]
+        self.assertIn("include_arm: ${{ needs.plan.outputs.run_package == 'true' }}", native)
+        self.assertIn("include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}", native)
+        producer=(W/"build-native-codex.yml").read_text()
+        self.assertIn('if [ "$ABI" = \'arm64-v8a\' ] && [ "$INCLUDE_ARM" != true ]; then continue; fi', producer)

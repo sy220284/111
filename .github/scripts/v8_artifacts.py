@@ -218,7 +218,7 @@ def direct_producer(repo, artifact, target, expected_key, source, api_call=api, 
     return len(matches) == 1 and timestamp(matches[0]["started_at"]) <= timestamp(artifact["created_at"]) <= timestamp(matches[0]["completed_at"])
 
 
-def current_artifact(repo, run_id, expected_key, api_call=api):
+def current_artifact(repo, run_id, expected_key, api_call=api, allow_missing=False):
     """Resolve the current run's exact ABI artifact, never a stale other run."""
     name = "v8-binary-" + expected_key
     response = api_call(repo, f"actions/runs/{run_id}/artifacts?name={name}&per_page=100")
@@ -226,6 +226,8 @@ def current_artifact(repo, run_id, expected_key, api_call=api):
     if response["total_count"] > len(rows):
         raise ValueError("Incomplete current V8 artifact index")
     matches = [a for a in rows if a.get("name") == name and not a.get("expired", True)]
+    if not matches and allow_missing:
+        return None
     if len(matches) != 1:
         raise ValueError(f"Expected one current-run V8 artifact {name}, found {len(matches)}; rerun its producer, not only its consumer")
     artifact = matches[0]
@@ -252,37 +254,41 @@ def download_verified(repo, artifact, folder, target, expected):
     print(f"Verified V8 artifact ID {artifact['id']} for {target}")
 
 
-def restore(repo,target,source,folder,expected_key,expected):
-    # Query immutable indexed artifacts; only original successful source
-    # producers qualify, even while other jobs in that workflow are running.
-    rejected = 0
+def historical_artifacts(repo, target, source, expected_key):
+    """Yield original, successful producer descriptors without downloading bytes."""
     for prefix in ("v8-binary-", "v8-recovery-"):
         for page in range(1, 11):
             response = api(repo, f"actions/artifacts?name={prefix}{expected_key}&per_page=100&page={page}")
             rows = response["artifacts"]
             for artifact in rows:
-                if not direct_producer(repo, artifact, target, expected_key, source):
-                    continue
-                try:
-                    download_verified(repo, artifact, folder, target, expected)
-                except (ValueError, zipfile.BadZipFile, TransferUnavailable) as exc:
-                    rejected += 1
-                    print(f"::warning::Rejected V8 artifact {artifact['id']}: {exc}", flush=True)
-                    if rejected >= 2:
-                        return False
-                    continue
-                print(f"Verified V8 artifact {artifact['id']} from run {artifact['workflow_run']['id']}")
-                return True
+                if direct_producer(repo, artifact, target, expected_key, source):
+                    yield artifact
             if len(rows) < 100:
                 break
         else:
             raise ValueError("V8 index exceeds safe scan limit")
+
+
+def restore(repo,target,source,folder,expected_key,expected):
+    # The native consumer downloads directly from the original producer.
+    rejected = 0
+    for artifact in historical_artifacts(repo, target, source, expected_key):
+        try:
+            download_verified(repo, artifact, folder, target, expected)
+        except (ValueError, zipfile.BadZipFile, TransferUnavailable) as exc:
+            rejected += 1
+            print(f"::warning::Rejected V8 artifact {artifact['id']}: {exc}", flush=True)
+            if rejected >= 2:
+                return False
+            continue
+        print(f"Verified V8 artifact {artifact['id']} from run {artifact['workflow_run']['id']}")
+        return True
     return False
 
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument("command",choices=("key","inputs","restore","verify","consume"))
+    p.add_argument("command",choices=("key","inputs","probe","restore","verify","consume"))
     p.add_argument("--target",required=True,choices=TARGETS)
     p.add_argument("--folder",type=Path)
     p.add_argument("--repo")
@@ -296,6 +302,16 @@ def main():
     fingerprint=key(a.target,source)
     if a.command=="key":
         print(fingerprint)
+        return
+    if a.command == "probe":
+        if a.key != fingerprint or not a.repo:
+            p.error("V8 probe requires repository and exact input key")
+        # No compiler, SDK or archive transport is needed to select a descriptor.
+        found = next(historical_artifacts(a.repo, a.target, source, fingerprint), None)
+        with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+            print("available="+str(found is not None).lower(), file=out)
+        if found:
+            print(f"Original V8 artifact {found['id']} selected; native consumer will verify its bytes")
         return
     if a.key != fingerprint or not a.folder:
         p.error("V8 key or directory mismatch")
@@ -312,16 +328,20 @@ def main():
         if a.command == "consume":
             if not a.repo:
                 p.error("Consume requires repository")
-            try:
-                artifact = current_artifact(a.repo, int(os.environ["GITHUB_RUN_ID"]), fingerprint)
-                download_verified(a.repo, artifact, folder, a.target, expected)
-            except (ValueError, zipfile.BadZipFile, TransferUnavailable) as exc:
-                print(f"::warning::Current V8 artifact rejected: {exc}", flush=True)
-                if not restore(a.repo, a.target, source, folder, fingerprint, expected):
-                    # Workflow must rebuild and independently verify before Cargo.
-                    with open(os.environ["GITHUB_OUTPUT"], "a") as out:
-                        print("rebuild=true", file=out)
-                    return
+            artifact = current_artifact(a.repo, int(os.environ["GITHUB_RUN_ID"]), fingerprint, allow_missing=True)
+            consumed = False
+            if artifact is not None:
+                try:
+                    download_verified(a.repo, artifact, folder, a.target, expected)
+                    consumed = True
+                except (ValueError, zipfile.BadZipFile, TransferUnavailable) as exc:
+                    print(f"::warning::Current V8 artifact rejected: {exc}", flush=True)
+            if not consumed and not restore(a.repo, a.target, source, folder, fingerprint, expected):
+                # No intact original remains: the native job must rebuild and
+                # independently verify before Cargo, then publish recovery bytes.
+                with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                    print("rebuild=true", file=out)
+                return
             with open(os.environ["GITHUB_OUTPUT"], "a") as out:
                 print("rebuild=false", file=out)
         archive,binding=verify(folder,a.target,expected)

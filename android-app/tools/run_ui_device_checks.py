@@ -10,7 +10,7 @@ import time
 import uuid
 from collect_ui_screenshots import parse_discovered_screens
 from pathlib import Path
-from device_matrix import CONFIG, PROFILES, dimensions, SHARDS, shard_classes
+from device_matrix import CONFIG, PROFILES, dimensions, SHARDS, shard_classes, DIAGNOSTIC_SUITES
 
 PACKAGE = "io.github.sy220284.codexandroid"
 RUNNER = PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner"
@@ -147,7 +147,7 @@ def assert_device(spec, physical_spec):
                 width_dp=round(width * 160 / dpi, 2), height_dp=round(height * 160 / dpi, 2))
 
 
-def run_fresh_suite(profile, mode, log, destination, shard):
+def run_fresh_suite(profile, mode, log, destination, shard, *, suite=None, method=None):
     measured = assert_device(dimensions(profile, mode), dimensions(profile, 'baseline'))
     measured.update(profile=profile, mode=mode, shard=shard)
     adb("shell", "am", "force-stop", PACKAGE)
@@ -158,12 +158,20 @@ def run_fresh_suite(profile, mode, log, destination, shard):
         screenshot_errors.append("清理旧截图失败，跳过本轮采集：" + str(error))
     run_id = uuid.uuid4().hex
     started = time.time()
-    classes = shard_classes(profile, mode, shard)
+    classes = list(DIAGNOSTIC_SUITES[suite]) if suite else shard_classes(profile, mode, shard)
+    if method:
+        if not suite or len(classes) != 1 or not re.fullmatch(r"[A-Za-z_]\w*", method):
+            raise ValueError("专项方法必须属于一个已选择的测试类")
+        classes = [classes[0] + "#" + method]
     result = execute_instrumentation(classes, log, arguments={
         "expectedWidthPx": measured["width_px"], "expectedDensityDpi": measured["density_dpi"]})
     observed = {test.split('#', 1)[0] for test in result['test_ids']}
-    if observed != {PACKAGE + '.' + name for name in classes}:
+    if observed != {PACKAGE + '.' + name.split('#', 1)[0] for name in classes}:
         result.update(status='failed', evidence_category='missing_or_unexpected_test_classes')
+    if method and result['test_ids'] != [PACKAGE + '.' + classes[0]]:
+        result.update(status='failed', evidence_category='missing_or_unexpected_test_method')
+    if suite:
+        result.update(diagnostic_only=True, suite=suite, method=method)
     missing, code = [], None
     try:
         if not screenshot_errors:
@@ -211,11 +219,11 @@ def prepare_display_change():
         time.sleep(.25)
 
 
-def baseline(profile, shard):
-    return run_fresh_suite(profile, "baseline", "ui-instrument-result.log", "ui-screenshots", shard)
+def baseline(profile, shard, **selection):
+    return run_fresh_suite(profile, "baseline", "ui-instrument-result.log", "ui-screenshots", shard, **selection)
 
 
-def adaptive(profile, shard):
+def adaptive(profile, shard, **selection):
     # Each configuration owns a disposable AVD. Apply its display override
     # once; do not stop HOME or resize after capturing the test evidence.
     spec = dimensions(profile, "adaptive")
@@ -234,7 +242,7 @@ def adaptive(profile, shard):
     actual_font = adb("shell", "settings", "get", "system", "font_scale")
     if (1.0 if actual_font == "null" else float(actual_font)) != float(spec["font_scale"]):
         adb("shell", "settings", "put", "system", "font_scale", str(spec["font_scale"]))
-    return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", shard)
+    return run_fresh_suite(profile, "adaptive", "ui-adaptive-result.log", "ui-screenshots-adaptive", shard, **selection)
 
 
 def collect_anr_diagnostics():
@@ -257,19 +265,51 @@ def collect_anr_diagnostics():
     return diagnostics
 
 
+def write_summary(result, report):
+    """Expose actionable failures; preserve original JSON and logs."""
+    destination = os.environ.get("GITHUB_STEP_SUMMARY")
+    if not destination:
+        return
+    def safe(value):
+        return str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("|", "&#124;").replace("\n", " ")
+    with open(destination, "a", encoding="utf-8") as stream:
+        print("## Android 设备测试诊断", file=stream)
+        print(f"状态：{safe(result['status'])}；设备：{safe(result.get('profile','unknown'))}；用例：{result.get('tests',0)}", file=stream)
+        if result.get("diagnostic_only"):
+            print("专项诊断；不作为完整合并或发布验收。", file=stream)
+        print("| 用例 | 分类 | 原始错误 |", file=stream)
+        print("|---|---|---|", file=stream)
+        for failure in result.get("failures", []):
+            print("| " + " | ".join(safe(failure.get(k,"")) for k in ("test","category","error")) + " |", file=stream)
+        if result.get("category") or result.get("error") or result.get("evidence_category"):
+            print("原因：" + safe(result.get("error") or result.get("evidence_category") or result.get("category")), file=stream)
+        print("原始诊断：" + safe(report) + "；完整日志见本作业 Artifact。", file=stream)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--profile", choices=sorted(PROFILES), required=True)
     parser.add_argument("--mode", choices=["baseline", "adaptive"], required=True)
     parser.add_argument("--shard", choices=sorted(SHARDS), required=True)
+    parser.add_argument("--suite", choices=sorted(DIAGNOSTIC_SUITES))
+    parser.add_argument("--method")
     args = parser.parse_args()
+    if args.method and not args.suite:
+        parser.error("--method requires --suite")
+    if args.suite == "installer" and not (args.profile == "mainstream" and args.mode == "baseline"):
+        parser.error("installer uses the designated mainstream baseline device")
     report = Path("ui-" + args.mode + "-diagnosis.json")
     try:
-        result = baseline(args.profile, args.shard) if args.mode == "baseline" else adaptive(args.profile, args.shard)
+        selection = {"suite": args.suite, "method": args.method} if args.suite else {}
+        runner = baseline if args.mode == "baseline" else adaptive
+        result = runner(args.profile, args.shard, **selection)
     except (OSError, ValueError, RuntimeError, subprocess.SubprocessError) as error:
         result = {"status": "failed", "category": "runner_or_device", "error": str(error), "profile": args.profile}
+    if args.suite:
+        result.update(diagnostic_only=True, suite=args.suite, method=args.method)
     if result["status"] != "passed":
         result["system_anr_diagnostics"] = collect_anr_diagnostics()
+    write_summary(result, report)
     report.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(result, ensure_ascii=False, indent=2), flush=True)
     return int(result["status"] != "passed")

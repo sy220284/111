@@ -36,6 +36,7 @@
       "android-app/gradle.properties",
       "android-app/tools/package_native_runtime.sh",
       "android-app/tools/prepare_prebuilt_developer_runtime.py",
+      ".github/scripts/assemble-product-runtime.sh",
       ".github/scripts/prepare-android-patcher.sh",
       ".github/scripts/prepare-release-assets.sh",
       ".github/scripts/verify_git_corresponding_source.py",
@@ -121,6 +122,7 @@
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/NativeRemoteDeliveryDialog.kt",
       "android-app/tools/developer_tool_launcher.c",
       ".github/workflows/prepare-developer-runtime.yml",
+      ".github/scripts/assemble-product-runtime.sh",
       ".github/scripts/prepare-android-patcher.sh",
       ".github/scripts/create-android-update-fixture.sh",
       "android-app/gradle.properties",
@@ -141,6 +143,52 @@
       "tools/runtime/",
       "android-app/app/src/main/jniLibs/",
       "android-app/app/src/main/assets/"
+    ]
+  },
+  "ci_maintenance": {
+    "files": [
+      "android-app/tools/architecture_callgraph.py",
+      "android-app/tools/audit_ui_feature_coverage.py",
+      "android-app/tools/capture_dsh_onboarding.py",
+      "android-app/tools/device-matrix.json",
+      "android-app/tools/device_matrix.py",
+      "android-app/tools/device_video.py",
+      "android-app/tools/generate_pr99_ui_design.py",
+      "android-app/tools/merge_ui_shards.py",
+      "android-app/tools/protocol_contract.py",
+      "android-app/tools/rehearse_upstream_upgrade.py",
+      "android-app/tools/requirements-ui-visual.txt",
+      "android-app/tools/review_upstream_protocol.py",
+      "android-app/tools/run_post_release_pressure.py",
+      "android-app/tools/run_static_audit.py",
+      "android-app/tools/run_ui_device_checks.py",
+      "android-app/tools/run_ui_motion_checks.py",
+      "android-app/tools/static_audit_inputs.py",
+      "android-app/tools/sync_ui_protocol_docs.py",
+      "android-app/tools/ui_evidence_manifest.py",
+      "android-app/tools/ui_icon_aliases.json",
+      "android-app/tools/ui_interaction_coverage.json",
+      "android-app/tools/ui_surface_policy.json",
+      "android-app/tools/ui_visual_audit.py",
+      "android-app/tools/upstream_protocol_review.json",
+      "android-app/tools/v8_toolchain_provenance.py",
+      "android-app/tools/collect_ui_screenshots.py",
+      "android-app/tools/check_architecture_boundaries.py",
+      ".github/pull_request_template.md"
+    ],
+    "prefixes": [
+      ".github/workflows/",
+      ".github/actions/",
+      ".github/scripts/",
+      ".github/ci/",
+      ".github/ISSUE_TEMPLATE/",
+      "upstream/codex/.github/workflows/",
+      "tools/build/",
+      "android-app/tools/check_",
+      "android-app/tools/test_",
+      "android-app/tools/verify_",
+      "android-app/app/src/test/",
+      "android-app/app/src/androidTest/"
     ]
   }
 }
