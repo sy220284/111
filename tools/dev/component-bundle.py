@@ -253,7 +253,7 @@ def verify_stream(folder, manifest, output=None):
                 archive.update(block)
                 if output is not None:
                     output.write(block)
-        print(f"Verified {manifest['name']} part {spec['name']}: {count} bytes", flush=True)
+        print(f"Verified {manifest['component']} part {spec['name']}: {count} bytes", flush=True)
         require(count == spec["size"] and part_hash.hexdigest() == spec["sha256"],
                 "corrupt part: " + spec["name"])
     require(archive.hexdigest() == manifest["archiveSha256"], "archive digest mismatch")

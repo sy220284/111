@@ -91,6 +91,7 @@ class V8ArtifactsTests(unittest.TestCase):
     def test_v8_timeout_is_not_a_build_input(self):
         workflow = "jobs:\n  v8:\n    timeout-minutes: 180\n    runs-on: ubuntu-24.04\n    steps: compile\n  native:\n"
         self.assertEqual(producer_recipe(workflow), producer_recipe(workflow.replace("180", "360")))
+        self.assertEqual(producer_recipe(workflow), producer_recipe(workflow.replace("    timeout-minutes: 180", "    concurrency:\n      group: v8\n      queue: max\n    timeout-minutes: 360")))
 
     def test_current_artifact_requires_unique_live_digest(self):
         row = {"id": 42, "name": "v8-binary-" + KEY, "expired": False,

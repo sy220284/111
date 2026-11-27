@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/dev'))
 from transfer_progress import download, TransferUnavailable
+from build_recipe import normalize
 
 TARGETS = {"aarch64-linux-android": ("arm64-v8a", "arm64"),
            "x86_64-linux-android": ("x86_64", "x64")}
@@ -44,14 +45,16 @@ def producer_recipe(workflow):
         raise ValueError("Missing independent V8 producer")
     job = re.split(r"(?m)^  [a-z][a-z0-9-]*:\s*$", workflow.split(marker,1)[1], maxsplit=1)[0]
     # Only the producer environment and step recipe affect the produced bytes.
-    return "\n".join(line for line in job.splitlines() if not re.match(r"^    (?:name|needs|if|timeout-minutes):", line))
+    return normalize("\n".join(line for line in job.splitlines() if not re.match(r"^    (?:name|needs|if):", line)))
 
 
 def key(target, sha="HEAD"):
     if target not in TARGETS:
         raise ValueError("Unsupported V8 target")
     recipe = producer_recipe(git("show", f"{sha}:{WORKFLOW}"))
-    inputs = [git("rev-parse", f"{sha}:{p}") for p in (*KEY_INPUTS, PRODUCER)]
+    inputs = [hashlib.sha256(normalize(git("show", f"{sha}:{p}")).encode()).hexdigest()
+              if p.endswith(".yml") else git("rev-parse", f"{sha}:{p}")
+              for p in (*KEY_INPUTS, PRODUCER, "tools/dev/build_recipe.py", "tools/dev/transfer_progress.py", "tools/dev/build_progress.py")]
     return hashlib.sha256(json.dumps([target, recipe, inputs], separators=(",",":")).encode()).hexdigest()
 
 

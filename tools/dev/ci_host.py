@@ -10,12 +10,13 @@ import subprocess
 import tempfile
 from urllib.parse import urlencode
 from host_components import api, complete_index, download_artifact, install, environment, timestamp, require, JOB_NAMES, GROUPS
+from build_recipe import normalize
 
 WORKFLOWS = {".github/workflows/dev-toolchain.yml", ".github/workflows/ci.yml",
              ".github/workflows/build-native-codex.yml", ".github/workflows/release.yml"}
 RECIPE = (".github/workflows/prepare-host-toolchain.yml", ".github/actions/install-host-toolchain",
           "tools/dev/ci_host.py", "tools/dev/component-bundle.py", "tools/dev/host_components.py",
-          "tools/dev/toolchain-lock.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py", "tools/dev/transfer_progress.py")
+          "tools/dev/toolchain-lock.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py", "tools/dev/transfer_progress.py", "tools/dev/build_recipe.py")
 HEX = re.compile(r"[0-9a-f]{64}")
 SHA = re.compile(r"[0-9a-f]{40}")
 
@@ -51,6 +52,8 @@ def key(group, source="HEAD"):
         aux=group not in ("android","rust") and (path.startswith("android-app/tools/") or
             (group=="wheelhouse" and path=="upstream/codex/.github/actions/publish-dotslash/requirements.txt"))
         if common and not path.startswith("upstream/codex/") or android or rust or aux:
+            if path.startswith(".github/workflows/") and path.endswith(".yml"):
+                meta = "workflow:" + hashlib.sha256(normalize(git("show", f"{source}:{path}")).encode()).hexdigest()
             result.append([path,meta])
     require(result,"no fingerprint inputs")
     return hashlib.sha256(json.dumps([group,"linux-x86_64-ubuntu-24.04",sorted(result)],separators=(",",":")).encode()).hexdigest()

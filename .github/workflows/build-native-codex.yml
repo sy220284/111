@@ -198,7 +198,7 @@ jobs:
         run: python3 .github/scripts/v8_artifacts.py restore --repo "$GITHUB_REPOSITORY" --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
       - name: 从官方源码编译 V8
         if: steps.restore.outputs.restored == 'false'
-        run: bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+        run: python3 tools/dev/build_progress.py -- bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
       - name: 独立核验完整 V8 文件、来源及构建输入
         run: python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
       - name: 发布本次已核验的 V8 二进制及来源凭证
@@ -294,7 +294,7 @@ jobs:
           token: ${{ github.token }}
       - name: 从固定官方源码重建异常 V8 产物
         if: steps.v8-consume.outputs.rebuild == 'true'
-        run: bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
+        run: python3 tools/dev/build_progress.py -- bash android-app/tools/prepare_android_v8.sh "${{ matrix.rust_target }}" "$GITHUB_WORKSPACE/.android-v8-cache/${{ matrix.rust_target }}"
       - name: 强制核验恢复后的 V8 字节、来源与构建输入
         if: steps.v8-consume.outputs.rebuild == 'true'
         run: python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
@@ -375,7 +375,7 @@ jobs:
           fi
           export "CARGO_TARGET_${TARGET_ENV}_RUSTFLAGS=$RUST_LINK_FLAGS"
           cd upstream/codex/codex-rs
-          bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline --release \
+          python3 "$GITHUB_WORKSPACE/tools/dev/build_progress.py" -- bash "$GITHUB_WORKSPACE/tools/dev/run-build-offline.sh" cargo build --locked --offline --release \
             -p codex-app-server --bin codex-app-server \
             -p codex-code-mode-host --bin codex-code-mode-host \
             --target "$TARGET"

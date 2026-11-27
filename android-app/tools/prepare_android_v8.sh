@@ -118,7 +118,7 @@ TOML
     # newly resolved wrapper dependency graph.
     (
       cd "$SRC"
-      CARGO_TARGET_DIR="$ROOT/target" cargo build --locked --release -p v8 --lib \
+      CARGO_TARGET_DIR="$ROOT/target" cargo build --locked --release -vv -p v8 --lib \
         --features v8_enable_sandbox --target "$TARGET" -j 2
     )
     GN_OUT="$ROOT/target/$TARGET/release/gn_out"

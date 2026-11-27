@@ -12,11 +12,17 @@ class TransferUnavailable(RuntimeError):
 
 def stop(process):
     if process.poll() is None:
-        os.killpg(process.pid, signal.SIGTERM)
+        try:
+            os.killpg(process.pid, signal.SIGTERM)
+        except ProcessLookupError:
+            return
         try:
             process.wait(timeout=10)
         except subprocess.TimeoutExpired:
-            os.killpg(process.pid, signal.SIGKILL)
+            try:
+                os.killpg(process.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
             process.wait()
 
 def download(endpoint, destination, expected, *, stall=180, maximum=900, interval=15, attempts=3, command=None):
@@ -33,6 +39,9 @@ def download(endpoint, destination, expected, *, stall=180, maximum=900, interva
         print(f"Downloading {endpoint} ({expected} bytes), attempt {attempt}/{attempts}", flush=True)
         with tempfile.TemporaryFile() as errors, destination.open("xb") as output:
             process = subprocess.Popen(command or ["gh", "api", endpoint], stdout=output, stderr=errors, start_new_session=True)
+            def interrupted(signum, frame):
+                raise SystemExit(128 + signum)
+            previous_term = signal.signal(signal.SIGTERM, interrupted)
             start = last_change = last_log = time.monotonic()
             previous = 0
             failure = None
@@ -56,6 +65,7 @@ def download(endpoint, destination, expected, *, stall=180, maximum=900, interva
                     time.sleep(min(1, interval))
             finally:
                 stop(process)
+                signal.signal(signal.SIGTERM, previous_term)
             errors.seek(0)
             detail = errors.read(16384).decode("utf-8", errors="replace").strip()
         if process.returncode == 0 and failure is None and destination.stat().st_size == expected:
