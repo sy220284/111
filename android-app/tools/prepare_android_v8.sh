@@ -84,7 +84,9 @@ static_assert(__ANDROID_MIN_SDK_VERSION__ == %s);
     mkdir -p "$WRAPPER/.cargo"
     printf '[target.%s]\nlinker = "%s"\n' "$TARGET" "$LINKER" > "$WRAPPER/.cargo/config.toml"
     export LIBCLANG_PATH="$LLVM_HOME/lib"
-    export "BINDGEN_EXTRA_CLANG_ARGS_$(printf '%s' "$TARGET" | tr '-' '_')=${BINDGEN_TARGET_ARGS[*]} -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/$TARGET"
+    # GN also invokes Linux host bindgen under Cargo TARGET. Scope Android flags to the final binding.
+    export RUSTY_V8_ANDROID_BINDGEN_TARGET="${TARGET}${ANDROID_API}"
+    export RUSTY_V8_ANDROID_BINDGEN_SYSROOT="$SYSROOT"
     export "CARGO_TARGET_$(printf '%s' "$TARGET" | tr '[:lower:]-' '[:upper:]_')_LINKER=$LINKER"
     # The pinned rusty_v8 revision provisions the GN version from its own
     # dependency manifest. A host GN override makes that input nondeterministic.

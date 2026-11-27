@@ -5,6 +5,10 @@ inputs:
     required: false
     default: ''
     description: Optional Android target
+  cache-scope:
+    required: false
+    default: target
+    description: Separate V8 sources from the complete locked core workspace cache.
 runs:
   using: composite
   steps:
@@ -18,6 +22,6 @@ runs:
           ~/.cargo/registry/cache
           ~/.cargo/registry/index
           ~/.cargo/git/db
-        key: cargo-source-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/codex/codex-rs/Cargo.lock') }}-${{ inputs.target || 'host' }}
+        key: cargo-source-v2-${{ inputs.cache-scope }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/codex/codex-rs/Cargo.lock') }}-${{ inputs.cache-scope == 'workspace' && 'all' || inputs.target || 'host' }}
         restore-keys: |
-          cargo-source-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/codex/codex-rs/Cargo.lock') }}-
+          cargo-source-v2-${{ inputs.cache-scope }}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('upstream/codex/codex-rs/Cargo.lock') }}-

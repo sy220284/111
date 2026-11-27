@@ -185,6 +185,21 @@ class V8ArtifactsTests(unittest.TestCase):
         self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", ci)
 
 
+    def test_complete_core_fetch_and_scoped_bindgen(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github/workflows/build-native-codex.yml").read_text()
+        native = workflow.split("\n  native:\n", 1)[1].split("\n  provider-contract:\n", 1)[0]
+        self.assertNotIn("cargo fetch --locked --target", native)
+        self.assertLess(native.index('prepare_android_remote_delivery.py" "$GITHUB_WORKSPACE'), native.index("cargo fetch --locked\n"))
+        self.assertLess(native.index("cargo fetch --locked\n"), native.index("cargo fetch --locked --offline"))
+        self.assertLess(native.index("cargo fetch --locked --offline"), native.index("cargo build --locked --offline"))
+        self.assertIn("cache-scope: workspace", native)
+        self.assertIn("cache-scope: v8", workflow.split("\n  native:\n", 1)[0])
+        shell = (root / "android-app/tools/prepare_android_v8.sh").read_text()
+        self.assertNotIn('export "BINDGEN_EXTRA_CLANG_ARGS', shell)
+        self.assertIn("export RUSTY_V8_ANDROID_BINDGEN_TARGET=", shell)
+        self.assertIn("export RUSTY_V8_ANDROID_BINDGEN_SYSROOT=", shell)
+
     def test_v8_package_identity_ignores_unrelated_crates(self):
         lock = f'[[package]]\nname="v8"\nversion="{VERSION}"\nsource="registry+https://example.invalid"\nchecksum="abc"\n'
         self.assertEqual(v8_lock_identity(lock), v8_lock_identity(lock + '[[package]]\nname="unrelated"\nversion="3.0.0"\n'))
