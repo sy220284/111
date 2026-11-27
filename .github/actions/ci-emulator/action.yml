@@ -10,7 +10,7 @@ runs:
     - name: 恢复指定官方系统镜像
       id: image-cache
       if: steps.image.outputs.present == 'false'
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.image.outputs.path }}
         key: android-system-image-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.key }}
@@ -27,7 +27,7 @@ runs:
       run: bash .github/scripts/ci-emulator-sdk.sh seal
     - name: 缓存已安装的官方系统镜像
       if: steps.image.outputs.present == 'false' && steps.image-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.image.outputs.path }}
         key: android-system-image-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.key }}

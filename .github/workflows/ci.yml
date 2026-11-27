@@ -57,7 +57,7 @@ jobs:
       device_mesa_threads: ${{ steps.plan.outputs.device_mesa_threads }}
       device_emulator_options: ${{ steps.plan.outputs.device_emulator_options }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -129,7 +129,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: 仅检出 Android UI 源码
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -178,7 +178,7 @@ jobs:
       - name: 一次加载源码，执行协议、功能、设计与架构调用候选审计
         run: python3 android-app/tools/run_static_audit.py --repository . --output .
       - name: 复用 Python 锁定依赖下载缓存
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
@@ -194,7 +194,7 @@ jobs:
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
       - name: 保存静态协议与 UI 规范报告
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-static-reports
           path: |
@@ -221,7 +221,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: 仅检出 Android UI 源码
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -254,7 +254,7 @@ jobs:
       - name: 验证 Compose、协议测试与静态检查
         run: ./android-app/gradlew -p android-app --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 复用 Python 锁定依赖下载缓存
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
@@ -275,7 +275,7 @@ jobs:
             --report wire-fixtures-audit.json
       - name: 保存测试与 Lint 报告
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-check-reports
           path: |
@@ -288,7 +288,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: 保存独立编译的 UI 与设备测试安装包
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-apks
           compression-level: 0
@@ -304,7 +304,7 @@ jobs:
           cd android-app/app/build/outputs/apk
           sha256sum debug/app-debug.apk androidTest/debug/app-debug-androidTest.apk > "$RUNNER_TEMP/ui-apk-sha256.txt"
       - name: 保存 UI 测试安装包字节凭证
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-apk-integrity
           path: ${{ runner.temp }}/ui-apk-sha256.txt
@@ -322,7 +322,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: 检出截图采集器
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -347,7 +347,7 @@ jobs:
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
       - name: 取回 UI APK
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.plan.outputs.run_compile == 'true' && 'codex-android-ui-apks' || '' }}
           artifact-ids: ${{ needs.plan.outputs.compile_apk_id }}
@@ -355,7 +355,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ needs.plan.outputs.compile_run_id }}
       - name: 取回 UI 安装包字节凭证
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.plan.outputs.run_compile == 'true' && 'ui-apk-integrity' || '' }}
           artifact-ids: ${{ needs.plan.outputs.compile_integrity_id }}
@@ -432,7 +432,7 @@ jobs:
             if [ "${{ matrix.motion }}" = "true" ]; then bash -c 'status=0; timeout --kill-after=10s 360s python3 android-app/tools/run_ui_motion_checks.py --profile "${{ matrix.profile }}" || status=$?; printf "%s\\n" "$status" > ui-motion-exit; echo "Performance observation exit=$status (non-blocking)"'; fi
       - name: 保存独立分流的原始日志、截图与验收凭证
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-${{ matrix.shard }}
           path: |
@@ -467,7 +467,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -483,7 +483,7 @@ jobs:
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*
           path: ui-shards
@@ -494,7 +494,7 @@ jobs:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 android-app/tools/merge_ui_shards.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --root ui-shards
       - name: 复用 Python 锁定依赖下载缓存
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
           key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
@@ -515,7 +515,7 @@ jobs:
       - name: 保存视觉审计基线与差异
         if: always() && !cancelled()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-visual-api${{ matrix.api }}-${{ matrix.profile }}-${{ matrix.mode }}
           path: ui-visual-evidence/
@@ -523,7 +523,7 @@ jobs:
           retention-days: 90
       - name: 保存 UI 设备测试与真实屏幕截图
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-device-evidence-api${{ matrix.api }}-${{ matrix.profile }}-${{ matrix.mode }}
           path: |
@@ -552,7 +552,7 @@ jobs:
 
       - name: 保存供全矩阵核对的小型验收凭证
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-proof-${{ matrix.profile }}-${{ matrix.mode }}
           path: |
@@ -573,13 +573,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
             android-app/tools
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ui-proof-*
           path: ui-proofs
@@ -596,7 +596,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: 检出 Android 工程及源码版本标记
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -618,7 +618,7 @@ jobs:
         with:
           mode: build
       - name: 取回 ARM64 原生核心
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-android-native-arm64-v8a
           run-id: ${{ needs.native.outputs.arm_run_id }}
@@ -653,7 +653,7 @@ jobs:
           python3 .github/scripts/verify_git_corresponding_source.py "$APK" "$RUNNER_TEMP/git-corresponding-source.tar.xz"
 
       - name: 保存完整 APK 审计及字节摘要
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-arm64-apk-audit
           path: ${{ runner.temp }}/arm64-apk-audit.json
@@ -661,21 +661,21 @@ jobs:
           retention-days: 30
 
       - name: 上传 ARM64 安卓手机专用 APK
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-arm64-apk
           path: android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
           retention-days: 30
       - name: 上传同一 APK 的 Git 对应源码
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-arm64-git-corresponding-source
           path: ${{ runner.temp }}/git-corresponding-source.tar.xz
           if-no-files-found: error
           retention-days: 30
       - name: 上传设备仪器测试 APK
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-instrumentation-apk
           path: android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
@@ -691,7 +691,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - name: 检出同提交 Android 工程与原生配方
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -712,7 +712,7 @@ jobs:
         uses: ./.github/actions/ci-android
         with:
           mode: build
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-android-native-x86_64
           run-id: ${{ needs.native.outputs.x86_run_id }}
@@ -747,7 +747,7 @@ jobs:
             bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
       - name: 保存真实内核验收证据
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-real-runtime-evidence
           path: runtime-evidence/
@@ -766,7 +766,7 @@ jobs:
       # Jobs have separate workspaces. The APK and its audit script are both
       # required; the upload artifact contains only the APK, not repository files.
       - name: 检出 APK 安全检查脚本
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -774,12 +774,12 @@ jobs:
             /.github/scripts/audit_apk_contents.py
           sparse-checkout-cone-mode: false
       - name: 取回 ARM64 原生 APK
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-android-arm64-apk
           path: apks
       - name: 取回同一构建的完整审计凭证
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-android-arm64-apk-audit
           path: audit
@@ -793,7 +793,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
@@ -828,7 +828,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
@@ -897,7 +897,7 @@ jobs:
           cp android-app/app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/r8-candidate/"
           wc -c "$RUNNER_TEMP/unoptimized-arm64.apk" "$APK" | tee "$RUNNER_TEMP/r8-candidate/sizes.txt"
       - name: 保存仅供专项验收的压缩候选包及体积证据
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: r8-arm64-candidate-not-for-release
           path: ${{ runner.temp }}/r8-candidate/
@@ -912,7 +912,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -964,7 +964,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -992,7 +992,7 @@ jobs:
           test -s android-app/app/gradle.lockfile || { echo "::error::须审查并提交真实依赖锁文件"; exit 1; }
           test -s android-app/gradle/verification-metadata.xml || { echo "::error::须审查并提交依赖验证元数据"; exit 1; }
       - name: 保存可核验的验收凭证
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-acceptance-receipt
           path: ci-acceptance-receipt.json

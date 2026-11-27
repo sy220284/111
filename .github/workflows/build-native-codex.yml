@@ -50,7 +50,7 @@ jobs:
       provider_reuse: ${{ steps.detect.outputs.provider_reuse }}
       matrix: ${{ steps.detect.outputs.matrix }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -135,7 +135,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -183,7 +183,7 @@ jobs:
         run: python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
       - name: 发布本次已核验的 V8 二进制及来源凭证
         if: steps.probe.outputs.available == 'false'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: v8-binary-${{ matrix.v8_key }}
           # Same-run producer reruns replace the name only after verification;
@@ -215,7 +215,7 @@ jobs:
       CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
     steps:
       - name: 检出已锁定的官方源码快照
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -278,7 +278,7 @@ jobs:
           python3 .github/scripts/v8_artifacts.py verify --target "${{ matrix.rust_target }}" --key "${{ matrix.v8_key }}" --folder ".android-v8-cache/${{ matrix.rust_target }}"
       - name: 保存独立恢复产物与来源凭证
         if: steps.v8-consume.outputs.rebuild == 'true'
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: v8-recovery-${{ matrix.v8_key }}
           overwrite: true
@@ -379,7 +379,7 @@ jobs:
           done
       - name: 上传原生内核二进制
         id: native-upload
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-native-${{ matrix.abi }}
           path: |
@@ -395,14 +395,14 @@ jobs:
         run: |
           python3 .github/scripts/native_index.py create --abi "$ABI" --artifact-id "$ARTIFACT_ID" --out "$RUNNER_TEMP/native-index.json" --github-output "$GITHUB_OUTPUT"
         id: index
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: native-index-${{ matrix.abi }}-${{ steps.index.outputs.fingerprint }}
           path: ${{ runner.temp }}/native-index.json
           if-no-files-found: error
           retention-days: 90
       - name: 上传 V8 官方源码构建来源及校验证据
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: v8-source-evidence-${{ matrix.abi }}-${{ steps.index.outputs.fingerprint }}
           path: |
@@ -425,7 +425,7 @@ jobs:
       CARGO_PROFILE_DEV_DEBUG: "0"
       CARGO_PROFILE_TEST_DEBUG: "0"
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -472,13 +472,13 @@ jobs:
       - name: 生成 Rust 回归凭证
         id: provider-index
         run: python3 .github/scripts/native_index.py provider --out "$RUNNER_TEMP/provider-index.json" --github-output "$GITHUB_OUTPUT"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: android-delivery-executor-linux-x86_64-${{ steps.provider-index.outputs.fingerprint }}
           path: ${{ runner.temp }}/android-delivery-executor/
           if-no-files-found: error
           retention-days: 90
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: provider-index-${{ steps.provider-index.outputs.fingerprint }}
           path: ${{ runner.temp }}/provider-index.json
