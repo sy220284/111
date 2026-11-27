@@ -84,3 +84,16 @@ class UnifiedScopeTests(unittest.TestCase):
         self.assertIn("workflow_call:", native)
         self.assertIn("native_index.py create", native)
         self.assertNotIn("gh workflow run", native)
+
+    def test_release_skips_native_lookup_when_version_already_exists_or_inputs_unchanged(self):
+        release=(W/"release.yml").read_text()
+        self.assertLess(release.index("decision=already-published"), release.index("select_native_artifacts.py"))
+        self.assertLess(release.index("decision=no-client-change"), release.index("select_native_artifacts.py"))
+
+    def test_native_producer_only_requests_required_abis(self):
+        ci=(W/"ci.yml").read_text()
+        native=ci.split("\n  native:\n",1)[1].split("\n  runtime-arm64:\n",1)[0]
+        self.assertIn("include_arm: ${{ needs.plan.outputs.run_package == 'true' }}", native)
+        self.assertIn("include_x86: ${{ needs.plan.outputs.run_runtime == 'true' }}", native)
+        producer=(W/"build-native-codex.yml").read_text()
+        self.assertIn('if [ "$ABI" = \'arm64-v8a\' ] && [ "$INCLUDE_ARM" != true ]; then continue; fi', producer)

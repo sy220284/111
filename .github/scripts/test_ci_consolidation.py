@@ -7,6 +7,8 @@ class ConsolidationTests(unittest.TestCase):
         dev=(ROOT/".github/workflows/dev-toolchain.yml").read_text()
         self.assertIn("workflow_dispatch:",dev)
         self.assertNotIn("  push:",dev)
+        self.assertNotIn("prepare-developer-runtime.yml",dev)
+        self.assertNotIn("run_ci_script_tests.py",dev)
         for p in ("ci.yml","release.yml","build-native-codex.yml","prepare-developer-runtime.yml"):
             source=(ROOT/".github/workflows"/p).read_text()
             for forbidden in ("prepare-host-toolchain","prepare-aux-toolchain","install-host-toolchain","check-ci-toolchain.sh","111-toolchain-","host-android","host-rust","host-llvm","host-emulator","host-wheelhouse","host-patcher"):

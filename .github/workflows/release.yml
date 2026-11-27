@@ -77,23 +77,6 @@ jobs:
           fi
           git checkout --detach "$RELEASE_SHA"
           set -euo pipefail
-          # 统一的原生内核复用判据：上游源码树、版本、依赖修补器及
-          # 实际 Rust/NDK 编译配方全部一致，且产物未过期。
-          LOOKUP_STATUS=0
-          python3 .github/scripts/select_native_artifacts.py \
-            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a \
-            > "$RUNNER_TEMP/native-release-run" || LOOKUP_STATUS=$?
-          if [ "$LOOKUP_STATUS" -eq 3 ]; then
-            echo "::notice::尚无与当前源码及编译参数完全一致的 ARM64 原生内核，等待原生构建后再发版"
-            echo "decision=waiting-native" >> "$GITHUB_OUTPUT"
-            exit 0
-          elif [ "$LOOKUP_STATUS" -ne 0 ]; then
-            echo "::error::原生内核复用查询异常，已终止发布"
-            exit "$LOOKUP_STATUS"
-          fi
-          NATIVE_ID="$(cat "$RUNNER_TEMP/native-release-run")"
-          echo "native_run_id=$NATIVE_ID" >> "$GITHUB_OUTPUT"
-          echo "复用已验证 ARM64 原生构建 $NATIVE_ID"
           echo "release_sha=$RELEASE_SHA" >> "$GITHUB_OUTPUT"
 
           EXISTING="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
@@ -125,6 +108,24 @@ jobs:
               exit "$GATE_STATUS"
             fi
           fi
+
+          # 统一的原生内核复用判据：上游源码树、版本、依赖修补器及
+          # 实际 Rust/NDK 编译配方全部一致，且产物未过期。
+          LOOKUP_STATUS=0
+          python3 .github/scripts/select_native_artifacts.py \
+            --repo "$GITHUB_REPOSITORY" --abis arm64-v8a \
+            > "$RUNNER_TEMP/native-release-run" || LOOKUP_STATUS=$?
+          if [ "$LOOKUP_STATUS" -eq 3 ]; then
+            echo "::notice::尚无与当前源码及编译参数完全一致的 ARM64 原生内核，等待原生构建后再发版"
+            echo "decision=waiting-native" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ "$LOOKUP_STATUS" -ne 0 ]; then
+            echo "::error::原生内核复用查询异常，已终止发布"
+            exit "$LOOKUP_STATUS"
+          fi
+          NATIVE_ID="$(cat "$RUNNER_TEMP/native-release-run")"
+          echo "native_run_id=$NATIVE_ID" >> "$GITHUB_OUTPUT"
+          echo "复用已验证 ARM64 原生构建 $NATIVE_ID"
 
           FALLBACK="$(tr -d '\r\n' < .github/release-version)"
           if [[ ! "$FALLBACK" =~ ^([0-9]+\.[0-9]+\.[0-9]+)-111\.([0-9]+)$ ]]; then
