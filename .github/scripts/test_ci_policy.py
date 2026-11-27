@@ -1,5 +1,6 @@
 import unittest
 from unittest.mock import patch
+from pathlib import Path
 from ci_policy import plan, maintenance_only, matches, changed
 
 class PolicyTests(unittest.TestCase):
@@ -32,3 +33,12 @@ class PolicyTests(unittest.TestCase):
     def test_invalid_sha_is_error(self):
         with self.assertRaises(ValueError):
             changed("broken", "a" * 40)
+
+    def test_pr_supersession_preserves_independent_acceptance(self):
+        workflow = (Path(__file__).resolve().parents[1] / "workflows/ci.yml").read_text()
+        concurrency = workflow.split("\nconcurrency:\n", 1)[1].split("\njobs:\n", 1)[0]
+        self.assertIn("group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'pull_request' && 'latest' || github.sha }}", concurrency)
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", concurrency)
+        self.assertNotIn("github.event.pull_request.head.sha", concurrency)
+        self.assertIn("ref: ${{ github.event.pull_request.head.sha || github.sha }}", workflow)
+        self.assertIn("python3 .github/scripts/ci_gate.py", workflow)
