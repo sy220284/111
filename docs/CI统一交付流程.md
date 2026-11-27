@@ -155,3 +155,7 @@ V8 独立构建仅受应用锁文件中的 V8 包记录、V8 官方固定源码�
 ### 基础技术栈候选与版本边界
 
 本候选将 Android 编译环境升级至 AGP 9.5.1、Gradle 9.9.2、Kotlin 2.4.21（AGP 内置 Kotlin）、JDK 25、compileSdk 37（官方 SDK 包 platforms;android-37.0） / Build Tools 37.0.0、NDK r30（30.0.16248370）、LLVM 23；Compose BOM 为 2026.11.01，Activity 1.13.0、Core 1.19.1、Lifecycle 2.11.1。Gradle Wrapper 采用官方发布文件及 SHA-256，依赖图和校验元数据必须由真实解析生成、复查并在严格模式完整构建。官方 Codex 当前 Rust 1.99.1 / V8 152.2.0 保持配套。minSdk 29、JVM 17 和 targetSdk 35 保持：目标 SDK 37 必须在局域网权限、后台语音、横屏/大屏、原生加载及安装更新完成产品适配并验收后切换。构建 SDK 37 与模拟器独立平台参数、37.2 16KiB 镜像不混用。工具链生产工作流同步 JDK、SDK、NDK、LLVM、Wrapper 和严格依赖基线，独立断网验收不变。具体产品影响见 [技术栈升级与产品适配评估](基础技术栈升级与产品适配评估-20261127.md)。
+
+### 2026-11-27 候选工具链补充
+
+Compose 1.13 要求 compileSdk 37.1 以上，候选改为 37.2；保留目标 SDK 35 与最低 API 29。Coroutines 1.11.0 与 CommonMark 0.33.0 同步更新运行和测试依赖。宿主 Node/Python 便携归档、npm 发行摘要、CPython 3.14 wheel 锁和签名 APT 原生辅助工具锁均使用可核验固定输入；真实解析、构建和设备回归仍为合并前置，不新增定时任务。

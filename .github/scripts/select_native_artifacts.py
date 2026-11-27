@@ -159,7 +159,7 @@ class ArtifactSelector:
             setup = tuple(compiler_action_recipe(self.run(["git", "show", f"{sha}:{p}"]))
                           for p in (".github/actions/ci-android/action.yml", ".github/actions/ci-rust/action.yml"))
             signature += (producer_recipe(workflow), setup,
-                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py",".github/scripts/ci-android-sdk.sh",".github/scripts/ci-llvm.sh","upstream/codex/codex-rs/Cargo.lock"]))
+                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py",".github/scripts/ci-android-sdk.sh",".github/scripts/ci-llvm.sh","tools/build/native_toolchain.py","tools/build/native-toolchain.json","upstream/codex/codex-rs/Cargo.lock"]))
         return signature
 
     def test_signature(self, sha):

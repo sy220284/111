@@ -13,6 +13,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: 固定官方 npm、Python ABI 与签名 APT 工具版本
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 tools/dev/resolve_upgrade_locks.py
+          git diff --check
+          git add -- tools/runtime/npm-lock.json tools/dev/requirements-host.lock tools/build/native-toolchain.json
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' commit -m '锁定经核验的 npm、Python ABI 和原生辅助工具发行版本'
+            gh auth setup-git
+            git push origin HEAD:refs/heads/upgrade/111-tech-stack-20261127
+          fi
+          python3 -m unittest discover -s tools/dev -p 'test_*.py'
+          python3 -m unittest discover -s tools/build -p 'test_*.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_v8_toolchain_provenance.py'
       - name: 候选版本编译环境
         uses: ./.github/actions/ci-android
         with:

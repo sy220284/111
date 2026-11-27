@@ -49,7 +49,9 @@
       "android-app/gradle/wrapper/gradle-wrapper.jar",
       "android-app/gradle/wrapper/gradle-wrapper.properties",
       "android-app/gradle/libs.versions.toml",
-      "tools/build/component-bundle.py"
+      "tools/build/component-bundle.py",
+      "tools/build/native_toolchain.py",
+      "tools/build/native-toolchain.json"
     ],
     "prefixes": [
       "android-app/app/src/main/",
@@ -135,7 +137,9 @@
       "tools/build/run-emulator.sh",
       "tools/build/build_progress.py",
       "tools/build/build_recipe.py",
-      "tools/build/transfer_progress.py"
+      "tools/build/transfer_progress.py",
+      "tools/build/native_toolchain.py",
+      "tools/build/native-toolchain.json"
     ],
     "prefixes": [
       "upstream/codex/codex-rs/",

@@ -18,8 +18,9 @@ def versions_for(abi):
     if abi not in ("arm64-v8a", "x86_64"):
         raise ValueError("unsupported ABI: " + abi)
     versions = {k: LOCK["runtime777"][k] for k in TOOLS}
-    if abi == "x86_64":
-        versions["ripgrep"] = LOCK["runtimeX86"]["ripgrep"]
+    versions.update(LOCK["runtimeOverrides"])
+    if versions["ripgrep"] != LOCK["runtimeX86"]["ripgrep"]:
+        raise ValueError("ripgrep must use one version across Android ABIs")
     return versions
 
 def package_records(prepared, group, abi):

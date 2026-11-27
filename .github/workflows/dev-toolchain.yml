@@ -39,6 +39,12 @@ jobs:
       group: rust
       source_sha: ${{ github.sha }}
 
+  node:
+    uses: ./.github/workflows/prepare-aux-toolchain.yml
+    with:
+      group: node
+      source_sha: ${{ github.sha }}
+
   wheelhouse:
     uses: ./.github/workflows/prepare-aux-toolchain.yml
     with:

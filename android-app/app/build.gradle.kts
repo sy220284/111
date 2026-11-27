@@ -32,7 +32,9 @@ plugins {
 
 android {
     namespace = "io.github.sy220284.codexandroid"
-    compileSdk = 37
+    compileSdk {
+        version = release(37) { minorApiLevel = 2 }
+    }
     buildToolsVersion = "37.0.0"
     ndkVersion = "30.0.16248370"
 
@@ -123,17 +125,17 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.1")
     implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.1")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.1")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    implementation("org.commonmark:commonmark:0.24.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("org.commonmark:commonmark:0.33.0")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
-    implementation("org.commonmark:commonmark-ext-gfm-tables:0.24.0")
-    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.24.0")
-    implementation("org.commonmark:commonmark-ext-task-list-items:0.24.0")
+    implementation("org.commonmark:commonmark-ext-gfm-tables:0.33.0")
+    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.33.0")
+    implementation("org.commonmark:commonmark-ext-task-list-items:0.33.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     // JVM scheduler and flow regression tests require virtual time at the same locked coroutine version.
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     // Stable AndroidX Test release containing the public InputManager lookup.
     // Older Espresso versions crash before Compose assertions on Android 17.
     androidTestImplementation("androidx.test:core:1.7.0")

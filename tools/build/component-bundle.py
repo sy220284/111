@@ -29,7 +29,7 @@ def require(value, message):
 
 # Writable dependency caches are deliberately excluded. Immutable file
 # digests are anchored in the producer's published manifest pin.
-VERITY_COMPONENTS = {"jdk", "android-sdk", "rust", "wheelhouse", "emulator", "llvm", "patcher"}
+VERITY_COMPONENTS = {"node", "jdk", "android-sdk", "rust", "wheelhouse", "emulator", "llvm", "patcher"}
 VERITY_BLOCK = 4096
 VERITY_HASHES = VERITY_BLOCK // 32
 FS_IOC_ENABLE_VERITY = 0x40806685

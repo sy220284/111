@@ -13,7 +13,7 @@ packages=()
 need() { if [ ! -s "$SDK/$2" ]; then packages+=("$1"); fi; }
 case "$MODE" in build|native|v8) ;; *) echo "Unknown CI Android mode: $MODE" >&2; exit 2;; esac
 if [ "$MODE" = build ]; then
-    need 'platforms;android-37.0' 'platforms/android-37.0/android.jar'
+    need 'platforms;android-37.2' 'platforms/android-37.2/android.jar'
     need 'build-tools;37.0.0' 'build-tools/37.0.0/aapt'
 fi
 need "ndk;$NDK" "ndk/$NDK/source.properties"

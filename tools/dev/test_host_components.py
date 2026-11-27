@@ -10,8 +10,8 @@ class HostComponentTests(unittest.TestCase):
         from host_components import GROUPS, HOST
         from contextlib import redirect_stderr
         import io
-        self.assertEqual(set(GROUPS), {"android", "rust", "wheelhouse", "emulator", "llvm", "patcher"})
-        self.assertEqual(set(HOST), {"jdk", "android-sdk", "gradle", "rust", "cargo", "wheelhouse", "emulator", "llvm", "patcher"})
+        self.assertEqual(set(GROUPS), {"android", "rust", "node", "wheelhouse", "emulator", "llvm", "patcher"})
+        self.assertEqual(set(HOST), {"jdk", "android-sdk", "gradle", "rust", "cargo", "node", "wheelhouse", "emulator", "llvm", "patcher"})
         with tempfile.TemporaryDirectory() as tmp:
             root = pathlib.Path(tmp)
             receipt = {"head": "a"*40, "pin": "b"*64}

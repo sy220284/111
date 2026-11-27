@@ -19,7 +19,10 @@ ROOT=pathlib.Path(__file__).resolve().parents[2]
 LOCK=json.loads((ROOT/"tools/dev/toolchain-lock.json").read_text())["project"]
 EMULATOR_SDK_PLATFORM = str(json.loads((ROOT / "android-app/tools/device-matrix.json").read_text())["sdk_platform"])
 UPSTREAM=ROOT/"upstream/codex"
-GROUPS=("wheelhouse","emulator","llvm","patcher")
+GROUPS=("node","wheelhouse","emulator","llvm","patcher")
+from portable_host import prepare_node, verify_node, install_python, verify_python
+sys.path.insert(0,str(ROOT/"tools/build"))
+import native_toolchain
 
 def run(*args,cwd=None,env=None):
     subprocess.run([str(x) for x in args],cwd=cwd,env=dict(os.environ,**(env or {})),check=True)
@@ -40,14 +43,11 @@ def download_checked(url,path,expected,algorithm="sha256"):
     download(url,path)
     need(digest(path,algorithm)==expected,"digest mismatch: "+path.name)
 
-def verify_python():
-    need(".".join(map(str,sys.version_info[:2]))==LOCK["hostPython"],"unexpected host Python version")
-
 def wheelhouse_prepare(stage):
-    verify_python()
+    python=install_python(stage)
     requirements=ROOT/"tools/dev/requirements-host.lock"
     need(requirements.is_file(),"missing reviewed Python dependency lock")
-    run(sys.executable,"-m","pip","download","--only-binary=:all:","--require-hashes","--dest",stage,"-r",requirements)
+    run(python,"-m","pip","download","--only-binary=:all:","--require-hashes","--dest",stage,"-r",requirements)
     records={}
     for wheel in sorted(stage.glob("*.whl")):
         with zipfile.ZipFile(wheel) as z:
@@ -72,36 +72,24 @@ def wheelhouse_prepare(stage):
     dots=stage/"dotslash";dots.mkdir()
     source=UPSTREAM/".github/actions/publish-dotslash/requirements.txt"
     shutil.copy2(source,dots/"requirements.txt")
-    run(sys.executable,"-m","pip","download","--only-binary=:all:","--require-hashes","--dest",dots,"-r",source)
+    run(python,"-m","pip","download","--only-binary=:all:","--require-hashes","--dest",dots,"-r",source)
 
 def wheelhouse_verify(stage):
-    verify_python()
+    python=verify_python(stage)
     with tempfile.TemporaryDirectory() as d:
         for label,folder,req in (("ci",stage,stage/"requirements.lock"),("dotslash",stage/"dotslash",stage/"dotslash/requirements.txt")):
             v=pathlib.Path(d)/label
-            run(sys.executable,"-m","venv",v)
+            run(python,"-m","venv",v)
             run(v/"bin/python","-m","pip","install","--no-index","--find-links",folder,"--require-hashes","-r",req)
             run(v/"bin/python","-m","pip","check")
             if label=="ci":
                 run(v/"bin/python","-c","import PIL,jsonschema; from importlib.metadata import version; assert version('Pillow')=="+repr(LOCK["pillow"])+"; assert version('jsonschema')=="+repr(LOCK["jsonschema"])+"; jsonschema.validate({'ok':True},{'type':'object'})")
 
 def llvm_prepare(stage):
-    # apt's signed repository metadata authenticates the package bytes; keep
-    # the exact dpkg package versions as provenance alongside the binary tree.
-    run("sudo","apt-get","update")
-    if any(not re.search(r"(?m)^\s*Candidate:\s+(?!\(none\))\S+",output("apt-cache","policy",name)) for name in ("clang-23","libclang-23-dev","llvm-23","lld-23")):
-        with tempfile.TemporaryDirectory() as d:
-            key=pathlib.Path(d)/"llvm.asc"
-            download("https://apt.llvm.org/llvm-snapshot.gpg.key",key)
-            fingerprints=[l.split(":")[9] for l in output("gpg","--batch","--with-colons","--show-keys",key).splitlines() if l.startswith("fpr:")]
-            need(fingerprints and fingerprints[0]=="6084F3CF814B57C1CF12EFD515CF4D18AF4F7421","LLVM signing key mismatch")
-            run("sudo","install","-m","0644",key,"/usr/share/keyrings/111-llvm-snapshot.asc")
-            run("sudo","bash","-c","printf '%s\\n' 'deb [signed-by=/usr/share/keyrings/111-llvm-snapshot.asc] https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' > /etc/apt/sources.list.d/111-llvm.list")
-            run("sudo","apt-get","update")
-    packages=("clang-23","libclang-23-dev","llvm-23","lld-23","ninja-build","pkg-config","libssl-dev")
-    run("sudo","apt-get","install","-y","--no-install-recommends",*packages)
-    (stage/"packages.tsv").write_text(output("dpkg-query","-W","-f=${Package}\\t${Version}\\n",*packages)+"\n")
-    prefix=pathlib.Path("/usr/lib/llvm-23")
+    versions=native_toolchain.install()
+    policy=native_toolchain.config()
+    (stage/"packages.tsv").write_text("".join(f"{name}\t{version}\n" for name,version in sorted(versions.items())))
+    prefix=pathlib.Path("/usr/lib/llvm-"+str(policy["llvmMajor"]))
     binroot=stage/"bin";lib=stage/"lib";binroot.mkdir();lib.mkdir()
     bins=("clang","clang++","llvm-ar","llvm-nm","llvm-ranlib","llvm-strip","llvm-readelf","llvm-objdump","ld.lld")
     seen={}
@@ -110,8 +98,16 @@ def llvm_prepare(stage):
         if source in seen:(binroot/name).symlink_to(seen[source])
         else:
             shutil.copy2(source,binroot/name);seen[source]=name
-    for name in ("ninja","pkg-config"):
-        shutil.copy2(pathlib.Path(shutil.which(name)).resolve(),binroot/name)
+    for name,location in policy["executables"].items():
+        shutil.copy2(pathlib.Path(location).resolve(strict=True),binroot/name)
+        seen[pathlib.Path(location).resolve(strict=True)]=name
+    share=stage/"share";share.mkdir()
+    cmake_share=sorted(pathlib.Path("/usr/share").glob("cmake-*"))
+    need(len(cmake_share)==1,"unexpected CMake data directory")
+    shutil.copytree(cmake_share[0],share/cmake_share[0].name)
+    shutil.copytree(pathlib.Path("/usr/include/openssl"),stage/"include/openssl")
+    for name in ("libssl.so","libcrypto.so","libssl.a","libcrypto.a"):
+        shutil.copy2(pathlib.Path("/usr/lib/x86_64-linux-gnu",name).resolve(strict=True),lib/name)
     shutil.copytree(prefix/"lib/clang",lib/"clang",symlinks=False)
     source=(prefix/"lib/libclang.so").resolve(strict=True)
     shutil.copy2(source,lib/source.name)
@@ -136,7 +132,12 @@ def llvm_prepare(stage):
 def llvm_verify(stage):
     env={"LD_LIBRARY_PATH":str(stage/"lib"),"LIBCLANG_PATH":str(stage/"lib"),"PATH":str(stage/"bin")+os.pathsep+os.environ["PATH"]}
     result=subprocess.check_output([str(stage/"bin/clang"),"--version"],env=dict(os.environ,**env),text=True)
-    need(re.search(r"clang version 23\.",result),"LLVM version mismatch")
+    policy=native_toolchain.config()
+    need(re.search(r"clang version "+str(policy["llvmMajor"])+r"\.",result),"LLVM version mismatch")
+    expected="".join(f"{name}\t{version}\n" for name,version in sorted(policy["packages"].items()))
+    need((stage/"packages.tsv").read_text()==expected,"native package receipt drift")
+    for name in policy["executables"]:
+        run(stage/"bin"/name,"version" if name=="openssl" else "--version",env=env)
     with tempfile.TemporaryDirectory() as d:
         src=pathlib.Path(d)/"probe.c";exe=pathlib.Path(d)/"probe"
         src.write_text("int main(void){return 0;}\n")
@@ -145,7 +146,8 @@ def llvm_verify(stage):
 
 def prepare(group,stage):
     stage.mkdir(parents=True,exist_ok=False)
-    if group=="wheelhouse":wheelhouse_prepare(stage)
+    if group=="node":prepare_node(stage)
+    elif group=="wheelhouse":wheelhouse_prepare(stage)
     elif group=="emulator":
         sdk=pathlib.Path(os.environ["ANDROID_HOME"])
         bootstrap=next(sdk.glob("cmdline-tools/*/bin/sdkmanager"))
@@ -174,7 +176,8 @@ def prepare(group,stage):
             download_checked("https://github.com/sisong/HDiffPatch/releases/download/v"+LOCK["hdiffpatch"]+"/"+name,stage/name,sha)
 
 def verify(group,stage):
-    if group=="wheelhouse":wheelhouse_verify(stage)
+    if group=="node":verify_node(stage)
+    elif group=="wheelhouse":wheelhouse_verify(stage)
     elif group=="llvm":llvm_verify(stage)
     elif group=="emulator":run("bash",ROOT/"tools/build/run-emulator.sh","--probe",env={"CODEX_EMULATOR_SDK":str(stage),"EMULATOR_PROFILE":"mainstream"})
     elif group=="patcher":

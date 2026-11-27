@@ -30,7 +30,9 @@ def key(group, source="HEAD"):
     elif group == "rust":
         paths += ["upstream/codex/codex-rs", "upstream/codex/.cargo", "android-app/tools/prepare_android_mxc.py"]
     else:
-        paths += ["tools/dev/auxiliary.py"]
+        paths += ["tools/dev/auxiliary.py","tools/dev/portable_host.py"]
+        if group=="node": paths += ["tools/runtime/npm_archive.py","tools/runtime/npm-lock.json","tools/runtime/runtime-lock.json"]
+        if group=="llvm": paths += ["tools/build/native_toolchain.py","tools/build/native-toolchain.json"]
         if group=="wheelhouse":
             paths += ["tools/dev/requirements-host.lock","android-app/tools/requirements-ui-visual.txt","upstream/codex/.github/actions/publish-dotslash/requirements.txt"]
         if group=="emulator": paths += ["android-app/tools/device-matrix.json","android-app/tools/device_matrix.py","tools/build/run-emulator.sh",".github/actions/run-emulator"]

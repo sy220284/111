@@ -8,7 +8,7 @@ import auxiliary
 
 class PortableAuxiliaryTest(unittest.TestCase):
     def test_only_product_auxiliary_components_are_supported(self):
-        self.assertEqual(auxiliary.GROUPS, ("wheelhouse", "emulator", "llvm", "patcher"))
+        self.assertEqual(auxiliary.GROUPS, ("node", "wheelhouse", "emulator", "llvm", "patcher"))
 
     def test_emulator_production_uses_and_archives_only_exact_command_line_tools(self):
         with tempfile.TemporaryDirectory() as tmp:

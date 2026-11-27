@@ -26,7 +26,8 @@ WORKFLOW = ".github/workflows/build-native-codex.yml"
 INPUTS = ("android-app/tools/prepare_android_v8.sh",
           "android-app/tools/adapt_android_v8_build.py",
           "android-app/tools/v8_toolchain_provenance.py",
-          ".github/scripts/ci-android-sdk.sh")
+          ".github/scripts/ci-android-sdk.sh",
+          "tools/build/native_toolchain.py", "tools/build/native-toolchain.json")
 LOCK_PATH = "upstream/codex/codex-rs/Cargo.lock"
 KEY_INPUTS = (*INPUTS, ".github/scripts/ci-llvm.sh")
 SETUP_ACTIONS = (".github/actions/ci-android/action.yml", ".github/actions/ci-rust/action.yml")

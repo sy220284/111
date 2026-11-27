@@ -22,7 +22,7 @@ bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
 ANDROID = ("jdk", "android-sdk", "gradle")
 RUST = ("rust", "cargo")
-AUX = ("wheelhouse","emulator","llvm","patcher")
+AUX = ("node","wheelhouse","emulator","llvm","patcher")
 GROUPS = {"android":ANDROID,"rust":RUST,**{name:(name,) for name in AUX}}
 HOST = ANDROID + RUST + AUX
 REPOSITORY = "sy220284/111"
@@ -147,8 +147,18 @@ def environment(root,names):
         cargo=paths["cargo"]
         require((cargo/"git/db").is_dir() and (cargo/"registry").is_dir(),"Cargo cache incomplete")
         env.update(CARGO_HOME=str(cargo),CARGO_NET_OFFLINE="true")
+    if "node" in paths:
+        node=paths["node"]
+        require(subprocess.check_output([str(node/"bin/node"),"--version"],text=True).strip()=="v"+p["hostNode"]["version"],"host Node version drift")
+        npm=json.loads((HERE.parent/"runtime/runtime-lock.json").read_text())["runtimeOverrides"]["npm"]
+        require(subprocess.check_output([str(node/"bin/node"),str(node/"bin/npm"),"--version"],text=True).strip()==npm,"host npm version drift")
+        search.append(str(node/"bin"))
     if "wheelhouse" in paths:
         wheel=paths["wheelhouse"]
+        python=wheel/"python/bin/python3"
+        require(subprocess.check_output([str(python),"-c","import platform; print(platform.python_version())"],text=True).strip()==p["hostPython"],"host Python version drift")
+        env["CODEX_HOST_PYTHON"]=str(python)
+        search.append(str(python.parent))
         require((wheel/"requirements.lock").is_file() and any(wheel.glob("*.whl")), "wheelhouse incomplete")
         env["CODEX_WHEELHOUSE"]=str(wheel)
     if "emulator" in paths:

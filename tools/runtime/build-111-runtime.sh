@@ -10,6 +10,9 @@ TEMP="$(mktemp -d)"
 trap 'rm -rf "$TEMP"' EXIT
 if [ "$ABI" = arm64-v8a ]; then
   python3 "$ROOT/tools/runtime/fetch-arm64-packages.py" "$TEMP/cache"
+  rm -rf "$TEMP/cache/termux-git"
+  DSH_RUNTIME_ABIS=arm64-v8a DSH_RUNTIME_OFFLINE=false TERMUX_RUNTIME_CACHE="$TEMP/cache/termux-git" bash "$ROOT/tools/runtime/prepare-termux-git.sh" "$TEMP/seed-git"
+  python3 "$ROOT/tools/runtime/npm_archive.py" fetch "$TEMP/cache/termux-node"
 else
   mkdir -p "$TEMP/cache"
   for component in git node python; do

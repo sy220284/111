@@ -20,7 +20,7 @@ class ToolchainTests(unittest.TestCase):
             path = pathlib.Path(d) / "artifact.zip"
             path.write_bytes(b"wrong")
             with self.assertRaises(ValueError):
-                m.verify_zip(path, "node", m.COMPONENTS["node"])
+                m.verify_zip(path, "actionlint", m.COMPONENTS["actionlint"])
 
     def test_locked_777_source_and_111_baseline_are_distinct(self):
         self.assertEqual(m.LOCK["source"]["run"], 44730301955)

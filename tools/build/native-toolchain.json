@@ -1,0 +1,30 @@
+{
+  "os": "ubuntu-24.04",
+  "architecture": "x86_64",
+  "llvmMajor": 23,
+  "aptRepository": "https://apt.llvm.org/noble/",
+  "aptSuite": "llvm-toolchain-noble-23",
+  "keyFingerprint": "6084F3CF814B57C1CF12EFD515CF4D18AF4F7421",
+  "packages": {
+    "clang-23": null,
+    "libclang-23-dev": null,
+    "llvm-23": null,
+    "lld-23": null,
+    "ninja-build": null,
+    "cmake": null,
+    "pkg-config": null,
+    "pkgconf": null,
+    "libssl-dev": null,
+    "openssl": null,
+    "cmake-data": null,
+    "pkgconf-bin": null,
+    "libpkgconf3": null,
+    "libssl3t64": null
+  },
+  "executables": {
+    "ninja": "/usr/bin/ninja",
+    "cmake": "/usr/bin/cmake",
+    "pkg-config": "/usr/bin/pkg-config",
+    "openssl": "/usr/bin/openssl"
+  }
+}

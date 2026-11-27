@@ -330,8 +330,8 @@ done
 
 # npm is JavaScript, not an Android-native executable. Bundle the verified CLI source
 # and let the app's already-shipped Node executable interpret it from app-private data.
-NPM_VERSION="11.6.2"
-NPM_SHA512="ee22b335fcbc95662cdf3ab8a053daf045d9cf9c6df6040d28965abb707512b2c16fa6c5eec049d34c74f78f390cebd14f697919eadb97756564d4f9eccc4954"
+NPM_VERSION="$(python3 "$ROOT_DIR/tools/runtime/npm_archive.py" version)"
+NPM_SHA512="$(python3 "$ROOT_DIR/tools/runtime/npm_archive.py" sha512)"
 npm_archive="$CACHE_DIR/npm-$NPM_VERSION.tgz"
 if ! printf '%s  %s\n' "$NPM_SHA512" "$npm_archive" | sha512sum -c - >/dev/null 2>&1; then
   if [ "${DSH_RUNTIME_OFFLINE:-false}" = true ]; then

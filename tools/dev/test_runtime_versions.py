@@ -33,9 +33,11 @@ class RuntimeVersionTests(unittest.TestCase):
         for version in ("15.2.0", "16.0.1", "16.0.0-1"):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
                 root = pathlib.Path(directory)
-                self.fixture(root, "x86_64", rg=version)
-                with self.assertRaisesRegex(ValueError, "expected 16.0.0, actual"):
-                    m.verify_versions(root, "x86_64")
+                for abi in ("arm64-v8a", "x86_64"):
+                    target = root / abi
+                    self.fixture(target, abi, rg=version)
+                    with self.assertRaisesRegex(ValueError, "expected 16.0.0, actual"):
+                        m.verify_versions(target, abi)
 
 if __name__ == "__main__":
     unittest.main()
