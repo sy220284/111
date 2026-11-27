@@ -79,3 +79,6 @@ NOPR保留: diagnostic/codex-unified-20261125
 NOPR保留: feat/ui-four-skills-protocol-experience-20261123
 NOPR保留: test/codex-unified-integration-20261125
 NOPR保留: test/verify-real-ime-and-full-display-screenshots-20261123
+
+=== 补记（while read 末行无换行符遗漏，双 YES 铁证后补删） ===
+validation/combined-111-reply-20261126 c79329c2a23bbb59b52b9c3d7d2be3590249e775 [git-ancestor PR116:MERGED，含 44217952 发布测试修复]
