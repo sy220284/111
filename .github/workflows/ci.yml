@@ -80,6 +80,20 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_verify_ui_matrix_evidence.py'
           python3 -m unittest discover -s android-app/tools -p 'test_merge_ui_shards.py'
           python3 .github/scripts/ci_policy.py
+      - name: 非产品变更基础检查
+        if: steps.plan.outputs.full == 'false'
+        shell: bash
+        env:
+          CI_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          CI_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          git diff --check "$CI_BASE" "$CI_HEAD"
+          git ls-files -z -- '.github/scripts/*.sh' 'tools/build/*.sh' | xargs -0 -r -n1 bash -n
+          git ls-files -z -- '.github/workflows/*.yml' '.github/workflows/*.yaml' '.github/actions/**/action.yml' '.github/actions/**/action.yaml' | xargs -0 -r ruby -ryaml -e 'ARGV.each { |path| YAML.parse_stream(File.read(path)) }'
+          python3 .github/scripts/run_ci_script_tests.py preflight
+          python3 -m unittest discover -s android-app/tools -p 'test_run_static_audit.py'
+          python3 -m unittest discover -s android-app/tools -p 'test_check_architecture_boundaries.py'
   native:
     needs: [plan, static-ui, preflight]
     if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_package == 'true' && (needs.static-ui.result == 'success' || needs.static-ui.result == 'skipped') && (needs.preflight.result == 'success' || needs.preflight.result == 'skipped')

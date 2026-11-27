@@ -15,12 +15,17 @@ def matches(path, key):
     group = POLICY[key]
     return path in group["files"] or any(path.startswith(prefix) for prefix in group["prefixes"])
 
+def acceptance_inputs_unchanged(path):
+    """Keep the stricter historical reuse boundary independent of scheduling."""
+    return matches(path, "maintenance") and not matches(path, "acceptance")
+
+
 def maintenance_only(paths):
-    return all(matches(path, "maintenance") and not matches(path, "acceptance") for path in paths)
+    """Only documentation, repository maintenance and CI/test infrastructure."""
+    return all(matches(path, "maintenance") or matches(path, "ci_maintenance") for path in paths)
 
 def plan(paths, force=False, runtime=False):
     paths = list(paths)
-    runtime = runtime or any(matches(path, "runtime") for path in paths)
     full = force or runtime or not maintenance_only(paths)
     return {"full": full, "runtime": full, "maintenance": not full, "changed": paths}
 

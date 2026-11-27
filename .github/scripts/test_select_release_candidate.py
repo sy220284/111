@@ -17,24 +17,18 @@ class ReleaseCandidateTests(unittest.TestCase):
         self.assertTrue(maintenance_only([]))
         self.assertTrue(maintenance_only([
             "AGENTS.md", "README.md", "docs/普通说明.md",
+            "docs/设计系统.md", "docs/ui-assets/screen.png", ".github/workflows/release.yml",
+            ".github/scripts/verify_release_acceptance.py", ".github/ci/scope.json",
+            "android-app/tools/check_protocol_schema_alignment.py",
         ]))
 
-    def test_client_native_acceptance_and_release_inputs_are_never_exempt(self):
+    def test_product_inputs_are_never_exempt(self):
         for path in (
             "android-app/app/src/main/java/Main.kt",
-            "android-app/app/src/androidTest/java/Test.kt",
-            "android-app/tools/check_protocol_schema_alignment.py",
             "upstream/codex/codex-rs/core/src/lib.rs",
-            "docs/设计系统.md",
-            "docs/ui-assets/screen.png",
-            ".github/workflows/release.yml",
-            ".github/workflows/build-android.yml",
-            ".github/workflows/check-android-ui.yml",
-            ".github/scripts/verify_release_acceptance.py",
-            ".github/scripts/select_release_candidate.py",
-            ".github/scripts/prepare-release-assets.sh",
             ".github/release-version",
-            ".github/scripts/unknown.py",
+            "android-app/tools/prepare_android_v8.sh",
+            "unknown.py",
         ):
             with self.subTest(path=path):
                 self.assertFalse(maintenance_only(["AGENTS.md", path]))

@@ -49,6 +49,15 @@ class ReleaseChangeGateTests(unittest.TestCase):
         self.assertFalse(should_release(paths, "base", "head", selector))
         self.assertEqual(selector.queries, ["base", "head"])
 
+    def test_maintenance_only_never_triggers_release_or_native_lookup(self):
+        selector = StubSelector(changed=True)
+        paths = [".github/workflows/build-native-codex.yml", ".github/workflows/prepare-developer-runtime.yml",
+                 ".github/scripts/prepare-release-assets.sh", ".github/ci/scope.json",
+                 "docs/正式发布流程.md", "android-app/tools/device_matrix.py"]
+        self.assertFalse(should_release(paths, "base", "head", selector))
+        self.assertFalse(selector.queries)
+        self.assertTrue(should_release(paths + ["android-app/app/src/main/Main.kt"], "base", "head", selector))
+
     def test_native_build_input_change_creates_version(self):
         selector = StubSelector(changed=True)
         self.assertTrue(should_release(
