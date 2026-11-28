@@ -12,4 +12,27 @@ class RealtimeStartContractTest {
         assertEquals("websocket", params.getJSONObject("transport").getString("type"))
         assertFalse(params.has("voice"))
     }
+
+    @Test fun stoppingBeforeAdmissionRevokesTheWireWriteAndNeedsNoNativeStop() {
+        val submission = RealtimeStartSubmission()
+        assertTrue(submission.revokeQueued())
+        assertFalse(submission.admit())
+        assertFalse(submission.mayHaveStarted())
+    }
+
+    @Test fun anAdmittedButUnconfirmedStartStillNeedsNativeStop() {
+        val submission = RealtimeStartSubmission()
+        assertTrue(submission.admit())
+        assertFalse(submission.revokeQueued())
+        assertFalse(submission.admit())
+        assertTrue(submission.mayHaveStarted())
+    }
+
+    @Test fun explicitServerRejectionRetiresTheAdmittedStart() {
+        val submission = RealtimeStartSubmission()
+        assertTrue(submission.admit())
+        submission.reject()
+        assertFalse(submission.mayHaveStarted())
+        assertFalse(submission.admit())
+    }
 }

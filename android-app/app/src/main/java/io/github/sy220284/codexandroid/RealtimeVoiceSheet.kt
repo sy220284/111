@@ -110,17 +110,7 @@ internal fun RealtimeVoiceSheet(
             }
             CodexIconAction(onClick = { controller.stop(); onDismiss() }) { CodexIcon(CodexGlyph.Close, "关闭实时语音") }
         }
-        if (live) {
-            val level = if (controller.muted) 0f else controller.inputLevel
-            Row(Modifier.fillMaxWidth().height(28.dp), horizontalArrangement = Arrangement.spacedBy(3.dp),
-                verticalAlignment = Alignment.CenterVertically) {
-                repeat(18) { index ->
-                    val threshold = (index + 1) / 18f
-                    Box(Modifier.weight(1f).height((5 + 20 * threshold).dp)
-                        .background(if (level >= threshold) Ink.jade else Ink.border, RoundedCornerShape(3.dp)))
-                }
-            }
-        }
+        if (live) RealtimeInputMeter(controller)
         if (permissionError) CodexNotice("需要麦克风权限。也可以在系统设置中为 Codex 开启。", NoticeTone.Warning)
         if (controller.error.isNotBlank()) CodexNotice(controller.error, NoticeTone.Error)
         CapabilityFeedback(operation)
@@ -181,6 +171,19 @@ internal fun RealtimeVoiceSheet(
             if (cursor.isNotBlank()) CodexTextAction(onClick = { loadHistory(true) },
                 enabled = !operation.busy) { Text("读取更多") }
         }
+        }
+    }
+}
+
+@Composable
+private fun RealtimeInputMeter(controller: RealtimeVoiceController) {
+    val level = controller.inputLevel
+    Row(Modifier.fillMaxWidth().height(28.dp), horizontalArrangement = Arrangement.spacedBy(3.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        repeat(18) { index ->
+            val threshold = (index + 1) / 18f
+            Box(Modifier.weight(1f).height((5 + 20 * threshold).dp)
+                .background(if (level >= threshold) Ink.jade else Ink.border, RoundedCornerShape(3.dp)))
         }
     }
 }
