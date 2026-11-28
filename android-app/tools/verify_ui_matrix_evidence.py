@@ -6,7 +6,7 @@ import re
 import os
 import sys
 from pathlib import Path
-from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, minimum_tests, SHARDS
+from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, minimum_tests, SHARDS, audit_theme
 
 def read(path):
     return json.loads(path.read_text(encoding="utf-8"))
@@ -34,6 +34,8 @@ def design_review(observations):
     issues = []
     for item in observations:
         device = f"{item['profile']}/{item['mode']}"
+        if item.get("audit_theme") != audit_theme(item["mode"]):
+            issues.append(f"{device}: 明暗主题证据缺失或错误")
         if not item["screens_complete"]:
             issues.append(f"{device}: 截图采集不完整或归属无效")
         visual = item["visual"]
@@ -101,7 +103,7 @@ def validate(root, source):
                 reference=visual_ids
             if visual_ids != reference:
                 raise ValueError(f"{profile}/{mode}: different visual test identities")
-            observation = {"profile": profile, "mode": mode, "blocking": False,
+            observation = {"profile": profile, "mode": mode, "blocking": False, "audit_theme": report.get("audit_theme"),
                            "screenshot_collection": report.get("screenshot_observation", {"missing": report.get("missing_screens"), "exit": report.get("screenshot_collection_exit")})}
             observation["screens_complete"] = (
                 report.get("missing_screens") == [] and report.get("screenshot_collection_exit") == 0

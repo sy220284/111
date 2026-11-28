@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, SHARDS
+from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, SHARDS, audit_theme
 from verify_ui_matrix_evidence import validate
 
 class MatrixEvidenceTests(unittest.TestCase):
@@ -15,7 +15,7 @@ class MatrixEvidenceTests(unittest.TestCase):
                 ids = [f"Example#test{i}" for i in range(CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))]
                 if independent_device(profile,mode): ids+=sorted(INDEPENDENT_IDS)
                 self.write(folder/f"ui-{mode}-diagnosis.json", dict(dimensions(profile,mode),
-                    status="passed", commit="head", profile=profile, mode=mode,
+                    status="passed", commit="head", profile=profile, mode=mode, audit_theme=audit_theme(mode),
                     android_api=CONFIG["api"], page_size=CONFIG["page_size"], build_fingerprint="android",
                     missing_screens=[], screenshot_collection_exit=0, run_id=profile+mode, shard_run_ids={s:profile+mode+s for s in SHARDS},
                     tested_apk_sha256={"debug/app-debug.apk":"a"*64,"androidTest/debug/app-debug-androidTest.apk":"b"*64},
@@ -39,6 +39,15 @@ class MatrixEvidenceTests(unittest.TestCase):
             self.assertEqual((CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))*4+len(INDEPENDENT_IDS),result["executions"])
             self.assertEqual("passed", result["functional_status"])
             self.assertEqual("manual_review_required", result["design_review"]["status"])
+    def test_wrong_theme_blocks_design_approval_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            path=root/"ui-proof-mainstream-adaptive/ui-adaptive-diagnosis.json"
+            data=json.loads(path.read_text()); data["audit_theme"]="light"; self.write(path,data)
+            result=validate(root,"head")
+            self.assertEqual("passed",result["functional_status"])
+            self.assertEqual("blocked",result["design_review"]["status"])
+
     def test_wrong_test_set_same_count_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)

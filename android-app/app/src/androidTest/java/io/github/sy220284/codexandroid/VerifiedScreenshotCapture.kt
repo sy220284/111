@@ -6,6 +6,15 @@ import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 
+/** Test-only theme selection is explicit for every device configuration. */
+internal fun applyAuditTheme() {
+    val theme = InstrumentationRegistry.getArguments().getString("auditTheme") ?: return
+    require(theme == "light" || theme == "dark") { "未知验收主题：$theme" }
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        UiPreferences.setDarkMode(theme == "dark")
+    }
+}
+
 /** AOSP ClipboardOverlayWindow 的标题固定为 ClipboardOverlay，且窗口不获取焦点。 */
 internal fun hasClipboardOverlayWindow(dump: String): Boolean =
     Regex("""(?m)^\s*Window #\d+ Window\{[^\n]*\bClipboardOverlay\b""").containsMatchIn(dump)
@@ -21,6 +30,8 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String, assertSubject: (
     try {
         captureOwnedDisplayScreenshot(fileName, assertSubject)
     } catch (failure: Exception) {
+        InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)
+            ?.let { File(it, fileName).delete() }
         android.util.Log.w("UiScreenshotObservation", "SCREENSHOT_FAILED $fileName", failure)
         println("SCREENSHOT_FAILED $fileName: " + failure.message)
 
@@ -52,6 +63,13 @@ private fun captureOwnedDisplayScreenshot(fileName: String, assertSubject: (() -
     }
 
     fun checkSubject() {
+        val expectedTheme = if (fileName == "audit-dark-200font-appearance-android.png") "dark"
+            else InstrumentationRegistry.getArguments().getString("auditTheme")
+        if (expectedTheme != null) {
+            check(UiPreferences.darkMode.value == (expectedTheme == "dark")) {
+                "截图主题与验收配置不一致：$fileName / $expectedTheme"
+            }
+        }
         try {
             assertSubject?.invoke()
         } catch (failure: AssertionError) {

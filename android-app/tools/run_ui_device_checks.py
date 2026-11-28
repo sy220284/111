@@ -10,7 +10,7 @@ import time
 import uuid
 from collect_ui_screenshots import parse_discovered_screens
 from pathlib import Path
-from device_matrix import CONFIG, PROFILES, dimensions, SHARDS, shard_classes, DIAGNOSTIC_SUITES
+from device_matrix import CONFIG, PROFILES, dimensions, SHARDS, shard_classes, DIAGNOSTIC_SUITES, audit_theme
 
 PACKAGE = "io.github.sy220284.codexandroid"
 RUNNER = PACKAGE + ".test/androidx.test.runner.AndroidJUnitRunner"
@@ -149,7 +149,7 @@ def assert_device(spec, physical_spec):
 
 def run_fresh_suite(profile, mode, log, destination, shard, *, suite=None, method=None):
     measured = assert_device(dimensions(profile, mode), dimensions(profile, 'baseline'))
-    measured.update(profile=profile, mode=mode, shard=shard)
+    measured.update(profile=profile, mode=mode, shard=shard, audit_theme=audit_theme(mode))
     adb("shell", "am", "force-stop", PACKAGE)
     screenshot_errors = []
     try:
@@ -164,7 +164,8 @@ def run_fresh_suite(profile, mode, log, destination, shard, *, suite=None, metho
             raise ValueError("专项方法必须属于一个已选择的测试类")
         classes = [classes[0] + "#" + method]
     result = execute_instrumentation(classes, log, arguments={
-        "expectedWidthPx": measured["width_px"], "expectedDensityDpi": measured["density_dpi"]})
+        "expectedWidthPx": measured["width_px"], "expectedDensityDpi": measured["density_dpi"],
+        "auditTheme": measured["audit_theme"]})
     observed = {test.split('#', 1)[0] for test in result['test_ids']}
     if observed != {PACKAGE + '.' + name.split('#', 1)[0] for name in classes}:
         result.update(status='failed', evidence_category='missing_or_unexpected_test_classes')

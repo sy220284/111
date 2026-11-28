@@ -36,6 +36,8 @@ import org.junit.Test
  * 从而无需伪装成本机引擎已经连接。不会发起危险审批或工具写入。
  */
 class UiPopulatedSubpagesInstrumentedTest {
+    @org.junit.Before fun prepareAuditTheme() = applyAuditTheme()
+
     @get:Rule val rule = createComposeRule()
 
     private fun viewModel(): CodexViewModel {

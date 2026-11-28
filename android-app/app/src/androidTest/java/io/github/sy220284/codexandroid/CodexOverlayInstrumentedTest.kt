@@ -26,6 +26,8 @@ import org.junit.Test
 
 /** Verifies a real Material 3 overlay, including explicit dismiss without side effects. */
 class CodexOverlayInstrumentedTest {
+    @org.junit.Before fun prepareAuditTheme() = applyAuditTheme()
+
     @get:Rule val rule = createComposeRule()
 
     @Test fun clipboardOverlayIsDetectedEvenWhenAppRetainsFocus() {

@@ -29,6 +29,8 @@ import org.junit.Test
 
 /** 实际模拟器验证：详情不挤动列表、可关闭，上下文菜单能完成所选动作。 */
 class CodexInteractionComponentsInstrumentedTest {
+    @org.junit.Before fun prepareAuditTheme() = applyAuditTheme()
+
     @Test fun singleQuestionKeyboardDoneAppliesOnlyAValidReply() {
         var applied = "原值"
         rule.setContent {
