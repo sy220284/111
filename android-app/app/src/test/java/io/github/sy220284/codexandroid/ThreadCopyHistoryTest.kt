@@ -48,4 +48,38 @@ class ThreadCopyHistoryTest {
         } } finally { spool.delete() }
         assertTrue(result.isFailure)
     }
+
+    @Test fun exportsFiftyThousandItemsAcrossPagesWithoutLosingOrder() = runBlocking {
+        val spool = java.io.File.createTempFile("history-pressure", ".spool")
+        val output = StringBuilder()
+        var read = 0
+        try {
+            ThreadCopyHistory { method, params ->
+                when (method) {
+                    "thread/items/list" -> {
+                        val start = params.optString("cursor").toIntOrNull() ?: 0
+                        val end = minOf(start + 100, 50_000)
+                        val rows = JSONArray()
+                        for (i in start until end) rows.put(entry("id-$i", "record-$i;").put("turnId", "turn-${i / 100}"))
+                        JSONObject().put("data", rows).put("nextCursor", if (end < 50_000) end.toString() else JSONObject.NULL)
+                    }
+                    "thread/turns/list" -> {
+                        val start = params.optString("cursor").toIntOrNull() ?: 0
+                        val end = minOf(start + 100, 500)
+                        val rows = JSONArray()
+                        for (i in start until end) rows.put(JSONObject().put("id", "turn-$i").put("status", "completed"))
+                        JSONObject().put("data", rows).put("nextCursor", if (end < 500) end.toString() else JSONObject.NULL)
+                    }
+                    else -> error("unexpected method $method")
+                }
+            }.write("thread", spool, output, onProgress = { read = it })
+            assertEquals(50_000, read)
+            var position = -1
+            for (i in 0 until 50_000) {
+                val next = output.indexOf("record-$i;", position + 1)
+                assertTrue("missing or out of order: $i", next > position)
+                position = next
+            }
+        } finally { spool.delete() }
+    }
 }
