@@ -40,6 +40,30 @@ class ThreadCopyHistoryTest {
         assertEquals(listOf("thread/items/list", "thread/items/list", "thread/items/read", "thread/turns/list"), methods)
     }
 
+    @Test fun interleavedTurnsAreStreamedInTurnOrderWithoutFetchingHiddenToolPayloads() = runBlocking {
+        val spool = java.io.File.createTempFile("history-interleaved", ".spool")
+        val output = StringBuilder()
+        try {
+            val a = entry("a", "first").put("turnId", "one")
+            a.getJSONObject("item").put("phase", "partial_answer")
+            val b = entry("b", "third").put("turnId", "two")
+            val c = entry("c", "second").put("turnId", "one")
+            c.getJSONObject("item").put("phase", "final_answer")
+            val hidden = entry("hidden", "", true).put("turnId", "one")
+            hidden.getJSONObject("item").put("type", "commandExecution")
+            ThreadCopyHistory { method, _ ->
+                when (method) {
+                    "thread/items/list" -> JSONObject().put("data", JSONArray().put(a).put(b).put(hidden).put(c))
+                    "thread/turns/list" -> JSONObject().put("data", JSONArray()
+                        .put(JSONObject().put("id", "one").put("status", "completed"))
+                        .put(JSONObject().put("id", "two").put("status", "completed")))
+                    else -> error("不应读取隐藏的执行输出")
+                }
+            }.write("thread", spool, output)
+            assertEquals("# Codex 会话记录\n\n## Codex\n\nfirstsecond\n\n## Codex\n\nthird\n", output.toString())
+        } finally { spool.delete() }
+    }
+
     @Test fun repeatedCursorFailsInsteadOfExportingPartialHistory() = runBlocking {
         val spool = java.io.File.createTempFile("history-test", ".spool")
         val result = try { runCatching {

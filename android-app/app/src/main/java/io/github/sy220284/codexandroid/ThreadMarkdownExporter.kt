@@ -34,28 +34,60 @@ internal object ThreadMarkdownExporter {
         }
     }
 
-    /** Shared formatter for fixtures and file-backed production export.
-     * Keep only the last section so the original final trim is preserved. */
+    /** Stream sections and partial answers directly to the destination. Only
+     * trailing whitespace is retained to preserve the original final trim. */
     internal class Stream(private val output: Appendable, private val includeActivity: Boolean) {
-        private var previousBody: String? = null
+        private var hasSection = false
+        private val tail = StringBuilder()
         private var reviewMode = false
+
+        private fun start(heading: String) {
+            if (!hasSection) output.append("# Codex 会话记录\n\n")
+            else output.append(tail).append("\n\n")
+            tail.clear()
+            output.append("## ").append(heading).append("\n\n")
+            hasSection = true
+        }
+
+        private fun appendBody(body: CharSequence) {
+            val end = body.indexOfLast { !it.isWhitespace() } + 1
+            if (end > 0) {
+                output.append(tail)
+                tail.clear()
+                output.append(body, 0, end)
+            }
+            tail.append(body, end, body.length)
+        }
+
         private fun emit(heading: String, body: String) {
             if (body.isBlank()) return
-            val previous = previousBody
-            if (previous == null) output.append("# Codex 会话记录\n\n")
-            else output.append(previous).append("\n\n")
-            output.append("## ").append(heading).append("\n\n")
-            previousBody = body
+            start(heading)
+            appendBody(body)
         }
 
         fun turn(turn: JSONObject) {
             val raw = turn.optJSONArray("items") ?: return
-            val items = (0 until raw.length()).mapNotNull { raw.optJSONObject(it) }
+            val items = (0 until raw.length()).asSequence().mapNotNull { raw.optJSONObject(it) }
             val progressive = items.any { it.optString("type") == "agentMessage" && it.optString("phase") == "partial_answer" }
-            val pending = StringBuilder()
+            turn(turn.optString("status"), progressive, items)
+        }
+
+        fun turn(status: String, progressive: Boolean, items: Sequence<JSONObject>) {
+            var progressStarted = false
+            val leading = StringBuilder()
+            fun appendProgress(body: String) {
+                if (!progressStarted) {
+                    if (body.isBlank()) { leading.append(body); return }
+                    start("Codex")
+                    progressStarted = true
+                    appendBody(leading)
+                    leading.clear()
+                }
+                appendBody(body)
+            }
             fun flush() {
-                emit("Codex", pending.toString())
-                pending.clear()
+                progressStarted = false
+                leading.clear()
             }
             for (item in items) {
                 when (item.optString("type")) {
@@ -69,7 +101,7 @@ internal object ThreadMarkdownExporter {
                             if (includeActivity) { flush(); emit("过程回复", body(item)) }
                             continue
                         }
-                        if (progressive) pending.append(body(item)) else emit("Codex", body(item))
+                        if (progressive) appendProgress(body(item)) else emit("Codex", body(item))
                     }
                     else -> if (includeActivity) {
                         flush()
@@ -78,7 +110,7 @@ internal object ThreadMarkdownExporter {
                 }
             }
             flush()
-            val outcome = when (turn.optString("status")) {
+            val outcome = when (status) {
                 "failed" -> "任务执行失败，以上为已收到内容。"
                 "interrupted" -> "任务已中断，以上为已收到内容。"
                 "inProgress", "unverified" -> "任务结果尚未确认，以上为已收到内容。"
@@ -87,9 +119,10 @@ internal object ThreadMarkdownExporter {
             outcome?.let { emit("回合状态", it) }
         }
         fun finish() {
-            val finalBody = requireNotNull(previousBody) { "会话暂无可导出的文字消息" }
-            output.append(finalBody.trimEnd()).append('\n')
-            previousBody = null
+            require(hasSection) { "会话暂无可导出的文字消息" }
+            tail.clear()
+            output.append('\n')
+            hasSection = false
         }
     }
 

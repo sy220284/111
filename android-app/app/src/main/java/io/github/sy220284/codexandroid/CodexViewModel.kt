@@ -129,9 +129,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             canRead = { bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy },
             clock = android.os.SystemClock::elapsedRealtime,
             read = { key ->
+                val owner = captureTaskOwner() ?: error("运行核心尚未连接")
                 when (key) {
-                    "usage" -> bridge.request("account/usage/read", null)
-                    "limits" -> bridge.request("account/rateLimits/read", null)
+                    "usage" -> owner.request(this, "account/usage/read", null)
+                    "limits" -> owner.request(this, "account/rateLimits/read", null)
                     else -> error("未知账号统计类型：$key")
                 }
             })

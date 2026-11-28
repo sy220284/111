@@ -8,13 +8,14 @@ import java.io.File
 import java.io.RandomAccessFile
 
 /** Preserve native ordering, including interleaved turn IDs and deferred outputs.
- * Payloads live in a private disk spool; only offsets, metadata and one turn are
- * retained in memory. Both file export and clipboard use this single path. */
+ * Payloads and per-item links live in a private disk spool; only turn heads,
+ * duplicate detection and one item are retained in memory. */
 internal class ThreadCopyHistory(private val request: suspend (String, JSONObject) -> JSONObject) {
+    private data class TurnSpool(var head: Long = -1, var tail: Long = -1, var progressive: Boolean = false)
     suspend fun write(threadId: String, spool: File, output: Appendable, includeActivity: Boolean = false,
         onProgress: suspend (Int) -> Unit = {}) {
         require(threadId.isNotBlank()) { "缺少会话标识" }
-        val offsets = linkedMapOf<String, MutableList<Long>>()
+        val offsets = linkedMapOf<String, TurnSpool>()
         val seenCursors = hashSetOf<String>()
         val seenItems = hashSetOf<Pair<String, String>>()
         RandomAccessFile(spool, "rw").use { store ->
@@ -33,6 +34,11 @@ internal class ThreadCopyHistory(private val request: suspend (String, JSONObjec
                     val id = entry.getJSONObject("item").getString("id")
                     check(turn.isNotBlank() && id.isNotBlank()) { "历史缺少条目标识" }
                     check(seenItems.add(turn to id)) { "历史条目重复，请重新读取" }
+                    val turnSpool = offsets.getOrPut(turn) { TurnSpool() }
+                    val listedItem = entry.getJSONObject("item")
+                    // Normal chat export never needs deferred command/tool payloads.
+                    if (!includeActivity && listedItem.optString("type") !in
+                        setOf("userMessage", "agentMessage", "enteredReviewMode", "exitedReviewMode")) continue
                     if (entry.optBoolean("outputDeferred")) {
                         val detail = request("thread/items/read", JSONObject().put("threadId", threadId)
                             .put("turnId", turn).put("itemIds", JSONArray().put(id))).getJSONArray("data")
@@ -41,10 +47,21 @@ internal class ThreadCopyHistory(private val request: suspend (String, JSONObjec
                         check(entry.getString("turnId") == turn && entry.getJSONObject("item").getString("id") == id &&
                             !entry.optBoolean("outputDeferred")) { "历史输出归属不一致或未读取完整" }
                     }
-                    val bytes = entry.getJSONObject("item").toString().toByteArray(Charsets.UTF_8)
-                    offsets.getOrPut(turn) { mutableListOf() }.add(store.filePointer)
+                    val item = entry.getJSONObject("item")
+                    val bytes = item.toString().toByteArray(Charsets.UTF_8)
+                    val position = store.length()
+                    if (turnSpool.head < 0) turnSpool.head = position
+                    else {
+                        store.seek(turnSpool.tail)
+                        store.writeLong(position)
+                    }
+                    store.seek(position)
+                    store.writeLong(-1)
                     store.writeInt(bytes.size)
                     store.write(bytes)
+                    turnSpool.tail = position
+                    if (item.optString("type") == "agentMessage" && item.optString("phase") == "partial_answer")
+                        turnSpool.progressive = true
                 }
                 onProgress(seenItems.size)
                 cursor = historyCursor(page)
@@ -52,20 +69,22 @@ internal class ThreadCopyHistory(private val request: suspend (String, JSONObjec
             } while (cursor != null)
             val outcomes = HistoryTurnOutcomes(threadId, request).load(offsets.keys)
             val renderer = ThreadMarkdownExporter.Stream(output, includeActivity)
-            for ((id, positions) in offsets) {
-                currentCoroutineContext().ensureActive()
-                val items = JSONArray()
-                for (position in positions) {
-                    currentCoroutineContext().ensureActive()
-                    store.seek(position)
-                    val bytes = ByteArray(store.readInt())
-                    store.readFully(bytes)
-                    items.put(JSONObject(bytes.toString(Charsets.UTF_8)))
+            val context = currentCoroutineContext()
+            for ((id, turnSpool) in offsets) {
+                context.ensureActive()
+                val items = sequence {
+                    var position = turnSpool.head
+                    while (position >= 0) {
+                        context.ensureActive()
+                        store.seek(position)
+                        val next = store.readLong()
+                        val bytes = ByteArray(store.readInt())
+                        store.readFully(bytes)
+                        yield(JSONObject(bytes.toString(Charsets.UTF_8)))
+                        position = next
+                    }
                 }
-                val turn = outcomes[id]
-                renderer.turn(JSONObject().put("id", id).put("items", items)
-                    .put("status", turn?.optString("status") ?: "unverified")
-                    .put("error", turn?.opt("error") ?: JSONObject.NULL))
+                renderer.turn(outcomes[id]?.optString("status") ?: "unverified", turnSpool.progressive, items)
             }
             renderer.finish()
         }
