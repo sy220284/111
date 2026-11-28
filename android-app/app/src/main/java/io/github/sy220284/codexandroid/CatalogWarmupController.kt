@@ -49,6 +49,11 @@ internal class CatalogWarmupController(
     fun accountChanged() {
         accountRevisionState.value += 1
         vm.threadOrganization.invalidate()
+        refreshRouting()
+    }
+
+    // workspaceRoutingReady is a catalog change for the same authenticated owner.
+    fun refreshRouting() {
         invalidateModels()
         vm.refresh("models", "model/list")
         if (vm.composerCatalogKey() != "models") vm.refreshComposerCatalog()

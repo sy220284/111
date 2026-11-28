@@ -3,6 +3,8 @@ package io.github.sy220284.codexandroid
 import org.json.JSONObject
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 
 /** Immutable ownership of an admitted task; never silently move it to a new account or core. */
 internal data class TaskRequestOwner(val epoch: Long, val account: Long) {
@@ -40,3 +42,8 @@ internal data class TaskRequestOwner(val epoch: Long, val account: Long) {
 
 internal fun CodexViewModel.captureTaskOwner(): TaskRequestOwner? =
     bridge.connectedSession.value?.let { TaskRequestOwner(it, catalogWarmup.accountRevision.value) }
+
+/** Captured once for a multi-request capability operation, inherited by nested suspend calls. */
+internal class CapabilityRequestOwner(val owner: TaskRequestOwner) : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<CapabilityRequestOwner>
+}

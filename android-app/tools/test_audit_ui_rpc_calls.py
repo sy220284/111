@@ -39,6 +39,20 @@ class SourceCallsiteClassificationTest(unittest.TestCase):
         self.assertEqual({"command/exec/resize", "turn/start", "review/start"},
                          find_rpc_calls(code, methods))
 
+    def test_captured_task_owner_names_are_not_hardcoded(self):
+        source = '''
+        val requestOwner = vm.captureTaskOwner() ?: return
+        requestOwner.request(vm, "thread/search", params)
+        val configLease = captureTaskOwner() ?: return
+        configLease.request(this@save, "config/value/write", params)
+        fun mark(ownership: TaskRequestOwner) {
+            ownership.request(vm, "thread/readState/update", params)
+        }
+        unrelated.request(vm, "thread/delete", params)
+        '''
+        methods = {"thread/search", "config/value/write", "thread/readState/update", "thread/delete"}
+        self.assertEqual(methods - {"thread/delete"}, find_rpc_calls(source, methods))
+
     def test_capability_requests_count_only_the_method_argument(self):
         source = 'vm.capabilityRequest("memory/status", JSONObject().put("action", "memory/reset"))'
         self.assertEqual({"memory/status"}, find_rpc_calls(source, {"memory/status", "memory/reset"}))

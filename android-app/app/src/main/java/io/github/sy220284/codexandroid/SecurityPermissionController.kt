@@ -2,6 +2,7 @@ package io.github.sy220284.codexandroid
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -93,6 +94,8 @@ internal fun CodexViewModel.chooseComposerPermission(id: String) {
             }
             if (activeWorkspace.value == cwd && current())
                 data.value = data.value + ("composerPermissionConfig" to verified)
+        } catch (timeout: TimeoutCancellationException) {
+            if (current()) errors.value = errors.value + ("securitySave" to "权限保存或回读超时，请核对实际设置")
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {

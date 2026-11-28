@@ -66,6 +66,12 @@ internal object CodexNotificationDispatcher {
                 refresh("account", "account/read")
             }
         } else if (method == "account/updated") {
+            if (params.optString("reason") == "workspaceRoutingReady") {
+                catalogWarmup.refreshRouting()
+                refresh("account", "account/read")
+                accountMetrics.refresh()
+                return
+            }
             catalogWarmup.accountChanged()
             mcpCatalog.clearStartup()
             modelPreviews.clear()
