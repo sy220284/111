@@ -7,8 +7,9 @@ import java.security.MessageDigest
 /** Stable, server-confirmed identity. Display names, plans and credential types
  * cannot identify an account. External authentication has no durable key. */
 internal data class AuthenticatedAccountIdentity(val user: String, val session: String, val workspace: String) {
-    fun cacheKey(): String = RemoteTransferCheckpoint.hex(MessageDigest.getInstance("SHA-256").digest(
-        JSONArray().put("111-session-index-v2").put(user).put(session).put(workspace).toString().toByteArray(Charsets.UTF_8)))
+    fun cacheKey(): String = MessageDigest.getInstance("SHA-256").digest(
+        JSONArray().put("111-session-index-v2").put(user).put(session).put(workspace).toString().toByteArray(Charsets.UTF_8))
+        .joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
     companion object {
         fun parse(account: JSONObject, sessions: JSONObject): AuthenticatedAccountIdentity? {

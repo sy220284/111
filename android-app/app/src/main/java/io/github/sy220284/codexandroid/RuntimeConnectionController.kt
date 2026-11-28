@@ -25,6 +25,8 @@ internal class RuntimeConnectionController(private val vm: CodexViewModel) {
                 if (synchronizedEpoch == epoch) return@launch
                 val previousThread = vm.activeThread.value
                 vm.threadOrganization.invalidate()
+                vm.invalidateAccountReceipts()
+                vm.sessions.reconnect()
                 vm.mcpCatalog.reset()
                 vm.modelPreviews.clear()
                 vm.threadActivities.value = emptyMap()
@@ -41,7 +43,7 @@ internal class RuntimeConnectionController(private val vm: CodexViewModel) {
                 if (!previousThread.isNullOrBlank()) recoveryJob = vm.viewModelScope.launch {
                     // The old connection's history/selection finally blocks must finish
                     // before recovery takes over. A deliberate new selection supersedes it.
-                    combine(vm.threadSwitching, vm.loadingEarlier, vm.timelineCompaction,
+                    combine<Any?, Boolean>(vm.threadSwitching, vm.loadingEarlier, vm.timelineCompaction,
                         vm.firstThreadStarting, vm.running, vm.activeThread, vm.bridge.connectedSession) {
                         vm.bridge.connectedSession.value != epoch || vm.activeThread.value != previousThread ||
                             (!vm.threadSwitching.value && !vm.loadingEarlier.value &&

@@ -79,6 +79,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     private var sendJob: Job? = null
     private var output: Channel<JSONObject>? = null
     private var sessionEpoch: Long? = null
+    private var voiceOwner: TaskRequestOwner? = null
 
     private fun thread() = JSONObject().put("threadId", threadId)
 
@@ -90,16 +91,18 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             error = "当前运行状态无法启动实时语音，请完成其他操作后重试"
             return
         }
-        val voiceEpoch = vm.bridge.connectedSession.value
-        if (voiceEpoch == null) {
+        val owner = vm.captureTaskOwner()
+        if (owner == null) {
             error = "运行核心尚未连接，请重新连接后重试"
             return
         }
+        val voiceEpoch = owner.epoch
         if (!lease.acquire(this)) {
             error = "上一段语音仍在结束，请稍后重试"
             return
         }
         sessionEpoch = voiceEpoch
+        voiceOwner = owner
         error = ""
         muted = false
         userTranscript = ""
@@ -112,12 +115,13 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
             vm.bridge.events.collect(::event)
         }
         connectionJob = vm.viewModelScope.launch(start = CoroutineStart.LAZY) {
-            combine(vm.bridge.connectedSession, vm.bridge.status, AppDataTransfer.state, vm.activeThread, vm.threadSwitching) {
-                    session, status, transfer, active, switching ->
+            combine<Any?, String>(vm.bridge.connectedSession, vm.bridge.status, AppDataTransfer.state, vm.activeThread,
+                vm.threadSwitching, vm.catalogWarmup.accountRevision) {
                 when {
-                    session != voiceEpoch || status != EngineStatus.Connected -> "运行引擎已断开"
-                    transfer.busy -> "应用数据传输已开始，语音已结束"
-                    active != threadId || switching -> "会话已切换，语音已结束"
+                    vm.bridge.connectedSession.value != voiceEpoch || vm.bridge.status.value != EngineStatus.Connected -> "运行引擎已断开"
+                    !owner.current(vm) -> "账号已切换，语音已结束"
+                    AppDataTransfer.state.value.busy -> "应用数据传输已开始，语音已结束"
+                    vm.activeThread.value != threadId || vm.threadSwitching.value -> "会话已切换，语音已结束"
                     else -> ""
                 }
             }.collect { reason ->
@@ -133,13 +137,13 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                     acquireAudioFocus()
                     try {
                         vm.capabilityRequest("thread/realtime/start", RealtimeStartContract.params(threadId),
-                            15_000, sendPermit = attempt.submission::admit, expectedSession = voiceEpoch)
+                            15_000, sendPermit = { owner.current(vm) && attempt.submission.admit() }, expectedSession = voiceEpoch)
                     } catch (rejection: RpcServerRejection) {
                         attempt.submission.reject()
                         throw rejection
                     }
                     withTimeout(15_000) { attempt.ready.await() }
-                    if (state == State.Starting) {
+                    if (state == State.Starting && owner.current(vm)) {
                         state = State.Live
                         startMedia()
                     }
@@ -210,6 +214,7 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         connectionJob?.cancel()
         startup = null
         sessionEpoch = null
+        voiceOwner = null
         state = State.Idle
         lease.release(this)
     }
@@ -227,18 +232,21 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
 
     fun sendText(text: String, asSpeech: Boolean, onSent: () -> Unit) {
         if (state != State.Live || sendJob?.isActive == true || text.isBlank()) return
-        val epoch = requireNotNull(sessionEpoch)
+        val owner = voiceOwner ?: return
+        val epoch = owner.epoch
         error = ""
         sending = true
         sendJob = vm.viewModelScope.launch {
             try {
                 if (asSpeech) {
-                    vm.capabilityRequest("thread/realtime/appendSpeech", thread().put("text", text), 8_000, expectedSession = epoch)
+                    vm.capabilityRequest("thread/realtime/appendSpeech", thread().put("text", text), 8_000,
+                        sendPermit = { owner.current(vm) && state == State.Live }, expectedSession = epoch)
                 } else {
                     vm.capabilityRequest("thread/realtime/appendText",
-                        thread().put("text", text).put("role", "user"), 8_000, expectedSession = epoch)
+                        thread().put("text", text).put("role", "user"), 8_000,
+                        sendPermit = { owner.current(vm) && state == State.Live }, expectedSession = epoch)
                 }
-                onSent()
+                if (owner.current(vm) && state == State.Live) onSent()
             } catch (cancel: CancellationException) {
                 if (cancel !is TimeoutCancellationException) throw cancel
                 error = capabilityError(cancel)
@@ -254,7 +262,11 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         if (!vm.bridge.isCurrentEvent(message) || message.optLong(CORE_SESSION_FIELD, -1L) != sessionEpoch) return
         val params = message.optJSONObject("params") ?: return
         if (params.value("threadId") != threadId) return
-        when (message.value("method")) {
+        val method = message.value("method")
+        // Old-owner closure/error is still needed to release the native lease.
+        if (method !in setOf("thread/realtime/closed", "thread/realtime/error") &&
+            voiceOwner?.current(vm) != true) return
+        when (method) {
             "thread/realtime/started" -> startup?.ready?.complete(Unit)
             "thread/realtime/closed" -> {
                 closed.complete(Unit)
@@ -297,7 +309,8 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
     }
 
     private fun startMedia() {
-        val epoch = requireNotNull(sessionEpoch)
+        val owner = requireNotNull(voiceOwner)
+        val epoch = owner.epoch
         val queue = Channel<JSONObject>(64)
         output = queue
         val microphone = Channel<VoicePacket>(20)
@@ -310,11 +323,11 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
                 // Serialize admission with mute and stop on the main dispatcher.
                 // A request already sent to the service cannot be recalled.
                 withContext(Dispatchers.Main.immediate) {
-                    if (state == State.Live && uploadGate.accepts(packet.revision)) {
+                    if (state == State.Live && owner.current(vm) && uploadGate.accepts(packet.revision)) {
                         try {
                             vm.capabilityRequest("thread/realtime/appendAudio",
                                 thread().put("audio", packet.audio), 4_000,
-                                sendPermit = { uploadGate.accepts(packet.revision) }, expectedSession = epoch)
+                                sendPermit = { owner.current(vm) && uploadGate.accepts(packet.revision) }, expectedSession = epoch)
                         } catch (_: RpcWriteRevoked) {
                             // Mute or stop revoked this queued packet at the actual writer.
                         }

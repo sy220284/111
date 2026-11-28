@@ -171,13 +171,15 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                 refreshIfStale()
         }
     }
-    fun invalidateIdentity(cancelResolution: Boolean = true) {
+    fun reconnect() = invalidateIdentity(clearIndex = false)
+
+    fun invalidateIdentity(cancelResolution: Boolean = true, clearIndex: Boolean = true) {
         if (cancelResolution) { identityJob?.cancel(); identityJob = null }
         identityEpoch += 1
         directoryCache = SessionDirectoryEngine.Cache()
         identity = null
-        allowCacheRead = false
-        scope.launch {
+        allowCacheRead = !clearIndex
+        if (clearIndex) scope.launch {
             try { index.clear() }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) { android.util.Log.w("SessionIndex", "旧账号索引清理失败", failure) }
