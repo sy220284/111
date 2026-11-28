@@ -192,11 +192,58 @@ class RuntimeOwnershipInstrumentedTest {
             val output = java.io.ByteArrayOutputStream()
             val exported = LocalDataArchive.export(from, output, fromProjects)
             assertTrue(exported > 7)
-            java.util.zip.ZipInputStream(output.toByteArray().inputStream()).use { archive ->
+            val backup = output.toByteArray()
+            java.util.zip.ZipInputStream(backup.inputStream()).use { archive ->
                 org.junit.Assert.assertEquals("manifest.txt", archive.nextEntry.name)
-                org.junit.Assert.assertEquals("111-local-backup-version:3", archive.readBytes().toString(Charsets.UTF_8))
+                org.junit.Assert.assertEquals("111-local-backup-version:4", archive.readBytes().toString(Charsets.UTF_8))
             }
-            org.junit.Assert.assertEquals(exported, LocalDataArchive.stageImport(to, output.toByteArray().inputStream()))
+            // Repack with valid ZIP CRCs so the checks exercise the backup
+            // inventory, not the ZIP reader's own corruption detection.
+            fun repack(transform: (String, ByteArray) -> ByteArray?): ByteArray {
+                val rewritten = java.io.ByteArrayOutputStream()
+                java.util.zip.ZipInputStream(backup.inputStream()).use { source ->
+                    java.util.zip.ZipOutputStream(rewritten).use { destination ->
+                        while (true) {
+                            val entry = source.nextEntry ?: break
+                            val data = transform(entry.name, source.readBytes())
+                            if (data != null) {
+                                destination.putNextEntry(java.util.zip.ZipEntry(entry.name))
+                                destination.write(data)
+                                destination.closeEntry()
+                            }
+                            source.closeEntry()
+                        }
+                    }
+                }
+                return rewritten.toByteArray()
+            }
+            fun assertRejected(bytes: ByteArray, reason: String) {
+                val failure = runCatching { LocalDataArchive.stageImport(to, bytes.inputStream()) }.exceptionOrNull()
+                assertTrue(failure is IllegalArgumentException && failure.message.orEmpty().contains(reason))
+                assertTrue(!LocalDataArchive.hasPending(to))
+                org.junit.Assert.assertEquals("destination runtime config", java.io.File(to.filesDir, "codex-home/config.toml").readText())
+            }
+            val historyPath = "files/codex-home/sessions/2026/rollout.jsonl"
+            assertRejected(repack { path, data ->
+                if (path == historyPath) data + byteArrayOf(10) else data
+            }, "摘要不符")
+            assertRejected(repack { path, data ->
+                if (path == BackupIntegrity.ENTRY) null else data
+            }, "缺少完整性清单")
+
+            // A pre-integrity V3 archive remains importable after the V4 upgrade.
+            val previous = repack { path, data ->
+                when (path) {
+                    "manifest.txt" -> "111-local-backup-version:3".toByteArray(Charsets.UTF_8)
+                    BackupIntegrity.ENTRY -> null
+                    else -> data
+                }
+            }
+            org.junit.Assert.assertEquals(exported, LocalDataArchive.stageImport(to, previous.inputStream()))
+            LocalDataArchive.cancelStaged(to)
+            assertTrue(!LocalDataArchive.hasPending(to))
+
+            org.junit.Assert.assertEquals(exported, LocalDataArchive.stageImport(to, backup.inputStream()))
             LocalDataArchive.restoreIfPending(to) { toProjects }
             val restoredProject = java.io.File(toProjects, "demo/Main.kt")
             org.junit.Assert.assertEquals("current version", restoredProject.readText())
