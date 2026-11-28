@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -21,6 +24,25 @@ internal fun RemoteWorkspacePage(vm: CodexViewModel, thread: String?, binding: R
     var error by remember(thread, binding, session, revision) { mutableStateOf<String?>(null) }
     var delivery by remember(thread, binding, session, revision) { mutableStateOf<RemoteDeliveryRequest?>(null) }
     val ready = session != null && !switching && !transfer.busy && !transfer.pendingRestore
+    var directories by remember(thread, binding, session, revision) { mutableStateOf(listOf("")) }
+    var directoryOpen by remember(thread, binding, session, revision) { mutableStateOf(false) }
+    var directoryRefresh by remember(thread, binding, session, revision) { mutableIntStateOf(0) }
+    var listing by remember(thread, binding, session, revision) { mutableStateOf<List<RemoteDirectoryEntry>?>(null) }
+    var listingError by remember(thread, binding, session, revision) { mutableStateOf<String?>(null) }
+    var listingBusy by remember(thread, binding, session, revision) { mutableStateOf(false) }
+    val folder = directories.last()
+    LaunchedEffect(directoryOpen, folder, directoryRefresh, ready, thread, binding, session, revision) {
+        listing = null
+        listingError = null
+        listingBusy = false
+        if (!directoryOpen || !ready || thread == null || session == null) return@LaunchedEffect
+        listingBusy = true
+        try {
+            listing = RemoteDirectory.read(vm, RemoteDeliveryRequest(thread, binding, folder, session, revision))
+        } catch (cancel: CancellationException) { throw cancel }
+        catch (failure: Exception) { listingError = failure.message ?: "无法读取远端目录" }
+        finally { listingBusy = false }
+    }
     fun current(): Boolean = vm.activeThread.value == thread &&
         vm.conversationState.value.remote == binding && vm.bridge.connectedSession.value == session &&
         vm.catalogWarmup.accountRevision.value == revision && !vm.threadSwitching.value &&
@@ -36,10 +58,58 @@ internal fun RemoteWorkspacePage(vm: CodexViewModel, thread: String?, binding: R
                 tone = if (ready) StatusTone.Success else StatusTone.Warning)
             Text(binding.id, style = MaterialTheme.typography.titleMedium)
             Text(binding.cwd, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            Text("读取文件时将再次核对远端设备和工作目录。", color = Ink.muted,
+            Text("浏览目录和读取文件时将再次核对远端设备和工作目录。", color = Ink.muted,
                 style = MaterialTheme.typography.bodySmall)
         }
         if (files) {
+            CodexPrimaryButton(onClick = { listing = null; directoryOpen = true; directoryRefresh++ },
+                enabled = ready && thread != null, modifier = Modifier.fillMaxWidth().testTag("remote-directory-open")) {
+                Text("浏览远端目录")
+            }
+            if (directoryOpen) {
+                CodexDetailSheet(title = "远端文件", subtitle = if (folder.isEmpty()) binding.cwd else folder,
+                    onDismiss = { directoryOpen = false }, startExpanded = true) {
+                    CodexAdaptiveActions(
+                        first = { modifier -> CodexSecondaryButton(onClick = { listing = null; directories = directories.dropLast(1) },
+                            enabled = directories.size > 1 && !listingBusy, modifier = modifier) { Text("上一级") } },
+                        second = { modifier -> CodexSecondaryButton(onClick = { listing = null; directoryRefresh++ },
+                            enabled = ready && !listingBusy, modifier = modifier) { Text("刷新目录") } }
+                    )
+                    if (!ready) CodexNotice("等待连接或任务切换", NoticeTone.Warning)
+                    if (listingBusy) AtlasOperationProgress("正在读取远端目录")
+                    listingError?.let { ErrorText(it) }
+                    listing?.let { entries ->
+                        Text("共 ${entries.size} 项", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        if (entries.isEmpty()) CodexNotice("当前目录为空", NoticeTone.Info)
+                        var shown by remember(folder, entries) { mutableIntStateOf(80) }
+                        entries.take(shown).forEach { entry ->
+                            CodexTextAction(onClick = {
+                                val relative = entry.relative
+                                if (!current() || relative == null) return@CodexTextAction
+                                if (entry.kind == "directory") { listing = null; directories = directories + relative }
+                                else { path = relative; directoryOpen = false }
+                            }, enabled = ready && !listingBusy && entry.relative != null,
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    CodexIcon(if (entry.kind == "directory") CodexGlyph.Folder else CodexGlyph.Project, null)
+                                    Column(Modifier.weight(1f)) {
+                                        Text(entry.name, style = MaterialTheme.typography.bodyMedium)
+                                        Text(when {
+                                            entry.relative == null -> "链接或不支持的文件名"
+                                            entry.kind == "directory" -> "打开目录"
+                                            else -> "选择文件"
+                                        }, style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                                    }
+                                    if (entry.relative != null) CodexIcon(CodexGlyph.ChevronRight, null)
+                                }
+                            }
+                        }
+                        if (shown < entries.size) CodexSecondaryButton(onClick = { shown += 80 },
+                            modifier = Modifier.fillMaxWidth()) { Text("显示更多文件") }
+                    }
+                }
+            }
             Text("文件交付", style = MaterialTheme.typography.titleMedium)
             Text("输入远端工作区内的文件路径，核对并保存到手机。", color = Ink.muted)
             ActionQuestionRow(path, { path = it; error = null }, "远端文件路径",
@@ -64,7 +134,7 @@ internal fun RemoteWorkspacePage(vm: CodexViewModel, thread: String?, binding: R
                 modifier = Modifier.fillMaxWidth().testTag("remote-workspace-download")) { Text("核对并下载文件") }
             CodexSecondaryButton(onClick = { prepare("请查看当前远端工作目录的文件，并列出目录内容。") },
                 enabled = ready, modifier = Modifier.fillMaxWidth().testTag("remote-workspace-list")) { Text("让 Codex 查看目录") }
-            Text("目录浏览、编辑和上传仍通过当前远端任务处理。", color = Ink.muted, style = MaterialTheme.typography.bodySmall)
+            Text("编辑和上传仍通过当前远端任务处理。", color = Ink.muted, style = MaterialTheme.typography.bodySmall)
         } else {
             Text("准备远端命令", style = MaterialTheme.typography.titleMedium)
             ActionQuestionRow(command, { command = it; error = null }, "命令内容",
