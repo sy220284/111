@@ -1,0 +1,17 @@
+import org.gradle.api.artifacts.repositories.MavenArtifactRepository
+
+def mirror = uri(System.getProperty('codex.ci.mavenCentralMirror'))
+def central = uri('https://repo.maven.apache.org/maven2/')
+def useMirror = { repo ->
+    if (repo instanceof MavenArtifactRepository && repo.url == central) {
+        repo.url = mirror
+    }
+}
+
+gradle.beforeSettings { settings ->
+    settings.pluginManagement.repositories.configureEach(useMirror)
+    settings.dependencyResolutionManagement.repositories.configureEach(useMirror)
+}
+gradle.beforeProject { project ->
+    project.buildscript.repositories.configureEach(useMirror)
+}

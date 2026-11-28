@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Keep one pinned repository and strict artifact verification. Only re-resolve
-# the proven intermittent Compose plugin lookup failure, before tasks execute.
+# Only recover the known Compose plugin lookup failure before tasks execute.
 set -euo pipefail
 LOG="$(mktemp)"
 MODULE="$(mktemp)"
@@ -22,9 +21,21 @@ if match:
 PY
 )"
 if [ -z "$VERSION" ]; then exit "$STATUS"; fi
-BASE="https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/compose-compiler-gradle-plugin/$VERSION"
-echo "::warning::Compose plugin resolution failed; checking pinned Maven Central module before one re-resolution"
-curl --proto '=https' --proto-redir '=https' --fail --show-error --silent --location --retry 2 --retry-delay 2 --connect-timeout 15 --max-time 60 "$BASE/compose-compiler-gradle-plugin-$VERSION.module" -o "$MODULE"
+CENTRAL="https://repo.maven.apache.org/maven2"
+MIRROR="https://maven-central.storage-download.googleapis.com/maven2"
+MODULE_PATH="org/jetbrains/kotlin/compose-compiler-gradle-plugin/$VERSION/compose-compiler-gradle-plugin-$VERSION.module"
+fetch_module() {
+  curl --proto '=https' --proto-redir '=https' --fail --show-error --silent --location \
+    --connect-timeout 15 --max-time 45 --write-out '%{http_code}' "$1/$MODULE_PATH" -o "$MODULE"
+}
+RETRY_ARGS=(--refresh-dependencies)
+echo "::warning::Compose plugin resolution failed; checking the locked Maven Central module"
+if ! PROBE_STATUS="$(fetch_module "$CENTRAL")"; then
+  if [ "$PROBE_STATUS" != 429 ]; then exit "$STATUS"; fi
+  echo "::warning::Maven Central returned HTTP 429; verifying the same module on Google's Maven Central mirror"
+  fetch_module "$MIRROR" >/dev/null
+  RETRY_ARGS=(--init-script "$PWD/android-app/gradle/ci-maven-central.init.gradle" "-Dcodex.ci.mavenCentralMirror=$MIRROR")
+fi
 python3 - "$MODULE" "$VERSION" <<'PY'
 import hashlib, sys
 from pathlib import Path
@@ -37,8 +48,8 @@ allowed = {x.get("value") for c in root.findall(".//{*}component")
     for a in c.findall("{*}artifact") if a.get("name") == f"compose-compiler-gradle-plugin-{version}.module"
     for x in a.findall("{*}sha256")}
 if digest not in allowed:
-    raise SystemExit("Official Compose module does not match the reviewed SHA-256; refusing re-resolution")
-print(f"Verified official Compose module {version}: {digest}")
+    raise SystemExit("Compose module does not match the reviewed SHA-256; refusing re-resolution")
+print(f"Verified locked Compose module {version}: {digest}")
 PY
-# No fallback repository, alternate version, relaxed checksum, or build-task retry.
-./android-app/gradlew "$@" --refresh-dependencies --info
+# The retry retains the caller's dependency locks and verification mode.
+./android-app/gradlew "$@" "${RETRY_ARGS[@]}" --info

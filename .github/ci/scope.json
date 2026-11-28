@@ -107,6 +107,8 @@
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/DeveloperToolStatus.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeVoiceController.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeVoiceLease.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimeStartContract.kt",
+      "android-app/app/src/main/java/io/github/sy220284/codexandroid/RealtimePcmFrame.kt",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/DomesticProviderCredentials.kt",
       "android-app/tools/prepare_android_realtime_privacy.py",
       "android-app/app/src/main/java/io/github/sy220284/codexandroid/AnswerCheckpointFormat.kt",
