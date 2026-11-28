@@ -87,7 +87,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         verticalArrangement = Arrangement.spacedBy(11.dp)
     ) {
         item {
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSection(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CodexIcon(CodexGlyph.Diff, contentDescription = null,
                         tint = Ink.copper, modifier = Modifier.size(23.dp))

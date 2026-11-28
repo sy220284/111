@@ -160,7 +160,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                 Column(Modifier.fillMaxSize().verticalScroll(consoleScroll),
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (session.processId.isNotEmpty()) {
-                    MaterialPanel(Modifier.fillMaxWidth()) {
+                    WorkSection(Modifier.fillMaxWidth()) {
                         session.workspace?.let { directory ->
                             Text("执行位置 · " + File(directory).toRelativeString(File(vm.workingDirectory))
                                 .let { if (it.isBlank() || it == ".") "projects/" else "projects/$it" },
@@ -242,10 +242,12 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                         }
                         transcriptError?.takeIf(String::isNotBlank)?.let { ErrorText(it) }
                     }
-                    MaterialPanel(Modifier.fillMaxWidth()) {
+                    WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Reading) {
                         TerminalOutputHeader(vm, session.processId, renderedOutput, session.outputTruncated) { text ->
                             readerOutput = "终端标准输出" to text
                         }
+                        TerminalOutputPreview(session.processId, session.running, renderedOutput)
+                        DividerLine()
                         if (transcriptAvailable && session.outputTruncated && historicalMore) {
                             CodexSecondaryButton(
                                 onClick = {
@@ -321,12 +323,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                             Text(exportStatus,
                                 color = if (exportStatus.contains("失败")) Ink.red else Ink.jade,
                                 style = MaterialTheme.typography.labelMedium)
-                        DividerLine()
-                        TerminalOutputPreview(session.processId, session.running, renderedOutput)
                     }
                 } else {
-                    MaterialPanel(Modifier.fillMaxWidth().heightIn(min = minOf(consoleHeight.value, 172f).dp)
-                        .testTag("terminal-console-empty")) {
+                    WorkSection(Modifier.fillMaxWidth().heightIn(min = (consoleHeight.value * .70f).dp)
+                        .testTag("terminal-console-empty"), WorkSectionKind.Reading) {
                         Text("等待执行命令", style = MaterialTheme.typography.titleMedium)
                         DividerLine()
                         SelectionContainer {

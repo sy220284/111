@@ -6,7 +6,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
- import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -99,11 +99,10 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         groups.forEach { (group, entries) ->
             item(key = "settings-group:" + group.title) {
                 Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 20.dp, bottom = 9.dp),
-                    color = Ink.muted, style = MaterialTheme.typography.titleMedium)
+                    color = Ink.parchment, style = MaterialTheme.typography.titleMedium)
             }
             if (entries.isNotEmpty()) item(key = "settings-group-content:" + group.title) {
-                Surface(shape = RoundedCornerShape(16.dp), color = Ink.canvas,
-                    border = BorderStroke(1.dp, Ink.border), shadowElevation = 0.dp, tonalElevation = 0.dp) {
+                Surface(color = Ink.canvas, tonalElevation = 0.dp) {
                     Column {
                     entries.forEachIndexed { index, entry ->
                     if (index > 0) HorizontalDivider(Modifier.padding(start = 48.dp), color = Ink.border.copy(alpha = .65f))

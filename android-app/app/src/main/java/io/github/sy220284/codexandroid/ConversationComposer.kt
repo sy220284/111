@@ -111,7 +111,7 @@ internal fun ConversationComposer(
                 onValueChange = onDraftChange,
                 modifier = Modifier.weight(1f)
                     .onFocusChanged { inputFocused = it.isFocused }
-                    .heightIn(min = if (compactControls) 34.dp else 46.dp)
+                    .heightIn(min = 48.dp)
                     .testTag("composer-input")
                     .semantics { contentDescription = "输入任务指令" },
                 minLines = 1,

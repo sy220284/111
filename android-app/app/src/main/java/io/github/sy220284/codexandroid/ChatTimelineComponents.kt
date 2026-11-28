@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -72,7 +74,11 @@ internal fun TimelineActivityGroup(
         note?.let { Text(it, Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
             color = Ink.muted, style = MaterialTheme.typography.labelSmall) }
         CodexReveal(visible = expanded) {
-            Column(Modifier.fillMaxWidth().padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            val rail = if (failed > 0) Ink.red else if (active) Ink.coral else Ink.border
+            Column(Modifier.fillMaxWidth().padding(start = 12.dp)
+                .drawBehind {
+                    drawLine(rail, Offset(0f, 0f), Offset(0f, size.height), strokeWidth = 2.dp.toPx())
+                }.padding(start = 12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 if (displayed.size < group.size && liveProcess && expandedOverride != true) {
                     CodexTextAction(onClick = { expandedOverride = true },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {

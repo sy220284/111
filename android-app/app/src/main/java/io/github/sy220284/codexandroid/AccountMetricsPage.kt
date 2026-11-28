@@ -38,7 +38,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
     ScreenColumn {
         AtlasCompactChoice(selectedTab, listOf("usage" to "用量", "limits" to "额度"),
             onSelect = { selectedTab = it }, tagPrefix = "account-metrics-tab-")
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CodexIcon(if (usage) CodexGlyph.Insights else CodexGlyph.Speed,
                     null, tint = Ink.copper)
@@ -151,7 +151,7 @@ private fun formatMetricNumber(raw: Any?): String =
 private fun MetricNumberCard(label: String, value: String, note: String, modifier: Modifier) {
     MaterialPanel(modifier) {
         Text(label, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-        Text(value, style = MaterialTheme.typography.titleLarge, color = Ink.parchment)
+        Text(value, style = MaterialTheme.typography.headlineSmall, color = Ink.parchment)
         Text(note, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
     }
 }

@@ -35,7 +35,7 @@ private object InkLight {
     val controlBorder = Color(0xFF7B8992)
     val parchment = Color(0xFF263139)
     val muted = Color(0xFF56646D)
-    val coral = Color(0xFFC8483E) // Accessible foreground on white-icon actions (contrast 4.7:1)
+    val coral = Color(0xFFB94037) // Primary emphasis; contrast on all four light work surfaces
     val coralSoft = Color(0xFFFF806F) // Reference hue for non-text decoration
     val copper = Color(0xFF805A3F)
     val copperDim = Color(0xFFB8A18D)
@@ -159,8 +159,8 @@ fun CodexTheme(content: @Composable () -> Unit) {
             titleMedium = androidx.compose.ui.text.TextStyle(fontSize = (16 * fontScale).sp, lineHeight = (22 * fontScale).sp, fontWeight = FontWeight.SemiBold),
             bodyLarge = androidx.compose.ui.text.TextStyle(fontSize = (15 * fontScale).sp, lineHeight = (23 * fontScale).sp),
             bodyMedium = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (21 * fontScale).sp),
-            labelMedium = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, fontWeight = FontWeight.Medium),
-            labelSmall = androidx.compose.ui.text.TextStyle(fontSize = (11 * fontScale).sp),
+            labelMedium = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, lineHeight = (18 * fontScale).sp, fontWeight = FontWeight.Medium),
+            labelSmall = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, lineHeight = (17 * fontScale).sp),
             bodySmall = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, lineHeight = (18 * fontScale).sp),
             labelLarge = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (20 * fontScale).sp, fontWeight = FontWeight.Medium),
             titleSmall = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (20 * fontScale).sp, fontWeight = FontWeight.Medium)
@@ -197,6 +197,29 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
             verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
             content = content
         )
+    }
+}
+
+/** Business content is open by default; a reading surface is reserved for artifacts and output.
+ * Keep MaterialPanel for independent decisions and controls that really need containment. */
+internal enum class WorkSectionKind { Content, Reading }
+
+@Composable
+internal fun WorkSection(
+    modifier: Modifier = Modifier,
+    kind: WorkSectionKind = WorkSectionKind.Content,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val compact by UiPreferences.compact.collectAsStateWithLifecycle()
+    val gap = if (compact) 8.dp else 12.dp
+    if (kind == WorkSectionKind.Content) {
+        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap), content = content)
+    } else {
+        Surface(modifier.fillMaxWidth(), color = Ink.recessed, contentColor = Ink.parchment,
+            shape = RoundedCornerShape(12.dp), tonalElevation = 0.dp) {
+            Column(Modifier.padding(if (compact) 10.dp else 14.dp),
+                verticalArrangement = Arrangement.spacedBy(gap), content = content)
+        }
     }
 }
 
