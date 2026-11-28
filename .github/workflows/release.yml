@@ -289,7 +289,7 @@ jobs:
           set -euo pipefail
           DIR="android-app/app/build/outputs/apk/release"
           AAPT="$ANDROID_HOME/build-tools/37.0.0/aapt"
-          APKSIGNER="$ANDROID_HOME/build-tools/37.0.0/apksigner"
+          APKSIG_JAR="$ANDROID_HOME/build-tools/37.0.0/lib/apksigner.jar"
           VERSION="${{ needs.check-release.outputs.version }}"
           CODE="${{ needs.check-release.outputs.version_code }}"
           APK="$DIR/app-arm64-v8a-release.apk"
@@ -299,15 +299,26 @@ jobs:
           [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
           [[ "$BADGE" == *"versionCode='$CODE'"* ]]
           [[ "$BADGE" == *"versionName='$VERSION'"* ]]
-          "$APKSIGNER" verify --min-sdk-version 29 --verbose "$APK"
-          CERT="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
-          test -n "$CERT"
+          CERT="$(java --class-path "$APKSIG_JAR" .github/scripts/VerifyApkSigning.java "$APK")"
+          [[ "$CERT" =~ ^[0-9a-f]{64}$ ]]
+          EXPECTED_CERT="$(keytool -exportcert -keystore "$CODEX_RELEASE_KEYSTORE_PATH" -storepass:env CODEX_RELEASE_PASSWORD -alias "$CODEX_RELEASE_KEY_ALIAS" | sha256sum | cut -d ' ' -f 1)"
+          if [ "$CERT" != "$EXPECTED_CERT" ]; then
+            echo "::error::候选 APK 签名证书与正式密钥库不一致"
+            exit 1
+          fi
+          echo "候选 APK 签名验证通过：$CERT"
           if [ -n "$PREVIOUS_TAG" ]; then
             mkdir -p "$RUNNER_TEMP/previous-cert"
             gh release download "$PREVIOUS_TAG" --pattern "codex-android-arm64-v8a-*.apk" --dir "$RUNNER_TEMP/previous-cert"
             OLD="$(find "$RUNNER_TEMP/previous-cert" -name "*.apk" -print -quit)"
-            OLD_CERT="$("$APKSIGNER" verify --print-certs "$OLD" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p')"
-            test "$CERT" = "$OLD_CERT"
+            test -s "$OLD"
+            OLD_CERT="$(java --class-path "$APKSIG_JAR" .github/scripts/VerifyApkSigning.java "$OLD")"
+            [[ "$OLD_CERT" =~ ^[0-9a-f]{64}$ ]]
+            if [ "$CERT" != "$OLD_CERT" ]; then
+              echo "::error::候选 APK 与上一个正式版本的签名证书不同，禁止覆盖升级"
+              exit 1
+            fi
+            echo "已核对上一正式版本 $PREVIOUS_TAG 的签名证书一致性"
           fi
           python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full
 
