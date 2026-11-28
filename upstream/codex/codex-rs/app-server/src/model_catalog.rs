@@ -147,9 +147,20 @@ impl ModelCatalog {
         self.config_manager
             .check_thread_model_provider(&config)
             .await?;
-        let catalog = models_manager
+        let mut catalog = models_manager
             .model_catalog_with_origins(refresh_strategy, config.http_client_factory())
             .await;
+        // Bundled metadata describes possible models, not a ChatGPT account's
+        // entitlement. Keep account discovery authoritative even on ordinary
+        // cached reads or when the remote catalog is empty or unavailable.
+        if config.model_provider_id == OPENAI_PROVIDER_ID
+            && config.model_provider.supports_codex_backend_routes()
+            && models_manager
+                .auth_manager()
+                .is_some_and(|auth| auth.current_auth_uses_codex_backend())
+        {
+            catalog.retain(|entry| entry.origin == ModelOrigin::Provider);
+        }
         // The first-party catalog supplies picker rows in display order. Bundled,
         // configured and third-party catalogs rely on the manager's priority order.
         let use_catalog_order = config.model_provider_id == OPENAI_PROVIDER_ID

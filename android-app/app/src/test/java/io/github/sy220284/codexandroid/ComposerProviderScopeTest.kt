@@ -68,6 +68,43 @@ class ComposerProviderScopeTest {
         }
     }
 
+    @Test fun chatgptSubmissionUsesAccountCatalogForDefaultAndInheritedModels() = kotlinx.coroutines.runBlocking {
+        val allowed = JSONObject().put("id", "account-model").put("isDefault", true)
+        var inherited = "gpt-6.2-sol"
+        val config = JSONObject().put("model_provider", "openai")
+        val methods = mutableListOf<String>()
+        val rpc: suspend (String, JSONObject) -> JSONObject = { method, params ->
+            methods += method
+            when (method) {
+                "account/read" -> JSONObject().put("account", JSONObject().put("type", "chatgpt"))
+                "model/list" -> {
+                    assertEquals("openai", params.optString("modelProvider"))
+                    JSONObject().put("data", org.json.JSONArray().put(allowed))
+                }
+                "thread/read" -> JSONObject().put("thread", JSONObject().put("modelProvider", "openai").put("model", inherited))
+                else -> error("unexpected RPC: $method")
+            }
+        }
+        val first = ComposerProviderScope.submission(config, null, "", "default", ComposerTaskOptions(), rpc = rpc)
+        assertEquals("account-model", first.model)
+        assertEquals(listOf("account/read", "model/list"), methods)
+        val configured = config.put("model", "gpt-6.2-sol")
+        assertTrue(runCatching {
+            ComposerProviderScope.submission(configured, null, "", "default", ComposerTaskOptions(), rpc = rpc)
+        }.isFailure)
+        assertTrue(runCatching {
+            ComposerProviderScope.submission(config, "thread", "", "default", ComposerTaskOptions(), rpc = rpc)
+        }.isFailure)
+        assertEquals("account-model", ComposerProviderScope.submission(
+            config, "thread", "account-model", "default", ComposerTaskOptions(), rpc = rpc).model)
+        inherited = "account-model"
+        assertEquals("", ComposerProviderScope.submission(
+            config, "thread", "", "default", ComposerTaskOptions(), rpc = rpc).model)
+        assertTrue(ComposerProviderScope.isAccountModelRejection(
+            "The 'gpt-6.2-sol' model is not supported when using Codex with a ChatGPT account."))
+        assertFalse(ComposerProviderScope.isAccountModelRejection("Network timeout"))
+    }
+
     @Test fun modelEffortPreferenceRoundTripsAndRespectsCurrentCatalog() {
         val row = JSONObject().put("id", "a").put("supportedReasoningEfforts",
             org.json.JSONArray().put(JSONObject().put("reasoningEffort", "high")))

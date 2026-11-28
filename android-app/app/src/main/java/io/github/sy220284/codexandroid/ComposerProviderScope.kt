@@ -14,6 +14,9 @@ internal object ComposerProviderScope {
 
     fun catalogKey(provider: String?): String = if (provider == null) "models" else "composerModels:$provider"
 
+    fun isAccountModelRejection(message: String): Boolean =
+        message.contains("model is not supported when using Codex with a ChatGPT account", ignoreCase = true)
+
     fun resolve(threadProvider: String?, draftProvider: String?, configuredProvider: String): String {
         require(configuredProvider.isNotBlank()) { "当前默认服务商尚未读取" }
         if (threadProvider != null) {
@@ -69,17 +72,31 @@ internal object ComposerProviderScope {
         }
         val provider = ComposerProviderScope.resolve(existingProvider,
             ComposerProviderScope.provider(chosenOptions.modelProvider), configuredProvider)
-        val requiresCatalog = hasImages || mediaKinds.isNotEmpty() || chosenModel.isNotBlank() || chosenMode == "plan" ||
-            (submittedThread == null && provider != "openai")
+        val accountCatalog = provider == "openai" && configuredProvider == "openai" &&
+            rpc("account/read", JSONObject()).optJSONObject("account")?.optString("type") == "chatgpt"
+        val requiresCatalog = accountCatalog || hasImages || mediaKinds.isNotEmpty() ||
+            chosenModel.isNotBlank() || chosenMode == "plan" ||
+            (submittedThread == null && (provider != "openai" || provider != configuredProvider))
+        val inheritedAccountModel = if (accountCatalog && existing != null && chosenModel.isBlank())
+            ComposerProviderScope.provider(existing.optString("model")) else null
         val catalog = if (requiresCatalog)
-            records(rpc("model/list", ComposerProviderScope.request(provider)))
+            records(rpc("model/list", ComposerProviderScope.request(provider).apply {
+                if (inheritedAccountModel != null && chosenMode != "plan") put("includeHidden", true)
+            }))
             else emptyList()
         val configuredModel = if (provider == configuredProvider)
             ComposerProviderScope.provider(config.optString("model")) else null
         val requestModel = if (submittedThread == null)
-            ComposerProviderScope.initialModel(catalog, chosenModel, configuredModel, provider != "openai")
+            ComposerProviderScope.initialModel(catalog, chosenModel, configuredModel,
+                accountCatalog || provider != "openai" || provider != configuredProvider)
             else chosenModel
         ComposerProviderScope.requireModel(catalog, requestModel, chosenOptions.effort)
+        if (accountCatalog && existing != null && chosenModel.isBlank()) {
+            require(inheritedAccountModel != null && catalog.any {
+                (chosenMode != "plan" || !it.optBoolean("hidden")) &&
+                    (it.optString("id") == inheritedAccountModel || it.optString("model") == inheritedAccountModel)
+            }) { "当前会话模型不在账号可用目录中，请刷新模型目录并重新选择；草稿已保留" }
+        }
         val imageModel = requestModel.ifBlank {
             if (existing != null) {
                 ComposerProviderScope.provider(existing.optString("model")).orEmpty()
