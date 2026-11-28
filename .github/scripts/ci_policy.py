@@ -68,7 +68,8 @@ def main():
     if actual != source:
         raise ValueError("CI 候选提交与实际检出源码不一致")
     force = os.environ.get("CI_FORCE") == "true"
-    required = required_groups(result["full"], result["runtime"], os.environ["CI_EVENT"], os.environ["CI_REF"])
+    required = required_groups(result["full"], result["runtime"], os.environ["CI_EVENT"],
+                               os.environ["CI_REF"], paths=result["changed"])
     receipt = make_plan(os.environ["GITHUB_REPOSITORY"], source, required, force)
     with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
         print("receipt="+json.dumps(receipt,separators=(",",":")),file=stream)

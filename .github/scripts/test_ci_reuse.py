@@ -2,7 +2,7 @@ import unittest
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
 from ci_reuse import (GROUPS, JOB_NAMES, ARTIFACTS, affected, candidate, make_plan, run_names, artifact_index,
-                      validate, check_shape, actual_jobs)
+                      validate, check_shape, actual_jobs, required_groups)
 
 class ReuseTests(unittest.TestCase):
     def setUp(self):
@@ -58,6 +58,21 @@ class ReuseTests(unittest.TestCase):
             r=make_plan("o/r",self.target,{"ui"},True)
             self.assertEqual(["ui"],r["execute"])
             api.assert_not_called()
+
+    def test_nonproduct_changes_schedule_their_affected_acceptance_groups(self):
+        pr = ("pull_request", "refs/pull/1/merge")
+        self.assertEqual(
+            set(GROUPS),
+            required_groups(False, False, *pr, paths=[".github/scripts/VerifyApkSigning.java"]),
+        )
+        self.assertEqual(
+            {"preflight"},
+            required_groups(False, False, *pr, paths=[".github/scripts/publish-verified-release.sh"]),
+        )
+        self.assertEqual(
+            set(),
+            required_groups(False, False, *pr, paths=["AGENTS.md"]),
+        )
     def test_missing_groups_and_wrong_source_block(self):
         with patch("ci_reuse.tree",return_value="tree"):
             r=make_plan("o/r",self.target,{"ui"},True)

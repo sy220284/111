@@ -3,11 +3,12 @@ import json
 import os
 from pathlib import Path
 from ci_reuse import GROUPS, required_groups, actual_jobs, check_shape, validate
+from ci_policy import changed
 
 FULL = {"native", "runtime-arm64", "runtime-x86", "static-ui", "verify-ui", "ui-emulator", "ui-collect", "ui-evidence", "build", "verify-apk", "preflight", "compatibility", "runtime-test"}
 ALL = FULL | {"release-signing-smoke", "plan"}
 
-def verify(jobs, event, ref):
+def verify(jobs, event, ref, paths=()):
     if set(jobs) != ALL:
         raise ValueError(f"验收任务集合变化：missing={ALL-set(jobs)}, unexpected={set(jobs)-ALL}")
     if jobs["plan"]["result"] != "success":
@@ -18,7 +19,7 @@ def verify(jobs, event, ref):
     full, runtime = (outputs[k] == "true" for k in ("full", "runtime"))
     if runtime and not full:
         raise ValueError("真实内核验收必须包含完整 CI")
-    groups = required_groups(full,runtime,event,ref)
+    groups = required_groups(full,runtime,event,ref,paths=paths)
     receipt = json.loads(outputs["receipt"])
     check_shape(receipt,receipt["source"],groups)
     if "compile" in receipt["reused"] and outputs.get("compile_run_id") != str(receipt["reused"]["compile"]["run_id"]):
@@ -36,16 +37,18 @@ def verify(jobs, event, ref):
 
 def main():
     jobs = json.loads(os.environ["RESULTS"])
+    paths = changed(os.environ["BASE"], os.environ["SOURCE"])
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
         print("## 111 统一验收", file=out)
         print("源码 SHA: " + os.environ["SOURCE"], file=out)
         for name, result in jobs.items():
             print(f"- {name}: {result['result']}", file=out)
         try:
-            verify(jobs, os.environ["EVENT"], os.environ["REF"])
+            verify(jobs, os.environ["EVENT"], os.environ["REF"], paths)
             outputs=jobs["plan"]["outputs"]
             receipt=json.loads(outputs["receipt"])
-            groups=required_groups(outputs["full"]=="true",outputs["runtime"]=="true",os.environ["EVENT"],os.environ["REF"])
+            groups=required_groups(outputs["full"]=="true",outputs["runtime"]=="true",
+                                   os.environ["EVENT"],os.environ["REF"],paths=paths)
             validate(os.environ["GITHUB_REPOSITORY"],receipt,os.environ["SOURCE"],groups)
             Path("ci-acceptance-receipt.json").write_text(json.dumps(receipt,ensure_ascii=False,indent=2)+"\n",encoding="utf-8")
             for group, proof in receipt["reused"].items():

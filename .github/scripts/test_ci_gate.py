@@ -1,18 +1,16 @@
 import unittest
 import json
-from ci_reuse import required_groups, SCHEMA
+from ci_reuse import required_groups, actual_jobs, SCHEMA
 from ci_gate import verify, FULL, ALL
 
-def fixture(full=True, runtime=None, pr=True):
+def fixture(full=True, runtime=None, pr=True, paths=()):
     if runtime is None:
         runtime = full
     jobs = {k: {"result": "skipped"} for k in ALL}
-    groups=required_groups(full,runtime,"pull_request" if pr else "push","refs/pull/1/merge" if pr else "refs/heads/main")
+    groups=required_groups(full,runtime,"pull_request" if pr else "push","refs/pull/1/merge" if pr else "refs/heads/main", paths=paths)
     jobs["plan"] = {"result": "success", "outputs": {"full": str(full).lower(), "runtime": str(runtime).lower(), "receipt":json.dumps({"schema":SCHEMA,"source":"head","tree":"tree","required":sorted(groups),"execute":sorted(groups),"reused":{}})}}
-    for k in FULL if full else ():
+    for k in actual_jobs(groups):
         jobs[k]["result"] = "success"
-    if full and pr: jobs["release-signing-smoke"]["result"] = "success"
-    if runtime: jobs["runtime-test"]["result"] = "success"
     return jobs
 
 class GateTests(unittest.TestCase):
@@ -21,6 +19,14 @@ class GateTests(unittest.TestCase):
         self.assertEqual(verify(fixture(pr=False), "push", "refs/heads/main"), FULL)
     def test_docs_only(self):
         self.assertEqual(verify(fixture(full=False), "pull_request", "refs/pull/1/merge"), set())
+
+    def test_ci_signing_change_cannot_pass_with_signature_job_skipped(self):
+        paths = [".github/scripts/VerifyApkSigning.java"]
+        data = fixture(full=False, paths=paths)
+        self.assertIn("release-signing-smoke", verify(data, "pull_request", "refs/pull/1/merge", paths))
+        data["release-signing-smoke"]["result"] = "skipped"
+        with self.assertRaises(ValueError):
+            verify(data, "pull_request", "refs/pull/1/merge", paths)
     def test_failure_cancel_and_skipped_block_each_required_job(self):
         for job in FULL | {"release-signing-smoke"}:
             for result in ("failure", "cancelled", "skipped"):

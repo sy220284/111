@@ -1007,6 +1007,7 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 .github/scripts/ci_gate.py
       - name: 强制核对已审查的 Gradle 依赖基线
