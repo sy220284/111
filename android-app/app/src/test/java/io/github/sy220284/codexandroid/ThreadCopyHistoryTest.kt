@@ -13,7 +13,10 @@ class ThreadCopyHistoryTest {
 
     @Test fun followsAllPagesAndReadsDeferredOutput() = runBlocking {
         val methods = mutableListOf<String>()
-        val history = ThreadCopyHistory { method, params ->
+        val spool = java.io.File.createTempFile("history-test", ".spool")
+        val output = StringBuilder()
+        try {
+        ThreadCopyHistory { method, params ->
             methods += method
             when {
                 method == "thread/turns/list" -> JSONObject().put("data", JSONArray().put(
@@ -30,17 +33,19 @@ class ThreadCopyHistoryTest {
                     JSONObject().put("data", JSONArray().put(entry("b", "", true))).put("nextCursor", JSONObject.NULL)
                 }
             }
-        }.read("thread")
-        val output = ThreadMarkdownExporter.render(history)
+        }.write("thread", spool, output)
+        } finally { spool.delete() }
         assertTrue(output.indexOf("第一条") < output.indexOf("完整输出"))
         assertTrue(output.contains("任务已中断"))
         assertEquals(listOf("thread/items/list", "thread/items/list", "thread/items/read", "thread/turns/list"), methods)
     }
 
     @Test fun repeatedCursorFailsInsteadOfExportingPartialHistory() = runBlocking {
-        val result = runCatching {
-            ThreadCopyHistory { _, _ -> JSONObject().put("data", JSONArray()).put("nextCursor", "same") }.read("thread")
-        }
+        val spool = java.io.File.createTempFile("history-test", ".spool")
+        val result = try { runCatching {
+            ThreadCopyHistory { _, _ -> JSONObject().put("data", JSONArray()).put("nextCursor", "same") }
+                .write("thread", spool, StringBuilder())
+        } } finally { spool.delete() }
         assertTrue(result.isFailure)
     }
 }

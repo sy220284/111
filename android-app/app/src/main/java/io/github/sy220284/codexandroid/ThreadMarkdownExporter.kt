@@ -25,20 +25,31 @@ internal object ThreadMarkdownExporter {
         val thread = history.optJSONObject("thread")
             ?: throw IllegalArgumentException("无法读取会话正文")
         val turns = thread.optJSONArray("turns") ?: JSONArray()
-        val lines = mutableListOf("# Codex 会话记录", "")
-        var messages = 0
-        fun emit(heading: String, body: String) {
-            if (body.isBlank()) return
-            lines += "## $heading"
-            lines += ""
-            lines += body
-            lines += ""
-            messages++
+        return buildString {
+            val stream = Stream(this, includeActivity)
+            for (turnIndex in 0 until turns.length()) {
+                turns.optJSONObject(turnIndex)?.let(stream::turn)
+            }
+            stream.finish()
         }
-        var reviewMode = false
-        for (turnIndex in 0 until turns.length()) {
-            val turn = turns.optJSONObject(turnIndex) ?: continue
-            val raw = turn.optJSONArray("items") ?: continue
+    }
+
+    /** Shared formatter for fixtures and file-backed production export.
+     * Keep only the last section so the original final trim is preserved. */
+    internal class Stream(private val output: Appendable, private val includeActivity: Boolean) {
+        private var previousBody: String? = null
+        private var reviewMode = false
+        private fun emit(heading: String, body: String) {
+            if (body.isBlank()) return
+            val previous = previousBody
+            if (previous == null) output.append("# Codex 会话记录\n\n")
+            else output.append(previous).append("\n\n")
+            output.append("## ").append(heading).append("\n\n")
+            previousBody = body
+        }
+
+        fun turn(turn: JSONObject) {
+            val raw = turn.optJSONArray("items") ?: return
             val items = (0 until raw.length()).mapNotNull { raw.optJSONObject(it) }
             val progressive = items.any { it.optString("type") == "agentMessage" && it.optString("phase") == "partial_answer" }
             val pending = StringBuilder()
@@ -75,8 +86,11 @@ internal object ThreadMarkdownExporter {
             }
             outcome?.let { emit("回合状态", it) }
         }
-        require(messages > 0) { "会话暂无可导出的文字消息" }
-        return lines.joinToString("\n").trimEnd() + "\n"
+        fun finish() {
+            val finalBody = requireNotNull(previousBody) { "会话暂无可导出的文字消息" }
+            output.append(finalBody.trimEnd()).append('\n')
+            previousBody = null
+        }
     }
 
     private fun activity(item: JSONObject): Pair<String, String>? {
