@@ -730,6 +730,55 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("技能可在任务中调用，按需启用。").assertIsDisplayed()
     }
 
+    @Test fun taskContextCombinesGoalAndActualChangesWithWorkingActions() {
+        var destination = ""
+        var busy by mutableStateOf(false)
+        val goal = JSONObject().put("objective", "整理项目结构").put("status", "active")
+        rule.setContent {
+            CodexTheme {
+                TaskContextSummary(goal, "2 个文件", busy) { destination = it }
+            }
+        }
+        rule.onNodeWithTag("chat-goal-banner").assertIsDisplayed().performClick()
+        rule.runOnIdle { assertEquals("goals", destination) }
+        rule.onNodeWithTag("chat-changes-summary").assertIsDisplayed()
+        rule.onNodeWithText("2 个文件").assertIsDisplayed()
+        rule.onNodeWithText("查看", substring = false).performClick()
+        rule.runOnIdle { assertEquals("diff", destination) }
+        rule.onNodeWithText("审查", substring = false).performClick()
+        rule.runOnIdle { assertEquals("review", destination); busy = true }
+        rule.onNodeWithText("审查", substring = false).assertIsNotEnabled()
+        rule.waitForIdle()
+        captureVerifiedDisplayScreenshot("audit-task-context-combined-android.png") {
+            rule.onNodeWithTag("chat-goal-banner").assertIsDisplayed()
+            rule.onNodeWithTag("chat-changes-summary").assertIsDisplayed()
+        }
+    }
+
+    @Test fun skillClipboardFilterKeepsRealCatalogAndRestoresAll() {
+        val vm = viewModel()
+        fun entry(name: String, display: String) = JSONObject()
+            .put("name", name).put("path", "/skills/$name").put("enabled", true)
+            .put("description", "工作区技能").put("interface", JSONObject().put("displayName", display))
+        vm.data.value = mapOf("skills" to JSONObject().put("data", JSONArray()
+            .put(JSONObject().put("skills", JSONArray()
+                .put(entry("image-fixture", "图像整理"))
+                .put(entry("text-fixture", "文字校对"))))))
+        rule.setContent { CodexTheme { SkillsPage(vm) } }
+        rule.onNodeWithText("图像整理").assertExists()
+        rule.onNodeWithText("文字校对").assertExists()
+        rule.runOnIdle {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("验收检索", "文字校对"))
+        }
+        rule.onNodeWithTag("skills-search").performScrollTo().performClick()
+        rule.onNodeWithText("文字校对").assertExists()
+        rule.onNodeWithText("图像整理").assertDoesNotExist()
+        rule.onNodeWithText("清除查找条件").performScrollTo().performClick()
+        rule.onNodeWithText("图像整理").assertExists()
+    }
+
     @Test fun skillDescriptionAppearsOnlyAfterOpeningDetail() {
         val vm = viewModel()
         val skill = JSONObject().put("name", "demo-skill").put("path", "/skills/demo-skill")
@@ -745,6 +794,11 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("skill-open-detail").performClick()
         rule.onNodeWithText("示例技能的详细使用方式，只有打开详情后才出现。")
             .assertIsDisplayed()
+        rule.waitForIdle()
+        captureVerifiedDisplayScreenshot("audit-skill-detail-android.png") {
+            rule.onNodeWithTag("codex-detail-sheet").assertIsDisplayed()
+            rule.onNodeWithText("示例技能的详细使用方式，只有打开详情后才出现。").assertIsDisplayed()
+        }
     }
 
     @Test fun connectedAppDescriptionAppearsOnlyAfterOpeningDetail() {
@@ -762,6 +816,10 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithText("示例应用").performClick()
         rule.onNodeWithText("应用连接的完整功能说明，进入详情后可查看。")
             .assertIsDisplayed()
+        rule.waitForIdle()
+        captureVerifiedDisplayScreenshot("audit-app-detail-android.png") {
+            rule.onNodeWithText("应用连接的完整功能说明，进入详情后可查看。").assertIsDisplayed()
+        }
     }
 
     @Test fun modelDescriptionOpensSecondLevelWithoutChangingSelection() {

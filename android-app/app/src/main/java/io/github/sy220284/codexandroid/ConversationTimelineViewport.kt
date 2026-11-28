@@ -46,7 +46,7 @@ internal fun ConversationTimelineViewport(
     var followTail by rememberSaveable { mutableStateOf(true) }
     var autoScrolling by remember { mutableStateOf(false) }
     var userScrolling by remember { mutableStateOf(false) }
-    var lastKnownStepCount by remember { mutableIntStateOf(0) }
+    var lastKnownStepCount by rememberSaveable { mutableIntStateOf(0) }
     var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
     var unreadSteps by rememberSaveable { mutableIntStateOf(0) }
     var observedThread by remember { mutableStateOf(thread) }
@@ -98,7 +98,7 @@ internal fun ConversationTimelineViewport(
     LaunchedEffect(scroll) {
         snapshotFlow { Triple(scroll.isScrollInProgress, scroll.canScrollForward, autoScrolling) }
             .collect { (scrolling, canForward, automatic) ->
-                if (scrolling && !automatic && !autoScrolling) {
+                if (scrolling && scroll.isScrollInProgress && !automatic && !autoScrolling) {
                     userScrolling = true
                     followTail = false
                     restoreAnchor = false

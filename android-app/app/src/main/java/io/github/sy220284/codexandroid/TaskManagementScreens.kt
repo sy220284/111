@@ -407,7 +407,11 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                         onMove = { delta ->
                             if (dragging == index) {
                                 dragY += delta
-                                destination = QueueReorderPolicy.nearest(ids, rowCenters, dragY) ?: index
+                                val next = QueueReorderPolicy.nearest(ids, rowCenters, dragY) ?: index
+                                if (next != destination) {
+                                    destination = next
+                                    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                }
                             }
                         },
                         onEnd = {

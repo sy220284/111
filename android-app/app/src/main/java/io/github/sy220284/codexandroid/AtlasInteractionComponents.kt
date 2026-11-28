@@ -148,7 +148,7 @@ fun AtlasSequenceBadge(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(position.toString(), style = MaterialTheme.typography.labelLarge,
-                color = if (position == 1) androidx.compose.ui.graphics.Color.White else Ink.parchment)
+                color = if (position == 1) Ink.canvas else Ink.parchment)
         }
     }
 }

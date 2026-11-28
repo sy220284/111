@@ -243,7 +243,8 @@ fun ProtocolFeedback(
             actionLabel = if (connection is EngineStatus.Unavailable) "重新连接" else null,
             onAction = { vm.connect() }
         )
-    } else visible.forEach { error ->
+    }
+    PresentationPolicy.operationErrors(visible, connection != EngineStatus.Connected).forEach { error ->
         CodexNotice(message = error, tone = NoticeTone.Error,
             actionLabel = if (onRetry == null) null else "重新加载",
             onAction = { onRetry?.invoke() })
