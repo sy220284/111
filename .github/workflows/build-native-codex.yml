@@ -491,6 +491,7 @@ jobs:
           cargo test --locked -p codex-model-provider --lib domestic_
           cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
           cargo test --locked -p codex-api --lib body_model_reporting
+          cargo test --locked -p codex-api --lib map_http_error_classifies_provider_codes
           cargo test --locked -p codex-app-server --test all media_sample_native_
       - name: 验证工作站真实文件安全读取并构建 Linux 执行器
         working-directory: upstream/codex/codex-rs

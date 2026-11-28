@@ -46,8 +46,9 @@ internal fun DomesticCatalogSheet(vm: CodexViewModel, preset: DomesticModelPrese
                 if (connected && !probeRunning) {
                     vm.rpc(probeKey, "modelProvider/model/verify", DomesticProbeContract.params(id, model, confirmed = true)) {
                         refresh()
-                        vm.refresh(ComposerProviderScope.catalogKey(id), "model/list", ComposerProviderScope.request(id))
-                        vm.refresh("models", "model/list")
+                        val pickerKey = vm.modelCatalogKey(id)
+                        vm.refresh(pickerKey, "model/list", ComposerProviderScope.request(id))
+                        if (pickerKey != "models") vm.refresh("models", "model/list")
                     }
                 }
             }, onDismiss = { confirmModel = null })

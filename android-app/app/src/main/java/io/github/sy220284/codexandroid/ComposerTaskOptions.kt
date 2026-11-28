@@ -127,8 +127,11 @@ internal fun CodexViewModel.currentComposerProvider(): String? =
     else ComposerProviderScope.provider(composerDrafts.value[composerOwner(null)]?.options?.modelProvider)
         ?: ComposerProviderScope.provider(data.value["providers"]?.optString("defaultProviderId"))
 
+internal fun CodexViewModel.modelCatalogKey(provider: String?): String =
+    ComposerProviderScope.catalogKey(provider, ComposerProviderScope.provider(data.value["providers"]?.optString("defaultProviderId")))
+
 internal fun CodexViewModel.composerCatalogKey(): String =
-    ComposerProviderScope.catalogKey(
+    modelCatalogKey(
         if (activeThread.value != null) currentComposerProvider()
         else ComposerProviderScope.provider(composerDrafts.value[composerOwner(null)]?.options?.modelProvider)
     )

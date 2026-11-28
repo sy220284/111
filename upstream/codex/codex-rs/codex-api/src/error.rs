@@ -191,7 +191,7 @@ pub(crate) fn parse_terminal_provider_error(
             Some(ApiError::FlexUnavailable)
         }
         (
-            "model_not_found",
+            "model_not_found" | "model_not_in_accessible_catalog",
             None | Some(StatusCode::BAD_REQUEST | StatusCode::FORBIDDEN | StatusCode::NOT_FOUND),
         ) => Some(ApiError::ModelNotFound {
             message: message.unwrap_or(code).to_owned(),

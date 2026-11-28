@@ -35,7 +35,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
         val params = JSONObject().put("threadId", id).put("excludeTurns", true)
         if (lastTurnId != null) params.put("lastTurnId", lastTurnId)
         val targetModel = modelProvider?.let { provider ->
-            ComposerModelPolicy.model(records(data.value[ComposerProviderScope.catalogKey(provider)]), model.orEmpty())
+            ComposerModelPolicy.model(records(data.value[modelCatalogKey(provider)]), model.orEmpty())
         }
         if (modelProvider != null) {
             if (model.isNullOrBlank()) {

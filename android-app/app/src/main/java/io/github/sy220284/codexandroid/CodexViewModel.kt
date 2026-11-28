@@ -322,6 +322,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenMode = selectedMode.value
         val chosenWorkspace = activeWorkspace.value
         val chosenRemote = conversationState.value.remote
+        val chosenThreadProvider = activeModelProvider.value.takeIf { submittedThread != null }
         val draftOwner = composerOwner(submittedThread, chosenWorkspace)
         val chosenOptions = composerDrafts.value[draftOwner]?.options ?: ComposerTaskOptions()
         val chosenEffort = chosenOptions.effort
@@ -353,7 +354,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
                 val (provider, requestModel, catalog, effectiveConfig) = ComposerProviderScope.submission(
                     permissionConfig.getJSONObject("config"), submittedThread, chosenModel, chosenMode,
-                    chosenOptions, mediaKinds = LocalMediaAttachmentPolicy.modalities(images)) { method, params -> owner.request(this@CodexViewModel, method, params) }
+                    chosenOptions, mediaKinds = LocalMediaAttachmentPolicy.modalities(images),
+                    knownThreadProvider = chosenThreadProvider) { method, params -> owner.request(this@CodexViewModel, method, params) }
                 submittedProvider = provider
                 AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(images, LocalImageAttachments.directory(getApplication())) { owner.requireCurrent(this@CodexViewModel) } }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))

@@ -7,6 +7,8 @@ import org.json.JSONObject
 /** Owns generic RPC dispatch, mutation admission, response leases, and receipts. */
 internal class OwnedRpcRequestController(private val vm: CodexViewModel, private val latestRequests: LatestRequestGate) {
     private val dynamicRequestHistory by lazy { TransientRequestCache(latestRequests, vm.data, vm.errors, vm.loading) }
+    private data class CatalogRead(val ticket: Any, val force: Boolean, val epoch: Long?, val account: Long)
+    private val catalogReads = mutableMapOf<String, CatalogRead>()
     fun request(
         key: String,
         method: String,
@@ -56,8 +58,18 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
         }
         val organizationTicket = if (userAction) threadOrganization.begin(method,
             listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank))) else null
+        val modelRead = !userAction && method == "model/list" &&
+            (key == "models" || key.startsWith("composerModels:"))
+        val force = params?.optBoolean("forceRefresh") == true
+        val inFlight = catalogReads[key]
+        if (modelRead && onSuccess == null && inFlight != null &&
+            latestRequests.isLatest(key, inFlight.ticket) &&
+            inFlight.epoch == bridge.connectedSession.value &&
+            inFlight.account == catalogWarmup.accountRevision.value &&
+            (!force || inFlight.force)) return@with
         dynamicRequestHistory.retain(key)
         val ticket = latestRequests.begin(key)
+        if (modelRead) catalogReads[key] = CatalogRead(ticket, force, bridge.connectedSession.value, catalogWarmup.accountRevision.value)
         val configOwner = configGeneration
         val requestEpoch = bridge.connectedSession.value
         val accountOwner = catalogWarmup.accountRevision.value
@@ -68,7 +80,7 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
             (permissionWorkspace == null || permissionWorkspace == activeWorkspace.value)
         val retainQueue = method == "thread/queue/list" && key.startsWith("queue:")
         val retainModelCatalog = method == "model/list" && (key == "models" || key.startsWith("composerModels:"))
-        if (userAction || (!retainQueue && !retainModelCatalog && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
+        if (userAction || (modelRead && force) || (!retainQueue && !retainModelCatalog && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
             data.value = data.value - key
         errors.value = errors.value - key
         loading.value = loading.value + key
@@ -110,6 +122,7 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                         ActionFeedbackCopy.failure(method, reason))
                 }
             } finally {
+                if (catalogReads[key]?.ticket === ticket) catalogReads.remove(key)
                 if (latestRequests.complete(key, ticket)) {
                     loading.value = loading.value - key
                 }

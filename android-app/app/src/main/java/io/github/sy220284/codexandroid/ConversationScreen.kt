@@ -104,8 +104,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
     val queueReadError by vm.errors.collectProjection { it["queue:$thread"] }
     val threadProvider by vm.activeModelProvider.collectAsStateWithLifecycle()
+    val defaultProvider by vm.data.collectProjection { ComposerProviderScope.provider(it["providers"]?.optString("defaultProviderId")) }
     val providerKey = ComposerProviderScope.catalogKey(if (thread != null) threadProvider
-        else ComposerProviderScope.provider(snapshot.options.modelProvider))
+        else ComposerProviderScope.provider(snapshot.options.modelProvider), defaultProvider)
     val scopedCatalog by vm.data.collectEntries(providerKey, "composerThread:$thread", "providers")
     val providerId = if (thread != null) ComposerProviderScope.provider(threadProvider)
         else ComposerProviderScope.provider(snapshot.options.modelProvider)

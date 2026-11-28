@@ -82,8 +82,8 @@ internal class CatalogWarmupController(
         val scoped = ComposerProviderScope.catalogKey(provider)
         val defaultProvider = ComposerProviderScope.provider(vm.data.value["providers"]?.optString("defaultProviderId"))
         val keys = if (defaultProvider == null || defaultProvider == provider) setOf(scoped, "models") else setOf(scoped)
-        val key = vm.composerCatalogKey().takeIf { it in keys && (it != "models" || defaultProvider == provider) } ?: scoped
-        invalidate(keys)
+        val key = ComposerProviderScope.catalogKey(provider, defaultProvider)
+        invalidate(keys - key)
         vm.refresh(key, "model/list", ComposerProviderScope.request(provider, forceRefresh = true))
     }
 
@@ -96,8 +96,13 @@ internal class CatalogWarmupController(
 
     fun providerChanged() {
         invalidateModels()
-        vm.refresh("models", "model/list")
-        if (vm.composerCatalogKey() != "models") vm.refreshComposerCatalog()
-        vm.refresh("providers", "modelProvider/list")
+        vm.data.value = vm.data.value - "providers"
+        vm.refresh("providers", "modelProvider/list", onSuccess = {
+            ensure("models", "model/list")
+            if (vm.composerCatalogKey() != "models") {
+                val provider = vm.currentComposerProvider()
+                ensure(vm.composerCatalogKey(), "model/list", ComposerProviderScope.request(provider))
+            }
+        })
     }
 }

@@ -112,6 +112,29 @@ class ComposerProviderScopeTest {
         assertFalse(ComposerProviderScope.isModelRejection("Network timeout"))
     }
 
+    @Test fun sameProviderSharesDefaultCatalogKey() {
+        assertEquals("models", ComposerProviderScope.catalogKey("openai", "openai"))
+        assertEquals("models", ComposerProviderScope.catalogKey(null, "openai"))
+        assertEquals("composerModels:deepseek", ComposerProviderScope.catalogKey("deepseek", "openai"))
+        assertEquals("composerModels:openai", ComposerProviderScope.catalogKey("openai"))
+    }
+
+    @Test fun capturedThreadProviderAvoidsTextPreflight() = kotlinx.coroutines.runBlocking {
+        val config = JSONObject().put("model_provider", "deepseek")
+        val rpc: suspend (String, JSONObject) -> JSONObject = { method, _ -> error("unexpected RPC: $method") }
+        val inherited = ComposerProviderScope.submission(config, "t", "", "default",
+            ComposerTaskOptions(), knownThreadProvider = "openai", rpc = rpc)
+        assertEquals("openai", inherited.provider)
+        assertEquals("", inherited.model)
+        val explicit = ComposerProviderScope.submission(config, "t", "custom-alias", "plan",
+            ComposerTaskOptions(modelProvider = "openai"), knownThreadProvider = "openai", rpc = rpc)
+        assertEquals("custom-alias", explicit.model)
+        assertTrue(runCatching {
+            ComposerProviderScope.submission(config, "t", "custom", "default",
+                ComposerTaskOptions(modelProvider = "deepseek"), knownThreadProvider = "openai", rpc = rpc)
+        }.isFailure)
+    }
+
     @Test fun modelEffortPreferenceRoundTripsAndRespectsCurrentCatalog() {
         val row = JSONObject().put("id", "a").put("supportedReasoningEfforts",
             org.json.JSONArray().put(JSONObject().put("reasoningEffort", "high")))

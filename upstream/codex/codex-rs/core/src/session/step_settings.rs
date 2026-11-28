@@ -92,18 +92,21 @@ impl ResolvedStepSettings {
 
     pub(crate) fn reasoning_effort(&self) -> Option<&ReasoningEffort> {
         let selected = self.selected.collaboration_mode.settings.reasoning_effort.as_ref();
-        // Only real provider metadata establishes that an inherited effort is
-        // incompatible. Preserve custom and synthetic model selections.
+        // Only real provider metadata establishes that a known effort is incompatible.
+        // Model-defined custom values are valid protocol inputs, even when a picker
+        // snapshot does not advertise them. The provider makes the final decision.
         if let Some(effort) = selected
             && self.model_info.origin == ModelOrigin::Provider
+            && !matches!(effort, ReasoningEffort::Custom(_))
             && !self.model_info.supported_reasoning_levels.is_empty()
-            && !self.model_info.supported_reasoning_levels.iter().any(|preset| {
-                preset.effort == *effort
-                    || self.model_info.resolve_reasoning_effort(preset.effort.clone())
-                        == self.model_info.resolve_reasoning_effort(effort.clone())
-            })
         {
-            return self.model_info.default_reasoning_level.as_ref();
+            let wire = self.model_info.resolve_reasoning_effort(effort.clone());
+            if !self.model_info.supported_reasoning_levels.iter().any(|preset| {
+                preset.effort == *effort
+                    || self.model_info.resolve_reasoning_effort(preset.effort.clone()) == wire
+            }) {
+                return self.model_info.default_reasoning_level.as_ref();
+            }
         }
         selected
     }

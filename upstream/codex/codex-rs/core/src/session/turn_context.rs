@@ -869,46 +869,23 @@ impl TurnContext {
         let model_info = models_manager
             .get_model_info(model.as_str(), &config.to_models_manager_config())
             .await;
-        let supported_reasoning_levels = model_info
-            .supported_reasoning_levels
-            .iter()
-            .map(|preset| preset.effort.clone())
-            .collect::<Vec<_>>();
-        let reasoning_effort = if let Some(current_reasoning_effort) = self.reasoning_effort() {
-            if supported_reasoning_levels.contains(current_reasoning_effort) {
-                Some(current_reasoning_effort.clone())
-            } else {
-                supported_reasoning_levels
-                    .get(supported_reasoning_levels.len().saturating_sub(1) / 2)
-                    .cloned()
-                    .or_else(|| model_info.default_reasoning_level.clone())
-            }
-        } else {
-            supported_reasoning_levels
-                .get(supported_reasoning_levels.len().saturating_sub(1) / 2)
-                .cloned()
-                .or_else(|| model_info.default_reasoning_level.clone())
-        };
-        config.model_reasoning_effort = reasoning_effort.clone();
-
-        let available_models = models_manager
-            .list_models(
-                RefreshStrategy::OnlineIfUncached,
-                config.http_client_factory(),
-            )
-            .await;
-        let model_info = Arc::new(model_info);
+        // Retain the user's selected effort; the same pinned-metadata resolver
+        // used by sampling resolves it for the compactor's model.
         let mut selected = self.initial_settings.selected().clone();
         selected.collaboration_mode = selected.collaboration_mode.with_updates(
             Some(model),
-            Some(reasoning_effort),
+            /*reasoning_effort*/ None,
             /*developer_instructions*/ None,
         );
         let step_settings = Arc::new(ResolvedStepSettings::new(
             Arc::new(selected),
-            model_info,
+            Arc::new(model_info),
             &config.features,
         ));
+        config.model_reasoning_effort = step_settings.effective_reasoning_effort();
+        // This is a derived context in the same turn and provider. Reuse its
+        // available-model snapshot instead of fetching the catalog again.
+        let available_models = self.available_models.clone();
         config.service_tier = step_settings.service_tier.clone();
         let session_telemetry = step_settings.telemetry(&self.session_telemetry);
 

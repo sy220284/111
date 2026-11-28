@@ -73,7 +73,8 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     var choosingProvider by remember(owner) { mutableStateOf(false) }
     var confirmModel by remember(owner) { mutableStateOf<String?>(null) }
     val scopedProvider = targetProvider ?: if (active != null) currentProvider else draftProvider
-    val catalogKey = ComposerProviderScope.catalogKey(scopedProvider)
+    val catalogKey = ComposerProviderScope.catalogKey(scopedProvider,
+        ComposerProviderScope.provider(providerData["providers"]?.optString("defaultProviderId")))
     val models by vm.data.collectEntries(catalogKey)
     val running by vm.running.collectAsStateWithLifecycle()
     val creating by vm.firstThreadStarting.collectAsStateWithLifecycle()

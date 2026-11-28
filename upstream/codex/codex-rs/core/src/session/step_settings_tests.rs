@@ -340,8 +340,12 @@ async fn authoritative_model_effort_uses_current_model_default_and_preserves_val
     assert_eq!(resolved.selected().collaboration_mode.settings.reasoning_effort, Some(ReasoningEffort::Low));
     assert_eq!(resolved.effective_collaboration_mode().settings.reasoning_effort, Some(ReasoningEffort::High));
     selected.collaboration_mode.settings.reasoning_effort = Some(ReasoningEffort::High);
-    let resolved = ResolvedStepSettings::new(Arc::new(selected), catalog, &config.features);
+    let resolved = ResolvedStepSettings::new(Arc::new(selected.clone()), Arc::clone(&catalog), &config.features);
     assert_eq!(resolved.reasoning_effort(), Some(&ReasoningEffort::High));
+    let custom = ReasoningEffort::Custom("provider-defined".to_string());
+    selected.collaboration_mode.settings.reasoning_effort = Some(custom.clone());
+    let resolved = ResolvedStepSettings::new(Arc::new(selected), catalog, &config.features);
+    assert_eq!(resolved.reasoning_effort(), Some(&custom));
 }
 
 #[test]
