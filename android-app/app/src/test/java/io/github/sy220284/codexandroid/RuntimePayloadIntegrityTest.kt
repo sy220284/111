@@ -41,6 +41,29 @@ class RuntimePayloadIntegrityTest {
         } finally { RuntimePayloadIntegrity.removeTree(parent) }
     }
 
+    @Test fun rejectsCorruptArchiveAndUnsafeManifest() {
+        val payload = "same".toByteArray()
+        val sha = RuntimePayloadIntegrity.manifestDigest(payload)
+        for (name in listOf("../escape", "/absolute", "bad/../path", "bad//path")) {
+            assertThrows(IllegalArgumentException::class.java) {
+                RuntimePayloadIntegrity.manifest("$name\t$sha\t4\n".toByteArray())
+            }
+        }
+        val entries = RuntimePayloadIntegrity.manifest("file\t$sha\t4\n".toByteArray())
+        val root = Files.createTempDirectory("runtime-bad-digest").toFile()
+        try {
+            val archive = ByteArrayOutputStream().also { bytes ->
+                ZipOutputStream(bytes).use { out ->
+                    out.putNextEntry(ZipEntry("file"))
+                    out.write(payload); out.closeEntry()
+                }
+            }.toByteArray()
+            assertThrows(IllegalArgumentException::class.java) {
+                RuntimePayloadIntegrity.install(root, archive.inputStream(), entries, "0".repeat(64))
+            }
+        } finally { RuntimePayloadIntegrity.removeTree(root) }
+    }
+
     @Test fun sealsPayloadAndRemovesSealedOrDamagedDirectoriesWithoutTouchingExternalLinks() {
         val parent = Files.createTempDirectory("runtime-seal").toFile()
         val root = File(parent, "payload").apply { mkdir() }

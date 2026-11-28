@@ -81,6 +81,21 @@ class ApkAuditTests(unittest.TestCase):
         self.assertEqual(7, result["development_runtime"]["unique_bytes"])
         self.assertEqual(1, len(result["development_runtime"]["duplicate_groups"]))
 
+    def test_runtime_archive_digest_and_logical_manifest_are_verified(self):
+        self.package()
+        with ZipFile(self.path) as archive:
+            files = {name: archive.read(name) for name in archive.namelist()}
+        prefix = "assets/development-runtime/development-runtime."
+        for name, replacement, error in (
+            ("sha256", b"0" * 64, "归档摘要"),
+            ("files.tsv", b"git/lib/one.so\t" + b"0" * 64 + b"\t7\n", "归档内容不一致"),
+        ):
+            with ZipFile(self.path, "w") as archive:
+                for key, value in files.items():
+                    archive.writestr(key, replacement if key == prefix + name else value)
+            with self.assertRaisesRegex(ApkAuditError, error):
+                audit(self.path, "arm64-v8a", "full")
+
     def test_ui_smoke_has_no_core_but_full_release_requires_it(self):
         self.package(core=False)
         self.assertIsNone(audit(self.path, "arm64-v8a", "ui-smoke")["core_bytes"])

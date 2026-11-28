@@ -292,6 +292,17 @@ def prepare(abi, native, assets, prepared, clang, git_source_output):
                     if not resolved.is_file():
                         raise ValueError(f"{group}: unresolved runtime dependency {dep} ({path.name})")
                     queue.append((resolved,False))
+            # DT_NEEDED does not cover dlopen, ctypes, or user-supplied native
+            # modules. Report candidates for measured pruning, never silently
+            # remove an otherwise supported development capability.
+            referenced = {p.name for p in seen if p.parent == libdir}
+            unreferenced = sorted(p for p in libdir.iterdir()
+                                  if p.is_file() and p.name not in referenced)
+            print(json.dumps({"runtime_group": group,
+                              "dependency_closure_files": sorted(referenced),
+                              "dynamic_load_candidates": [
+                                  {"name": p.name, "bytes": p.stat().st_size, "sha256": digest(p)}
+                                  for p in unreferenced]}))
         for relative in ("git/home/share/git-core/templates","node/npm/package/bin/npm-cli.js",
                          "python/home/lib/python3.14/encodings/__init__.py",
                          "python/home/lib/python3.14/site-packages/pip/__main__.py"):

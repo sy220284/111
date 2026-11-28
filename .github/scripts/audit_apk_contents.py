@@ -44,10 +44,14 @@ def inventory(archive):
     return records
 
 
-def runtime_inventory(archive, strict=False):
+def runtime_inventory(archive, strict=False, outer_entries=None):
     prefix = "assets/development-runtime/development-runtime"
     if prefix + ".zip" not in archive.namelist():
         return None
+    if strict:
+        actual = outer_entries[prefix + ".zip"]["sha256"]
+        if archive.read(prefix + ".sha256").decode("ascii").strip() != actual:
+            raise ApkAuditError("运行环境归档摘要不一致")
     with tempfile.TemporaryFile() as temporary:
         with archive.open(prefix + ".zip") as source:
             shutil.copyfileobj(source, temporary, length=1024 * 1024)
@@ -135,7 +139,7 @@ def audit(apk: Path, abi: str, mode: str, debug_executor: bool = False) -> dict:
                 if machine != MACHINES[abi]:
                     raise ApkAuditError(f"原生库架构错误：{name}（machine={machine}）")
             files = inventory(archive)
-            runtime = runtime_inventory(archive, strict=mode == "full")
+            runtime = runtime_inventory(archive, strict=mode == "full", outer_entries=files)
             categories = {"dex": 0, "native": 0, "resources": 0, "assets": 0, "other": 0}
             compressed = {key: 0 for key in categories}
             for name, item in entries.items():
@@ -205,8 +209,9 @@ def main() -> int:
     report = json.dumps(result, ensure_ascii=False, indent=2)
     summary = {k: v for k, v in result.items() if k not in
                {"entries", "duplicate_groups", "development_runtime", "entry_changes", "runtime_changes"}}
-    summary["largest_entries"] = sorted(result["entries"].items(), key=lambda pair: -pair[1]["compressed"])[:15]
-    if result["development_runtime"] is not None:
+    if "entries" in result:
+        summary["largest_entries"] = sorted(result["entries"].items(), key=lambda pair: -pair[1]["compressed"])[:15]
+    if result.get("development_runtime") is not None:
         runtime = result["development_runtime"]
         summary["development_runtime"] = {
             "logical_bytes": runtime["logical_bytes"], "unique_bytes": runtime["unique_bytes"],

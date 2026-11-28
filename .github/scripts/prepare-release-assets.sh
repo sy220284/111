@@ -47,18 +47,10 @@ if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
     if [ -n "$HDIFFZ" ] && [ -n "$HPATCHZ" ]; then
       chmod +x "$HDIFFZ" "$HPATCHZ"
       for ABI in arm64-v8a; do
-        PREVIOUS_DIR="$RUNNER_TEMP/previous-$ABI"
-        mkdir -p "$PREVIOUS_DIR"
-        if ! gh release download "$PREVIOUS_TAG" --pattern "codex-android-$ABI-*.apk" --dir "$PREVIOUS_DIR"; then
-          echo "::notice::未找到上一版本的 $ABI APK，跳过该架构增量包"
-          continue
-        fi
-        mapfile -t OLD_FILES < <(find "$PREVIOUS_DIR" -maxdepth 1 -type f -name '*.apk')
-        if [ "${#OLD_FILES[@]}" -ne 1 ]; then
-          echo "::notice::$ABI 上版 APK 数量异常，跳过增量包"
-          continue
-        fi
-        OLD="${OLD_FILES[0]}"
+        # Use the one prior APK already downloaded and signature-verified by
+        # the release job. The upgrade verifier checks its published checksum.
+        OLD="$RUNNER_TEMP/previous-cert/codex-android-$ABI-${PREVIOUS_TAG#v}.apk"
+        test -s "$OLD"
         NEW="$OUT/codex-android-$ABI-$RELEASE_VERSION.apk"
         PATCH_NAME="delta-${PREVIOUS_TAG#v}-to-$RELEASE_VERSION-$ABI.hpatch"
         PATCH="$OUT/$PATCH_NAME"
