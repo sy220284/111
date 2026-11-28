@@ -1,5 +1,6 @@
 package io.github.sy220284.codexandroid
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,23 @@ class ForegroundTaskPolicyTest {
         assertFalse(RuntimeRecoveryPolicy.shouldRecover(true, idle().copy(restarting = true), true))
         assertFalse(RuntimeRecoveryPolicy.shouldRecover(true, idle().copy(dataTransferBusy = true), true))
         assertFalse(RuntimeRecoveryPolicy.shouldRecover(true, idle().copy(pendingRestore = true), true))
+    }
+
+    @Test fun recoverableAttemptReportsFailureAndKeepsTheNextAttemptAvailable() = runTest {
+        val failure = IllegalStateException("reconnect failed")
+        val reported = mutableListOf<Exception>()
+        RuntimeRecoveryPolicy.attempt({ reported += it }) { throw failure }
+        var retried = false
+        RuntimeRecoveryPolicy.attempt({ reported += it }) { retried = true }
+        assertEquals(listOf(failure), reported)
+        assertTrue(retried)
+
+        val cancelled = CancellationException("supervisor stopped")
+        val thrown = runCatching {
+            RuntimeRecoveryPolicy.attempt({ reported += it }) { throw cancelled }
+        }.exceptionOrNull()
+        assertSame(cancelled, thrown)
+        assertEquals(listOf(failure), reported)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)

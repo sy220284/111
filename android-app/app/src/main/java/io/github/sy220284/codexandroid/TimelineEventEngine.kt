@@ -20,8 +20,15 @@ internal object TimelineEventEngine {
             val selected = visible()
             val before = if (selected) vm.timeline.value else vm.liveTimelines.snapshot(thread)
             val epoch = vm.timelineEpoch
-            val next = withContext(Dispatchers.Default) {
-                TimelineEventReducer.reduce(event.method, event.params, before.orEmpty(), event.mergedDelta)
+            val next = try {
+                withContext(Dispatchers.Default) {
+                    TimelineEventReducer.reduce(event.method, event.params, before.orEmpty(), event.mergedDelta)
+                }
+            } catch (failure: InvalidNativeSummaryIndex) {
+                if (vm.bridge.isCurrentEvent(event.wire))
+                    vm.errors.value = vm.errors.value + ("protocol" to (failure.message ?: "摘要分段协议错误"))
+                // Keep consuming events. A completed item supplies the authoritative full summary.
+                return false
             }
             if (!vm.bridge.isCurrentEvent(event.wire)) return false
             if (selected != visible()) continue

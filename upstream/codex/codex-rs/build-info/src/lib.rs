@@ -114,8 +114,15 @@ impl BuildInfo {
             };
         }
 
+        // APKs are packaged by the Android build, without the upstream
+        // installer manifest. Use their verified compiled release baseline.
+        #[cfg(target_os = "android")]
+        let version = Version::parse(env!("CARGO_PKG_VERSION"))
+            .expect("valid Android release baseline");
+        #[cfg(not(target_os = "android"))]
+        let version = Version::new(0, 0, 0);
         Self {
-            version: Version::new(0, 0, 0),
+            version,
             build_commit: build_commit.to_owned(),
             target: Some(env!("CODEX_BUILD_TARGET").to_owned()),
         }

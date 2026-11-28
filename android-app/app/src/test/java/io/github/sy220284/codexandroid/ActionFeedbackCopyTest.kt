@@ -12,6 +12,13 @@ class ActionFeedbackCopyTest {
         assertEquals("已发送任务停止请求", ActionFeedbackCopy.success("turn/interrupt", JSONObject()).message)
     }
 
+    @Test fun nullAuthUrlDoesNotBecomeBrowserLogin() {
+        val switched = JSONObject().put("authUrl", JSONObject.NULL)
+        assertEquals("已切换账号会话", ActionFeedbackCopy.success("accountSession/switch", switched).message)
+        val login = JSONObject().put("authUrl", "https://example.com/login")
+        assertEquals("需要继续完成浏览器授权", ActionFeedbackCopy.success("accountSession/switch", login).message)
+    }
+
     @Test fun toolErrorResultMustNotBeReportedAsSuccess() {
         val result = JSONObject().put("isError", true)
         val receipt = ActionFeedbackCopy.success("mcpServer/tool/call", result)

@@ -188,7 +188,13 @@ async fn terminal_failure_with_retry_header_ends_stream_immediately() {
 
 #[test]
 fn statusless_model_errors_have_no_http_status() {
-    let error = json!({"code": "model_not_found"});
+    for code in ["model_not_found", "model_not_in_accessible_catalog"] {
+        assert_statusless_model_error(code);
+    }
+}
+
+fn assert_statusless_model_error(code: &str) {
+    let error = json!({"code": code});
     for event in [
         json!({"type": "error", "error": error}),
         json!({"type": "response.failed", "response": {"error": error}}),

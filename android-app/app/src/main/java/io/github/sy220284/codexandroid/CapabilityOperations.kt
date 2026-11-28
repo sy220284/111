@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 internal suspend fun CodexViewModel.capabilityRequest(
@@ -13,7 +15,12 @@ internal suspend fun CodexViewModel.capabilityRequest(
 ): JSONObject {
     check(bridge.status.value == EngineStatus.Connected) { "请先连接运行引擎" }
     check(!AppDataTransfer.state.value.busy) { "请等待应用数据传输完成" }
-    return bridge.request(method, params, timeout, sendPermit, expectedSession)
+    val owner = currentCoroutineContext()[CapabilityRequestOwner]?.owner
+        ?: captureTaskOwner() ?: error("运行核心尚未连接")
+    check(expectedSession == null || expectedSession == owner.epoch) { "操作所属连接已变化" }
+    return owner.guarded({ owner.current(this) }) {
+        bridge.request(method, params, timeout, { owner.current(this) && sendPermit?.invoke() != false }, owner.epoch)
+    }
 }
 
 internal fun JSONObject.value(key: String): String =
@@ -55,14 +62,15 @@ internal class CapabilityOperation(private val vm: CodexViewModel) {
     var error by mutableStateOf("")
     var receipt by mutableStateOf("")
 
-    fun launch(block: suspend () -> Unit) {
-        if (busy) return
+    fun launch(onRejected: () -> Unit = {}, block: suspend () -> Unit) {
+        if (busy) { onRejected(); return }
+        val owner = vm.captureTaskOwner() ?: run { error = "运行核心尚未连接"; onRejected(); return }
         busy = true
         error = ""
         receipt = ""
         vm.viewModelScope.launch {
             try {
-                block()
+                withContext(CapabilityRequestOwner(owner)) { block() }
             } catch (cancel: CancellationException) {
                 if (cancel !is TimeoutCancellationException) throw cancel
                 error = capabilityError(cancel)

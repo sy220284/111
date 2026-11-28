@@ -10,6 +10,10 @@ import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 
 /** Deterministic fake native process: never executes code on the test host. */
 private class MockCodexProcess(lines: List<String>) : Process() {
@@ -101,6 +105,53 @@ class RpcProcessChannelTest {
             assertTrue(failure.message.orEmpty().contains("结果为空或类型错误"))
         } finally {
             channel.closeWriter()
+        }
+    }
+
+    @Test fun diagnosticLinesDoNotDisconnectOrExposeTheirContents() = runBlocking {
+        val channel = RpcProcessChannel(MockCodexProcess(listOf(
+            "tool diagnostic", "[INFO] another diagnostic", "  ", """{"id":9,"result":{}}""",
+            """{"method":"turn/completed","params":{}}"""
+        )))
+        val frames = mutableListOf<RpcEnvelopeKind>()
+        var diagnosed = 0
+        channel.readFrames(onNonProtocolLine = { diagnosed++ }) {
+            frames += RpcEnvelopeRouter.classify(it)
+        }
+        assertEquals(2, diagnosed)
+        assertEquals(listOf(RpcEnvelopeKind.Response, RpcEnvelopeKind.Event), frames)
+        channel.closeWriter()
+    }
+
+    @Test fun closeWaitsForTheWholeAdmittedFrame() {
+        val process = MockCodexProcess(emptyList())
+        val channel = RpcProcessChannel(process)
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val closing = CountDownLatch(1)
+        val workers = Executors.newFixedThreadPool(2)
+        try {
+            val write = workers.submit {
+                channel.send(JSONObject().put("id", 7).put("result", JSONObject())) {
+                    entered.countDown()
+                    check(release.await(5, TimeUnit.SECONDS))
+                    true
+                }
+            }
+            assertTrue(entered.await(5, TimeUnit.SECONDS))
+            val close = workers.submit {
+                closing.countDown()
+                channel.closeWriter()
+            }
+            assertTrue(closing.await(5, TimeUnit.SECONDS))
+            assertThrows(TimeoutException::class.java) { close.get(100, TimeUnit.MILLISECONDS) }
+            release.countDown()
+            write.get(5, TimeUnit.SECONDS)
+            close.get(5, TimeUnit.SECONDS)
+            assertEquals(7, process.writes().single().getInt("id"))
+        } finally {
+            release.countDown()
+            workers.shutdownNow()
         }
     }
 

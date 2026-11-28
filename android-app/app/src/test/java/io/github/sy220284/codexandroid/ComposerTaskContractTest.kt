@@ -15,10 +15,10 @@ class ComposerTaskContractTest {
         val plan = TurnRequestContract.build("t", "计划", "test", "plan", catalog, effort = "high")
         assertEquals("high", plan.getJSONObject("collaborationMode").getJSONObject("settings").getString("reasoning_effort"))
         assertFalse(plan.has("effort"))
-        try {
-            TurnRequestContract.build("t", "执行", "test", "default", catalog, effort = "unsupported")
-            fail("Unsupported effort must fail")
-        } catch (_: IllegalArgumentException) { }
+        // Native capability metadata may be newer than the picker. Preserve
+        // the request, including model-defined effort values.
+        assertEquals("provider-defined", TurnRequestContract.build("t", "执行", "test",
+            "default", emptyList(), effort = "provider-defined").getString("effort"))
     }
 
     @Test fun planTaskOverridesConfiguredEffortWithoutDroppingReferences() {

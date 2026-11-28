@@ -46,7 +46,6 @@ object TurnRequestContract {
               effectiveConfig: JSONObject? = null): JSONObject {
         require(threadId.isNotBlank()) { "缺少会话标识" }
         require(mode == "default" || mode == "plan") { "未知工作方式：$mode" }
-        ComposerModelPolicy.requireEffort(catalog, modelId, effort)
         ComposerModelPolicy.requireMediaInput(catalog, modelId, LocalMediaAttachmentPolicy.modalities(localImages))
         val args = JSONObject().put("threadId", threadId).put("input", input(text, localImages, references))
         // Default execution inherits the live thread's model and current effort.
@@ -60,20 +59,22 @@ object TurnRequestContract {
         val visibleCatalog = catalog.filterNot { it.optBoolean("hidden") }
         val selected = modelId.ifBlank {
             val configured = configuredModel?.let { ComposerModelPolicy.model(visibleCatalog, it) }
-            if (configuredModel != null) require(configured != null) { "默认模型不在当前可用目录中，请检查模型设置" }
-            configured?.optString("id") ?: visibleCatalog.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
+            configured?.optString("id") ?: configuredModel
+                ?: visibleCatalog.firstOrNull { it.optBoolean("isDefault") }?.optString("id")
                 ?: visibleCatalog.firstOrNull()?.optString("id").orEmpty()
         }
         require(selected.isNotBlank()) { "计划模式需要先读取可用模型目录" }
-        val model = requireNotNull(ComposerModelPolicy.model(visibleCatalog, selected)) { "计划模式所选模型已不可用，请重新选择" }
+        val model = ComposerModelPolicy.model(visibleCatalog, selected)
         ComposerModelPolicy.requireMediaInput(visibleCatalog, selected, LocalMediaAttachmentPolicy.modalities(localImages))
         val configuredEffort = effectiveConfig?.optString("plan_mode_reasoning_effort")?.takeIf { it.isNotBlank() && it != "null" }
-        val matchingEffort = configuredEffort?.takeIf { it in ComposerModelPolicy.efforts(visibleCatalog, selected) }
-        require(effort.isNotBlank() || configuredEffort == null || matchingEffort != null || modelId.isNotBlank()) {
-            "计划模式思考深度与默认模型不匹配，请在模型设置中调整"
+        val matchingEffort = configuredEffort?.takeIf {
+            it in ComposerModelPolicy.efforts(visibleCatalog, selected) ||
+                (model == null && (configuredModel == null || configuredModel == selected))
         }
+        // The native model owns effort normalization; an absent picker row is not
+        // a denial. Preserve the chosen model and explicit effort.
         val selectedEffort = effort.takeIf { it.isNotBlank() } ?: matchingEffort
-            ?: model.optString("defaultReasoningEffort").takeIf { it.isNotBlank() && it != "null" }
+            ?: model?.optString("defaultReasoningEffort")?.takeIf { it.isNotBlank() && it != "null" }
         val settings = JSONObject()
             .put("model", selected)
             .put("reasoning_effort", selectedEffort ?: JSONObject.NULL)

@@ -17,6 +17,7 @@ use codex_protocol::config_types::ReasoningSummary;
 use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
 use codex_protocol::config_types::ServiceTier;
 use codex_protocol::openai_models::CatalogModel;
+use codex_protocol::openai_models::ModelOrigin;
 use codex_protocol::openai_models::ReasoningEffort;
 use codex_protocol::protocol::AskForApproval;
 use codex_protocol::protocol::SpawnServiceTierOverride;
@@ -90,11 +91,24 @@ impl ResolvedStepSettings {
     }
 
     pub(crate) fn reasoning_effort(&self) -> Option<&ReasoningEffort> {
-        self.selected
-            .collaboration_mode
-            .settings
-            .reasoning_effort
-            .as_ref()
+        let selected = self.selected.collaboration_mode.settings.reasoning_effort.as_ref();
+        // Only real provider metadata establishes that a known effort is incompatible.
+        // Model-defined custom values are valid protocol inputs, even when a picker
+        // snapshot does not advertise them. The provider makes the final decision.
+        if let Some(effort) = selected
+            && self.model_info.origin == ModelOrigin::Provider
+            && !matches!(effort, ReasoningEffort::Custom(_))
+            && !self.model_info.supported_reasoning_levels.is_empty()
+        {
+            let wire = self.model_info.resolve_reasoning_effort(effort.clone());
+            if !self.model_info.supported_reasoning_levels.iter().any(|preset| {
+                preset.effort == *effort
+                    || self.model_info.resolve_reasoning_effort(preset.effort.clone()) == wire
+            }) {
+                return self.model_info.default_reasoning_level.as_ref();
+            }
+        }
+        selected
     }
 
     pub(crate) fn effective_reasoning_effort(&self) -> Option<ReasoningEffort> {
@@ -115,6 +129,7 @@ impl ResolvedStepSettings {
     pub(crate) fn effective_collaboration_mode(&self) -> CollaborationMode {
         let mut collaboration_mode = self.selected.collaboration_mode.clone();
         collaboration_mode.settings.model = self.model_info.slug.clone();
+        collaboration_mode.settings.reasoning_effort = self.reasoning_effort().cloned();
         collaboration_mode
     }
 

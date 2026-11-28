@@ -69,13 +69,15 @@ internal class TerminalTaskOperations(
                 val result = bridge.request("command/exec", args, timeoutMillis = null, expectedSession = owner.epoch, sendPermit = { owner.current(vm) })
                 terminalTranscript.appendTail(id, result)
                 val active = terminalSession.value
+                // This is the original process receipt, even if the UI account changed.
+                // Keep the actual exit code in its own transcript rather than synthesize failure.
                 if (active.processId == id) terminalSession.value = active.finish(result)
             } catch (failure: Exception) {
                 val active = terminalSession.value
                 if (active.processId == id && active.running) {
                     terminalSession.value = active.fail(
                         failure.message ?: "终端命令执行失败")
-                } else {
+                } else if (owner.current(vm)) {
                     errors.value = errors.value + ("terminal" to
                         ("终端未启动：" + (failure.message ?: "前台服务未就绪")))
                 }
@@ -103,10 +105,10 @@ internal class TerminalTaskOperations(
         scope.launch {
             try {
                 owner.request(vm, "command/exec/resize", params)
-                if (terminalSession.value.processId == current.processId)
+                if (owner.current(vm) && terminalSession.value.processId == current.processId)
                     errors.value = errors.value - "terminalResize"
             } catch (failure: Exception) {
-                if (terminalSession.value.processId == current.processId)
+                if (owner.current(vm) && terminalSession.value.processId == current.processId)
                     errors.value = errors.value + ("terminalResize" to (failure.message ?: "终端尺寸调整失败"))
             }
         }
@@ -120,13 +122,14 @@ internal class TerminalTaskOperations(
         scope.launch {
             try {
                 owner.request(vm, "command/exec/write", args)
-                if (terminalSession.value.processId == state.processId) {
+                if (owner.current(vm) && terminalSession.value.processId == state.processId) {
                     errors.value = errors.value - "terminalInput"
                     afterSent()
                 }
             } catch (failure: Exception) {
-                errors.value = errors.value + ("terminalInput" to
-                    (failure.message ?: "终端输入失败"))
+                if (owner.current(vm) && terminalSession.value.processId == state.processId)
+                    errors.value = errors.value + ("terminalInput" to
+                        (failure.message ?: "终端输入失败"))
             }
         }
     }
@@ -141,7 +144,7 @@ internal class TerminalTaskOperations(
                 bridge.request("command/exec/terminate",
                     TerminalSessionContract.terminate(active.processId), expectedSession = owner.epoch,
                     sendPermit = { terminalSession.value.processId == active.processId })
-                errors.value = errors.value - "terminalStop"
+                if (terminalSession.value.processId == active.processId) errors.value = errors.value - "terminalStop"
             } catch (failure: Exception) {
                 val current = terminalSession.value
                 if (current.processId == active.processId && current.running) {

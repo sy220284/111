@@ -4,7 +4,6 @@ import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import java.io.File
-import java.security.MessageDigest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
@@ -64,12 +63,5 @@ internal class SessionIndexStore(private val file: File) {
         }
     suspend fun clear() = withContext(Dispatchers.IO) {
         lock.withLock { if (file.exists()) SQLiteDatabase.deleteDatabase(file) }
-    }
-    companion object {
-        fun identity(account: JSONObject): String {
-            val source = account.opt("account").toString() + ":" + account.optBoolean("requiresOpenaiAuth")
-            return MessageDigest.getInstance("SHA-256").digest(source.toByteArray(Charsets.UTF_8))
-                .joinToString("") { "%02x".format(it.toInt() and 0xff) }
-        }
     }
 }

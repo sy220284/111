@@ -3,6 +3,8 @@ package io.github.sy220284.codexandroid
 import android.app.Application
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -62,59 +64,73 @@ internal class DomesticProviderController(private val vm: CodexViewModel) {
             vm.errors.value = vm.errors.value + ("providerWrite" to "服务商名称或密钥格式无效")
             return
         }
+        val owner = vm.captureTaskOwner() ?: return
         if (!acquire()) return
         vm.viewModelScope.launch {
-            var encryptedBefore: ByteArray? = null
             var keySaved = false
             var configVerified = false
+            var writeAttempted = false
             try {
-                val current = vm.bridge.request("modelProvider/list", JSONObject())
+                val requestedName = name.trim()
+                val requestedEndpoint = endpoint.trim().trimEnd('/')
+                val current = owner.request(vm, "modelProvider/list", JSONObject())
                 val matching = records(current).filter { preset.ownsProvider(it) }
                 check(matching.size <= 1) { "存在重复的预置服务商配置，请先整理" }
                 val existing = matching.singleOrNull()
                 check(existing == null || existing.optBoolean("canEdit")) { "当前预置服务商配置只读" }
-                if (key.isNotBlank()) {
-                    withContext(Dispatchers.IO) {
-                        encryptedBefore = DomesticProviderCredentials.snapshot(context, preset)
-                        DomesticProviderCredentials.save(context, preset, key, endpoint)
-                        keySaved = true
-                    }
-                } else {
-                    check(withContext(Dispatchers.IO) { DomesticProviderCredentials.matchesStoredEndpoint(context, preset, endpoint) }) { "业务空间或服务地址已变更，请填写该地址的 API Key" }
+                if (key.isBlank()) {
+                    check(withContext(Dispatchers.IO) {
+                        DomesticProviderCredentials.matchesStoredEndpoint(context, preset, requestedEndpoint)
+                    }) { "业务空间或服务地址已变更，请填写该地址的 API Key" }
                 }
                 val patch = JSONObject().put("type", "customGateway")
-                    .put("name", name.trim()).put("baseUrl", endpoint.trim().trimEnd('/')).put("envKey", preset.envKey)
+                    .put("name", requestedName).put("baseUrl", requestedEndpoint).put("envKey", preset.envKey)
                 existing?.let { patch.put("providerId", it.getString("id")) }
-                val reply = vm.bridge.request("modelProvider/config/write", JSONObject().put("settings", patch))
-                val saved = reply.getJSONObject("provider")
-                check(preset.ownsProvider(saved) && saved.optString("baseUrl").trimEnd('/') == endpoint.trim().trimEnd('/') && saved.optString("name") == name.trim()) {
-                    "服务商配置回读不匹配"
-                }
-                val readback = vm.bridge.request("modelProvider/list", JSONObject())
-                check(records(readback).any { it.optString("id") == saved.getString("id") && preset.ownsProvider(it) && it.optString("baseUrl").trimEnd('/') == endpoint.trim().trimEnd('/') }) {
-                    "服务商未进入有效配置"
-                }
+                fun matches(value: JSONObject) = preset.ownsProvider(value) &&
+                    value.optString("baseUrl").trimEnd('/') == requestedEndpoint &&
+                    value.optString("name") == requestedName
+                // Confirm the native configuration before replacing the active key.
+                // An uncertain write must never roll back a key against a possibly new endpoint.
+                ConfigWriteTransaction.executeSnapshot(
+                    write = {
+                        writeAttempted = true
+                        owner.request(vm, "modelProvider/config/write", JSONObject().put("settings", patch))
+                    },
+                    read = { owner.request(vm, "modelProvider/list", JSONObject()) },
+                    isCurrent = { owner.current(vm) },
+                    publish = {},
+                    verify = { reply, readback ->
+                        val saved = reply.getJSONObject("provider")
+                        check(matches(saved) && records(readback).any { it.optString("id") == saved.getString("id") && matches(it) }) {
+                            "服务商配置与原生回读结果不一致"
+                        }
+                    })
                 configVerified = true
+                if (key.isNotBlank()) {
+                    withContext(Dispatchers.IO) {
+                        owner.requireCurrent(vm)
+                        DomesticProviderCredentials.save(context, preset, key, requestedEndpoint)
+                        keySaved = true
+                    }
+                }
+                owner.requireCurrent(vm)
                 if (keySaved || preset.id !in vm.bridge.domesticCredentials.value.loaded) restart()
+                check(owner.account == vm.catalogWarmup.accountRevision.value) { "账号已切换，请核对服务商配置" }
                 check(preset.id in vm.bridge.domesticCredentials.value.loaded) {
                     vm.bridge.domesticCredentials.value.failures[preset.id] ?: "本机密钥未进入运行核心"
                 }
                 after()
                 vm.actionFeedback.tryEmit(ActionFeedbackReceipt("服务商配置已回读，密钥已加载；真实模型调用待验证"))
             } catch (failure: Exception) {
-                var message = if (configVerified) "配置已保存，授权加载失败，请重新连接或授权"
-                    else (failure.message ?: "服务商配置保存或回读失败")
-                if (keySaved && !configVerified) {
-                    try {
-                        withContext(Dispatchers.IO) { DomesticProviderCredentials.restore(context, preset, encryptedBefore) }
-                    } catch (_: Exception) {
-                        message = "配置回读失败，旧密钥恢复失败；请重新授权并核对服务商配置"
-                        closeIdleCore()
-                    }
-                }
-                vm.errors.value = vm.errors.value + ("providerWrite" to message)
+                if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
+                val detail = failure.message ?: "操作失败"
+                vm.errors.value = vm.errors.value + ("providerWrite" to when {
+                    configVerified && keySaved -> "配置和密钥已保存，加载未确认；请重新连接并核对授权：$detail"
+                    configVerified -> "配置已保存，密钥未更新或加载未确认；请重新授权：$detail"
+                    writeAttempted -> "配置写入未确认，原密钥保持不变；请刷新配置后重试：$detail"
+                    else -> detail
+                })
             } finally {
-                encryptedBefore?.fill(0)
                 release()
                 if (vm.bridge.status.value == EngineStatus.Connected) refresh()
             }
@@ -122,16 +138,19 @@ internal class DomesticProviderController(private val vm: CodexViewModel) {
     }
 
     fun revoke(preset: DomesticModelPreset, after: () -> Unit) {
+        val owner = vm.captureTaskOwner() ?: return
         if (!acquire()) return
         vm.viewModelScope.launch {
             try {
                 // Terminate the process holding the old key before deleting it.
+                owner.requireCurrent(vm)
                 closeIdleCore()
                 withContext(Dispatchers.IO) {
                     DomesticProviderCredentials.remove(context, preset)
                 }
                 vm.connect().join()
                 check(vm.bridge.status.value == EngineStatus.Connected) { "密钥已移除；请重新连接核心" }
+                check(owner.account == vm.catalogWarmup.accountRevision.value) { "账号已切换，请核对授权" }
                 check(preset.id !in vm.bridge.domesticCredentials.value.loaded) { "旧密钥仍在核心中，请重新连接" }
                 after()
                 vm.actionFeedback.tryEmit(ActionFeedbackReceipt("本机密钥已移除，旧运行核心已关闭"))

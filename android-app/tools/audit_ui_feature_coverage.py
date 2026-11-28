@@ -30,7 +30,7 @@ OFFICIAL = re.compile(r'=>\s*"([A-Za-z][A-Za-z0-9_]+(?:/[A-Za-z0-9_]+)+)"\s*\{')
 
 # 静态调用证据与方法名称引用分开计数。解析参数括号，避免漏掉拼接 key。
 RPC_CALL_HEAD = re.compile(
-    r'\b(?P<callee>(?:owner|lease)\.request|(?:(?:vm\.)?bridge\.)?request(?:ForSession)?|(?:vm\.)?capabilityRequest|(?:vm\.)?(?:rpc|refresh|ensureCatalog))\s*\('
+    r'\b(?P<callee>(?:(?:vm\.)?bridge\.)?request(?:ForSession)?|[A-Za-z_]\w*\.request|(?:vm\.)?capabilityRequest|(?:vm\.)?(?:rpc|refresh|ensureCatalog))\s*\('
 )
 DYNAMIC_METHOD = re.compile(
     r'\bval\s+(?P<variable>[A-Za-z_]\w*)\s*=\s*if\s*\([^)]*\)\s*'
@@ -246,15 +246,21 @@ def find_rpc_calls(code: str, official: set[str], resolvers: dict[str, set[str]]
     for match in re.finditer(r'\bval\s+(\w+)\s*=\s*(?:try\s*\{\s*)?([A-Za-z_]\w*\.\w+)\s*\(', code):
         if match.group(2) in (resolvers or {}):
             candidates[match.group(1)] = resolvers[match.group(2)]
+    # Recognize captured TaskRequestOwner variables independently of naming.
+    owners = {"owner", "lease"} | set(re.findall(
+        r"\bval\s+(\w+)\s*(?::\s*TaskRequestOwner\??\s*)?=\s*(?:vm\.)?captureTaskOwner\s*\(", code))
+    owners.update(re.findall(r"\b(\w+)\s*:\s*TaskRequestOwner\b", code))
     for match in RPC_CALL_HEAD.finditer(code):
         args = _call_arguments(code, match.end())
         callee = match.group("callee")
-        if callee in {"owner.request", "lease.request"}:
+        if callee.endswith(".request") and callee.split(".")[0] in owners:
             # TaskRequestOwner.request(vm, method, params) checks the captured
             # connection/account before forwarding the actual method to bridge.
             if not args or not re.fullmatch(r"vm|this(?:@\w+)?", args[0]):
                 continue
             index = 1
+        elif callee.endswith(".request") and callee not in {"bridge.request", "vm.bridge.request"}:
+            continue
         else:
             index = 0 if callee.rsplit(".", 1)[-1] in {"request", "requestForSession", "capabilityRequest"} else 1
         if len(args) <= index:

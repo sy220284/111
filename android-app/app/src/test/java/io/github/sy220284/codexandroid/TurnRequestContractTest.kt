@@ -67,6 +67,18 @@ class TurnRequestContractTest {
         assertEquals("medium", override.getString("reasoning_effort"))
     }
 
+    @Test fun planAcceptsConfiguredOrExplicitModelWithoutPickerMetadata() {
+        val config = JSONObject().put("model", "custom-alias").put("plan_mode_reasoning_effort", "high")
+        val inherited = TurnRequestContract.build("t", "计划", "", "plan", emptyList(), effectiveConfig = config)
+            .getJSONObject("collaborationMode").getJSONObject("settings")
+        assertEquals("custom-alias", inherited.getString("model"))
+        assertEquals("high", inherited.getString("reasoning_effort"))
+        val explicit = TurnRequestContract.build("t", "计划", "new-model", "plan", emptyList(), effort = "max")
+            .getJSONObject("collaborationMode").getJSONObject("settings")
+        assertEquals("new-model", explicit.getString("model"))
+        assertEquals("max", explicit.getString("reasoning_effort"))
+    }
+
     @Test fun unsupportedModeFailsBeforeSubmitting() {
         try {
             TurnRequestContract.build("t5", "执行", "", "fullyAutonomous", models)

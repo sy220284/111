@@ -33,6 +33,53 @@ def digest(path):
     with path.open("rb") as stream:
         return hashlib.file_digest(stream, "sha256").hexdigest()
 
+def pack_runtime_data(data, assets):
+    """One physical ZIP entry per byte-identical payload, with exact logical paths.
+
+    Preserve all original tool and library lookup paths (including ABI aliases).
+    The APK-signed manifest describes every file; Android recreates identical
+    files as hard links inside the private runtime directory. No dependency or
+    dynamically loaded module is removed based on a guessed usage list.
+    """
+    files = []
+    canonical = {}
+    out = assets / "development-runtime.zip"
+    manifest = assets / "development-runtime.files.tsv"
+    with zipfile.ZipFile(out, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=6) as archive:
+        for path in sorted(data.rglob("*"), key=lambda p: p.relative_to(data).as_posix()):
+            if path.is_symlink() or not (path.is_file() or path.is_dir()):
+                raise ValueError("Invalid runtime file: " + str(path))
+            if path.is_dir():
+                continue
+            name = path.relative_to(data).as_posix()
+            if any(c in name for c in "\t\r\n\\") or any(p in ("", ".", "..") for p in name.split("/")):
+                raise ValueError("Invalid runtime manifest path: " + name)
+            sha = digest(path)
+            size = path.stat().st_size
+            files.append((name, sha, size))
+            if sha in canonical:
+                if canonical[sha][1] != size:
+                    raise ValueError("Runtime digest/size conflict")
+                continue
+            canonical[sha] = (name, size)
+            info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+            info.create_system = 3
+            info.external_attr = 0o100444 << 16
+            info.compress_type = zipfile.ZIP_DEFLATED
+            with path.open("rb") as source, archive.open(info, "w") as target:
+                shutil.copyfileobj(source, target, length=1024 * 1024)
+    if not files:
+        raise ValueError("Empty runtime payload")
+    manifest.write_bytes("".join(f"{name}\t{sha}\t{size}\n" for name, sha, size in files).encode("utf-8"))
+    (assets / "development-runtime.sha256").write_text(digest(out) + "\n")
+    logical = sum(size for _, _, size in files)
+    unique = sum(size for _, size in canonical.values())
+    print(json.dumps({"runtime_archive_bytes": out.stat().st_size,
+                      "runtime_logical_bytes": logical, "runtime_unique_bytes": unique,
+                      "runtime_duplicate_bytes_removed": logical - unique,
+                      "runtime_logical_files": len(files), "runtime_unique_files": len(canonical)}))
+
+
 def fetch(url, sha, directory):
     path = directory / url.rsplit("/", 1)[-1]
     if path.is_file():
@@ -245,6 +292,17 @@ def prepare(abi, native, assets, prepared, clang, git_source_output):
                     if not resolved.is_file():
                         raise ValueError(f"{group}: unresolved runtime dependency {dep} ({path.name})")
                     queue.append((resolved,False))
+            # DT_NEEDED does not cover dlopen, ctypes, or user-supplied native
+            # modules. Report candidates for measured pruning, never silently
+            # remove an otherwise supported development capability.
+            referenced = {p.name for p in seen if p.parent == libdir}
+            unreferenced = sorted(p for p in libdir.iterdir()
+                                  if p.is_file() and p.name not in referenced)
+            print(json.dumps({"runtime_group": group,
+                              "dependency_closure_files": sorted(referenced),
+                              "dynamic_load_candidates": [
+                                  {"name": p.name, "bytes": p.stat().st_size, "sha256": digest(p)}
+                                  for p in unreferenced]}))
         for relative in ("git/home/share/git-core/templates","node/npm/package/bin/npm-cli.js",
                          "python/home/lib/python3.14/encodings/__init__.py",
                          "python/home/lib/python3.14/site-packages/pip/__main__.py"):
@@ -262,12 +320,7 @@ def prepare(abi, native, assets, prepared, clang, git_source_output):
         launcher.chmod(0o755)
         binaries[launcher.name]=digest(launcher)
         (assets/"development-runtime.commands.tsv").write_text("".join(alias+"\t"+row[0]+"\n" for alias,row in sorted(commands.items())))
-        out=assets/"development-runtime.zip"
-        with zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
-            for path in sorted(data.rglob("*")):
-                if path.is_file():
-                    archive.write(path,path.relative_to(data).as_posix())
-        (assets/"development-runtime.sha256").write_text(digest(out)+"\n")
+        pack_runtime_data(data, assets)
         versions=versions_for(abi)
         (assets/"development-runtime.version").write_text(json.dumps(versions,sort_keys=True)+"\n")
         provenance={"abi":abi,"source777":LOCK["source"],"versions":versions,"packages":records,"binaries":binaries,

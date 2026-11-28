@@ -292,6 +292,10 @@ impl ModelsEndpointClient for TestModelsEndpoint {
         true
     }
 
+    fn account_catalog_required(&self) -> bool {
+        self.uses_codex_backend && !self.has_command_auth
+    }
+
     fn identity(&self) -> Option<String> {
         Some("test-provider".to_string())
     }
@@ -1943,6 +1947,53 @@ fn bundled_models_json_roundtrips() {
         !response.models.is_empty(),
         "bundled models.json should contain at least one model"
     );
+}
+
+#[tokio::test]
+async fn android_catalog_version_tests_account_selection_never_promotes_bundled_metadata() {
+    let model = remote_model("account-only-model", "Account model", 0);
+    let endpoint = Arc::new(TestModelsEndpoint {
+        uses_codex_backend: true,
+        responses: Mutex::new(vec![Ok(Vec::new()), Ok(vec![model.clone()])].into()),
+        ..Default::default()
+    });
+    let home = tempdir().expect("temp dir");
+    let manager = openai_manager_for_tests(home.path().to_path_buf(), endpoint);
+    assert!(manager.try_list_models().unwrap().is_empty());
+    manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    assert!(manager.list_models(RefreshStrategy::InMemory, DEFAULT_HTTP_CLIENT_FACTORY).await.is_empty());
+    assert!(manager.try_list_models().unwrap().is_empty());
+    manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    let selected = manager.list_models(RefreshStrategy::InMemory, DEFAULT_HTTP_CLIENT_FACTORY).await;
+    assert_eq!(selected.len(), 1);
+    assert_eq!(selected[0].model, model.slug);
+    assert_eq!(manager.try_list_models().unwrap(), selected);
+    let exact = manager.get_model_info(&model.slug, &ModelsManagerConfig::default()).await;
+    assert_eq!(exact.origin, ModelOrigin::Provider);
+    let alias = format!("{}-custom", model.slug);
+    let unknown = manager.get_model_info(&alias, &ModelsManagerConfig::default()).await;
+    assert_eq!(unknown.slug, alias);
+    assert_eq!(unknown.origin, ModelOrigin::Synthetic);
+}
+
+#[tokio::test]
+async fn android_catalog_version_tests_chatgpt_denial_invalidates_old_catalog() {
+    let model = remote_model("account-model", "Account model", 0);
+    let endpoint = Arc::new(TestModelsEndpoint {
+        uses_codex_backend: true,
+        responses: Mutex::new(vec![Ok(vec![model.clone()]), Err(catalog_http_error(403)), Ok(vec![model.clone()])].into()),
+        ..Default::default()
+    });
+    let home = tempdir().expect("temp dir");
+    let manager = openai_manager_for_tests(home.path().to_path_buf(), endpoint);
+    manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    assert_eq!(manager.try_list_models().unwrap().len(), 1);
+    assert!(manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.is_err());
+    assert!(manager.try_list_models().unwrap().is_empty());
+    assert!(manager.refreshed_model_catalog().is_none());
+    assert!(manager.list_models(RefreshStrategy::Offline, DEFAULT_HTTP_CLIENT_FACTORY).await.is_empty());
+    manager.refresh_catalog_checked(DEFAULT_HTTP_CLIENT_FACTORY).await.unwrap();
+    assert_eq!(manager.try_list_models().unwrap()[0].model, model.slug);
 }
 
 #[tokio::test]

@@ -13,7 +13,7 @@ internal object AccountVoiceSettingsLease {
 
     fun acquire(loading: MutableStateFlow<Set<String>>): Boolean {
         val previous = loading.value
-        if (previous.any { it == key || it == "account" || it == "accountSessionSwitch" }) return false
+        if (previous.any { it == key || it == "account" || it == "accountLogout" || it == "accountSessionSwitch" }) return false
         return loading.compareAndSet(previous, previous + key)
     }
 

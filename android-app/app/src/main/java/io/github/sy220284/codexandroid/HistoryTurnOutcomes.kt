@@ -33,7 +33,8 @@ internal class HistoryTurnOutcomes(
                 check(turn.getString("status") in setOf("completed", "failed", "interrupted", "inProgress")) {
                     "运行核心返回未知回合状态"
                 }
-                turns[id] = turn
+                turns[id] = JSONObject().put("id", id).put("status", turn.getString("status"))
+                    .put("error", turn.opt("error") ?: JSONObject.NULL)
             }
             cursor = next
             if (next == null) exhausted = true else seenCursors.add(next)

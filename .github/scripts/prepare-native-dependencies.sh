@@ -25,5 +25,12 @@ python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test
 python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_remote_delivery.py" "$GITHUB_WORKSPACE/upstream/codex/codex-rs"
 # Prepare the final locked graph, including host tools, before offline compilation.
 cargo fetch --locked
+# Use the official release workflow's workspace version update. External
+# dependency versions remain locked; all runtime crates share this baseline.
+python3 "$GITHUB_WORKSPACE/android-app/tools/resolve_codex_catalog_version.py" \
+  --marker "$GITHUB_WORKSPACE/CODEX_UPSTREAM_COMMIT" \
+  --lock "$PWD/models-manager/android-client-release.txt" \
+  --stamp-workspace "$PWD/Cargo.toml"
+cargo update --workspace --offline
 cargo fetch --locked --offline
 python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_mxc.py" --cargo-home "${CARGO_HOME:-$HOME/.cargo}"
