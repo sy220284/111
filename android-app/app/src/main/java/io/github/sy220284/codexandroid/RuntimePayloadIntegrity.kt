@@ -69,12 +69,7 @@ internal object RuntimePayloadIntegrity {
                 parent = parent.parent
             }
             if (Files.size(path) != entry.size) return false
-            if (entry.canonical == entry.name) {
-                if (Files.newInputStream(path, NOFOLLOW_LINKS).use(::sha) != entry.digest) return false
-            } else {
-                val canonical = base.resolve(entry.canonical)
-                if (!Files.isRegularFile(canonical, NOFOLLOW_LINKS) || !Files.isSameFile(path, canonical)) return false
-            }
+            if (Files.newInputStream(path, NOFOLLOW_LINKS).use(::sha) != entry.digest) return false
         }
         return entries.isNotEmpty() && Files.walk(base).use { paths ->
             paths.allMatch { path ->
@@ -126,7 +121,9 @@ internal object RuntimePayloadIntegrity {
         for (entry in entries.filter { it.name != it.canonical }) {
             val path = base.resolve(entry.name)
             Files.createDirectories(path.parent)
-            Files.createLink(path, base.resolve(entry.canonical))
+            // Android application SELinux policy can reject hard links even within one UID.
+            // Deduplicate the signed archive, but materialize each logical path as a regular file.
+            Files.copy(base.resolve(entry.canonical), path)
         }
         check(matches(root, entries)) { "开发环境数据不完整" }
     }

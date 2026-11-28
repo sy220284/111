@@ -10,7 +10,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class RuntimePayloadIntegrityTest {
-    @Test fun installsIdenticalFilesOnceAndRetiresOnlyOldProductVersions() {
+    @Test fun installsDeduplicatedArchiveAsIndependentFilesAndRetiresOnlyOldProductVersions() {
         val parent = Files.createTempDirectory("runtime-dedup").toFile()
         val active = File(parent, "a".repeat(64)).apply { mkdir() }
         val stale = File(parent, "b".repeat(64)).apply { mkdir(); File(this, "old").writeText("old") }
@@ -30,10 +30,15 @@ class RuntimePayloadIntegrityTest {
                 RuntimePayloadIntegrity.manifestDigest(zip))
             val first = File(active, "git/lib/first.so")
             val second = File(active, "python/lib/second.so")
-            assertTrue(Files.isSameFile(first.toPath(), second.toPath()))
+            assertFalse(Files.isSameFile(first.toPath(), second.toPath()))
+            assertArrayEquals(payload, first.readBytes())
+            assertArrayEquals(payload, second.readBytes())
             assertTrue(RuntimePayloadIntegrity.matches(active, entries))
             second.delete(); second.writeBytes(payload)
+            assertTrue(RuntimePayloadIntegrity.matches(active, entries))
+            second.writeBytes("evil".toByteArray())
             assertFalse(RuntimePayloadIntegrity.matches(active, entries))
+            assertArrayEquals(payload, first.readBytes())
             RuntimePayloadIntegrity.removeRetired(parent, active)
             assertFalse(stale.exists())
             assertTrue(active.exists())
