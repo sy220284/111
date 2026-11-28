@@ -1135,7 +1135,7 @@ class UiNavigationInstrumentedTest {
             }
             val viewport = rule.onNodeWithTag("conversation-timeline", useUnmergedTree = true)
                 .assertIsDisplayed()
-            viewport.performScrollToIndex(12)
+            viewport.performScrollToNode(hasText("历史阅读锚点 12"))
             rule.waitForIdle()
             val anchor = rule.onNodeWithText("历史阅读锚点 12")
             anchor.assertIsDisplayed()
@@ -1155,10 +1155,17 @@ class UiNavigationInstrumentedTest {
             reading.assertIsDisplayed()
             val after = reading.fetchSemanticsNode().boundsInRoot.top
             assertTrue("连续回复期间阅读位置偏移：$before -> $after", kotlin.math.abs(before - after) <= 2f)
+            // New message identities must not push the history away (Jetchat #696).
+            val updated = tail.copy(text = "当前阶段成果 " + "增量内容 ".repeat(12))
+            val appended = TimelineItem("scroll-next", "agentMessage", "新增独立步骤", "inProgress", turnId = "scroll-next-turn")
+            rule.runOnUiThread { vm.timeline.value = history + updated + appended }
+            rule.waitUntil(10_000L) { rule.onAllNodesWithText("↓ 1 条新步骤").fetchSemanticsNodes().isNotEmpty() }
+            reading.assertIsDisplayed()
+            assertTrue("新增消息改变历史阅读位置", kotlin.math.abs(reading.fetchSemanticsNode().boundsInRoot.top - before) <= 2f)
             rule.onNodeWithTag("timeline-return-latest").assertIsDisplayed().performClick()
-            rule.waitForIdle()
-            rule.onNodeWithText("当前阶段成果", substring = true).assertIsDisplayed()
-            rule.runOnUiThread { vm.timeline.value = history + tail.copy(text = "最终交付已收到", status = "completed") }
+            rule.waitUntil(10_000L) { rule.onAllNodesWithText("新增独立步骤").fetchSemanticsNodes().isNotEmpty() }
+            rule.onNodeWithText("新增独立步骤").assertIsDisplayed()
+            rule.runOnUiThread { vm.timeline.value = history + updated + appended.copy(text = "最终交付已收到", status = "completed") }
             rule.waitForIdle()
             rule.onNodeWithText("最终交付已收到").assertIsDisplayed()
             // Completing a progressive turn must keep the coordinate origin of the fragment being read.

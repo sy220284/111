@@ -4,25 +4,26 @@ package io.github.sy220284.codexandroid
 internal object TimelineViewportPolicy {
     data class Change(val changed: Boolean, val newSteps: Int)
 
-    fun latestIndex(size: Int, olderPageVisible: Boolean): Int =
-        if (size <= 0) -1 else size - 1 + if (olderPageVisible) 1 else 0
+    /** Display rows remain chronological; a reversed lazy list puts the
+     * newest row at index zero. The optional recovery row is newer than
+     * the projected rows; the older-record control is always at the end. */
+    fun physicalIndex(logicalIndex: Int, displayCount: Int, recoveryCount: Int): Int =
+        if (logicalIndex in 0 until displayCount) displayCount - 1 - logicalIndex + recoveryCount else -1
 
-    /** A row leaving or entering the viewport is a scroll event, not content growth. */
-    fun tailResized(previous: Int, current: Int): Boolean =
-        previous > 0 && current > 0 && previous != current
+    fun latestIndex(displayCount: Int): Int = if (displayCount > 0) 0 else -1
 
-    fun measuredTargetReady(index: Int, measuredCount: Int, viewportHeight: Int): Boolean =
-        index >= 0 && measuredCount == index + 1 && viewportHeight > 0
+    fun measuredCount(displayCount: Int, olderPageVisible: Boolean): Int =
+        displayCount + if (olderPageVisible && displayCount > 0) 1 else 0
 
-    enum class FollowAction { Await, RequestTarget, AlignTail, AtEnd }
+    enum class FollowAction { Await, RequestTarget, AtEnd }
 
-    /** A request is complete only when the measured last row is visible and
-     * the list cannot scroll forward. A frame callback alone is not a receipt. */
-    fun followAction(index: Int, measuredCount: Int, viewportHeight: Int,
-        visibleTailSize: Int, canScrollForward: Boolean): FollowAction = when {
-        !measuredTargetReady(index, measuredCount, viewportHeight) -> FollowAction.Await
-        visibleTailSize < 0 -> FollowAction.RequestTarget
-        canScrollForward -> FollowAction.AlignTail
+    /** Native reverseLayout anchors a growing row at its bottom. Only
+     * changed list identity/geometry needs a new index-zero request. */
+    fun followAction(expectedCount: Int, measuredCount: Int, viewportHeight: Int,
+        expectedKey: String?, measuredKey: Any?, canScrollTowardLatest: Boolean): FollowAction = when {
+        expectedCount <= 0 || measuredCount != expectedCount || viewportHeight <= 0 || expectedKey == null ->
+            FollowAction.Await
+        measuredKey != expectedKey || canScrollTowardLatest -> FollowAction.RequestTarget
         else -> FollowAction.AtEnd
     }
 
