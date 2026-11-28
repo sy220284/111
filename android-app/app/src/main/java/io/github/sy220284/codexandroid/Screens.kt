@@ -41,7 +41,8 @@ import org.json.JSONObject
 
 @Composable
 fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
-    val remote by vm.conversationState.collectProjection { it.remote }
+    val selectedTask by vm.conversationState.collectProjection { it.threadId to it.remote }
+    val (thread, remote) = selectedTask
     val localTerminalRunning by vm.terminalSession.collectProjection { it.running }
     if (remote != null && (id == "files" || (id == "terminal" && !localTerminalRunning))) {
         val binding = requireNotNull(remote)
@@ -50,12 +51,18 @@ fun PageContent(id: String, vm: CodexViewModel, navigate: (String) -> Unit) {
             Text(binding.cwd, color = Ink.muted)
             CodexNotice("由当前智能体在已绑定的执行环境中处理。手机文件和本机终端保持独立。", NoticeTone.Info)
             CodexPrimaryButton(onClick = {
-                if (id == "files") {
-                    if (!appendTaskInstruction(vm, vm.activeThread.value, "请查看当前远端工作目录的文件，并列出目录内容。")) return@CodexPrimaryButton
+                if (vm.conversationState.value.remote != binding || vm.activeThread.value != thread) {
+                    vm.actionFeedback.tryEmit(ActionFeedbackReceipt("任务执行设备或会话已变化，请重新打开操作", isError = true))
+                    return@CodexPrimaryButton
                 }
+                if (id == "files" &&
+                    !appendTaskInstruction(vm, thread, "请查看当前远端工作目录的文件，并列出目录内容。")) return@CodexPrimaryButton
                 navigate("chat")
             }, modifier = Modifier.fillMaxWidth()) { Text(if (id == "files") "让智能体查看目录" else "在当前任务中输入远端命令") }
-            CodexSecondaryButton(onClick = { if (vm.resetConversation(vm.workingDirectory, null)) navigate("chat") }, modifier = Modifier.fillMaxWidth()) {
+            CodexSecondaryButton(onClick = {
+                if (vm.resetConversation(vm.workingDirectory, null)) navigate("chat")
+                else vm.errors.value["conversation"]?.let { vm.actionFeedback.tryEmit(ActionFeedbackReceipt(it, isError = true)) }
+            }, modifier = Modifier.fillMaxWidth()) {
                 Text("新建手机本机任务")
             }
         }

@@ -99,6 +99,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
     var historicalLoading by remember(session.processId) { mutableStateOf(false) }
     var historicalError by remember(session.processId) { mutableStateOf("") }
     val activeWorkspace by vm.activeWorkspace.collectAsStateWithLifecycle()
+    val activeThread by vm.activeThread.collectAsStateWithLifecycle()
     val consoleScroll = key(session.processId) { rememberScrollState() }
     var followConsoleTail by remember(session.processId) { mutableStateOf(true) }
     var automaticConsoleScroll by remember(session.processId) { mutableStateOf(false) }
@@ -464,7 +465,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                 if (navigate != null) CodexTextAction(onClick = {
                     val instruction = if (command.isBlank()) "请协助我检查当前工作区，提出需要执行的命令及原因。"
                         else "请先检查以下命令的目的、风险与执行位置；根据当前任务提出执行建议：\n" + command
-                    if (appendTaskInstruction(vm, vm.activeThread.value, instruction)) navigate("chat")
+                    if (appendTaskInstruction(vm, activeThread, instruction)) navigate("chat")
                 }, enabled = !session.running && !terminalStarting, modifier = Modifier.fillMaxWidth().testTag("terminal-agent-assist")) {
                     Text("交给 Codex 检查")
                 }

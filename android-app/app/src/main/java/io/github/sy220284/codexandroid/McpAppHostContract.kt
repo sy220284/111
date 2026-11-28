@@ -6,6 +6,7 @@ import org.json.JSONObject
 /** Native host for the MCP Apps 2026-01-26 JSON-RPC transport. No arbitrary native RPC names. */
 internal class McpAppHostContract(private val call: JSONObject, private val originCallId: String = call.optString("id")) {
     private var state = 0
+    private var reportedTheme: String? = null
     val version = "2026-01-26"
     val server = call.getString("server")
     val environment = call.optString("environmentId").takeUnless { call.isNull("environmentId") }
@@ -25,6 +26,7 @@ internal class McpAppHostContract(private val call: JSONObject, private val orig
             "MCP App 协议版本或初始化数据不受支持"
         }
         state = 1
+        reportedTheme = theme
         val capabilities = JSONObject().put("openLinks", JSONObject()).put("sandbox", JSONObject())
         if (scopedTools) capabilities.put("serverTools", JSONObject())
         if (scopedTools || originResource) capabilities.put("serverResources", JSONObject())
@@ -35,13 +37,19 @@ internal class McpAppHostContract(private val call: JSONObject, private val orig
                 .put("displayMode", "fullscreen").put("availableDisplayModes", JSONArray().put("fullscreen"))
                 .put("deviceCapabilities", JSONObject().put("touch", true).put("hover", false)))
     }
-    fun initialized(): List<JSONObject> {
+    fun initialized(theme: String): List<JSONObject> {
         require(state == 1)
         state = 2
         val result = call.optJSONObject("result") ?: JSONObject().put("content", JSONArray())
         return listOf(notification("ui/notifications/tool-input", JSONObject()
             .put("arguments", call.optJSONObject("arguments") ?: JSONObject())),
-            notification("ui/notifications/tool-result", result))
+            notification("ui/notifications/tool-result", result)) + listOfNotNull(themeChanged(theme))
+    }
+    /** Use the actual application theme, including changes during the handshake. */
+    fun themeChanged(theme: String): JSONObject? {
+        if (!ready || theme == reportedTheme) return null
+        reportedTheme = theme
+        return notification("ui/notifications/host-context-changed", JSONObject().put("theme", theme))
     }
     fun scoped(params: JSONObject, thread: String): JSONObject = params.put("threadId", thread)
         .put("server", server).apply { environment?.let { put("environmentId", it) } }
