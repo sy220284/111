@@ -266,7 +266,7 @@ internal object TimelineEventReducer {
         if (field != null) {
             val initial = old?.takeIf { it.hasEvidence }
                 ?: project(JSONObject().put("id", id).put("type", kind), turnId, "streaming")
-            val index = if (field == "summary") params.getInt("summaryIndex") else 0
+            val index = if (field == "summary") params.getLong("summaryIndex") else 0L
             val addition = if (field == "progress") "\n" + params.string("message") else delta
             put(initial.appendNative(field, addition, index, "streaming"))
             return items
