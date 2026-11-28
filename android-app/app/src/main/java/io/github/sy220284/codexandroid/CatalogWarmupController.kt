@@ -49,6 +49,8 @@ internal class CatalogWarmupController(
     fun accountChanged() {
         accountRevisionState.value += 1
         vm.threadOrganization.invalidate()
+        vm.invalidateAccountReceipts()
+        vm.historyTurnOutcomes = null
         refreshRouting()
     }
 

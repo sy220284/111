@@ -64,6 +64,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     private var archiveVisible = false
     private var archiveDirty = true
     private var identity: String? = null
+    private var identityJob: Job? = null
     private var identityEpoch = 0L
     internal var directoryCache = SessionDirectoryEngine.Cache()
         private set
@@ -129,27 +130,49 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         }
     }
     fun accountReady(account: JSONObject) {
-        val next = SessionIndexStore.identity(account)
-        if (identity != null && identity != next) invalidateIdentity()
-        if (identity == next) return
-        identity = next
-        val owner = identityEpoch
-        scope.launch {
-            val cached = if (allowCacheRead) index.read(next) else null
-            if (owner != identityEpoch || identity != next) return@launch
+        val owner = vm.captureTaskOwner() ?: return
+        identityJob?.cancel()
+        identityJob = scope.launch {
+            val next = try {
+                // Only managed ChatGPT authentication exposes a stable user,
+                // login and workspace tuple. Other modes use the live native list.
+                if (account.optJSONObject("account")?.optString("type") == "chatgpt" &&
+                    (account.opt("userId") as? String)?.isNotBlank() == true) {
+                    val sessions = owner.request(vm, "accountSession/list", CatalogRequestContract.accountSessions())
+                    AuthenticatedAccountIdentity.parse(account, sessions)?.cacheKey()
+                } else null
+            } catch (timeout: TimeoutCancellationException) {
+                android.util.Log.w("SessionIndex", "账号标识读取超时，使用原生会话目录")
+                null
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                android.util.Log.w("SessionIndex", "无法确认持久化账号标识，使用原生会话目录", failure)
+                null
+            }
+            if (!owner.current(vm)) return@launch
+            if (identity != null && identity != next) invalidateIdentity(cancelResolution = false)
+            if (identity == next) {
+                if (listJob?.isActive != true) refreshIfStale()
+                return@launch
+            }
+            identity = next
+            val generation = identityEpoch
+            val cached = if (allowCacheRead && next != null) index.read(next) else null
+            if (!owner.current(vm) || generation != identityEpoch || identity != next) return@launch
             if (cached != null && vm.data.value["sidebarThreads"] == null)
                 vm.data.value = vm.data.value + mapOf("sidebarThreads" to cached, "threads" to cached)
-            // If native synchronization finished before the account receipt, persist its actual result.
             val current = vm.data.value["sidebarThreads"]
-            if (lastSuccess >= 0 && current != null && listJob?.isActive != true) {
+            if (next != null && lastSuccess >= 0 && current != null && listJob?.isActive != true) {
                 try { index.write(next, current, true, emptySet()) }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) { android.util.Log.w("SessionIndex", "会话索引保存失败", failure) }
             }
-            if (owner == identityEpoch && identity == next && listJob?.isActive != true) refreshIfStale()
+            if (owner.current(vm) && generation == identityEpoch && identity == next && listJob?.isActive != true)
+                refreshIfStale()
         }
     }
-    fun invalidateIdentity() {
+    fun invalidateIdentity(cancelResolution: Boolean = true) {
+        if (cancelResolution) { identityJob?.cancel(); identityJob = null }
         identityEpoch += 1
         directoryCache = SessionDirectoryEngine.Cache()
         identity = null

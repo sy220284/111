@@ -9,6 +9,21 @@ import org.json.JSONObject
 /** Owns generic RPC dispatch, mutation admission, response leases, and receipts. */
 internal class OwnedRpcRequestController(private val vm: CodexViewModel, private val latestRequests: LatestRequestGate) {
     private val dynamicRequestHistory by lazy { TransientRequestCache(latestRequests, vm.data, vm.errors, vm.loading) }
+    private val receiptKeys = mutableSetOf<String>()
+    private val pendingMutations = mutableSetOf<String>()
+
+    fun invalidateAccountReceipts() {
+        val keys = receiptKeys + vm.data.value.keys.filter {
+            it.startsWith("goal:") || it.startsWith("queue:") || it.startsWith("tokenUsage:")
+        }
+        val reads = keys - pendingMutations
+        reads.forEach(latestRequests::cancel)
+        vm.data.value = vm.data.value - keys
+        vm.errors.value = vm.errors.value - keys
+        vm.loading.value = vm.loading.value - reads
+        receiptKeys.retainAll(pendingMutations)
+    }
+
     fun request(
         key: String,
         method: String,
@@ -67,6 +82,9 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
         val organizationTicket = if (userAction) threadOrganization.begin(method,
             listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank))) else null
         dynamicRequestHistory.retain(key)
+        receiptKeys.retainAll(data.value.keys + errors.value.keys + loading.value)
+        receiptKeys.add(key)
+        if (userAction) pendingMutations.add(key) else pendingMutations.remove(key)
         val ticket = latestRequests.begin(key)
         val configOwner = configGeneration
         val requestEpoch = bridge.connectedSession.value
@@ -126,6 +144,7 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                 }
             } finally {
                 if (latestRequests.complete(key, ticket)) {
+                    pendingMutations.remove(key)
                     loading.value = loading.value - key
                 }
             }

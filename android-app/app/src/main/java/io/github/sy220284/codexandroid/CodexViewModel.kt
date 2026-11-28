@@ -162,6 +162,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val featureSwitches by lazy { FeatureSwitchController(this) }
     internal val extensions by lazy { ExtensionCatalogController(this, latestRequests) }
     private val ownedRequests by lazy { OwnedRpcRequestController(this, latestRequests) }
+    internal fun invalidateAccountReceipts() = ownedRequests.invalidateAccountReceipts()
     private fun request(key: String, method: String, params: JSONObject?,
         onSuccess: ((JSONObject) -> Unit)?, userAction: Boolean = false) =
         ownedRequests.request(key, method, params, onSuccess, userAction)

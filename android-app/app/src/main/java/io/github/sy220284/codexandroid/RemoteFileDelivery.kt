@@ -27,22 +27,8 @@ internal data class RemoteDeliveryRequest(val thread: String, val binding: Remot
 internal object RemoteDeliveryAccountIdentity {
     fun key(account: JSONObject, sessions: JSONObject, thread: String,
         binding: RemoteExecutionBinding, relative: String): String? {
-        if (account.optJSONObject("account")?.optString("type") != "chatgpt") return null
-        val user = (account.opt("userId") as? String)?.takeIf { it.isNotBlank() } ?: return null
-        val active = (sessions.opt("activeSessionId") as? String)?.takeIf { it.isNotBlank() } ?: return null
-        val records = sessions.getJSONArray("sessions")
-        val selected = (0 until records.length()).map { records.getJSONObject(it) }
-            .filter { it.optString("sessionId") == active || it.optBoolean("isActive") }
-        check(selected.size == 1 && selected.single().optString("sessionId") == active &&
-            selected.single().opt("userId") == user) { "账号会话身份不一致，请重新连接" }
-        val session = selected.single()
-        val workspace = (session.opt("selectedWorkspaceAccountId") as? String)
-            ?.takeIf { it.isNotBlank() } ?: return null
-        val workspaces = session.getJSONArray("workspaces")
-        check((0 until workspaces.length()).count {
-            workspaces.getJSONObject(it).opt("accountId") == workspace
-        } == 1) { "账号工作区身份不一致，请重新连接" }
-        val identity = org.json.JSONArray().put("111-remote-delivery-v1").put(user).put(active).put(workspace)
+        val owner = AuthenticatedAccountIdentity.parse(account, sessions) ?: return null
+        val identity = org.json.JSONArray().put("111-remote-delivery-v1").put(owner.user).put(owner.session).put(owner.workspace)
             .put(thread).put(binding.id).put(binding.endpoint).put(binding.cwd).put(relative).toString()
         return RemoteTransferCheckpoint.hex(MessageDigest.getInstance("SHA-256").digest(identity.toByteArray(Charsets.UTF_8)))
     }
