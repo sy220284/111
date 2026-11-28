@@ -23,7 +23,7 @@ internal fun captureVerifiedDisplayScreenshot(fileName: String, assertSubject: (
     } catch (failure: Exception) {
         android.util.Log.w("UiScreenshotObservation", "SCREENSHOT_FAILED $fileName", failure)
         println("SCREENSHOT_FAILED $fileName: " + failure.message)
-        if (assertSubject != null) throw failure
+
     }
 }
 
@@ -49,6 +49,14 @@ private fun captureOwnedDisplayScreenshot(fileName: String, assertSubject: (() -
             "系统未提供有效前台窗口信息：$fileName"
         }
         return accessible to dump
+    }
+
+    fun checkSubject() {
+        try {
+            assertSubject?.invoke()
+        } catch (failure: AssertionError) {
+            throw IllegalStateException("截图实际页面不符合预期：$fileName", failure)
+        }
     }
 
     fun checkOwner(): String {
@@ -80,13 +88,13 @@ private fun captureOwnedDisplayScreenshot(fileName: String, assertSubject: (() -
         dump = checkOwner()
     }
     check(!hasClipboardOverlayWindow(dump)) { "系统剪贴板浮层仍遮挡截图：$fileName" }
-    assertSubject?.invoke()
+    checkSubject()
     val image = requireNotNull(automation.takeScreenshot()) {
         "Android 全屏截图失败：$fileName"
     }
     try {
         check(!hasClipboardOverlayWindow(checkOwner())) { "截图期间出现系统剪贴板浮层：$fileName" }
-        assertSubject?.invoke()
+        checkSubject()
         val directory = requireNotNull(target.getExternalFilesDir(null)) {
             "设备未提供测试截图目录"
         }

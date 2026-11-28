@@ -1743,11 +1743,15 @@ class UiNavigationInstrumentedTest {
 
     private fun captureRoute(route: String, fileName: String) {
         rule.waitForIdle()
-        captureVerifiedDisplayScreenshot(fileName) {
+        fun assertRoute() {
             rule.onNodeWithTag("work-route-" + route, useUnmergedTree = true).assertIsDisplayed()
             rule.onNodeWithTag("screen-title").assertIsDisplayed()
                 .assertTextEquals(pages.first { it.id == route }.title)
         }
+        // Navigation is a functional assertion. The screenshot's own before/after
+        // checks reject mismatched evidence without rewriting the functional result.
+        assertRoute()
+        captureVerifiedDisplayScreenshot(fileName, ::assertRoute)
     }
 
     private fun capture(fileName: String) {

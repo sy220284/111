@@ -244,8 +244,6 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                         TerminalOutputHeader(vm, session.processId, renderedOutput, session.outputTruncated) { text ->
                             readerOutput = "终端标准输出" to text
                         }
-                        TerminalOutputPreview(session.processId, session.running, renderedOutput)
-                        DividerLine()
                         if (transcriptAvailable && session.outputTruncated && historicalMore) {
                             CodexSecondaryButton(
                                 onClick = {
@@ -321,6 +319,9 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                             Text(exportStatus,
                                 color = if (exportStatus.contains("失败")) Ink.red else Ink.jade,
                                 style = MaterialTheme.typography.labelMedium)
+                        DividerLine()
+                        // The scroll destination is actual output, never export controls.
+                        TerminalOutputPreview(session.processId, session.running, renderedOutput)
                     }
                 } else {
                     WorkSection(Modifier.fillMaxWidth().heightIn(min = (consoleHeight.value * .70f).dp)
@@ -346,6 +347,24 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                 }
                 }
             }
+        }
+        if (session.processId.isNotEmpty() && !followConsoleTail && consoleScroll.canScrollForward) {
+            CodexTextAction(
+                onClick = {
+                    if (!automaticConsoleScroll) {
+                        followConsoleTail = true
+                        automaticConsoleScroll = true
+                        scope.launch {
+                            try {
+                                consoleScroll.scrollTo(consoleScroll.maxValue)
+                            } finally {
+                                automaticConsoleScroll = false
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().testTag("terminal-return-latest")
+            ) { Text("返回最新输出") }
         }
         if (session.running) {
             MaterialPanel(Modifier.fillMaxWidth().testTag("terminal-active-controls")) {

@@ -94,7 +94,7 @@ internal fun ConversationTimelineViewport(
                 if (!scrolling && !canForward && scroll.layoutInfo.totalItemsCount > 0) {
                     followTail = true
                     unreadSteps = 0
-                } else if (scrolling && canForward && !automatic) {
+                } else if (scrolling && canForward && !automatic && !autoScrolling) {
                     followTail = false
                 }
             }
@@ -138,8 +138,8 @@ internal fun ConversationTimelineViewport(
         // One collector per conversation; a stream of deltas must not cancel and restart it.
         snapshotFlow { TimelineRenderTarget(currentGroupCount, currentLogicalCount, currentTail, hasOlderPage,
             scroll.layoutInfo.viewportSize.height, scroll.layoutInfo.totalItemsCount,
-            scroll.layoutInfo.visibleItemsInfo.lastOrNull { it.index == TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage) }?.size ?: -1) }
-            .collect { (count, logicalCount, tail, older, viewportHeight, measuredCount, tailSize) ->
+            scroll.isScrollInProgress, scroll.layoutInfo.visibleItemsInfo.lastOrNull { it.index == TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage) }?.size ?: -1) }
+            .collect { (count, logicalCount, tail, older, viewportHeight, measuredCount, scrolling, tailSize) ->
                 val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage ||
                     measuredCount != previousMeasuredCount || TimelineViewportPolicy.tailResized(previousTailSize, tailSize)
                 previousMeasuredCount = measuredCount
@@ -165,7 +165,7 @@ internal fun ConversationTimelineViewport(
                     // new item count. Visibility changes caused by scrolling cannot
                     // create a fresh request and pull a reader away from history.
                     pendingFollow = pendingFollow || threadChanged || change.changed || viewportChanged || collapsed
-                    if (pendingFollow && !autoScrolling && !scroll.isScrollInProgress &&
+                    if (pendingFollow && !autoScrolling && !scrolling && !scroll.isScrollInProgress &&
                         TimelineViewportPolicy.measuredTargetReady(target, measuredCount, viewportHeight)) {
                         withFrameNanos { }
                         val latest = TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage)
@@ -373,7 +373,7 @@ internal fun ConversationTimelineViewport(
 
 private data class TimelineRenderTarget(
     val count: Int, val logicalCount: Int, val tail: TimelineItem?, val older: Boolean, val viewportHeight: Int,
-    val measuredCount: Int, val tailSize: Int
+    val measuredCount: Int, val scrolling: Boolean, val tailSize: Int
 )
 
 /** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */
