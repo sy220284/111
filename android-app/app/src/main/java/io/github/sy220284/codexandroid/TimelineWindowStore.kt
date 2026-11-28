@@ -88,12 +88,13 @@ internal class TimelineWindowStore(private val cache: File) {
         }
     }
 
-    suspend fun readEarlier(id: String, owner: Long = 0): List<TimelineItem> = withContext(Dispatchers.IO) {
-        lock.withLock {
+    suspend fun readEarlier(id: String, owner: Long = 0,
+        accept: (List<TimelineItem>) -> Boolean = { true }): List<TimelineItem> = lock.withLock {
             if (owner != epoch || threadId != id || visibleStart == 0) return@withLock emptyList()
             val start = (visibleStart - PAGE_SIZE).coerceAtLeast(0)
-            val previous = ArrayList<TimelineItem>(visibleStart - start)
-            RandomAccessFile(cache, "r").use { file ->
+            val previous = withContext(Dispatchers.IO) {
+                val items = ArrayList<TimelineItem>(visibleStart - start)
+                RandomAccessFile(cache, "r").use { file ->
                 for (index in start until visibleStart) {
                     file.seek(positions[index])
                     val end = if (index + 1 < positions.size) positions[index + 1]
@@ -104,16 +105,19 @@ internal class TimelineWindowStore(private val cache: File) {
                     val bytes = ByteArray(length.toInt())
                     file.readFully(bytes)
                     val entry = JSONObject(String(bytes, Charsets.UTF_8).trimEnd('\n'))
-                    previous += TimelineItem(
+                    items += TimelineItem(
                         entry.getString("id"), entry.getString("kind"),
                         entry.getString("text"), entry.optString("status"),
                         entry.optString("evidence"), entry.optString("turnId"), entry.optString("phase"))
                 }
             }
+                items
+            }
+            // Caller commits the accepted page on its own dispatcher before the cursor moves.
+            if (!accept(previous)) return@withLock emptyList()
             visibleStart = start
             olderCount.value = start
             previous
-        }
     }
 
     suspend fun clear(owner: Long = 0) = withContext(Dispatchers.IO) {

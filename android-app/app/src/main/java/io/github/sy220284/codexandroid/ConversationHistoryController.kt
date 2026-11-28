@@ -21,11 +21,18 @@ internal fun CodexViewModel.loadEarlierHistory() {
         return
     }
     fun current() = owner.current(this) && activeThread.value == id && timelineEpoch == epoch && !threadSwitching.value
+    fun publish(items: List<TimelineItem>): Boolean {
+        if (!current()) return false
+        val known = timeline.value.mapTo(hashSetOf()) { it.id }
+        timeline.value = items.filterNot { it.id in known } + timeline.value
+        errors.value = errors.value - "timeline"
+        return true
+    }
     loadingEarlier.value = true
     viewModelScope.launch {
         try {
-            var older = timelineWindow.readEarlier(id, epoch)
-            if (older.isEmpty() && current()) {
+            val local = timelineWindow.readEarlier(id, epoch, ::publish)
+            if (local.isEmpty() && current()) {
                 val cursor = olderServerCursor.value ?: return@launch
                 val response = owner.request(this@loadEarlierHistory, "thread/items/list", JSONObject().put("threadId", id)
                     .put("sortDirection", "desc").put("limit", 120).put("cursor", cursor))
@@ -33,14 +40,8 @@ internal fun CodexViewModel.loadEarlierHistory() {
                 val reader = historyTurnOutcomes?.takeIf { it.threadId == id } ?: HistoryTurnOutcomes(id) { method, params ->
                     owner.request(this@loadEarlierHistory, method, params)
                 }.also { historyTurnOutcomes = it }
-                older = reader.reconcile(readHistoryPage(response))
-                if (!current()) return@launch
-                olderServerCursor.value = historyCursor(response)
-            }
-            if (current() && older.isNotEmpty()) {
-                val known = timeline.value.mapTo(hashSetOf()) { it.id }
-                timeline.value = older.filterNot { it.id in known } + timeline.value
-                errors.value = errors.value - "timeline"
+                val older = reader.reconcile(readHistoryPage(response))
+                if (publish(older)) olderServerCursor.value = historyCursor(response)
             }
         } catch (failure: Exception) {
             if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure

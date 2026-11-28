@@ -56,7 +56,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val loadingEarlier = MutableStateFlow(false)
     internal var hydratingThread: String? = null
     internal var timelineEpoch = 0L
-    internal var timelineCompacting = false
+    internal val timelineCompaction = MutableStateFlow(false)
+    internal var timelineCompacting: Boolean
+        get() = timelineCompaction.value
+        set(value) { timelineCompaction.value = value }
     internal val liveTimelines = ConversationLiveTimeline()
     fun loadEarlierTimeline() = loadEarlierHistory()
     private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
