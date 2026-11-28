@@ -242,14 +242,16 @@ fun ModeChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: 
         else -> "仅显示当前内核支持的选项，更改从下一轮生效。"
     }
     val content: @Composable ColumnScope.() -> Unit = {
-        AtlasCompactChoice(selected, choices.map { it.id to it.title },
-            enabled = connected && !busy && !refreshing,
-            onSelect = { id ->
-                if (ModeSelectionPolicy.maySelect(id, planSupported, busy, refreshing)) {
-                    vm.chooseComposerMode(id)
-                    onDismiss()
-                }
-            }, tagPrefix = "composer-mode-")
+        choices.forEach { choice ->
+            AtlasChoiceRow(choice.title, choice.description, selected == choice.id,
+                onClick = {
+                    if (ModeSelectionPolicy.maySelect(choice.id, planSupported, busy, refreshing)) {
+                        vm.chooseComposerMode(choice.id)
+                        onDismiss()
+                    }
+                }, enabled = connected && !busy && !refreshing,
+                modifier = Modifier.testTag("composer-mode-" + choice.id))
+        }
         if (refreshing) AtlasOperationProgress("正在读取协作方式")
         if (!connected || errors["modes"] != null || !planSupported) {
             CodexTextAction(onClick = {
@@ -284,9 +286,12 @@ fun AboutInfoSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         context.packageManager.getPackageInfo(context.packageName, 0).versionName.orEmpty()
     }
     CodexDetailSheet(title = "关于应用", onDismiss = onDismiss) {
-        Text("版本 v$version · Android 29+", style = MaterialTheme.typography.titleMedium)
-        StatusPill(if (status == EngineStatus.Connected) "本机内核已连接" else "内核需要检查",
-            good = status == EngineStatus.Connected)
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+            Text("Codex Android", style = MaterialTheme.typography.titleLarge)
+            Text("版本 v$version · Android 29+", style = MaterialTheme.typography.bodyMedium)
+            StatusPill(if (status == EngineStatus.Connected) "本机内核已连接" else "内核需要检查",
+                good = status == EngineStatus.Connected)
+        }
         DividerLine()
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Text("项目来源：sy220284/111", color = Ink.muted, modifier = Modifier.weight(1f))

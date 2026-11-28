@@ -40,7 +40,12 @@ fun ReviewScopePanel(
         if (active == null) {
             RequiresThreadPanel("代码审查", onSelectThread)
         } else {
-            Text("审查范围", style = MaterialTheme.typography.titleMedium)
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+                WorkSectionHeading("审查工作流", "选择范围 → 核心执行审查 → 在任务流查看发现 → 修复后复审")
+                StatusPill(if (running) "当前任务执行中" else if (requestKey in loading) "正在提交" else "待选择审查范围",
+                    tone = if (running || requestKey in loading) StatusTone.Info else StatusTone.Neutral)
+            }
+            WorkSectionHeading("审查范围", "明确需要检查的代码变更。")
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     Triple("uncommittedChanges", "尚未提交的改动", "检查当前变更"),

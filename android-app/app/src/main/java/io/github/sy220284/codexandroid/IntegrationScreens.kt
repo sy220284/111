@@ -355,7 +355,7 @@ internal fun McpServiceStatusCard(server: JSONObject, startup: McpStartupReceipt
         }
     }
     if (details) CodexDetailSheet(
-        title = McpAvailableServices.displayName(server), startExpanded = true,
+        title = McpAvailableServices.displayName(server), startExpanded = false,
         subtitle = "已就绪服务 · 由智能体管理授权和调用",
         onDismiss = { details = false }
     ) {
@@ -364,8 +364,18 @@ internal fun McpServiceStatusCard(server: JSONObject, startup: McpStartupReceipt
         Text(server.optString("description").ifBlank {
             "服务已连接，可用能力由智能体在任务中选择调用。"
         }, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
-        Text("工具 $toolCount 项 · 资源 $resourceCount 项",
-            style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
+        WorkSectionHeading("可用能力", "工具 $toolCount 项 · 资源 $resourceCount 项")
+        server.optJSONObject("tools")?.let { tools ->
+            tools.keys().asSequence().sorted().take(50).forEach { name ->
+                WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
+                    Text(name, style = MaterialTheme.typography.titleSmall)
+                    val description = tools.optJSONObject(name)?.optString("description").orEmpty()
+                    if (description.isNotBlank()) Text(description, style = MaterialTheme.typography.bodySmall, color = Ink.muted)
+                    DividerLine()
+                }
+            }
+            if (toolCount > 50) Text("另有 ${toolCount - 50} 项工具，完整调用范围由核心管理。", color = Ink.muted)
+        }
         Text("此处显示已经连接的服务，具体能力由智能体在任务中使用。",
             style = MaterialTheme.typography.bodySmall, color = Ink.muted)
     }

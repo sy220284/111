@@ -152,7 +152,7 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
     val children = directoryResult?.getOrNull().orEmpty()
     var directoryFilter by remember(folder) { mutableStateOf("all") }
-    val visibleChildren = if (children.size < 30) children else children.filter {
+    val visibleChildren = children.filter {
         directoryFilter == "all" || (directoryFilter == "folders" && it.directory) ||
             (directoryFilter == "files" && !it.directory)
     }
@@ -170,7 +170,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Text(folder.relativeTo(root).path.takeIf { it != "." }
                         ?.let { (WorkspaceStorage.DISPLAY_ROOT + "/") + it } ?: (WorkspaceStorage.DISPLAY_ROOT + "/"),
                         fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
                 CodexIconAction(onClick = {
                     folder.parentFile?.let {
@@ -186,6 +186,9 @@ fun WorkspacePage(vm: CodexViewModel) {
                     CodexIcon(CodexGlyph.FileUpload, "导入")
                 }
             }
+        }
+        item(key = "workspace-directory-summary") {
+            WorkSectionHeading("目录内容", "${children.count { it.directory }} 个文件夹 · ${children.count { !it.directory }} 个文件")
         }
         item(key = "workspace-context") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

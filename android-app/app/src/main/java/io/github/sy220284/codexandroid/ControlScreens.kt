@@ -176,12 +176,23 @@ internal fun ApprovalRequestCard(vm: CodexViewModel, prompt: ServerPrompt) {
         DividerLine()
         val reason = prompt.params.optString("reason")
         if (reason.isNotBlank()) Text(reason, color = Ink.parchment)
+        if (normal || permission) {
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+                WorkSectionHeading("确认影响范围", when (method) {
+                    "item/commandExecution/requestApproval" -> "允许后，核心将执行此命令。请核对命令与执行目录。"
+                    "item/fileChange/requestApproval" -> "允许后，核心可执行本次请求的文件变更。"
+                    else -> "请核对下面实际申请的权限及授权期限。"
+                })
+            }
+        }
         if (command.isNotBlank()) {
             Text("待执行命令", color = Ink.copper, style = MaterialTheme.typography.labelMedium)
-            Text(
-                if (commandExpanded || command.length <= 240) command else command.take(240) + "…",
-                fontFamily = FontFamily.Monospace, color = Ink.parchment
-            )
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Reading) {
+                Text(
+                    if (commandExpanded || command.length <= 240) command else command.take(240) + "…",
+                    fontFamily = FontFamily.Monospace, color = Ink.parchment
+                )
+            }
             if (command.length > 240) CodexTextAction(
                 onClick = { commandExpanded = !commandExpanded }
             ) { Text(if (commandExpanded) "收起完整命令" else "查看完整命令") }

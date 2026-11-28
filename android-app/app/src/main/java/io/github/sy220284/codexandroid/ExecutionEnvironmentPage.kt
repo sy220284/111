@@ -102,8 +102,11 @@ fun EnvironmentsPage(vm: CodexViewModel, onRemoteTask: () -> Unit = {}) {
             "管理本机执行环境，并登记和检查已部署的外部执行服务。")
         CodexSecondaryButton(onClick = { remoteControl = true },
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("remote-control-entry")) { Text("远程控制与配对") }
-        Text("执行环境", style = MaterialTheme.typography.titleLarge)
-        Text("本机任务使用手机工作区；外部设备连接后可以建立独立远端任务。", color = Ink.muted)
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+            WorkSectionHeading("执行环境", "本机任务使用手机工作区；外部设备连接后可以建立独立远端任务。")
+            StatusPill(if (useRemote) "正在配置外部设备" else "已选择本机",
+                tone = StatusTone.Neutral)
+        }
         CodexSecondaryButton(
             onClick = {
                 editingField = null
@@ -147,7 +150,7 @@ fun EnvironmentsPage(vm: CodexViewModel, onRemoteTask: () -> Unit = {}) {
         }
         if (useRemote) {
             MaterialPanel(Modifier.fillMaxWidth()) {
-                Text("连接外部执行服务", style = MaterialTheme.typography.titleMedium)
+                WorkSectionHeading("连接外部执行服务", "核对连接地址及实际工作目录后建立任务。")
                 Text("需要预先在另一台设备部署兼容的执行服务，并获得连接地址。",
                     style = MaterialTheme.typography.bodyMedium, color = Ink.muted)
                 ActionQuestionRow(endpoint, { endpoint = it.trim() }, "安全连接地址（WebSocket）",

@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
@@ -202,7 +203,7 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
 
 /** Business content is open by default; a reading surface is reserved for artifacts and output.
  * Keep MaterialPanel for independent decisions and controls that really need containment. */
-internal enum class WorkSectionKind { Content, Reading }
+internal enum class WorkSectionKind { Content, Group, Status, Reading }
 
 @Composable
 internal fun WorkSection(
@@ -212,14 +213,28 @@ internal fun WorkSection(
 ) {
     val compact by UiPreferences.compact.collectAsStateWithLifecycle()
     val gap = if (compact) 8.dp else 12.dp
-    if (kind == WorkSectionKind.Content) {
-        Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(gap), content = content)
-    } else {
-        Surface(modifier.fillMaxWidth(), color = Ink.recessed, contentColor = Ink.parchment,
-            shape = RoundedCornerShape(12.dp), tonalElevation = 0.dp) {
-            Column(Modifier.padding(if (compact) 10.dp else 14.dp),
-                verticalArrangement = Arrangement.spacedBy(gap), content = content)
+    when (kind) {
+        WorkSectionKind.Content, WorkSectionKind.Group -> {
+            Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(
+                if (kind == WorkSectionKind.Group) gap / 2 else gap), content = content)
         }
+        WorkSectionKind.Status, WorkSectionKind.Reading -> {
+            Surface(modifier.fillMaxWidth(), color = if (kind == WorkSectionKind.Reading) Ink.recessed else Ink.elevated,
+                contentColor = Ink.parchment, shape = RoundedCornerShape(12.dp), tonalElevation = 0.dp) {
+                Column(Modifier.padding(if (compact) 10.dp else 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(gap), content = content)
+            }
+        }
+    }
+}
+
+/** Stable, accessible section hierarchy for task, directory and settings content. */
+@Composable
+internal fun WorkSectionHeading(title: String, detail: String = "", modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium, color = Ink.parchment,
+            modifier = Modifier.semantics { heading() })
+        if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall, color = Ink.muted)
     }
 }
 

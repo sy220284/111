@@ -21,6 +21,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
@@ -227,6 +231,10 @@ internal fun SidebarSessions(
         if (state.archived && response == null && "sidebarThreads" in loading)
             AtlasOperationProgress("正在读取归档会话")
         directory?.exceptionOrNull()?.let { ErrorText(it.message ?: "会话目录处理失败") }
+        if (state.searching && state.search.isNotBlank() && !searchBusy && rows.isNotEmpty()) {
+            Text("匹配会话 · ${rows.size} 项", style = MaterialTheme.typography.labelMedium,
+                color = Ink.muted, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+        }
         SidebarSessionsContent(ordered = rows, modifier = Modifier.weight(1f).fillMaxWidth(),
             connected = connected, activeId = activeId, running = running, switching = busy,
             onOpenThread = { id ->
@@ -338,9 +346,27 @@ internal fun SidebarSessionsContent(
     onLongPress: ((JSONObject) -> Unit)? = null
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
+    // Preserve server ordering within each group; do not rearrange search or bulk selections.
+    val grouped = if (state.searching || selecting) listOf("" to ordered)
+        else if (state.archived) listOf("已归档" to ordered)
+        else ordered.groupBy { row ->
+            val id = SessionListPolicy.id(row)
+            when {
+                id in pinned -> "置顶"
+                id == activeId -> "当前会话"
+                id in liveExecutions -> "后台运行"
+                else -> "历史会话"
+            }
+        }.let { groups -> listOf("置顶", "当前会话", "后台运行", "历史会话")
+            .mapNotNull { label -> groups[label]?.let { label to it } } }
     LazyColumn(state = state.scroll, modifier = modifier.fillMaxWidth().testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(3.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
-        items(ordered, key = SessionListPolicy::id) { row ->
+        grouped.forEach { (label, entries) ->
+            if (label.isNotBlank() && entries.isNotEmpty()) item(key = "session-group:$label") {
+                Text(label, modifier = Modifier.padding(start = 10.dp, top = 10.dp, bottom = 4.dp),
+                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+            }
+            items(entries, key = SessionListPolicy::id) { row ->
             val id = SessionListPolicy.id(row)
             val count = approvalsByThread[id] ?: if (id == activeId) pendingApprovals else 0
             val activity = SessionListPolicy.activity(row, liveActivities[id],
@@ -354,7 +380,8 @@ internal fun SidebarSessionsContent(
                 selecting = selecting, checked = id in selectedIds,
                 onLongPress = onLongPress?.let { action -> { action(row) } },
                 onStop = if (liveExecutions[id]?.turnId != null && !selecting) { { onStopThread(id) } } else null,
-                stopEnabled = connected)
+                stopEnabled = connected, query = if (state.searching) state.search.trim() else "")
+            }
         }
     }
 }
@@ -366,7 +393,7 @@ internal fun SidebarSessionRow(
     pendingApprovals: Int = 0, activity: ThreadActivity = ThreadActivityPolicy.fromThread(item),
     pinned: Boolean = false, unread: Boolean = false, crossProject: Boolean = false,
     selecting: Boolean = false, checked: Boolean = false, onLongPress: (() -> Unit)? = null,
-    onStop: (() -> Unit)? = null, stopEnabled: Boolean = enabled
+    onStop: (() -> Unit)? = null, stopEnabled: Boolean = enabled, query: String = ""
 ) {
     val id = SessionListPolicy.id(item)
     val actual = SessionListPolicy.activity(item, activity, running, pendingApprovals)
@@ -381,8 +408,9 @@ internal fun SidebarSessionRow(
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
             if (selecting) CodexCheckBox(checked = checked, enabled = enabled, onCheckedChange = { onClick() })
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(SessionListPolicy.title(item),
+                Text(sessionMatchText(SessionListPolicy.title(item), query),
                     style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = if (active || unread) FontWeight.SemiBold else FontWeight.Normal,
                     maxLines = if (codexEffectiveFontScale() > 1.3f) 2 else 1, overflow = TextOverflow.Ellipsis)
                 val stateLabel = when (actual) {
                     ThreadActivity.WaitingApproval -> if (pendingApprovals > 0) "等待确认 ${pendingApprovals} 项" else "等待审批"
@@ -403,8 +431,8 @@ internal fun SidebarSessionRow(
                         else -> Ink.muted
                     }, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 PresentationPolicy.meaningful(item.optString("searchSnippet")).takeIf { it.isNotBlank() }?.let {
-                    Text(it, style = MaterialTheme.typography.labelSmall, color = Ink.muted,
-                        maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(sessionMatchText(it, query), style = MaterialTheme.typography.bodySmall, color = Ink.muted,
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
             }
             if (pinned) CodexIcon(CodexGlyph.ArrowUpward, "已置顶", Modifier.size(15.dp), Ink.muted)
@@ -412,6 +440,26 @@ internal fun SidebarSessionRow(
             if (onStop != null) CodexIconAction(onClick = onStop, enabled = stopEnabled,
                 modifier = Modifier.size(48.dp).testTag("sidebar-task-stop-" + id)) {
                 CodexIcon(CodexGlyph.Stop, "停止会话")
+            }
+        }
+    }
+}
+
+@Composable
+private fun sessionMatchText(text: String, query: String): androidx.compose.ui.text.AnnotatedString {
+    val highlight = Ink.copper
+    return buildAnnotatedString {
+        if (query.isBlank()) append(text)
+        else {
+            var from = 0
+            while (from < text.length) {
+                val index = text.indexOf(query, startIndex = from, ignoreCase = true)
+                if (index < 0) { append(text.substring(from)); break }
+                append(text.substring(from, index))
+                withStyle(SpanStyle(color = highlight, fontWeight = FontWeight.SemiBold)) {
+                    append(text.substring(index, index + query.length))
+                }
+                from = index + query.length
             }
         }
     }

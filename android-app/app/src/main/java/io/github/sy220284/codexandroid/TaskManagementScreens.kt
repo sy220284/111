@@ -60,7 +60,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
             }
             return@ScreenColumn
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CodexIcon(CodexGlyph.Flag, null, tint = Ink.copper)
                 Spacer(Modifier.width(10.dp))
@@ -79,8 +79,15 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                     StatusPill(PresentationPolicy.goalStatus(goal.optString("status")),
                         goal.optString("status") == "active")
                 }
-                Text("已使用 Token：" + goal.optLong("tokensUsed") + " · 执行秒数：" +
-                    goal.optLong("timeUsedSeconds"), color = Ink.muted)
+                val budget = (goal.opt("tokenBudget") as? Number)?.toLong()
+                val used = (goal.opt("tokensUsed") as? Number)?.toLong()
+                if (budget != null && budget > 0 && used != null) {
+                    AtlasOperationProgress("Token 预算 · $used / $budget",
+                        progress = (used.toDouble() / budget).coerceIn(0.0, 1.0).toFloat())
+                }
+                Text("已使用 Token：" + (used?.toString() ?: "未提供") + " · 执行秒数：" +
+                    ((goal.opt("timeUsedSeconds") as? Number)?.toLong()?.toString() ?: "未提供"),
+                    color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
                 CodexSecondaryButton(onClick = {
                     vm.editTaskPanelDraft(active) {
                         it.copy(
@@ -95,8 +102,8 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
                 CodexTextAction(onClick = { confirmClear = true }) { Text("清除目标") }
             }
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text(if (goal == null) "设置新目标" else "更新目标", style = MaterialTheme.typography.titleMedium)
+        WorkSection(Modifier.fillMaxWidth()) {
+            WorkSectionHeading(if (goal == null) "设置新目标" else "更新目标", "修改后由核心回读实际目标状态。")
             ActionReplyRow(objective, { text ->
                 vm.editTaskPanelDraft(active) { it.copy(goalText = text) }
             }, modifier = Modifier.fillMaxWidth(),
@@ -312,8 +319,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
             }
             return@ScreenColumn
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("添加后续指令", style = MaterialTheme.typography.titleMedium)
+        WorkSection(Modifier.fillMaxWidth()) {
+            WorkSectionHeading("添加后续指令", "当前任务结束后按队列顺序执行。")
             ActionReplyRow(draft, { text ->
                 vm.editTaskPanelDraft(active) { it.copy(queueText = text) }
             }, modifier = Modifier.fillMaxWidth().testTag("thread-queue-draft"),
@@ -347,6 +354,8 @@ fun ThreadQueuePage(vm: CodexViewModel) {
                 Text(if (paused) "恢复执行队列" else "开始执行队列")
             }
         }
+        WorkSectionHeading(if (running) "当前任务正在执行" else if (paused) "队列已暂停" else "当前会话空闲",
+            if (running) "以下指令等待当前任务结束。" else "按实际状态启动或调整后续指令。")
         AtlasListHeading(title = "等待执行", total = all.size, action = {
             CodexIconAction(onClick = { refreshQueue() }) {
                 CodexIcon(CodexGlyph.Retry, contentDescription = "刷新指令")

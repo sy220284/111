@@ -88,7 +88,7 @@
       "route": "apps",
       "file": "IntegrationScreens.kt",
       "owner": "ConnectedAppsPage",
-      "component": "MaterialPanel"
+      "component": "WorkSection"
     },
     {
       "route": "mcp",

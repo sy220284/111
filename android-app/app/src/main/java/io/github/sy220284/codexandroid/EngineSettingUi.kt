@@ -321,7 +321,10 @@ internal fun ContextManagementPage(vm: CodexViewModel) {
     if (memory) MemoryManagementSheet(vm, null) { memory = false }
     ScreenColumn {
         SectionIntro("上下文管理", "管理长对话中的历史内容、自动压缩和工具输出保留范围。")
-        CodexSecondaryButton(onClick = { memory = true }, modifier = Modifier.fillMaxWidth()) { Text("全局记忆管理") }
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+            WorkSectionHeading("记忆与上下文", "管理全局记忆，以及当前对话的历史保留与压缩策略。")
+            CodexSecondaryButton(onClick = { memory = true }, modifier = Modifier.fillMaxWidth()) { Text("全局记忆管理") }
+        }
         EngineSettingsSection(vm, "context", target)
     }
 }
@@ -331,6 +334,7 @@ internal fun SearchCapabilityPage(vm: CodexViewModel) {
     val target = remember { SettingsDeepLink.take("tools") }
     ScreenColumn {
         SectionIntro("联网搜索", "决定 AI 查询网络资料的方式，具体选项取决于当前运行策略。")
+        WorkSectionHeading("搜索策略", "根据核心当前配置选择联网方式。更改由核心写入并重新读取。")
         EngineSettingsSection(vm, "tools", target)
     }
 }

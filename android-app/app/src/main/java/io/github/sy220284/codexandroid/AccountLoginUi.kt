@@ -118,7 +118,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
 
 
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(
                     Modifier.fillMaxWidth(),
@@ -209,8 +209,8 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         }
 
 
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("账号与额度", style = MaterialTheme.typography.titleMedium)
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
+            WorkSectionHeading("账号与额度")
             Text("登录状态、使用记录和额度窗口来自同一账号，可从此处集中查看。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             CodexSecondaryButton(onClick = { showSessions = true },

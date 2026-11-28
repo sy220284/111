@@ -196,7 +196,7 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 ThemePreviewCard(
                     title = "典雅白", background = Color(0xFFFFFFFF),
-                    foreground = Color(0xFF263139), accent = Color(0xFFC8483E),
+                    foreground = Color(0xFF263139), accent = Color(0xFFB94037),
                     selected = !darkMode, modifier = Modifier.fillMaxWidth()
                 ) { UiPreferences.setDarkMode(false) }
                 ThemePreviewCard(
@@ -209,7 +209,7 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ThemePreviewCard(
                     title = "典雅白", background = Color(0xFFFFFFFF),
-                    foreground = Color(0xFF263139), accent = Color(0xFFC8483E),
+                    foreground = Color(0xFF263139), accent = Color(0xFFB94037),
                     selected = !darkMode, modifier = Modifier.weight(1f)
                 ) { UiPreferences.setDarkMode(false) }
                 ThemePreviewCard(
@@ -236,17 +236,26 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
         Text("文字大小", style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 6.dp).bringIntoViewRequester(fontRequester)
                 .testTag("appearance-font-heading"))
-        Row(Modifier.fillMaxWidth().testTag("appearance-font-controls"),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")
-                .forEach { (scale, label) ->
-                    CodexFilterChip(
-                        selected = kotlin.math.abs(fontScale - scale) < .01f,
-                        onClick = { UiPreferences.setFontScale(scale) },
-                        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                        modifier = Modifier.weight(1f)
-                    )
+        val scales = listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")
+        BoxWithConstraints(Modifier.fillMaxWidth().testTag("appearance-font-controls")) {
+            val columns = if (CodexViewportPolicy.fitsActions(maxWidth.value, codexEffectiveFontScale(), 4, 60f, 6f)) 4 else 2
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                scales.chunked(columns).forEach { group ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        group.forEach { (scale, label) ->
+                            CodexFilterChip(selected = kotlin.math.abs(fontScale - scale) < .01f,
+                                onClick = { UiPreferences.setFontScale(scale) },
+                                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp))
+                        }
+                    }
                 }
+            }
+        }
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Reading) {
+            Text("阅读效果预览", style = MaterialTheme.typography.titleMedium)
+            Text("任务说明与执行结果使用当前字号。", style = MaterialTheme.typography.bodyLarge)
+            Text("辅助信息 · 记录与状态", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         }
         Text("文字大小会随系统字体设置叠加调整。",
             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
