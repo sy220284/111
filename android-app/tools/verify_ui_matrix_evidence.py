@@ -102,6 +102,7 @@ def validate(root, source):
                 except (OSError, ValueError, KeyError, TypeError) as exc:
                     observation.setdefault("motion", {})["status"] = "failed_or_unavailable"
                     observation["motion"]["error"] = str(exc)
+                    failures.append(f"{profile}/{mode}: required motion proof failed: {exc}")
                 if PROFILES[profile]["self_update"]:
                     update = read(directory/"self-update-open.json")
                     if update.get("status") != "passed":

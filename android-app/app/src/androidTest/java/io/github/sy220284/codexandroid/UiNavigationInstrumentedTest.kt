@@ -680,7 +680,7 @@ class UiNavigationInstrumentedTest {
         rule.onNodeWithTag("diff-reader-review").performScrollTo().assertIsDisplayed().assertTextContains("代码审查")
         rule.onNodeWithTag("diff-reader-copy").performScrollTo().assertIsDisplayed().assertTextContains("复制全部差异")
         rule.onNodeWithText("src/main.kt").assertExists()
-        capture("diff-reader-android.png")
+        captureRoute("diff", "diff-reader-android.png")
     }
 
     @Test fun projectTerminalAndFilesReturnToConversation() {
@@ -1256,7 +1256,7 @@ class UiNavigationInstrumentedTest {
                 rule.onNodeWithTag("engine-setting-model").performScrollTo()
             }
             if (route in listOf("models", "personalization", "context", "tools"))
-                captureVerifiedDisplayScreenshot("audit-" + route + "-android.png")
+                captureRoute(route, "audit-" + route + "-android.png")
         }
     }
 
@@ -1399,10 +1399,10 @@ class UiNavigationInstrumentedTest {
                 rule.onNodeWithTag("diagnostics-runtime-policy").assertExists()
                 rule.onNodeWithTag("diagnostics-log-panel").assertExists()
                 rule.onNodeWithText("查看启动日志").assertHasClickAction()
-                captureVerifiedDisplayScreenshot("audit-diagnostics-android.png")
+                captureRoute("diagnostics", "audit-diagnostics-android.png")
                 rule.onNodeWithTag("diagnostics-environment").performScrollTo().assertIsDisplayed()
                 rule.onNodeWithTag("diagnostics-crash-history").performScrollTo().assertIsDisplayed()
-            } else capture("audit-" + route + "-android.png")
+            } else captureRoute(route, "audit-" + route + "-android.png")
         }
     }
 
@@ -1739,6 +1739,15 @@ class UiNavigationInstrumentedTest {
     private fun captureOverlay(fileName: String) {
         rule.waitForIdle()
         captureVerifiedDisplayScreenshot(fileName)
+    }
+
+    private fun captureRoute(route: String, fileName: String) {
+        rule.waitForIdle()
+        captureVerifiedDisplayScreenshot(fileName) {
+            rule.onNodeWithTag("work-route-" + route, useUnmergedTree = true).assertIsDisplayed()
+            rule.onNodeWithTag("screen-title").assertIsDisplayed()
+                .assertTextEquals(pages.first { it.id == route }.title)
+        }
     }
 
     private fun capture(fileName: String) {

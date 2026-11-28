@@ -91,7 +91,7 @@ internal fun ConversationTimelineViewport(
     LaunchedEffect(scroll) {
         snapshotFlow { Triple(scroll.isScrollInProgress, scroll.canScrollForward, autoScrolling) }
             .collect { (scrolling, canForward, automatic) ->
-                if (!scrolling && !canForward) {
+                if (!scrolling && !canForward && scroll.layoutInfo.totalItemsCount > 0) {
                     followTail = true
                     unreadSteps = 0
                 } else if (scrolling && canForward && !automatic) {
@@ -130,13 +130,19 @@ internal fun ConversationTimelineViewport(
     }
     var previousViewportHeight by remember { mutableIntStateOf(0) }
     var previousOlderPage by remember { mutableStateOf(false) }
+    var previousMeasuredCount by remember { mutableIntStateOf(-1) }
+    var previousTailSize by remember { mutableIntStateOf(-1) }
     LaunchedEffect(scroll, thread, contextLoading) {
         if (contextLoading) return@LaunchedEffect
         // One collector per conversation; a stream of deltas must not cancel and restart it.
         snapshotFlow { TimelineRenderTarget(currentGroupCount, currentLogicalCount, currentTail, hasOlderPage,
-            scroll.layoutInfo.viewportSize.height) }
-            .collect { (count, logicalCount, tail, older, viewportHeight) ->
-                val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage
+            scroll.layoutInfo.viewportSize.height, scroll.layoutInfo.totalItemsCount,
+            scroll.layoutInfo.visibleItemsInfo.lastOrNull { it.index == TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage) }?.size ?: -1) }
+            .collect { (count, logicalCount, tail, older, viewportHeight, measuredCount, tailSize) ->
+                val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage ||
+                    measuredCount != previousMeasuredCount || tailSize != previousTailSize
+                previousMeasuredCount = measuredCount
+                previousTailSize = tailSize
                 previousViewportHeight = viewportHeight
                 previousOlderPage = older
                 val threadChanged = observedThread != thread
@@ -150,10 +156,12 @@ internal fun ConversationTimelineViewport(
                     unreadSteps = 0
                 }
                 val target = TimelineViewportPolicy.latestIndex(count, older)
-                if (target >= 0 && followTail && !autoScrolling && (threadChanged || change.changed || viewportChanged || collapsed)) {
+                if (target >= 0 && measuredCount == target + 1 && viewportHeight > 0 && followTail && !autoScrolling &&
+                    (threadChanged || change.changed || viewportChanged || collapsed)) {
                     // Let the new list layout settle; a real drag takes precedence.
                     withFrameNanos { }
-                    if (followTail && !autoScrolling) {
+                    if (followTail && !autoScrolling && scroll.layoutInfo.totalItemsCount ==
+                        TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage) + 1) {
                         // A user scroll may cancel this child without cancelling the collector.
                         kotlinx.coroutines.coroutineScope {
                             launch {
@@ -357,7 +365,8 @@ internal fun ConversationTimelineViewport(
 }
 
 private data class TimelineRenderTarget(
-    val count: Int, val logicalCount: Int, val tail: TimelineItem?, val older: Boolean, val viewportHeight: Int
+    val count: Int, val logicalCount: Int, val tail: TimelineItem?, val older: Boolean, val viewportHeight: Int,
+    val measuredCount: Int, val tailSize: Int
 )
 
 /** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */

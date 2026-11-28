@@ -16,17 +16,18 @@ internal fun hasClipboardOverlayWindow(dump: String): Boolean =
  * Android 某些系统版本及屏宽下 getRootInActiveWindow() 会暂时返回 null，
  * 因此单独依赖该接口会错误拒绝正常的 Compose 弹层。
  */
-internal fun captureVerifiedDisplayScreenshot(fileName: String) {
+internal fun captureVerifiedDisplayScreenshot(fileName: String, assertSubject: (() -> Unit)? = null) {
     // Keep rejected evidence out of the gallery without altering functional tests.
     try {
-        captureOwnedDisplayScreenshot(fileName)
+        captureOwnedDisplayScreenshot(fileName, assertSubject)
     } catch (failure: Exception) {
         android.util.Log.w("UiScreenshotObservation", "SCREENSHOT_FAILED $fileName", failure)
         println("SCREENSHOT_FAILED $fileName: " + failure.message)
+        if (assertSubject != null) throw failure
     }
 }
 
-private fun captureOwnedDisplayScreenshot(fileName: String) {
+private fun captureOwnedDisplayScreenshot(fileName: String, assertSubject: (() -> Unit)?) {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     val automation = instrumentation.uiAutomation
     val target = instrumentation.targetContext
@@ -79,11 +80,13 @@ private fun captureOwnedDisplayScreenshot(fileName: String) {
         dump = checkOwner()
     }
     check(!hasClipboardOverlayWindow(dump)) { "系统剪贴板浮层仍遮挡截图：$fileName" }
+    assertSubject?.invoke()
     val image = requireNotNull(automation.takeScreenshot()) {
         "Android 全屏截图失败：$fileName"
     }
     try {
         check(!hasClipboardOverlayWindow(checkOwner())) { "截图期间出现系统剪贴板浮层：$fileName" }
+        assertSubject?.invoke()
         val directory = requireNotNull(target.getExternalFilesDir(null)) {
             "设备未提供测试截图目录"
         }

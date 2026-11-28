@@ -66,7 +66,7 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         else progress.animateTo(1f, tween(CodexMotion.navigation))
     }
     val canvas = Ink.canvas
-    Box(Modifier.fillMaxSize().clipToBounds().drawWithContent {
+    Box(Modifier.fillMaxSize().testTag("work-route-" + route).clipToBounds().drawWithContent {
         drawContent()
         val remaining = if (reducedMotion) 0f else 1f - progress.value
         if (remaining > 0f) drawRect(canvas, alpha = .06f * remaining)
@@ -74,7 +74,8 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         // Update only the native layer transform. The veil is a separate draw
         // operation, so translating the page needs no full-size alpha buffer.
         Box(Modifier.fillMaxSize().graphicsLayer {
-            translationY = if (reducedMotion) 0f else 6.dp.toPx() * (1f - progress.value)
+            translationX = if (reducedMotion || !NavigationPolicy.isDetailPage(route)) 0f
+                else 12.dp.toPx() * (1f - progress.value)
         }) {
             content()
         }
