@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import org.json.JSONObject
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 /** Immutable ownership of an admitted task; never silently move it to a new account or core. */
 internal data class TaskRequestOwner(val epoch: Long, val account: Long) {
@@ -15,21 +17,23 @@ internal data class TaskRequestOwner(val epoch: Long, val account: Long) {
     }
 
     suspend fun request(vm: CodexViewModel, method: String, params: JSONObject? = null): JSONObject {
-        return guarded(vm) {
+        return guarded({ current(vm) }) {
             vm.bridge.request(method, params, expectedSession = epoch, sendPermit = { current(vm) })
         }
     }
 
     suspend fun request(vm: CodexViewModel, method: String, params: JSONObject?, timeoutMillis: Long?): JSONObject =
-        guarded(vm) {
+        guarded({ current(vm) }) {
             vm.bridge.request(method, params, timeoutMillis = timeoutMillis,
                 expectedSession = epoch, sendPermit = { current(vm) })
         }
 
-    private suspend fun <T> guarded(vm: CodexViewModel, execute: suspend () -> T): T {
-        requireCurrent(vm)
+    internal suspend fun <T> guarded(isCurrent: () -> Boolean, execute: suspend () -> T): T {
+        currentCoroutineContext().ensureActive()
+        check(isCurrent()) { "操作所属连接或账号已变化，请核对原任务后重试" }
         val response = execute()
-        requireCurrent(vm)
+        currentCoroutineContext().ensureActive()
+        check(isCurrent()) { "操作所属连接或账号已变化，请核对原任务后重试" }
         return response
     }
 }

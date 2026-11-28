@@ -2,6 +2,9 @@ package io.github.sy220284.codexandroid
 
 import android.content.Context
 import android.util.Log
+import android.net.Uri
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -29,15 +32,49 @@ internal class ThreadExportSnapshot(val file: File, val owner: TaskRequestOwner)
 }
 
 internal object ThreadHistoryExport {
+    private var preparedDirectory: File? = null
+
+    @Synchronized
+    private fun directory(context: Context): File {
+        val dir = File(context.cacheDir, "thread-history-export")
+        check(dir.isDirectory || dir.mkdirs()) { "无法创建历史导出暂存目录" }
+        if (preparedDirectory != dir) {
+            dir.listFiles()?.forEach {
+                if (!it.delete()) Log.w("ThreadHistoryExport", "无法清理旧导出暂存")
+            }
+            preparedDirectory = dir
+        }
+        return dir
+    }
+
+    suspend fun save(context: Context, uri: Uri, snapshot: ThreadExportSnapshot,
+        isCurrent: () -> Boolean) = withContext(Dispatchers.IO) {
+        check(isCurrent()) { "会话或账号已切换，请重新导出" }
+        val output = context.contentResolver.openOutputStream(uri)
+            ?: error("无法创建导出文件")
+        output.use { target ->
+            snapshot.file.inputStream().use { source ->
+                val buffer = ByteArray(64 * 1024)
+                while (true) {
+                    currentCoroutineContext().ensureActive()
+                    val count = source.read(buffer)
+                    if (count < 0) break
+                    target.write(buffer, 0, count)
+                }
+            }
+        }
+    }
+
     suspend fun prepare(context: Context, vm: CodexViewModel, threadId: String, owner: TaskRequestOwner,
         includeActivity: Boolean, onProgress: suspend (Int) -> Unit): ThreadExportSnapshot {
         var output: File? = null
         var delivered = false
         try {
             val result = withContext(Dispatchers.IO) {
-                val destination = File.createTempFile("codex-history-", ".md", context.cacheDir)
+                val dir = directory(context)
+                val destination = File.createTempFile("codex-history-", ".md", dir)
                 output = destination
-                val spool = File.createTempFile("codex-history-", ".spool", context.cacheDir)
+                val spool = File.createTempFile("codex-history-", ".spool", dir)
                 try {
                     destination.bufferedWriter(Charsets.UTF_8).use { writer ->
                         ThreadCopyHistory { method, params ->

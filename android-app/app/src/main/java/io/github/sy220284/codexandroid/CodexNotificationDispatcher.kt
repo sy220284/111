@@ -67,11 +67,11 @@ internal object CodexNotificationDispatcher {
             }
         } else if (method == "account/updated") {
             catalogWarmup.accountChanged()
-            refresh("account", "account/read")
             mcpCatalog.clearStartup()
             modelPreviews.clear()
             accountMetrics.accountChanged()
             extensions.invalidate()
+            refresh("account", "account/read")
             refreshMcpServices()
         }
         if (method == "project/changed") {

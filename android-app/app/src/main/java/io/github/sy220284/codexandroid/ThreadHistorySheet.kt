@@ -23,7 +23,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.IOException
+import kotlinx.coroutines.TimeoutCancellationException
 
 /** 历史分页、回合条目与明确范围回退；全部使用官方线程请求。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -64,12 +64,9 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         if (uri != null && snapshot != null) {
             scope.launch {
                 try {
-                    snapshot.owner.requireCurrent(vm)
-                    withContext(Dispatchers.IO) {
-                        snapshot.owner.requireCurrent(vm)
-                        val output = context.contentResolver.openOutputStream(uri)
-                            ?: throw IOException("无法创建导出文件")
-                        output.use { target -> snapshot.file.inputStream().use { it.copyTo(target) } }
+                    val exportingThread = thread
+                    ThreadHistoryExport.save(context, uri, snapshot) {
+                        snapshot.owner.current(vm) && vm.activeThread.value == exportingThread
                     }
                     exportStatus = "会话 Markdown 文件已保存"
                 } catch (cancel: CancellationException) {
@@ -77,10 +74,12 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 } catch (failure: Exception) {
                     exportStatus = "保存失败：" + (failure.message ?: "请选择其他保存位置")
                 } finally {
+                    snapshot.close()
                     exportMarkdown = null
                 }
             }
         } else {
+            snapshot?.close()
             exportMarkdown = null
         }
     }
@@ -104,11 +103,11 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                 }
                 prepared = snapshot
                 operation.requireCurrent(vm)
-                check(currentThread == owner) { "会话已切换，请重新操作" }
+                check(vm.activeThread.value == owner) { "会话已切换，请重新操作" }
                 if (toClipboard) {
                     val markdown = withContext(Dispatchers.IO) { snapshot.clipboardText() }
                     val copied = ConversationClipboard.copy(context, markdown, CopyContentFormat.Literal) {
-                        operation.current(vm) && currentThread == owner
+                        operation.current(vm) && vm.activeThread.value == owner
                     }
                     if (currentThread == owner) exportStatus = if (copied) "已复制完整会话" else "复制失败：可尝试导出文件"
                 } else {
@@ -116,6 +115,8 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     exportFilePicker.launch("Codex-会话记录.md")
                     prepared = null
                 }
+            } catch (timeout: TimeoutCancellationException) {
+                if (currentThread == owner) exportStatus = "导出失败：读取历史超时，请重试"
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (failure: Exception) {

@@ -1,9 +1,6 @@
 package io.github.sy220284.codexandroid
 
 import androidx.lifecycle.viewModelScope
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -136,6 +133,7 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
         loading.value = loading.value + "threadLibraryBulk"
         viewModelScope.launch {
             val completed = mutableListOf<String>()
+            var cancelled = false
             try {
                 for (id in targets) {
                     check(!firstThreadStarting.value && !threadSwitching.value &&
@@ -151,7 +149,10 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                 actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value,
                     undo = if (offerUndo) complete(ticket, completed) else null))
             } catch (failure: Exception) {
-                if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
+                if (failure is CancellationException && failure !is TimeoutCancellationException) {
+                    cancelled = true
+                    throw failure
+                }
                 if (!owner.current(vm)) return@launch
                 val reason = "已完成 ${completed.size}/${targets.size} 条；" +
                     (failure.message ?: "操作中断，请核对未完成项")
@@ -161,11 +162,11 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                     undo = if (offerUndo) complete(ticket, completed) else null))
             } finally {
                 loading.value = loading.value - "threadLibraryBulk"
-                if (owner.current(vm)) {
+                if (!cancelled && owner.current(vm)) {
                     if (activeThread.value in completed && !running.value) newThread()
                     after()
                     syncRecentThreads()
-                } else {
+                } else if (!cancelled) {
                     bulkCompletedThreadIds.value = emptySet()
                     bulkActionSummary.value = ""
                     // Reconcile authoritative state; never replay the old mutation.
@@ -175,17 +176,4 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
         }
         Unit
     }
-}
-
-/** Snackbar presents only a still-valid receipt; the controller validates it again on click. */
-internal suspend fun presentActionFeedback(host: SnackbarHostState, receipt: ActionFeedbackReceipt,
-    isCurrent: (ThreadUndoOffer) -> Boolean, onUndo: (ThreadUndoOffer) -> Unit) {
-    val undo = receipt.undo?.takeIf(isCurrent)
-    val result = host.showSnackbar(
-        message = receipt.message,
-        actionLabel = if (undo != null) "撤销" else null,
-        withDismissAction = receipt.isError || undo != null,
-        duration = if (receipt.isError || undo != null) SnackbarDuration.Long else SnackbarDuration.Short
-    )
-    if (result == SnackbarResult.ActionPerformed && undo != null) onUndo(undo)
 }
