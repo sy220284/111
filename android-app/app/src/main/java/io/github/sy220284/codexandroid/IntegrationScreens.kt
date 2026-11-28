@@ -44,8 +44,13 @@ fun CollaborationModesPage(vm: CodexViewModel) {
         SectionIntro("协作与工作方式", "根据任务选择执行方式。计划模式先形成方案，再由你明确推进。")
         WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
             Text("新任务使用的工作方式", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-            Text(if (selected == "plan") "计划模式" else "标准执行模式",
-                style = MaterialTheme.typography.headlineSmall)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                CodexIcon(if (selected == "plan") CodexGlyph.Assignment else CodexGlyph.Build,
+                    null, tint = Ink.copper)
+                Text(if (selected == "plan") "计划模式" else "标准执行模式",
+                    style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            }
             Text("更改后从下一轮对话生效。不会自动开启派生智能体。", color = Ink.muted,
                 style = MaterialTheme.typography.bodySmall)
         }

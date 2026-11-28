@@ -77,11 +77,11 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                     Column(Modifier.weight(1f)) {
                         Text(skills.count { it.optBoolean("enabled") }.toString(),
                             style = MaterialTheme.typography.headlineMedium, color = Ink.jade)
-                        Text("已启用", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                        Text("启用技能", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
                     }
                 }
             }
-            CatalogQueryAction("使用剪贴板检索技能", query, onQuery = { query = it },
+            ClipboardQueryAction("使用剪贴板检索技能", query, onQuery = { query = it },
                 onClear = { query = "" }, tag = "skills-search")
             if (query.isNotBlank()) Text("${visibleSkills.size} 项匹配", color = Ink.muted,
                 style = MaterialTheme.typography.labelMedium, modifier = Modifier.testTag("skills-match-count"))

@@ -796,13 +796,21 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("skills-search-clear").performScrollTo().performClick()
         rule.onNode(hasText("图像整理") and hasAnyAncestor(hasTestTag("skills-result-row"))).assertExists()
         rule.onAllNodesWithTag("skills-result-row").assertCountEquals(2)
-        rule.onNodeWithTag("skills-search-input").performScrollTo().performTextInput("图像整理")
-        rule.onNodeWithTag("skills-search-submit").performScrollTo().performClick()
+        rule.runOnIdle {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("验收检索", "图像整理"))
+        }
+        rule.onNodeWithTag("skills-search").performScrollTo().performClick()
+        rule.onNodeWithTag("skills-search-value").assertTextEquals("图像整理")
         rule.onNode(hasText("图像整理") and hasAnyAncestor(hasTestTag("skills-result-row"))).assertExists()
         rule.onAllNodesWithTag("skills-result-row").assertCountEquals(1)
-        rule.onNodeWithTag("skills-search-input").performScrollTo().performTextClearance()
-        rule.onNodeWithTag("skills-search-input").performTextInput("没有此技能")
-        rule.onNodeWithTag("skills-search-submit").performScrollTo().performClick()
+        rule.runOnIdle {
+            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("验收检索", "没有此技能"))
+        }
+        rule.onNodeWithTag("skills-search").performScrollTo().performClick()
         rule.onAllNodesWithTag("skills-result-row").assertCountEquals(0)
         rule.onNodeWithText("没有匹配的技能").assertExists()
         rule.onNodeWithTag("skills-match-count").assertTextEquals("0 项匹配")
