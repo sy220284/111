@@ -103,6 +103,9 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                 if (ownsReceipt()) {
                     val reason = failure.message ?: "请求失败"
                     errors.value = errors.value + (key to reason)
+                    if (userAction && method == "thread/fork" && ComposerProviderScope.isModelRejection(reason)) {
+                        catalogWarmup.modelRejected(params?.optString("threadId"), params?.optString("modelProvider"))
+                    }
                     if (userAction) actionFeedback.emit(
                         ActionFeedbackCopy.failure(method, reason))
                 }

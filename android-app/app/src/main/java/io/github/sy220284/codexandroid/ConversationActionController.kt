@@ -202,10 +202,8 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 val message = if (method == "turn/start") SubmissionFailurePolicy.message(failure, dispatched) else reason
                 errors.value = errors.value + (key to message)
                 if (method == "turn/start") threadFailures.value = ThreadExecutionPolicy.failureUpdated(threadFailures.value, id, message)
-                if (activeThread.value == id) {
-                    errors.value = errors.value + ("conversation" to message)
-                    if (owner.current(vm) && ComposerProviderScope.isAccountModelRejection(reason)) catalogWarmup.accountModelRejected()
-                }
+                if (owner.current(vm) && ComposerProviderScope.isModelRejection(reason)) catalogWarmup.modelRejected(id)
+                if (activeThread.value == id) errors.value = errors.value + ("conversation" to message)
                 actionFeedback.emit(ActionFeedbackCopy.failure(method, message))
             } finally {
                 loading.value = loading.value - key

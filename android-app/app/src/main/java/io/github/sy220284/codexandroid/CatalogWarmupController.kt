@@ -51,22 +51,47 @@ internal class CatalogWarmupController(
         vm.loading.value = vm.loading.value - keys
     }
 
-    /** A definitive account rejection retires the affected provider's stale picker snapshots. */
-    fun accountModelRejected() {
-        val provider = vm.currentComposerProvider() ?: "openai"
+    /** Refresh only the failed task's provider, including offscreen completions.
+     * Resolve an unknown route from the native thread only on the failure path. */
+    fun modelRejected(threadId: String?, provider: String? = null) {
+        val resolved = ComposerProviderScope.provider(provider) ?: if (threadId != null && threadId == vm.activeThread.value)
+            ComposerProviderScope.provider(vm.activeModelProvider.value) else null
+        if (resolved != null) {
+            refreshRejectedProvider(resolved)
+            return
+        }
+        if (threadId.isNullOrBlank()) return
+        val owner = vm.captureTaskOwner() ?: return
+        scope.launch {
+            try {
+                val thread = owner.request(vm, "thread/read", JSONObject().put("threadId", threadId)).getJSONObject("thread")
+                owner.requireCurrent(vm)
+                refreshRejectedProvider(requireNotNull(ComposerProviderScope.provider(thread.optString("modelProvider"))) {
+                    "内核未返回失败会话的服务商"
+                })
+            } catch (cancel: kotlinx.coroutines.CancellationException) {
+                throw cancel
+            } catch (failure: Exception) {
+                if (owner.current(vm)) vm.errors.value = vm.errors.value +
+                    ("models" to ("读取失败会话的模型目录未成功：" + (failure.message ?: "服务商未确认")))
+            }
+        }
+    }
+
+    private fun refreshRejectedProvider(provider: String) {
         val scoped = ComposerProviderScope.catalogKey(provider)
         val defaultProvider = ComposerProviderScope.provider(vm.data.value["providers"]?.optString("defaultProviderId"))
         val keys = if (defaultProvider == null || defaultProvider == provider) setOf(scoped, "models") else setOf(scoped)
+        val key = vm.composerCatalogKey().takeIf { it in keys && (it != "models" || defaultProvider == provider) } ?: scoped
         invalidate(keys)
-        keys.forEach { key ->
-            vm.refresh(key, "model/list", ComposerProviderScope.request(
-                provider.takeIf { key != "models" }, forceRefresh = true))
-        }
+        vm.refresh(key, "model/list", ComposerProviderScope.request(provider, forceRefresh = true))
     }
 
     fun accountChanged() {
         accountRevisionState.value += 1
         providerChanged()
+        vm.refresh("skills", "skills/list",
+            CatalogRequestContract.workspace(vm.workingDirectory))
     }
 
     fun providerChanged() {
@@ -74,7 +99,5 @@ internal class CatalogWarmupController(
         vm.refresh("models", "model/list")
         if (vm.composerCatalogKey() != "models") vm.refreshComposerCatalog()
         vm.refresh("providers", "modelProvider/list")
-        vm.refresh("skills", "skills/list",
-            CatalogRequestContract.workspace(vm.workingDirectory))
     }
 }

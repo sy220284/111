@@ -14,8 +14,8 @@ internal object ComposerProviderScope {
 
     fun catalogKey(provider: String?): String = if (provider == null) "models" else "composerModels:$provider"
 
-    fun isAccountModelRejection(message: String): Boolean =
-        message.contains("model is not supported when using Codex with a ChatGPT account", ignoreCase = true) ||
+    fun isModelRejection(message: String, code: String? = null): Boolean =
+        code == "modelNotFound" || message.contains("model is not supported when using Codex with a ChatGPT account", ignoreCase = true) ||
             message.contains("model_not_in_accessible_catalog", ignoreCase = true)
 
     fun resolve(threadProvider: String?, draftProvider: String?, configuredProvider: String): String {

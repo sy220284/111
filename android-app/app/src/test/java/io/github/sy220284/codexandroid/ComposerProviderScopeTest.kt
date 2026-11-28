@@ -105,10 +105,11 @@ class ComposerProviderScopeTest {
         val plan = ComposerProviderScope.submission(config, "thread", "", "plan", ComposerTaskOptions(), rpc = rpc)
         assertEquals("gpt-6.2-sol", plan.effectiveConfig?.optString("model"))
         assertEquals(listOf("thread/read"), methods)
-        assertTrue(ComposerProviderScope.isAccountModelRejection(
+        assertTrue(ComposerProviderScope.isModelRejection(
             "The 'gpt-6.2-sol' model is not supported when using Codex with a ChatGPT account."))
-        assertTrue(ComposerProviderScope.isAccountModelRejection("model_not_in_accessible_catalog"))
-        assertFalse(ComposerProviderScope.isAccountModelRejection("Network timeout"))
+        assertTrue(ComposerProviderScope.isModelRejection("model_not_in_accessible_catalog"))
+        assertTrue(ComposerProviderScope.isModelRejection("模型不存在", "modelNotFound"))
+        assertFalse(ComposerProviderScope.isModelRejection("Network timeout"))
     }
 
     @Test fun modelEffortPreferenceRoundTripsAndRespectsCurrentCatalog() {

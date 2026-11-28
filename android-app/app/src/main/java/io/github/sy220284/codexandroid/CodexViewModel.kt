@@ -328,6 +328,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         val chosenProject = activeProjectId.value
         viewModelScope.launch {
             var newlyCreatedThreadId: String? = null
+            var submittedProvider: String? = null
             var turnRequestDispatched = false
             val pendingId = "pending-" + UUID.randomUUID()
             if (activeThread.value == submittedThread) timeline.value = timeline.value + TimelineItem(
@@ -353,6 +354,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val (provider, requestModel, catalog, effectiveConfig) = ComposerProviderScope.submission(
                     permissionConfig.getJSONObject("config"), submittedThread, chosenModel, chosenMode,
                     chosenOptions, mediaKinds = LocalMediaAttachmentPolicy.modalities(images)) { method, params -> owner.request(this@CodexViewModel, method, params) }
+                submittedProvider = provider
                 AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(images, LocalImageAttachments.directory(getApplication())) { owner.requireCurrent(this@CodexViewModel) } }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
                 owner.requireCurrent(this@CodexViewModel)
@@ -469,9 +471,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     threadFailures.value = ThreadExecutionPolicy.failureUpdated(
                         threadFailures.value, submittedId, message)
                 }
+                if (owner.current(this@CodexViewModel) && ComposerProviderScope.isModelRejection(message)) {
+                    catalogWarmup.modelRejected(submittedId, submittedProvider)
+                }
                 if (activeThread.value == submittedId) {
                     errors.value = errors.value + ("conversation" to message)
-                    if (owner.current(this@CodexViewModel) && ComposerProviderScope.isAccountModelRejection(message)) catalogWarmup.accountModelRejected()
                     timeline.value = timeline.value + TimelineItem(
                         "failure-" + UUID.randomUUID(), "error", message)
                 }
