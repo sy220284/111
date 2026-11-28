@@ -320,6 +320,30 @@ fn step_settings_constraints(requirements: &ConfigRequirements) -> StepSettingsC
     }
 }
 
+#[tokio::test]
+async fn authoritative_model_effort_uses_current_model_default_and_preserves_valid_selection() {
+    use codex_protocol::openai_models::ReasoningEffortPreset;
+    let config = test_config().await;
+    let mut selected = configured_settings();
+    let mut model = model_info_from_slug("model-a");
+    model.default_reasoning_level = Some(ReasoningEffort::High);
+    model.supported_reasoning_levels = vec![ReasoningEffortPreset {
+        effort: ReasoningEffort::High,
+        description: "High".to_string(),
+    }];
+    let catalog = Arc::new(CatalogModel {
+        model: Arc::new(model),
+        origin: ModelOrigin::Provider,
+    });
+    let resolved = ResolvedStepSettings::new(Arc::new(selected.clone()), Arc::clone(&catalog), &config.features);
+    assert_eq!(resolved.reasoning_effort(), Some(&ReasoningEffort::High));
+    assert_eq!(resolved.selected().collaboration_mode.settings.reasoning_effort, Some(ReasoningEffort::Low));
+    assert_eq!(resolved.effective_collaboration_mode().settings.reasoning_effort, Some(ReasoningEffort::High));
+    selected.collaboration_mode.settings.reasoning_effort = Some(ReasoningEffort::High);
+    let resolved = ResolvedStepSettings::new(Arc::new(selected), catalog, &config.features);
+    assert_eq!(resolved.reasoning_effort(), Some(&ReasoningEffort::High));
+}
+
 #[test]
 fn sparse_patch_uses_the_settings_version_being_updated() {
     let requirements = ConfigRequirements::default();

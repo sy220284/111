@@ -17,6 +17,7 @@ use codex_protocol::config_types::ReasoningSummary;
 use codex_protocol::config_types::SERVICE_TIER_DEFAULT_REQUEST_VALUE;
 use codex_protocol::config_types::ServiceTier;
 use codex_protocol::openai_models::CatalogModel;
+use codex_protocol::openai_models::ModelOrigin;
 use codex_protocol::openai_models::ReasoningEffort;
 use codex_protocol::protocol::AskForApproval;
 use codex_protocol::protocol::SpawnServiceTierOverride;
@@ -90,11 +91,21 @@ impl ResolvedStepSettings {
     }
 
     pub(crate) fn reasoning_effort(&self) -> Option<&ReasoningEffort> {
-        self.selected
-            .collaboration_mode
-            .settings
-            .reasoning_effort
-            .as_ref()
+        let selected = self.selected.collaboration_mode.settings.reasoning_effort.as_ref();
+        // Only real provider metadata establishes that an inherited effort is
+        // incompatible. Preserve custom and synthetic model selections.
+        if let Some(effort) = selected
+            && self.model_info.origin == ModelOrigin::Provider
+            && !self.model_info.supported_reasoning_levels.is_empty()
+            && !self.model_info.supported_reasoning_levels.iter().any(|preset| {
+                preset.effort == *effort
+                    || self.model_info.resolve_reasoning_effort(preset.effort.clone())
+                        == self.model_info.resolve_reasoning_effort(effort.clone())
+            })
+        {
+            return self.model_info.default_reasoning_level.as_ref();
+        }
+        selected
     }
 
     pub(crate) fn effective_reasoning_effort(&self) -> Option<ReasoningEffort> {
@@ -115,6 +126,7 @@ impl ResolvedStepSettings {
     pub(crate) fn effective_collaboration_mode(&self) -> CollaborationMode {
         let mut collaboration_mode = self.selected.collaboration_mode.clone();
         collaboration_mode.settings.model = self.model_info.slug.clone();
+        collaboration_mode.settings.reasoning_effort = self.reasoning_effort().cloned();
         collaboration_mode
     }
 

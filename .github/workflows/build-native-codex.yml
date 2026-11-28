@@ -486,6 +486,7 @@ jobs:
           CARGO_BUILD_JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs rust)"
           export CARGO_BUILD_JOBS
           cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
+          cargo test --locked -p codex-core --lib authoritative_model_effort
           cargo test --locked -p codex-models-manager --lib image_input
           cargo test --locked -p codex-model-provider --lib domestic_
           cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
