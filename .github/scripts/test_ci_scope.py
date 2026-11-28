@@ -80,7 +80,13 @@ class UnifiedScopeTests(unittest.TestCase):
     def test_release_consumes_only_unified_main_gate(self):
         release = (W / "release.yml").read_text()
         self.assertIn("workflows: ['111 统一质量验收']", release)
-        self.assertIn("needs.device.result == 'success'", release)
+        publish = release.split("\n  publish:\n", 1)[1].split("\n  cleanup:\n", 1)[0]
+        self.assertIn("needs.check-release.result == 'success'", publish)
+        self.assertIn("needs.release.result == 'success'", publish)
+        self.assertNotIn("needs.device.result", release)
+        self.assertNotIn("self-hosted", release)
+        self.assertIn("verify_upgrade_assets.py", release)
+        self.assertIn("sha256sum -c SHA256SUMS.txt", publish)
         self.assertIn("publish-verified-release.sh", release)
         self.assertIn("needs.publish.result == 'success'", release)
     def test_native_is_reusable_and_dispatch_is_not_async(self):
