@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -42,20 +43,22 @@ internal fun ConversationTimelineViewport(
     val reducedMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    var followTail by remember { mutableStateOf(true) }
+    var followTail by rememberSaveable { mutableStateOf(true) }
     var autoScrolling by remember { mutableStateOf(false) }
+    var userScrolling by remember { mutableStateOf(false) }
     var lastKnownStepCount by remember { mutableIntStateOf(0) }
     var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
-    var unreadSteps by remember { mutableIntStateOf(0) }
-    var observedThread by remember { mutableStateOf<String?>(null) }
+    var unreadSteps by rememberSaveable { mutableIntStateOf(0) }
+    var observedThread by remember { mutableStateOf(thread) }
     var turnAction by remember(thread) { mutableStateOf<Pair<TimelineItem, MessageTurnAction>?>(null) }
     var outlineOpen by remember(thread) { mutableStateOf(false) }
     var headingTarget by remember(thread) { mutableStateOf<ReplyHeadingEntry?>(null) }
     var filePreview by remember(thread) { mutableStateOf<ModelPreviewRequest?>(null) }
     var remoteDelivery by remember(thread) { mutableStateOf<RemoteDeliveryRequest?>(null) }
-    var anchorKey by remember(thread) { mutableStateOf<String?>(null) }
-    var anchorRowKey by remember(thread) { mutableStateOf<String?>(null) }
-    var anchorOffset by remember(thread) { mutableIntStateOf(0) }
+    var anchorKey by rememberSaveable(thread) { mutableStateOf<String?>(null) }
+    var anchorRowKey by rememberSaveable(thread) { mutableStateOf<String?>(null) }
+    var anchorOffset by rememberSaveable(thread) { mutableIntStateOf(0) }
+    var restoreAnchor by remember(thread) { mutableStateOf(!followTail && anchorKey != null) }
     val mutatingHistory by vm.loading.collectProjection {
         "threadFork:$thread" in it || "threadRevert:$thread" in it
     }
@@ -85,17 +88,26 @@ internal fun ConversationTimelineViewport(
     // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
     LaunchedEffect(scroll) {
         scroll.interactionSource.interactions.collect { interaction ->
-            if (interaction is DragInteraction.Start) followTail = false
+            if (interaction is DragInteraction.Start) {
+                userScrolling = true
+                followTail = false
+                restoreAnchor = false
+            }
         }
     }
     LaunchedEffect(scroll) {
         snapshotFlow { Triple(scroll.isScrollInProgress, scroll.canScrollForward, autoScrolling) }
             .collect { (scrolling, canForward, automatic) ->
-                if (!scrolling && !canForward && scroll.layoutInfo.totalItemsCount > 0) {
-                    followTail = true
-                    unreadSteps = 0
-                } else if (scrolling && canForward && !automatic && !autoScrolling) {
+                if (scrolling && !automatic && !autoScrolling) {
+                    userScrolling = true
                     followTail = false
+                    restoreAnchor = false
+                } else if (!scrolling && userScrolling && !automatic) {
+                    userScrolling = false
+                    if (!canForward && scroll.layoutInfo.totalItemsCount > 0) {
+                        followTail = true
+                        unreadSteps = 0
+                    }
                 }
             }
     }
@@ -107,24 +119,28 @@ internal fun ConversationTimelineViewport(
     LaunchedEffect(scroll, thread) {
         snapshotFlow { Triple(scroll.isScrollInProgress, scroll.layoutInfo.visibleItemsInfo.firstOrNull()?.key,
             scroll.firstVisibleItemScrollOffset) }.collect { (scrolling, key, offset) ->
-            if (!scrolling && !followTail && key is String && key != "timeline-older-pages") {
+            if (!scrolling && !followTail && !restoreAnchor && !autoScrolling && key is String && key != "timeline-older-pages") {
                 anchorKey = key; anchorOffset = offset
                 val presentation = currentPresentation
                 anchorRowKey = presentation?.displayRows?.getOrNull(presentation.displayIndex(key))?.row?.key
             }
         }
     }
-    LaunchedEffect(displayRows, followTail) {
+    LaunchedEffect(displayRows, followTail, contextLoading) {
         val anchor = anchorKey
-        if (!followTail && !scroll.isScrollInProgress && anchor != null &&
-            projection?.displayIndex(anchor) == -1) {
-            val owner = anchorRowKey ?: anchor
-            val logical = ReplyReadingNavigation.replacementIndex(rows, owner)
-            val replacement = if (logical >= 0) projection?.displayIndex(rows[logical].key) ?: -1 else -1
-            if (replacement >= 0) {
-                scroll.scrollToItem(replacement + if (olderPageVisible) 1 else 0, anchorOffset.coerceAtLeast(0))
-                anchorKey = displayRows[replacement].key
-                anchorRowKey = displayRows[replacement].row.key
+        if (!contextLoading && !followTail && !scroll.isScrollInProgress && anchor != null &&
+            (restoreAnchor || projection?.displayIndex(anchor) == -1)) {
+            val direct = projection?.displayIndex(anchor) ?: -1
+            val logical = if (direct < 0) ReplyReadingNavigation.replacementIndex(rows, anchorRowKey ?: anchor) else -1
+            val replacement = if (direct >= 0) direct else if (logical >= 0) projection?.displayIndex(rows[logical].key) ?: -1 else -1
+            if (replacement in displayRows.indices) {
+                autoScrolling = true
+                try {
+                    scroll.scrollToItem(replacement + if (olderPageVisible) 1 else 0, anchorOffset.coerceAtLeast(0))
+                    anchorKey = displayRows[replacement].key
+                    anchorRowKey = displayRows[replacement].row.key
+                    restoreAnchor = false
+                } finally { autoScrolling = false }
             }
         }
     }
@@ -134,12 +150,12 @@ internal fun ConversationTimelineViewport(
     var previousTailSize by remember { mutableIntStateOf(-1) }
     LaunchedEffect(scroll, thread, contextLoading) {
         if (contextLoading) return@LaunchedEffect
-        var pendingFollow = true
+        var pendingFollow = followTail
         // One collector per conversation; a stream of deltas must not cancel and restart it.
         snapshotFlow { TimelineRenderTarget(currentGroupCount, currentLogicalCount, currentTail, hasOlderPage,
             scroll.layoutInfo.viewportSize.height, scroll.layoutInfo.totalItemsCount,
-            scroll.isScrollInProgress, scroll.layoutInfo.visibleItemsInfo.lastOrNull { it.index == TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage) }?.size ?: -1) }
-            .collect { (count, logicalCount, tail, older, viewportHeight, measuredCount, scrolling, tailSize) ->
+            scroll.isScrollInProgress, followTail, scroll.layoutInfo.visibleItemsInfo.lastOrNull { it.index == TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage) }?.size ?: -1) }
+            .collect { (count, logicalCount, tail, older, viewportHeight, measuredCount, scrolling, following, tailSize) ->
                 val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage ||
                     measuredCount != previousMeasuredCount || TimelineViewportPolicy.tailResized(previousTailSize, tailSize)
                 previousMeasuredCount = measuredCount
@@ -157,7 +173,7 @@ internal fun ConversationTimelineViewport(
                     unreadSteps = 0
                 }
                 val target = TimelineViewportPolicy.latestIndex(count, older)
-                if (!followTail) {
+                if (!following || !followTail) {
                     pendingFollow = false
                     unreadSteps += change.newSteps
                 } else {
@@ -294,6 +310,8 @@ internal fun ConversationTimelineViewport(
                         if (autoScrolling) return@clickable
                         scope.launch {
                             followTail = true
+                            restoreAnchor = false
+                            userScrolling = false
                             autoScrolling = true
                             try {
                                 scroll.scrollToLatest(latestIndex, animate = !reducedMotion)
@@ -373,7 +391,7 @@ internal fun ConversationTimelineViewport(
 
 private data class TimelineRenderTarget(
     val count: Int, val logicalCount: Int, val tail: TimelineItem?, val older: Boolean, val viewportHeight: Int,
-    val measuredCount: Int, val scrolling: Boolean, val tailSize: Int
+    val measuredCount: Int, val scrolling: Boolean, val following: Boolean, val tailSize: Int
 )
 
 /** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */

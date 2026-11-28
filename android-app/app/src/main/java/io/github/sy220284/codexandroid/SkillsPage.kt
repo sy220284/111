@@ -123,7 +123,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             CodexEmptyState("没有匹配的技能", "可以切回全部查看工作区里的技能。",
                 actionLabel = "查看全部", onAction = { filter = "all" }, artworkRes = R.drawable.ic_empty_no_results)
         }
-        ProtocolFeedback(vm, listOf("skillsWrite"))
+        ProtocolFeedback(vm, listOf("skillsWrite"), connectionRecoveryShown = true)
         if ("skillsWrite" in mutationLoading) {
             CodexNotice("正在保存技能状态，完成后自动刷新列表。", NoticeTone.Info)
         }

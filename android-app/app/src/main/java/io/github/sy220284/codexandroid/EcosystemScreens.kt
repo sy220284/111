@@ -486,7 +486,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 onClear = { searchDraft = ""; searchSubmitted = ""; searchPage = 0 },
                 enabled = canOperate && searchKey !in busy, tag = "plugins-clipboard-query")
         }
-        ProtocolFeedback(vm, listOf("pluginMutation"))
+        ProtocolFeedback(vm, listOf("pluginMutation"), connectionRecoveryShown = !searchActive || found.isEmpty())
         if (!installedOnly && connected && !installedVerified && "installedPlugins" !in busy)
             CodexNotice("安装状态待核对，确认后可管理插件。", NoticeTone.Warning,
                 actionLabel = "重试", onAction = { vm.extensions.refreshPluginCatalog("installedPlugins", workspace) })

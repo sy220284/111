@@ -131,7 +131,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             "这里管理应用连接与启用状态。具体工具由智能体在任务中调用。",
             refreshing = "apps" in loading || "appInstalled" in loading,
             enabled = connected && !writing, onRefresh = { refreshApps(true) })
-        ProtocolFeedback(vm, listOf("appMutation"))
+        ProtocolFeedback(vm, listOf("appMutation"), connectionRecoveryShown = true)
         if (apps.isEmpty()) {
             if (connected && installed == null && "appInstalled" in loading && "apps" !in errors)
                 AtlasCatalogStatus(vm, "appInstalled", "已连接应用", onRefresh = { refreshApps(true) },
@@ -366,17 +366,8 @@ internal fun McpServiceStatusCard(server: JSONObject, startup: McpStartupReceipt
             "服务已连接，可用能力由智能体在任务中选择调用。"
         }, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
         WorkSectionHeading("可用能力", "工具 $toolCount 项 · 资源 $resourceCount 项")
-        server.optJSONObject("tools")?.let { tools ->
-            tools.keys().asSequence().sorted().take(50).forEach { name ->
-                WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
-                    Text(name, style = MaterialTheme.typography.titleSmall)
-                    val description = tools.optJSONObject(name)?.optString("description").orEmpty()
-                    if (description.isNotBlank()) Text(description, style = MaterialTheme.typography.bodySmall, color = Ink.muted)
-                    DividerLine()
-                }
-            }
-            if (toolCount > 50) Text("另有 ${toolCount - 50} 项工具，完整调用范围由核心管理。", color = Ink.muted)
-        }
+        if (toolCount > 0) Text("工具 · $toolCount 项，由智能体按任务调用", style = MaterialTheme.typography.bodyMedium)
+        if (resourceCount > 0) Text("资源 · $resourceCount 项，按实际权限读取", style = MaterialTheme.typography.bodyMedium)
         Text("此处显示已经连接的服务，具体能力由智能体在任务中使用。",
             style = MaterialTheme.typography.bodySmall, color = Ink.muted)
     }

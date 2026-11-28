@@ -91,7 +91,7 @@ internal fun RealtimeVoiceSheet(
     val live = controller.state == RealtimeVoiceController.State.Live
     val idle = controller.state == RealtimeVoiceController.State.Idle
     var expanded by remember { mutableStateOf(false) }
-    MaterialPanel(Modifier.fillMaxWidth().testTag("realtime-voice-controls")) {
+    WorkSection(Modifier.fillMaxWidth().testTag("realtime-voice-controls"), WorkSectionKind.Status) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             CodexIcon(CodexGlyph.Microphone, null, tint = if (live) Ink.jade else Ink.copper)
             Spacer(Modifier.width(8.dp))
@@ -111,6 +111,9 @@ internal fun RealtimeVoiceSheet(
             CodexIconAction(onClick = { controller.stop(); onDismiss() }) { CodexIcon(CodexGlyph.Close, "关闭实时语音") }
         }
         if (live) RealtimeInputMeter(controller)
+        else if (controller.state == RealtimeVoiceController.State.Starting ||
+            controller.state == RealtimeVoiceController.State.Stopping)
+            AtlasOperationProgress(if (controller.state == RealtimeVoiceController.State.Starting) "正在建立语音连接" else "正在确认语音已结束")
         if (permissionError) CodexNotice("需要麦克风权限。也可以在系统设置中为 Codex 开启。", NoticeTone.Warning)
         if (controller.error.isNotBlank()) CodexNotice(controller.error, NoticeTone.Error)
         CapabilityFeedback(operation)

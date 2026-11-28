@@ -19,6 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.ClipEntry
@@ -268,7 +270,8 @@ internal fun PreparedMarkdownPage(page: ReplyRenderPage) {
                                 navigation.onReached()
                             }
                         }
-                        Text(replyInline(block.text), Modifier.bringIntoViewRequester(requester),
+                        Text(replyInline(block.text), Modifier.padding(top = if (blockIndex == 0) 0.dp else 6.dp)
+                            .bringIntoViewRequester(requester).semantics { heading() },
                             fontWeight = FontWeight.SemiBold, style = when (block.level) {
                                 1 -> MaterialTheme.typography.titleLarge
                                 2 -> MaterialTheme.typography.titleMedium
@@ -295,7 +298,7 @@ internal fun PreparedMarkdownPage(page: ReplyRenderPage) {
 private fun MessageCodeBlock(block: MessageBlock) {
     val copy = rememberConversationCopy()
     Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
-        color = Ink.recessed, border = BorderStroke(1.dp, Ink.border)) {
+        color = Ink.recessed) {
         Column {
             DisableSelection {
                 Row(Modifier.fillMaxWidth().padding(start = 12.dp), verticalAlignment = Alignment.CenterVertically) {

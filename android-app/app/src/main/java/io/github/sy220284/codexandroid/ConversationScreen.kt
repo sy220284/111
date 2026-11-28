@@ -14,6 +14,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Alignment
@@ -206,50 +207,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     // 窗口已配置 adjustResize，键盘展开时由系统压缩工作区。
     // 不再次叠加 IME 底部内边距，防止输入栏和发送按钮整体被推离可见区域。
     Column(Modifier.fillMaxSize()) {
-        if (goal != null && !compactWorkArea) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
-                    .testTag("chat-goal-banner").clickable { navigate("goals") },
-                color = Ink.elevated,
-                shape = RoundedCornerShape(15.dp)
-            ) {
-                Row(Modifier.fillMaxWidth().padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    CodexIcon(CodexGlyph.Flag, null, tint = Ink.copper)
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("任务目标 · " + PresentationPolicy.goalStatus(goal.optString("status")),
-                            style = MaterialTheme.typography.labelMedium, color = Ink.muted)
-                        Text(goal.optString("objective"), maxLines = 2,
-                            overflow = TextOverflow.Ellipsis)
-                    }
-                    CodexIcon(CodexGlyph.ChevronRight, null)
-                }
-            }
-        }
-        if (latestDiff.isNotBlank() && !compactWorkArea) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp)
-                    .testTag("chat-changes-summary"),
-                color = Ink.elevated, shape = RoundedCornerShape(15.dp)
-            ) {
-                Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    CodexIcon(CodexGlyph.Diff, null, tint = Ink.copper)
-                    Spacer(Modifier.width(9.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("代码变更", style = MaterialTheme.typography.titleSmall)
-                        Text(diffSummary?.let { "${it.files} 个文件 · +${it.additions} / −${it.deletions}" }
-                            ?: "正在整理代码变更…",
-                            style = MaterialTheme.typography.labelSmall, color = Ink.muted)
-                    }
-                    CodexTextAction(onClick = { navigate("diff") }) { Text("查看") }
-                    CodexTextAction(onClick = { navigate("review") }, enabled = !busy) {
-                        Text("审查")
-                    }
-                }
-            }
-        }
+        if (!compactWorkArea) TaskContextSummary(goal,
+            if (latestDiff.isNotBlank()) diffSummary?.let { "${it.files} 个文件 · +${it.additions} / −${it.deletions}" }
+                ?: "正在整理代码变更…" else null, busy, navigate)
         CodexReveal(visible = prompts.isNotEmpty() || (busy && !compactWorkArea) || switching) {
             if (switching) {
                 CodexNotice("正在载入会话及执行记录，请稍候…",
@@ -280,9 +240,12 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         if (threadPreviews.isNotEmpty() && !switching && !transferBusy && status == EngineStatus.Connected)
             ModelPreviewTray(threadPreviews,
                 onOpen = { selectedPreview = it }, onDismiss = { vm.modelPreviews.dismiss(it) })
-        key(thread) {
-            ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
-                compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
+        key(previewAccountRevision) {
+            val readingStates = rememberSaveableStateHolder()
+            readingStates.SaveableStateProvider(thread ?: "draft:$draftOwner") {
+                ConversationTimelineViewport(vm, thread, switching, busy, firstThreadStarting,
+                    compactWorkArea, setupHint, navigate, modifier = Modifier.weight(1f))
+            }
         }
         val preview = selectedPreview?.takeIf {
             !switching && !transferBusy && status == EngineStatus.Connected && it in threadPreviews
@@ -324,8 +287,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
             )
         }
-        errors["steer"]?.let { ErrorText(it) }
-        errors["interrupt"]?.let { ErrorText(it) }
+        WorkErrorGroup(errors, listOf("steer", "interrupt"), Modifier.padding(horizontal = 16.dp))
         Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp,
             vertical = if (compactWorkArea) 4.dp else 8.dp),
             verticalArrangement = Arrangement.spacedBy(if (compactWorkArea) 4.dp else 7.dp)) {
@@ -356,12 +318,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             LiveScreenAnalysisPanel(vm, draftOwner, analysisModel, draft,
                 sharing, previewAccountRevision, enabled = !busy && !attachmentBusy && !activeMediaAnalysis.busy && remote == null)
             if (documentBusy) AtlasOperationProgress("正在导入本机文件")
-            errors["composerDocuments"]?.let { ErrorText(it) }
-            if (attachmentError.isNotBlank()) {
-                ErrorText(attachmentError)
-            }
-            errors["attachments"]?.let { ErrorText(it) }
-            errors["queueWrite"]?.let { ErrorText(it) }
+            WorkErrorGroup(
+                if (attachmentError.isNotBlank()) errors + ("attachmentImport" to attachmentError) else errors,
+                listOf("composerDocuments", "attachmentImport", "attachments", "queueWrite"))
             if (thread != null && queuedInputs.isNotEmpty()) {
                 ComposerQueuePreview(thread, queuedInputs, busy, queuePaused && !busy,
                     hasMore = PresentationPolicy.meaningful(queueData?.optString("nextCursor")).isNotBlank(),

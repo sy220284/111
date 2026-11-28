@@ -224,7 +224,8 @@ fun CodexNotice(
 fun ProtocolFeedback(
     vm: CodexViewModel,
     keys: List<String>,
-    onRetry: (() -> Unit)? = null
+    onRetry: (() -> Unit)? = null,
+    connectionRecoveryShown: Boolean = false
 ) {
     val errors by vm.errors.collectEntries(*keys.toTypedArray())
     val loading by vm.loading.collectProjection { pending -> pending.intersect(keys.toSet()) }
@@ -233,7 +234,7 @@ fun ProtocolFeedback(
         AtlasOperationProgress("正在处理本页请求")
     }
     val visible = PresentationPolicy.visibleErrors(errors, keys.filterNot { it in loading })
-    if (visible.isNotEmpty() && connection != EngineStatus.Connected) {
+    if (visible.isNotEmpty() && connection != EngineStatus.Connected && !connectionRecoveryShown) {
         CodexNotice(
             message = if (connection == EngineStatus.Starting)
                 "正在连接本机运行核心，连接完成后即可加载内容。"
@@ -246,6 +247,16 @@ fun ProtocolFeedback(
         CodexNotice(message = error, tone = NoticeTone.Error,
             actionLabel = if (onRetry == null) null else "重新加载",
             onAction = { onRetry?.invoke() })
+    }
+}
+
+/** Merge identical operation errors without losing distinct failure reasons. */
+@Composable
+internal fun WorkErrorGroup(errors: Map<String, String>, keys: List<String>, modifier: Modifier = Modifier) {
+    val visible = PresentationPolicy.visibleErrors(errors, keys)
+    if (visible.isEmpty()) return
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        visible.forEach { error -> CodexNotice(error, NoticeTone.Error) }
     }
 }
 

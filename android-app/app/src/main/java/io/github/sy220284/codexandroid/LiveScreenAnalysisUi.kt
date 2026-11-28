@@ -27,14 +27,18 @@ internal fun LiveScreenAnalysisPanel(vm: CodexViewModel, owner: String, model: S
         CodexTextAction(onClick = { confirm = true }, enabled = enabled) { Text("开启持续分析") }
     }
     if (mine && (live.running || live.observations.isNotEmpty() || live.message.isNotBlank())) {
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+        if (live.running) AtlasOperationProgress("持续分析 · ${live.requests}/12 次请求",
+            progress = (live.requests / 12f).coerceIn(0f, 1f))
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(if (live.running) "持续分析 · ${live.requests}/12" else live.message,
+            Text(if (live.running) "等待新的屏幕变化" else live.message,
                 Modifier.weight(1f), style = MaterialTheme.typography.labelMedium)
             if (live.observations.isNotEmpty()) CodexTextAction(onClick = { review = live.results }) {
                 Text(if (live.pendingObservations.isEmpty()) "查看" else "查看 · ${live.pendingObservations.size}条新增")
             }
             if (live.running) CodexTextAction(onClick = { controller.stop() }) { Text("停止分析") }
             else CodexTextAction(onClick = { controller.dismiss(owner) }) { Text("清除") }
+        }
         }
     } else if (active.running) {
         CodexTextAction(onClick = { controller.stop() }) { Text("停止其他会话的持续分析") }
