@@ -3476,8 +3476,10 @@ async fn pre_sampling_compact_falls_back_from_retired_previous_model_after_renam
     );
 }
 
+#[test_case::test_case(false; "model not found")]
+#[test_case::test_case(true; "account catalog denied")]
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn pre_sampling_compact_falls_back_when_previous_model_is_not_found() {
+async fn pre_sampling_compact_falls_back_when_previous_model_is_not_found(account_catalog_denied: bool) {
     skip_if_no_network!();
 
     let server = MockServer::start().await;
@@ -3504,7 +3506,18 @@ async fn pre_sampling_compact_falls_back_when_previous_model_is_not_found() {
                 ev_assistant_message("m1", "before switch"),
                 ev_completed_with_tokens("r1", /*total_tokens*/ 100),
             ])),
-            model_not_found_response(retired_model),
+            if account_catalog_denied {
+                wiremock::ResponseTemplate::new(/*status*/ 400).set_body_json(json!({
+                    "error": {
+                        "message": format!("The '{retired_model}' model is not supported when using Codex with a ChatGPT account."),
+                        "code": "model_not_in_accessible_catalog",
+                        "type": "invalid_request_error",
+                        "param": "model",
+                    }
+                }))
+            } else {
+                model_not_found_response(retired_model)
+            },
             sse_response(sse(vec![
                 json!({
                     "type": "response.output_item.done",

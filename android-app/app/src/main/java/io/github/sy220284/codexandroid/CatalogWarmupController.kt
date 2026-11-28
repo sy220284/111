@@ -64,7 +64,7 @@ internal class CatalogWarmupController(
         val owner = vm.captureTaskOwner() ?: return
         scope.launch {
             try {
-                val thread = owner.request(vm, "thread/read", JSONObject().put("threadId", threadId)).getJSONObject("thread")
+                val thread = owner.request(vm, "thread/read", JSONObject().put("threadId", threadId).put("includeTurns", false)).getJSONObject("thread")
                 owner.requireCurrent(vm)
                 refreshRejectedProvider(requireNotNull(ComposerProviderScope.provider(thread.optString("modelProvider"))) {
                     "内核未返回失败会话的服务商"
@@ -72,8 +72,8 @@ internal class CatalogWarmupController(
             } catch (cancel: kotlinx.coroutines.CancellationException) {
                 throw cancel
             } catch (failure: Exception) {
-                if (owner.current(vm)) vm.errors.value = vm.errors.value +
-                    ("models" to ("读取失败会话的模型目录未成功：" + (failure.message ?: "服务商未确认")))
+                if (owner.current(vm)) vm.actionFeedback.tryEmit(ActionFeedbackReceipt(
+                    "读取失败会话的模型目录未成功：" + (failure.message ?: "服务商未确认"), isError = true))
             }
         }
     }
@@ -96,13 +96,22 @@ internal class CatalogWarmupController(
 
     fun providerChanged() {
         invalidateModels()
-        vm.data.value = vm.data.value - "providers"
-        vm.refresh("providers", "modelProvider/list", onSuccess = {
-            ensure("models", "model/list")
-            if (vm.composerCatalogKey() != "models") {
-                val provider = vm.currentComposerProvider()
-                ensure(vm.composerCatalogKey(), "model/list", ComposerProviderScope.request(provider))
-            }
-        })
+        invalidate(setOf("providers"))
+        vm.refresh("providers", "modelProvider/list")
+        // A provider-list error must not prevent reading the native default catalog.
+        ensure("models", "model/list")
+    }
+
+    /** Any authoritative provider-list receipt may complete route discovery.
+     * Do not rely on a particular callback surviving a newer request. */
+    fun providerCatalogRead() {
+        val defaultProvider = ComposerProviderScope.provider(vm.data.value["providers"]?.optString("defaultProviderId"))
+        if (defaultProvider != null) {
+            val obsolete = ComposerProviderScope.catalogKey(defaultProvider)
+            invalidate(setOf(obsolete))
+        }
+        ensure("models", "model/list")
+        val key = vm.composerCatalogKey()
+        if (key != "models") ensure(key, "model/list", ComposerProviderScope.request(vm.currentComposerProvider()))
     }
 }

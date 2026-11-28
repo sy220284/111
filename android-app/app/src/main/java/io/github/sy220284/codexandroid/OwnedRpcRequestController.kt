@@ -95,6 +95,7 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                     data.value = data.value + (key to published)
                     errors.value = errors.value - key
                     if (method == "account/read" && key == "account") sessions.accountReady(response)
+                    if (method == "modelProvider/list" && key == "providers") catalogWarmup.providerCatalogRead()
                     if (userAction && method in setOf("account/logout", "accountSession/switch",
                             "modelProvider/default/set", "modelProvider/config/write")) {
                         if (method == "modelProvider/default/set" || method == "modelProvider/config/write") {
