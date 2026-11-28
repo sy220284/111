@@ -62,9 +62,9 @@ internal class CapabilityOperation(private val vm: CodexViewModel) {
     var error by mutableStateOf("")
     var receipt by mutableStateOf("")
 
-    fun launch(block: suspend () -> Unit) {
-        if (busy) return
-        val owner = vm.captureTaskOwner() ?: run { error = "运行核心尚未连接"; return }
+    fun launch(onRejected: () -> Unit = {}, block: suspend () -> Unit) {
+        if (busy) { onRejected(); return }
+        val owner = vm.captureTaskOwner() ?: run { error = "运行核心尚未连接"; onRejected(); return }
         busy = true
         error = ""
         receipt = ""

@@ -138,6 +138,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             })
     }
     private var firstTurnImages: List<String> = emptyList()
+    private var firstSubmission: Any? = null
 
     internal val recoveryDelayMs = MutableStateFlow<Long?>(null)
     private val runtimeConnection by lazy { RuntimeConnectionController(this) }
@@ -310,14 +311,16 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             (submittedThread == null && firstThreadStarting.value) ||
             (submittedThread != null && submittedThread in threadExecutions.value)) return
         val images = localImages.toList()
+        val submission = Any()
         // Own the destination synchronously; a second tap on this thread cannot
         // submit twice and switching to another thread does not transfer the turn.
         if (submittedThread == null) {
+            firstSubmission = submission
             firstThreadStarting.value = true
             firstTurnImages = images
         } else {
             threadExecutions.value = ThreadExecutionPolicy.reserve(
-                threadExecutions.value, submittedThread, images)
+                threadExecutions.value, submittedThread, images, submission)
             threadFailures.value = threadFailures.value - submittedThread
             threadActivities.value = ThreadActivityPolicy.updated(
                 threadActivities.value, submittedThread, ThreadActivity.Running)
@@ -367,13 +370,17 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 val outcome = TurnSubmissionCoordinator { method, params ->
                     check(permit()) { "账号已变化，未继续提交任务" }
                     if (method == "thread/start" && chosenRemote != null) {
-                        val response = bridge.request(method, chosenRemote.apply(params), sendPermit = permit, expectedSession = epoch)
+                        val response = owner.guarded(permit) {
+                            bridge.request(method, chosenRemote.apply(params), sendPermit = permit, expectedSession = epoch)
+                        }
                         val created = response.getJSONObject("thread")
                         remoteBindings.bind(created.getString("id"), chosenRemote)
                         check(chosenRemote.matches(created)) { "内核没有确认远端会话，未发送任务" }
                         response
                     } else if (method == "thread/start") modelPreviews.request(method, params, permissionConfig, expectedSession = epoch, sendPermit = permit)
-                    else bridge.request(method, if (chosenRemote != null && method == "turn/start") chosenRemote.apply(params) else params, sendPermit = permit, expectedSession = epoch)
+                    else owner.guarded(permit) {
+                        bridge.request(method, if (chosenRemote != null && method == "turn/start") chosenRemote.apply(params) else params, sendPermit = permit, expectedSession = epoch)
+                    }
                 }.submit(
                     existingThreadId = submittedThread,
                     createThreadParams = {
@@ -390,12 +397,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                         ).put("clientUserMessageId", pendingId.removePrefix("pending-")).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, chosenWorkspace)) put("cwd", chosenWorkspace).put("runtimeWorkspaceRoots", JSONArray().put(chosenWorkspace)) }, chosenPermission)
                     },
                     onThreadCreated = { createdId ->
+                        owner.requireCurrent(this@CodexViewModel)
+                        check(firstSubmission === submission) { "原新建任务已结束" }
                         newlyCreatedThreadId = createdId
                         threadExecutions.value = ThreadExecutionPolicy.reserve(
-                            threadExecutions.value, createdId, images)
+                            threadExecutions.value, createdId, images, submission)
                         threadFailures.value = threadFailures.value - createdId
                         threadActivities.value = ThreadActivityPolicy.updated(
                             threadActivities.value, createdId, ThreadActivity.Running)
+                        firstSubmission = null
                         firstTurnImages = emptyList()
                         firstThreadStarting.value = false
                         composerDrafts.update {
@@ -409,7 +419,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                     is TurnSubmissionOutcome.Accepted -> {
                         turnRequestDispatched = true
                         val id = outcome.threadId
-                        if (id in threadExecutions.value) {
+                        if (threadExecutions.value[id]?.submission === submission) {
                             threadExecutions.value = ThreadExecutionPolicy.started(
                                 threadExecutions.value, id, outcome.turnId)
                             if (activeThread.value == id) {
@@ -417,7 +427,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                                 errors.value = errors.value - "conversation"
                             }
                         }
-                        afterAccepted(id)
+                        if (owner.current(this@CodexViewModel) &&
+                            (threadExecutions.value[id]?.submission === submission || id !in threadExecutions.value))
+                            afterAccepted(id)
                     }
                     is TurnSubmissionOutcome.Failed -> {
                         newlyCreatedThreadId = outcome.newlyCreatedThreadId
@@ -430,9 +442,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 // the core may have accepted the turn while its response was lost.
                 val definiteFailure = !turnRequestDispatched ||
                     FirstTurnRecoveryPolicy.explicitlyRejected(failure)
-                firstThreadStarting.value = false
-                firstTurnImages = emptyList()
                 val submittedId = newlyCreatedThreadId ?: submittedThread
+                val ownsSubmission = if (submittedId == null) firstSubmission === submission
+                    else threadExecutions.value[submittedId]?.submission === submission
+                if (firstSubmission === submission) {
+                    firstSubmission = null
+                    firstThreadStarting.value = false
+                    firstTurnImages = emptyList()
+                }
+                if (!ownsSubmission) return@launch
                 if (definiteFailure && submittedId != null) {
                     threadExecutions.value = ThreadExecutionPolicy.finish(
                         threadExecutions.value, submittedId)
@@ -444,17 +462,23 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 // Reclaim an empty newly created session only after an explicit
                 // server rejection. Never delete after timeout/disconnect:
                 // the server may already have accepted the turn.
-                if (created != null && FirstTurnRecoveryPolicy.explicitlyRejected(failure)) {
+                if (created != null && owner.current(this@CodexViewModel) &&
+                    FirstTurnRecoveryPolicy.explicitlyRejected(failure)) {
                     try {
-                        recoveryNote = FirstTurnRecoveryController { method, params, timeout ->
-                            owner.request(this@CodexViewModel, method, params, timeout)
-                        }.reclaim(created, { activeThread.value }, { activeTurn.value }) {
+                        recoveryNote = FirstTurnRecoveryController { method, params, timeout, deletePermit ->
+                            owner.request(this@CodexViewModel, method, params, timeout, deletePermit)
+                        }.reclaim(created, { activeThread.value }, {
+                            activeTurn.value ?: threadExecutions.value[created]?.let { "reserved" }
+                        }) {
                             owner.requireCurrent(this@CodexViewModel)
                             composerDrafts.update {
                                 ThreadComposerDrafts.reclaimRejectedNewThread(it, created, draftOwner)
                             }
-                            restoreComposerOptions(null)
-                            activeThread.value = null
+                            if (activeThread.value == created && activeTurn.value.isNullOrBlank() &&
+                                created !in threadExecutions.value) {
+                                restoreComposerOptions(null)
+                                activeThread.value = null
+                            }
                             sessions.refreshChanged(created)
                         }
                     } catch (recoveryFailure: Exception) {
@@ -462,8 +486,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             (recoveryFailure.message ?: "请到侧栏会话列表核查")
                     }
                 }
+                if (submittedId != null && threadExecutions.value[submittedId]?.submission?.let { it !== submission } == true)
+                    return@launch
+                if (!owner.current(this@CodexViewModel) && bridge.connectedSession.value != epoch) return@launch
                 if (activeThread.value == submittedId ||
-                    (submittedThread == null && activeThread.value == null)) {
+                    (submittedThread == null && activeThread.value == null && firstSubmission == null)) {
                     running.value = !definiteFailure && submittedId != null &&
                         submittedId in threadExecutions.value
                     if (definiteFailure) activeTurn.value = null
@@ -656,6 +683,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                             threadActivities.value, id, ThreadActivity.Failed)
                     }
                     threadExecutions.value = emptyMap()
+                    firstSubmission = null
                     firstThreadStarting.value = false
                     firstTurnImages = emptyList()
                     conversationState.update { state ->

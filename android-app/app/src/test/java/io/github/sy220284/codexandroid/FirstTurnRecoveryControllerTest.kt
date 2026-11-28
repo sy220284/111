@@ -14,7 +14,7 @@ class FirstTurnRecoveryControllerTest {
     @Test fun reclaimsOnlyVerifiedEmptyCurrentThread() = runBlocking {
         val calls = mutableListOf<String>()
         var reclaimed = false
-        val controller = FirstTurnRecoveryController { method, _, _ ->
+        val controller = FirstTurnRecoveryController { method, _, _, _ ->
             calls += method
             if (method == "thread/read") history(0) else JSONObject()
         }
@@ -29,7 +29,7 @@ class FirstTurnRecoveryControllerTest {
     @Test fun keepsNonemptyOrNoLongerCurrentThreads() = runBlocking {
         for (turns in listOf(0, 1)) {
             val calls = mutableListOf<String>()
-            val controller = FirstTurnRecoveryController { method, _, _ ->
+            val controller = FirstTurnRecoveryController { method, _, _, _ ->
                 calls += method
                 history(turns)
             }
@@ -42,12 +42,27 @@ class FirstTurnRecoveryControllerTest {
     }
 
     @Test fun keepsThreadIfTurnStartedBeforeReconciliation() = runBlocking {
-        val controller = FirstTurnRecoveryController { method, _, _ ->
+        val controller = FirstTurnRecoveryController { method, _, _, _ ->
             assertEquals("thread/read", method)
             history(0)
         }
         assertEquals("", controller.reclaim("thread-1", { "thread-1" }, { "turn-active" }) {
             fail("Live turn must never be deleted")
         })
+    }
+    @Test fun rejectsDeletionWhenSelectionChangesWhileWaitingForWriter() = runBlocking {
+        var active = "thread-1"
+        var reclaimed = false
+        val controller = FirstTurnRecoveryController { method, _, _, permit ->
+            if (method == "thread/read") history(0) else {
+                active = "thread-2"
+                check(permit()) { "old selection" }
+                JSONObject()
+            }
+        }
+        assertThrows(IllegalStateException::class.java) {
+            runBlocking { controller.reclaim("thread-1", { active }, { null }) { reclaimed = true } }
+        }
+        assertFalse(reclaimed)
     }
 }

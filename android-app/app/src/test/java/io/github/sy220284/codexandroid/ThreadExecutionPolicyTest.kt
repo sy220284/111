@@ -43,4 +43,11 @@ class ThreadExecutionPolicyTest {
         val active = ThreadExecutionPolicy.reserve(emptyMap(), "one", emptyList())
         assertEquals(active, ThreadExecutionPolicy.finish(active, "unknown"))
     }
+    @Test fun lateReceiptsCannotOwnReplacementSubmission() {
+        val original = ThreadExecutionPolicy.reserve(emptyMap(), "one", emptyList())
+        val started = ThreadExecutionPolicy.started(original, "one", "turn-one")
+        assertSame(original.getValue("one").submission, started.getValue("one").submission)
+        val replacement = ThreadExecutionPolicy.reserve(ThreadExecutionPolicy.finish(started, "one"), "one", emptyList())
+        assertNotSame(original.getValue("one").submission, replacement.getValue("one").submission)
+    }
 }
