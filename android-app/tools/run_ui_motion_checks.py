@@ -94,11 +94,13 @@ def main():
                 "before": before, "after": environment_snapshot()
             }, indent=2), encoding="utf-8")
         Path("ui-motion-diagnosis.json").write_text(json.dumps(result, indent=2))
-        subprocess.run(["adb", "pull", remote, str(local)], check=True)
-        data = json.loads(local.read_text())
-        if not args.physical_device and "Pipeline=Skia (OpenGL)" not in data.get("renderer_pipelines", []):
+        pulled_measurement = subprocess.run(["adb", "pull", remote, str(local)], check=False)
+        if pulled_measurement.returncode != 0 and result["status"] == "passed":
+            raise RuntimeError("Motion test reported success but its actual measurement is missing")
+        data = json.loads(local.read_text()) if pulled_measurement.returncode == 0 else None
+        if data is not None and not args.physical_device and "Pipeline=Skia (OpenGL)" not in data.get("renderer_pipelines", []):
             raise RuntimeError("The actual app did not use Skia OpenGL")
-        if args.physical_device:
+        if args.physical_device and data is not None:
             evidence_file = Path("ui-motion-physical-device.json")
             evidence = json.loads(evidence_file.read_text(encoding="utf-8"))
             evidence.update(thermal_after=adb("shell", "dumpsys", "thermalservice"),
@@ -118,12 +120,13 @@ def main():
                         "regression_gate": result["status"]}
             Path("ui-motion-physical-summary.json").write_text(json.dumps(physical, indent=2), encoding="utf-8")
             print(json.dumps(physical, ensure_ascii=False))
-        if result["status"] != "passed" or result["tests"] != 1 or data["frames"] < 12:
+        if result["status"] != "passed" or result["tests"] != 1 or data is None or data["frames"] < 12:
             # Preserve the original failure and frames. A separate sampled
             # diagnostic execution identifies actual CPU stacks; it never
             # supplies acceptance evidence or replaces the failed measurement.
             profile = execute_instrumentation(["UiMotionPerformanceInstrumentedTest"],
                 "ui-motion-failure.profile.log", {**renderer_args, "methodTrace": "true"}, timeout=180)
+            result["measurement_available"] = data is not None
             result["sampled_diagnostic"] = profile
             Path("ui-motion-diagnosis.json").write_text(json.dumps(result, indent=2))
             if profile.get("category") == "diagnostic_timeout":

@@ -14,6 +14,18 @@ internal object TimelineViewportPolicy {
     fun measuredTargetReady(index: Int, measuredCount: Int, viewportHeight: Int): Boolean =
         index >= 0 && measuredCount == index + 1 && viewportHeight > 0
 
+    enum class FollowAction { Await, RequestTarget, AlignTail, AtEnd }
+
+    /** A request is complete only when the measured last row is visible and
+     * the list cannot scroll forward. A frame callback alone is not a receipt. */
+    fun followAction(index: Int, measuredCount: Int, viewportHeight: Int,
+        visibleTailSize: Int, canScrollForward: Boolean): FollowAction = when {
+        !measuredTargetReady(index, measuredCount, viewportHeight) -> FollowAction.Await
+        visibleTailSize < 0 -> FollowAction.RequestTarget
+        canScrollForward -> FollowAction.AlignTail
+        else -> FollowAction.AtEnd
+    }
+
     fun change(previousSize: Int, previousTail: TimelineItem?,
         size: Int, tail: TimelineItem?): Change {
         val newSteps = if (tail != null && tail.id != previousTail?.id)

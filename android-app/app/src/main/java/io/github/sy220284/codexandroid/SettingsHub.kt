@@ -101,10 +101,9 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 20.dp, bottom = 9.dp),
                     color = Ink.parchment, style = MaterialTheme.typography.titleMedium)
             }
-            if (entries.isNotEmpty()) item(key = "settings-group-content:" + group.title) {
-                Surface(color = Ink.canvas, tonalElevation = 0.dp) {
-                    Column {
-                    entries.forEachIndexed { index, entry ->
+            entries.forEachIndexed { index, entry ->
+                item(key = "settings-route:" + entry.id, contentType = "settings-route") {
+                    Column(Modifier.fillMaxWidth().background(Ink.canvas)) {
                     if (index > 0) HorizontalDivider(Modifier.padding(start = 48.dp), color = Ink.border.copy(alpha = .65f))
                     SettingRouteRow(page = entry, showDetail = entry.id in detailRoutes, detail = when(entry.id) {
                         "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
@@ -123,7 +122,6 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             "about" -> showAbout = true
                             else -> navigate(entry.id)
                         }
-                    }
                     }
                     }
                 }

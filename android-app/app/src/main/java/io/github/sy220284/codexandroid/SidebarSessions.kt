@@ -347,18 +347,23 @@ internal fun SidebarSessionsContent(
 ) {
     val state = uiState ?: rememberSaveable(saver = SidebarUiState.Saver) { SidebarUiState() }
     // Preserve server ordering within each group; do not rearrange search or bulk selections.
-    val grouped = if (state.searching || selecting) listOf("" to ordered)
-        else if (state.archived) listOf("已归档" to ordered)
+    val searching = state.searching
+    val archived = state.archived
+    val runningIds = liveExecutions.keys
+    val grouped = remember(ordered, searching, selecting, archived, pinned, activeId, runningIds) {
+        if (searching || selecting) listOf("" to ordered)
+        else if (archived) listOf("已归档" to ordered)
         else ordered.groupBy { row ->
             val id = SessionListPolicy.id(row)
             when {
                 id in pinned -> "置顶"
                 id == activeId -> "当前会话"
-                id in liveExecutions -> "后台运行"
+                id in runningIds -> "后台运行"
                 else -> "历史会话"
             }
         }.let { groups -> listOf("置顶", "当前会话", "后台运行", "历史会话")
             .mapNotNull { label -> groups[label]?.let { label to it } } }
+    }
     LazyColumn(state = state.scroll, modifier = modifier.fillMaxWidth().testTag("sidebar-thread-list"),
         verticalArrangement = Arrangement.spacedBy(3.dp), contentPadding = PaddingValues(bottom = 8.dp)) {
         grouped.forEach { (label, entries) ->
@@ -448,7 +453,7 @@ internal fun SidebarSessionRow(
 @Composable
 private fun sessionMatchText(text: String, query: String): androidx.compose.ui.text.AnnotatedString {
     val highlight = Ink.copper
-    return buildAnnotatedString {
+    return remember(text, query, highlight) { buildAnnotatedString {
         if (query.isBlank()) append(text)
         else {
             var from = 0
@@ -462,5 +467,5 @@ private fun sessionMatchText(text: String, query: String): androidx.compose.ui.t
                 from = index + query.length
             }
         }
-    }
+    } }
 }

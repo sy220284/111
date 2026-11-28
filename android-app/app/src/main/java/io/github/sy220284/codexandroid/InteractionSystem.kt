@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.graphics.graphicsLayer
@@ -91,20 +90,19 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         if (reducedMotion) progress.snapTo(1f)
         else progress.animateTo(1f, tween(CodexMotion.navigation))
     }
-    val canvas = Ink.canvas
-    Box(Modifier.fillMaxSize().testTag("work-route-" + route).clipToBounds().drawWithContent {
-        drawContent()
-        val remaining = if (reducedMotion) 0f else 1f - progress.value
-        if (remaining > 0f) drawRect(canvas, alpha = .06f * remaining)
-    }) {
-        // Update only the native layer transform. The veil is a separate draw
-        // operation, so translating the page needs no full-size alpha buffer.
-        Box(Modifier.fillMaxSize().graphicsLayer {
-            val detail = NavigationPolicy.isDetailPage(route)
-            val remaining = if (reducedMotion) 0f else 1f - progress.value
+    val moving by remember(progress, reducedMotion) {
+        derivedStateOf { !reducedMotion && progress.value < 1f }
+    }
+    val detail = NavigationPolicy.isDetailPage(route)
+    Box(Modifier.fillMaxSize().testTag("work-route-" + route).clipToBounds()) {
+        // Translate the single incoming page on its native layer. Avoid the
+        // extra full-window translucent draw on every animation frame and
+        // release the animation layer when the page reaches its resting position.
+        Box(Modifier.fillMaxSize().then(if (moving) Modifier.graphicsLayer {
+            val remaining = 1f - progress.value
             translationX = if (detail) 12.dp.toPx() * remaining else 0f
             translationY = if (detail) 0f else 6.dp.toPx() * remaining
-        }) {
+        } else Modifier)) {
             content()
         }
     }
