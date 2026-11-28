@@ -59,16 +59,36 @@ def validate(lock, marker):
         raise ValueError("模型目录版本记录与锁定源码不一致")
     return lines[0]
 
+def stamp_workspace(manifest, version):
+    """Apply the verified release baseline to the same Cargo version used by every crate."""
+    source = manifest.read_text(encoding="utf-8")
+    before = tomllib.loads(source)
+    current = before["workspace"]["package"]["version"]
+    if current == version:
+        return
+    if current != "0.0.0":
+        raise ValueError(f"源码版本 {current} 与锁定发行版本 {version} 不一致")
+    pattern = r'(?m)(^\[workspace\.package\][ \t]*\n(?:(?!\[)[^\n]*\n)*?^version[ \t]*=[ \t]*")0\.0\.0(")'
+    stamped, count = re.subn(pattern, lambda m: m[1] + version + m[2], source)
+    before["workspace"]["package"]["version"] = version
+    if count != 1 or tomllib.loads(stamped) != before:
+        raise ValueError("工作区版本写入失败或改动了其他清单字段")
+    manifest.write_text(stamped, encoding="utf-8")
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--lock", type=Path, required=True)
     parser.add_argument("--marker", type=Path, required=True)
     parser.add_argument("--upstream", type=Path)
+    parser.add_argument("--stamp-workspace", type=Path)
     args = parser.parse_args()
     if args.upstream:
         snapshot = args.marker.read_text(encoding="utf-8").splitlines()[0]
         args.lock.write_text(resolve(args.upstream, snapshot), encoding="utf-8")
-    print(validate(args.lock, args.marker))
+    version = validate(args.lock, args.marker)
+    if args.stamp_workspace:
+        stamp_workspace(args.stamp_workspace, version)
+    print(version)
 
 if __name__ == "__main__":
     main()

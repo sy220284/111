@@ -104,8 +104,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
     val queueReadError by vm.errors.collectProjection { it["queue:$thread"] }
     val threadProvider by vm.activeModelProvider.collectAsStateWithLifecycle()
+    val defaultProvider by vm.data.collectProjection { ComposerProviderScope.provider(it["providers"]?.optString("defaultProviderId")) }
     val providerKey = ComposerProviderScope.catalogKey(if (thread != null) threadProvider
-        else ComposerProviderScope.provider(snapshot.options.modelProvider))
+        else ComposerProviderScope.provider(snapshot.options.modelProvider), defaultProvider)
     val scopedCatalog by vm.data.collectEntries(providerKey, "composerThread:$thread", "providers")
     val providerId = if (thread != null) ComposerProviderScope.provider(threadProvider)
         else ComposerProviderScope.provider(snapshot.options.modelProvider)
@@ -124,13 +125,15 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val shownEffort = snapshot.options.effort.ifBlank {
         if (selectedModel.isBlank()) configured?.value("reasoningEffort")?.takeIf { it.isNotBlank() && it != "null" }.orEmpty() else ""
     }
-    LaunchedEffect(thread, busy, status, switching) {
+    val accountRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
+    val coreSession by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    LaunchedEffect(thread, busy, status, switching, accountRevision, coreSession) {
         if (thread != null && !busy && !switching && status == EngineStatus.Connected)
             vm.refresh("composerThread:$thread", "thread/read", JSONObject().put("threadId", thread))
     }
     val diffSummary by rememberDiffSummary(latestDiff)
-    LaunchedEffect(thread) {
-        if (thread != null) {
+    LaunchedEffect(thread, accountRevision, coreSession) {
+        if (thread != null && coreSession != null) {
             vm.refresh("goal:$thread", "thread/goal/get", JSONObject().put("threadId", thread))
             vm.refresh("queue:$thread", "thread/queue/list",
                 JSONObject().put("threadId", thread).put("limit", 100))

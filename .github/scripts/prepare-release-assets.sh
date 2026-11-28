@@ -32,6 +32,8 @@ for ABI in arm64-v8a; do
 done
 
 if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
+  OLD="${PREVIOUS_APK:?missing signature-verified PREVIOUS_APK}"
+  test -s "$OLD"
   HDIFF_VERSION=5.1.3
   HDIFF_ARCHIVE="hdiffpatch_v${HDIFF_VERSION}_bin_linux64.zip"
   HDIFF_URL="https://github.com/sisong/HDiffPatch/releases/download/v${HDIFF_VERSION}/${HDIFF_ARCHIVE}"
@@ -47,18 +49,6 @@ if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
     if [ -n "$HDIFFZ" ] && [ -n "$HPATCHZ" ]; then
       chmod +x "$HDIFFZ" "$HPATCHZ"
       for ABI in arm64-v8a; do
-        PREVIOUS_DIR="$RUNNER_TEMP/previous-$ABI"
-        mkdir -p "$PREVIOUS_DIR"
-        if ! gh release download "$PREVIOUS_TAG" --pattern "codex-android-$ABI-*.apk" --dir "$PREVIOUS_DIR"; then
-          echo "::notice::未找到上一版本的 $ABI APK，跳过该架构增量包"
-          continue
-        fi
-        mapfile -t OLD_FILES < <(find "$PREVIOUS_DIR" -maxdepth 1 -type f -name '*.apk')
-        if [ "${#OLD_FILES[@]}" -ne 1 ]; then
-          echo "::notice::$ABI 上版 APK 数量异常，跳过增量包"
-          continue
-        fi
-        OLD="${OLD_FILES[0]}"
         NEW="$OUT/codex-android-$ABI-$RELEASE_VERSION.apk"
         PATCH_NAME="delta-${PREVIOUS_TAG#v}-to-$RELEASE_VERSION-$ABI.hpatch"
         PATCH="$OUT/$PATCH_NAME"
@@ -80,6 +70,7 @@ if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
               "$PATCHES_JSON" > "$PATCHES_JSON.tmp"
             mv "$PATCHES_JSON.tmp" "$PATCHES_JSON"
           else
+            echo "::notice::$ABI 差分包 $PATCH_SIZE 字节，完整 APK $NEW_SIZE 字节，超过 65% 收益阈值"
             rm -f "$PATCH"
           fi
         else

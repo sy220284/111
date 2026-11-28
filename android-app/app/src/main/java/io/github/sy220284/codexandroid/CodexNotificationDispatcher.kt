@@ -55,23 +55,23 @@ internal object CodexNotificationDispatcher {
                 if (result.success) errors.value = errors.value - "account"
                 else errors.value = errors.value + ("account" to
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
-                refresh("account", "account/read")
-                if (result.success) {
-                    catalogWarmup.accountChanged()
-                    modelPreviews.clear()
-                    accountMetrics.accountChanged()
-                    extensions.invalidate()
-                    refresh("mcp", "mcpServerStatus/list",
-                        CatalogRequestContract.mcpStatus(activeThread.value))
-                }
+                // The locked upstream sends account/updated immediately after
+                // login/completed. That notification owns identity invalidation.
+                if (!result.success) refresh("account", "account/read")
             }
         } else if (method == "account/updated") {
-            refresh("account", "account/read")
+            if (params.optString("reason") == "workspaceRoutingReady") {
+                catalogWarmup.refreshRouting()
+                refresh("account", "account/read")
+                accountMetrics.refresh()
+                return
+            }
             catalogWarmup.accountChanged()
             mcpCatalog.clearStartup()
             modelPreviews.clear()
             accountMetrics.accountChanged()
             extensions.invalidate()
+            refresh("account", "account/read")
             refreshMcpServices()
         }
         if (method == "project/changed") {
@@ -86,6 +86,21 @@ internal object CodexNotificationDispatcher {
             return
         }
         if (method in setOf("thread/name/updated", "thread/section/changed", "thread/closed")) sessions.refreshChanged(threadId)
+        if (method == "thread/closed" && threadId.isNotBlank()) {
+            // Workspace switching tears down native runtimes before changing auth.
+            // Closure establishes that the old execution stopped, not its outcome.
+            val execution = threadExecutions.value[threadId]
+            threadExecutions.value = ThreadExecutionPolicy.finish(threadExecutions.value, threadId)
+            threadActivities.value = threadActivities.value - threadId
+            if (threadId == activeThread.value && (execution != null || running.value)) {
+                conversationState.update { state ->
+                    state.copy(running = false, turnId = null,
+                        timeline = TimelineEventReducer.connectionLost(state.timeline, execution?.turnId ?: state.turnId.orEmpty()))
+                }
+            }
+            liveTimelines.remove(threadId)
+            return
+        }
         if (method == "thread/status/changed" && threadId.isNotBlank()) {
             threadActivities.value = ThreadActivityPolicy.updated(threadActivities.value,
                 threadId, ThreadActivityPolicy.parse(params.optJSONObject("status")))
@@ -164,8 +179,11 @@ internal object CodexNotificationDispatcher {
                     ?.optString("message").orEmpty().ifBlank { "任务已中断或失败" }
                 threadFailures.value = ThreadExecutionPolicy.failureUpdated(
                     threadFailures.value, threadId, reason)
-                if (threadId == activeThread.value &&
-                    (execution?.images?.isNotEmpty() == true || reason.contains("模型已明确拒绝图片输入") || reason.contains("模型已明确拒绝音频输入"))) {
+                if (ComposerProviderScope.isModelRejection(reason, turn.optJSONObject("error")?.optString("codexErrorInfo"))) {
+                    catalogWarmup.modelRejected(threadId)
+                } else if (threadId == activeThread.value &&
+                    (execution?.images?.isNotEmpty() == true ||
+                        reason.contains("模型已明确拒绝图片输入") || reason.contains("模型已明确拒绝音频输入"))) {
                     refreshComposerCatalog()
                 }
             } else threadFailures.value = threadFailures.value - threadId

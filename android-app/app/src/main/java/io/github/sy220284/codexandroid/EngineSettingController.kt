@@ -27,6 +27,11 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
         return
     }
     val generation = configGeneration
+    val requestOwner = captureTaskOwner() ?: run {
+        errors.value = errors.value + (saveKey to "请先连接并读取当前配置")
+        return
+    }
+    fun current() = requestOwner.current(this) && configGeneration == generation
     configTransactionBusy.value = true
     loading.value = loading.value + saveKey
     data.value = data.value + (saveKey to JSONObject().put("owner", owner).put("keyPath", path))
@@ -36,11 +41,11 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
         var needsRefresh = false
         try {
             ConfigWriteTransaction.execute(
-                write = { bridge.request("config/value/write", EngineSettings.writeParams(path, value).apply {
+                write = { requestOwner.request(this@saveEngineSetting, "config/value/write", EngineSettings.writeParams(path, value).apply {
                     expectedVersion?.let { put("expectedVersion", it) }
                 }) },
-                read = { bridge.request("config/read", JSONObject().put("includeLayers", true)) },
-                isCurrent = { configGeneration == generation },
+                read = { requestOwner.request(this@saveEngineSetting, "config/read", JSONObject().put("includeLayers", true)) },
+                isCurrent = ::current,
                 publish = { read ->
                     readObtained = true
                     data.value = data.value + ("config" to read)
@@ -49,19 +54,20 @@ internal fun CodexViewModel.saveEngineSetting(path: String, value: Any, title: S
                 verify = { write, read -> EngineSettings.verify(write, read, path.trim(), value) })
             data.value = data.value + (saveKey to JSONObject().put("owner", owner).put("keyPath", path).put("message", "$title 已保存并核实"))
         } catch (timeout: TimeoutCancellationException) {
-            errors.value = errors.value + (saveKey to "配置保存或回读超时，请核对实际设置")
+            if (current()) errors.value = errors.value + (saveKey to "配置保存或回读超时，请核对实际设置")
             needsRefresh = !readObtained
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: Exception) {
-            errors.value = errors.value + (saveKey to (failure.message ?: "保存或回读失败，请重新读取配置"))
+            if (current()) errors.value = errors.value + (saveKey to (failure.message ?: "保存或回读失败，请重新读取配置"))
             needsRefresh = !readObtained
         } finally {
             configTransactionBusy.value = false
             loading.value = loading.value - saveKey
         }
-        if (generation != configGeneration) {
+        if (!current()) {
             errors.value = errors.value - saveKey
+            data.value = data.value - saveKey
             refresh("config", "config/read", JSONObject().put("includeLayers", true))
             refreshComposerPermissions()
             return@launch

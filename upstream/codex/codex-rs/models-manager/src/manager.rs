@@ -90,6 +90,12 @@ pub trait ModelsEndpointClient: fmt::Debug + Send + Sync {
     /// Returns whether the currently resolved auth can use Codex backend-only models.
     fn uses_codex_backend(&self) -> ModelsEndpointFuture<'_, bool>;
 
+    /// Whether selection requires account-scoped catalog entries. Bundled
+    /// metadata may still describe explicitly named models, but cannot grant access.
+    fn account_catalog_required(&self) -> bool {
+        false
+    }
+
     /// Returns whether this provider supports an authoritative catalog with OpenAI API keys.
     fn supports_api_key_models(&self) -> bool {
         false
@@ -698,7 +704,7 @@ impl ModelsManager for OpenAiModelsManager {
                 error!("failed to refresh available models: {err}");
             }
             let state = self.remote_models.read().await;
-            state.model_catalog(self.models_for_entry(&state.entry))
+            self.selectable_catalog(&state)
         })
     }
 
@@ -783,6 +789,15 @@ impl ModelsManager for OpenAiModelsManager {
         self.auth_manager.as_deref()
     }
 
+    fn try_list_models(&self) -> Result<Vec<ModelPreset>, TryLockError> {
+        let state = self.remote_models.try_read()?;
+        let models = self.selectable_catalog(&state)
+            .into_iter()
+            .map(|entry| Arc::unwrap_or_clone(entry.model))
+            .collect();
+        Ok(self.build_available_models(models))
+    }
+
     #[tracing::instrument(skip_all, fields(model = model))]
     fn get_model_info<'a>(
         &'a self,
@@ -798,6 +813,8 @@ impl ModelsManager for OpenAiModelsManager {
                     | SelectedCatalog::Fallback(models) => models,
                 };
                 let model = match &self.catalog_source {
+                    CatalogSource::Default if self.endpoint_client.account_catalog_required() =>
+                        models.iter().find(|candidate| candidate.slug == model).cloned(),
                     CatalogSource::Default => find_model_from_candidates(model, models),
                     CatalogSource::ExplicitProvider(_) => models
                         .iter()
@@ -839,6 +856,15 @@ impl OpenAiModelsManager {
         catalog.initialized
             && catalog.entry.identity.is_some()
             && catalog.entry.identity == self.endpoint_client.identity()
+    }
+
+    /// Picker, default selection and non-blocking reads share account authority.
+    fn selectable_catalog(&self, state: &CatalogState) -> Vec<CatalogModel> {
+        let mut catalog = state.model_catalog(self.models_for_entry(&state.entry));
+        if self.endpoint_client.account_catalog_required() {
+            catalog.retain(|entry| entry.origin == ModelOrigin::Provider);
+        }
+        catalog
     }
 
     /// Selects the catalog available under the current provider and auth identity.
@@ -985,7 +1011,9 @@ impl OpenAiModelsManager {
                         | CodexErrorDetails::GatewayLoginRequired(_)
                 );
 
-                if is_provider_catalog && (access_denied || credentials_rejected) {
+                if (is_provider_catalog || self.endpoint_client.account_catalog_required())
+                    && (access_denied || credentials_rejected)
+                {
                     {
                         let mut current = self.remote_models.write().await;
                         let CatalogState {

@@ -36,6 +36,19 @@ class TimelineWindowStoreTest {
             assertEquals((0 until 1280).map { "id-$it" }, window.map { it.id })
         } finally { file.delete() }
     }
+    @Test fun rejectedPageDoesNotAdvanceCursor() = runBlocking {
+        val file = File.createTempFile("codex-timeline-page-", ".jsonl")
+        try {
+            val store = TimelineWindowStore(file)
+            val records = (0 until 700).map { TimelineItem("id-$it", "user", "记录 $it") }
+            store.replace("thread", records, 1)
+            assertTrue(store.readEarlier("thread", 1) { false }.isEmpty())
+            assertEquals(220, store.olderCount.value)
+            assertEquals(records.subList(100, 220), store.readEarlier("thread", 1))
+            assertEquals(100, store.olderCount.value)
+        } finally { file.delete() }
+    }
+
     @Test fun oldGenerationCannotReplaceOrClearNewHistory() = runBlocking {
         val file = File.createTempFile("codex-timeline-owner-", ".jsonl")
         try {

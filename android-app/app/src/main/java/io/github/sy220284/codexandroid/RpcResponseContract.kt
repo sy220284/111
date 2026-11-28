@@ -11,7 +11,8 @@ import org.json.JSONObject
 internal class RpcServerRejection(
     val method: String,
     val code: Number,
-    val serverMessage: String
+    val serverMessage: String,
+    val codexErrorInfo: String? = null
 ) : IllegalStateException("$method：$serverMessage（错误代码：$code）")
 
 internal object RpcResponseContract {
@@ -30,7 +31,8 @@ internal object RpcResponseContract {
             check(code is Number && message.isNotBlank()) {
                 "$method：内核错误缺少有效的代码或说明"
             }
-            throw RpcServerRejection(method, code, message)
+            throw RpcServerRejection(method, code, message,
+                info.optJSONObject("data")?.opt("codexErrorInfo") as? String)
         }
 
         return envelope.optJSONObject("result")

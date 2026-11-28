@@ -266,7 +266,11 @@ internal object TimelineEventReducer {
         if (field != null) {
             val initial = old?.takeIf { it.hasEvidence }
                 ?: project(JSONObject().put("id", id).put("type", kind), turnId, "streaming")
-            val index = if (field == "summary") params.getInt("summaryIndex") else 0
+            val index = if (field == "summary") when (val rawIndex = params.opt("summaryIndex")) {
+                is Int -> rawIndex.toLong()
+                is Long -> rawIndex
+                else -> throw InvalidNativeSummaryIndex("缺少有效的64位整数")
+            } else 0L
             val addition = if (field == "progress") "\n" + params.string("message") else delta
             put(initial.appendNative(field, addition, index, "streaming"))
             return items

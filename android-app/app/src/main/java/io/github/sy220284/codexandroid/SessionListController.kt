@@ -64,6 +64,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
     private var archiveVisible = false
     private var archiveDirty = true
     private var identity: String? = null
+    private var identityJob: Job? = null
     private var identityEpoch = 0L
     internal var directoryCache = SessionDirectoryEngine.Cache()
         private set
@@ -108,19 +109,20 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         val seen = supplied ?: receipts.value[id] ?: return
         val rev = PresentationPolicy.meaningful(seen.optString("revision"))
         if (rev.isBlank() || SessionListPolicy.unread(seen) == unread || !connected() || !marking.add(id)) return
+        val requestOwner = vm.captureTaskOwner() ?: run { marking.remove(id); return }
         val owner = identityEpoch
         scope.launch {
             val started = receiptVersion
             try {
-                val response = vm.bridge.request("thread/readState/update",
+                val response = requestOwner.request(vm, "thread/readState/update",
                     JSONObject().put("threadId", id).put("expectedRevision", rev)
                         .put("operation", JSONObject().put("type", if (unread) "unread" else "read")))
-                if (owner == identityEpoch && (receiptEvents[id] ?: 0) <= started) receipt(id, response.getJSONObject("readState"))
+                if (requestOwner.current(vm) && owner == identityEpoch && (receiptEvents[id] ?: 0) <= started) receipt(id, response.getJSONObject("readState"))
             } catch (timeout: TimeoutCancellationException) {
-                if (owner == identityEpoch) { feedback("已读状态更新超时，请重试"); refresh() }
+                if (requestOwner.current(vm) && owner == identityEpoch) { feedback("已读状态更新超时，请重试"); refresh() }
             } catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) {
-                if (owner == identityEpoch) {
+                if (requestOwner.current(vm) && owner == identityEpoch) {
                     feedback("已读状态更新失败：" + PresentationPolicy.readableError(failure.message ?: "请重新操作"))
                     refresh()
                 }
@@ -128,32 +130,56 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         }
     }
     fun accountReady(account: JSONObject) {
-        val next = SessionIndexStore.identity(account)
-        if (identity != null && identity != next) invalidateIdentity()
-        if (identity == next) return
-        identity = next
-        val owner = identityEpoch
-        scope.launch {
-            val cached = if (allowCacheRead) index.read(next) else null
-            if (owner != identityEpoch || identity != next) return@launch
+        val owner = vm.captureTaskOwner() ?: return
+        identityJob?.cancel()
+        identityJob = scope.launch {
+            val next = try {
+                // Only managed ChatGPT authentication exposes a stable user,
+                // login and workspace tuple. Other modes use the live native list.
+                if (account.optJSONObject("account")?.optString("type") == "chatgpt" &&
+                    (account.opt("userId") as? String)?.isNotBlank() == true) {
+                    val sessions = owner.request(vm, "accountSession/list", CatalogRequestContract.accountSessions())
+                    AuthenticatedAccountIdentity.parse(account, sessions)?.cacheKey()
+                } else null
+            } catch (timeout: TimeoutCancellationException) {
+                android.util.Log.w("SessionIndex", "账号标识读取超时，使用原生会话目录")
+                null
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) {
+                android.util.Log.w("SessionIndex", "无法确认持久化账号标识，使用原生会话目录", failure)
+                null
+            }
+            if (!owner.current(vm)) return@launch
+            if (identity != null && identity != next) invalidateIdentity(cancelResolution = false)
+            if (identity == next) {
+                if (listJob?.isActive != true) refreshIfStale()
+                return@launch
+            }
+            identity = next
+            val generation = identityEpoch
+            val cached = if (allowCacheRead && next != null) index.read(next) else null
+            if (!owner.current(vm) || generation != identityEpoch || identity != next) return@launch
             if (cached != null && vm.data.value["sidebarThreads"] == null)
                 vm.data.value = vm.data.value + mapOf("sidebarThreads" to cached, "threads" to cached)
-            // If native synchronization finished before the account receipt, persist its actual result.
             val current = vm.data.value["sidebarThreads"]
-            if (lastSuccess >= 0 && current != null && listJob?.isActive != true) {
+            if (next != null && lastSuccess >= 0 && current != null && listJob?.isActive != true) {
                 try { index.write(next, current, true, emptySet()) }
                 catch (cancelled: CancellationException) { throw cancelled }
                 catch (failure: Exception) { android.util.Log.w("SessionIndex", "会话索引保存失败", failure) }
             }
-            if (owner == identityEpoch && identity == next && listJob?.isActive != true) refreshIfStale()
+            if (owner.current(vm) && generation == identityEpoch && identity == next && listJob?.isActive != true)
+                refreshIfStale()
         }
     }
-    fun invalidateIdentity() {
+    fun reconnect() = invalidateIdentity(clearIndex = false)
+
+    fun invalidateIdentity(cancelResolution: Boolean = true, clearIndex: Boolean = true) {
+        if (cancelResolution) { identityJob?.cancel(); identityJob = null }
         identityEpoch += 1
         directoryCache = SessionDirectoryEngine.Cache()
         identity = null
-        allowCacheRead = false
-        scope.launch {
+        allowCacheRead = !clearIndex
+        if (clearIndex) scope.launch {
             try { index.clear() }
             catch (cancelled: CancellationException) { throw cancelled }
             catch (failure: Exception) { android.util.Log.w("SessionIndex", "旧账号索引清理失败", failure) }
@@ -200,9 +226,10 @@ internal class SessionListController(private val vm: CodexViewModel, private val
 
     private fun drain() {
         if (!connected() || listJob?.isActive == true) return
+        val requestOwner = vm.captureTaskOwner() ?: return
         val owner = identityEpoch
         listJob = scope.launch {
-            while (owner == identityEpoch && (dirty || pendingIds.isNotEmpty() || (archiveVisible && archiveDirty)) && connected()) {
+            while (requestOwner.current(vm) && owner == identityEpoch && (dirty || pendingIds.isNotEmpty() || (archiveVisible && archiveDirty)) && connected()) {
                 val full = dirty
                 val ids = if (full) pendingIds.toSet() else pendingIds.take(100).toSet()
                 val activeNeeded = full || ids.isNotEmpty()
@@ -226,7 +253,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                         do {
                             val params = SessionListPolicy.params(archived, cursor)
                             if (!complete) params.put("includedThreadIds", JSONArray(ids.toList())).put("useStateDbOnly", true)
-                            val page = vm.bridge.request("thread/list", params)
+                            val page = requestOwner.request(vm, "thread/list", params)
                             check(owner == identityEpoch) { "会话索引所属账号已变化" }
                             for (row in records(page)) {
                                 val id = SessionListPolicy.id(row)
@@ -250,7 +277,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                     }
                     val active = if (activeNeeded) readAll(false, full) else null
                     val archived = if (archivedNeeded) readAll(true, fullArchive) else null
-                    if (owner == identityEpoch && connected()) {
+                    if (requestOwner.current(vm) && owner == identityEpoch && connected()) {
                         val newer = receipts.value.filterKeys { (receiptEvents[it] ?: 0) > started }
                         receipts.value = (receipts.value - (replaced + ids)) + freshReceipts + newer
                         fun merged(key: String, incoming: JSONObject, complete: Boolean): JSONObject =
@@ -276,7 +303,8 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                                 vm.errors.value = vm.errors.value + ("sidebarThreads" to "会话已同步，本机索引保存失败")
                             }
                         }
-                        activeSearch?.let { (archived, query) -> search(query, archived) }
+                        if (requestOwner.current(vm) && owner == identityEpoch)
+                            activeSearch?.let { (archived, query) -> search(query, archived) }
                     } else if (owner == identityEpoch) {
                         dirty = dirty || full
                         archiveDirty = archiveDirty || archivedNeeded
@@ -311,6 +339,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
         if (searchResult.value?.first != activeSearch || term.isBlank()) searchResult.value = null
         if (term.isBlank()) return
         if (!connected()) { searchError.value = "连接内核后可搜索正文"; return }
+        val requestOwner = vm.captureTaskOwner() ?: return
         searching.value = true
         searchJob = scope.launch {
             try {
@@ -318,7 +347,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                 val cursors = mutableSetOf<String>()
                 var cursor: String? = null
                 do {
-                    val page = vm.bridge.request("thread/search", SessionListPolicy.params(archived, cursor)
+                    val page = requestOwner.request(vm, "thread/search", SessionListPolicy.params(archived, cursor)
                         .put("searchTerm", term))
                     for (hit in records(page)) {
                         val row = hit.getJSONObject("thread")
@@ -329,7 +358,7 @@ internal class SessionListController(private val vm: CodexViewModel, private val
                     cursor = SessionListPolicy.cursor(page)
                     check(cursor == null || cursors.add(cursor)) { "全文搜索返回重复游标" }
                 } while (cursor != null)
-                if (version == searchVersion) searchResult.value = (archived to term) to rows.values.toList()
+                if (requestOwner.current(vm) && version == searchVersion) searchResult.value = (archived to term) to rows.values.toList()
             } catch (timeout: TimeoutCancellationException) {
                 if (version == searchVersion) searchError.value = "搜索超时，请重试"
             } catch (cancelled: CancellationException) { throw cancelled }

@@ -35,11 +35,11 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
         val params = JSONObject().put("threadId", id).put("excludeTurns", true)
         if (lastTurnId != null) params.put("lastTurnId", lastTurnId)
         val targetModel = modelProvider?.let { provider ->
-            ComposerModelPolicy.model(records(data.value[ComposerProviderScope.catalogKey(provider)]), model.orEmpty())
+            ComposerModelPolicy.model(records(data.value[modelCatalogKey(provider)]), model.orEmpty())
         }
         if (modelProvider != null) {
-            if (model.isNullOrBlank() || targetModel == null) {
-                errors.value = errors.value + ("conversation" to "目标模型目录已变化，请重新选择")
+            if (model.isNullOrBlank()) {
+                errors.value = errors.value + ("conversation" to "请选择目标模型")
                 return@with
             }
             params.put("modelProvider", modelProvider).put("model", model)
@@ -202,6 +202,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 val message = if (method == "turn/start") SubmissionFailurePolicy.message(failure, dispatched) else reason
                 errors.value = errors.value + (key to message)
                 if (method == "turn/start") threadFailures.value = ThreadExecutionPolicy.failureUpdated(threadFailures.value, id, message)
+                if (owner.current(vm) && ComposerProviderScope.isModelRejection(reason)) catalogWarmup.modelRejected(id)
                 if (activeThread.value == id) errors.value = errors.value + ("conversation" to message)
                 actionFeedback.emit(ActionFeedbackCopy.failure(method, message))
             } finally {

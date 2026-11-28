@@ -66,7 +66,7 @@ internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: L
 
     fun launchAccountOperation(block: suspend () -> Unit) {
         if (operation.busy || !ownsAccount() || !AccountVoiceSettingsLease.acquire(vm.loading)) return
-        operation.launch {
+        operation.launch(onRejected = { AccountVoiceSettingsLease.release(vm.loading) }) {
             try { block() } finally { AccountVoiceSettingsLease.release(vm.loading) }
         }
     }

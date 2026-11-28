@@ -9,8 +9,6 @@ import kotlin.coroutines.coroutineContext
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -27,22 +25,8 @@ internal data class RemoteDeliveryRequest(val thread: String, val binding: Remot
 internal object RemoteDeliveryAccountIdentity {
     fun key(account: JSONObject, sessions: JSONObject, thread: String,
         binding: RemoteExecutionBinding, relative: String): String? {
-        if (account.optJSONObject("account")?.optString("type") != "chatgpt") return null
-        val user = (account.opt("userId") as? String)?.takeIf { it.isNotBlank() } ?: return null
-        val active = (sessions.opt("activeSessionId") as? String)?.takeIf { it.isNotBlank() } ?: return null
-        val records = sessions.getJSONArray("sessions")
-        val selected = (0 until records.length()).map { records.getJSONObject(it) }
-            .filter { it.optString("sessionId") == active || it.optBoolean("isActive") }
-        check(selected.size == 1 && selected.single().optString("sessionId") == active &&
-            selected.single().opt("userId") == user) { "账号会话身份不一致，请重新连接" }
-        val session = selected.single()
-        val workspace = (session.opt("selectedWorkspaceAccountId") as? String)
-            ?.takeIf { it.isNotBlank() } ?: return null
-        val workspaces = session.getJSONArray("workspaces")
-        check((0 until workspaces.length()).count {
-            workspaces.getJSONObject(it).opt("accountId") == workspace
-        } == 1) { "账号工作区身份不一致，请重新连接" }
-        val identity = org.json.JSONArray().put("111-remote-delivery-v1").put(user).put(active).put(workspace)
+        val owner = AuthenticatedAccountIdentity.parse(account, sessions) ?: return null
+        val identity = org.json.JSONArray().put("111-remote-delivery-v1").put(owner.user).put(owner.session).put(owner.workspace)
             .put(thread).put(binding.id).put(binding.endpoint).put(binding.cwd).put(relative).toString()
         return RemoteTransferCheckpoint.hex(MessageDigest.getInstance("SHA-256").digest(identity.toByteArray(Charsets.UTF_8)))
     }
@@ -160,53 +144,15 @@ internal object RemoteFileDelivery {
 
     suspend fun save(vm: CodexViewModel, resolver: ContentResolver, destination: Uri, payload: Payload,
         onVerified: suspend (Long) -> Unit = {}, onWritten: suspend () -> Unit = {}) = lock.withLock {
-        withContext(Dispatchers.IO) {
-            require(destination.scheme == "content") { "请选择系统文档保存位置" }
-            val ctx = coroutineContext
-            fun permit() {
-                ctx.ensureActive()
-                check(payload.request.owns(vm)) { "文件交付授权已变化，须重新读取" }
-            }
-            permit()
-            requireNotNull(checkpoint).verify(payload.entry, ::permit)
-            permit()
-            requireNotNull(resolver.openOutputStream(destination, "wt")) { "无法打开保存位置" }.use { output ->
-                Files.newInputStream(payload.entry.file.toPath(), NOFOLLOW_LINKS).use { input ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        permit()
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        permit()
-                        output.write(buffer, 0, count)
-                    }
-                }
-                permit()
-                output.flush()
-            }
-            withContext(Dispatchers.Main.immediate) { permit(); onWritten() }
-            val digest = MessageDigest.getInstance("SHA-256")
-            var total = 0L
-            var lastReport = 0L
-            requireNotNull(resolver.openInputStream(destination)) { "无法回读保存文件" }.use { stream ->
-                val buffer = ByteArray(64 * 1024)
-                while (true) {
-                    permit()
-                    val count = stream.read(buffer)
-                    if (count < 0) break
-                    total += count
-                    require(total <= payload.size) { "保存结果大小不符" }
-                    digest.update(buffer, 0, count)
-                    if (total - lastReport >= 256 * 1024 || total == payload.size) {
-                        lastReport = total
-                        withContext(Dispatchers.Main.immediate) { permit(); onVerified(total) }
-                    }
-                }
-            }
-            permit()
-            check(total == payload.size && RemoteTransferCheckpoint.hex(digest.digest()) == payload.sha256) {
-                "保存后文件校验失败"
-            }
+        val ctx = coroutineContext
+        fun permit() {
+            ctx.ensureActive()
+            check(payload.request.owns(vm)) { "文件交付授权已变化，须重新读取" }
         }
+        VerifiedDocumentDelivery.saveNewDocument(resolver, destination, payload.entry.file, payload.size,
+            expectedHash = payload.sha256, permit = ::permit,
+            beforeWrite = { requireNotNull(checkpoint).verify(payload.entry, ::permit) },
+            onWritten = { withContext(Dispatchers.Main.immediate) { permit(); onWritten() } },
+            onVerified = { count -> withContext(Dispatchers.Main.immediate) { permit(); onVerified(count) } })
     }
 }

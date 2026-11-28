@@ -658,10 +658,10 @@ impl Session {
         } else {
             RefreshStrategy::OnlineIfUncached
         };
-        if !session_source.is_non_root_agent() {
-            let _ = models_manager
-                .list_models(refresh_strategy, config.http_client_factory())
-                .await;
+        // A default selection already reads the catalog below. Explicit models
+        // need metadata initialization, not a second default-selection lookup.
+        if !session_source.is_non_root_agent() && config.model.is_some() {
+            models_manager.ensure_initialized(config.http_client_factory()).await;
         }
         let model = models_manager
             .get_default_model(

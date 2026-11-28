@@ -39,7 +39,7 @@ internal object ComposerModelPolicy {
         if (modelId.isBlank()) emptyList() else
             model(catalog, modelId)?.optJSONArray("supportedReasoningEfforts")?.let { array ->
                 (0 until array.length()).mapNotNull { array.optJSONObject(it)?.optString("reasoningEffort") }
-            }.orEmpty().filter { it.isNotBlank() && it != "ultra" }.distinct()
+            }.orEmpty().filter { it.isNotBlank() }.distinct()
     fun choose(options: ComposerTaskOptions, provider: String, id: String,
         catalog: List<JSONObject>): ComposerTaskOptions {
         val key = "$provider/$id"
@@ -127,15 +127,18 @@ internal fun CodexViewModel.currentComposerProvider(): String? =
     else ComposerProviderScope.provider(composerDrafts.value[composerOwner(null)]?.options?.modelProvider)
         ?: ComposerProviderScope.provider(data.value["providers"]?.optString("defaultProviderId"))
 
+internal fun CodexViewModel.modelCatalogKey(provider: String?): String =
+    ComposerProviderScope.catalogKey(provider, ComposerProviderScope.provider(data.value["providers"]?.optString("defaultProviderId")))
+
 internal fun CodexViewModel.composerCatalogKey(): String =
-    ComposerProviderScope.catalogKey(
+    modelCatalogKey(
         if (activeThread.value != null) currentComposerProvider()
         else ComposerProviderScope.provider(composerDrafts.value[composerOwner(null)]?.options?.modelProvider)
     )
 
 internal fun CodexViewModel.refreshComposerCatalog(forceRefresh: Boolean = false) {
     val key = composerCatalogKey()
-    if (key in loading.value) return
+    if (!forceRefresh && key in loading.value) return
     val provider = currentComposerProvider().takeIf { key != "models" }
     refresh(key, "model/list", ComposerProviderScope.request(provider, forceRefresh))
 }

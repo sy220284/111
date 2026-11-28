@@ -46,6 +46,16 @@ class ThreadMarkdownExporterTest {
         assertFalse(markdown.contains("工具内容"))
     }
 
+    @Test fun progressiveSectionsRetainInteriorWhitespaceAndTrimOnlyFinalBody() {
+        val output = StringBuilder()
+        val stream = ThreadMarkdownExporter.Stream(output, false)
+        fun message(text: String) = JSONObject().put("type", "agentMessage").put("text", text)
+        stream.turn("completed", true, sequenceOf(message("  "), message("A\n\n"), message("B  ")))
+        stream.turn("completed", false, sequenceOf(message("C  ")))
+        stream.finish()
+        assertEquals("# Codex 会话记录\n\n## Codex\n\n  A\n\nB  \n\n## Codex\n\nC\n", output.toString())
+    }
+
     @Test fun executionExportIncludesOptedInEvidenceButNotPrivateReasoning() {
         val items = JSONArray().put(JSONObject().put("type", "agentMessage").put("text", "回答"))
             .put(JSONObject().put("type", "reasoning").put("summary", JSONArray().put("公开摘要")).put("content", JSONArray().put("私有推理")))

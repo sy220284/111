@@ -1,5 +1,7 @@
 """Regression tests for the APK executable and size safety gate."""
 import tempfile
+import hashlib
+import io
 import json
 import unittest
 from pathlib import Path
@@ -32,8 +34,18 @@ class ApkAuditTests(unittest.TestCase):
         }
         if core:
             payload["assets/domestic-providers.json"] = b"[]"
-            for ext in ("zip", "sha256", "version", "provenance.json", "commands.tsv"):
-                payload["assets/development-runtime/development-runtime." + ext] = b"fixture"
+            prefix = "assets/development-runtime/development-runtime."
+            for ext in ("sha256", "version", "provenance.json", "commands.tsv"):
+                payload[prefix + ext] = b"fixture"
+            content = b"fixture"
+            raw = io.BytesIO()
+            with ZipFile(raw, "w") as runtime:
+                runtime.writestr("git/lib/one.so", content)
+            payload[prefix + "zip"] = raw.getvalue()
+            payload[prefix + "sha256"] = hashlib.sha256(raw.getvalue()).hexdigest().encode()
+            sha = hashlib.sha256(content).hexdigest()
+            payload[prefix + "files.tsv"] = (
+                f"git/lib/one.so\t{sha}\t7\npython/lib/two.so\t{sha}\t7\n").encode()
             for component in REQUIRED_RUNTIME:
                 if component == missing_component:
                     continue
@@ -65,6 +77,24 @@ class ApkAuditTests(unittest.TestCase):
         self.assertEqual(64 * len(REQUIRED_RUNTIME), result["runtime_bytes"])
         self.assertGreater(result["uncompressed_by_category"]["native"], 100)
         self.assertEqual(result["apk_bytes"], self.path.stat().st_size)
+        self.assertEqual(14, result["development_runtime"]["logical_bytes"])
+        self.assertEqual(7, result["development_runtime"]["unique_bytes"])
+        self.assertEqual(1, len(result["development_runtime"]["duplicate_groups"]))
+
+    def test_runtime_archive_digest_and_logical_manifest_are_verified(self):
+        self.package()
+        with ZipFile(self.path) as archive:
+            files = {name: archive.read(name) for name in archive.namelist()}
+        prefix = "assets/development-runtime/development-runtime."
+        for name, replacement, error in (
+            ("sha256", b"0" * 64, "归档摘要"),
+            ("files.tsv", b"git/lib/one.so\t" + b"0" * 64 + b"\t7\n", "归档内容不一致"),
+        ):
+            with ZipFile(self.path, "w") as archive:
+                for key, value in files.items():
+                    archive.writestr(key, replacement if key == prefix + name else value)
+            with self.assertRaisesRegex(ApkAuditError, error):
+                audit(self.path, "arm64-v8a", "full")
 
     def test_ui_smoke_has_no_core_but_full_release_requires_it(self):
         self.package(core=False)

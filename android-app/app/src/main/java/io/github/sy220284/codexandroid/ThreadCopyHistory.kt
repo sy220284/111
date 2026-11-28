@@ -1,48 +1,92 @@
 package io.github.sy220284.codexandroid
 
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.io.RandomAccessFile
 
-/** Canonical ascending pages, including deferred output; never export only the visible page. */
+/** Preserve native ordering, including interleaved turn IDs and deferred outputs.
+ * Payloads and per-item links live in a private disk spool; only turn heads,
+ * duplicate detection and one item are retained in memory. */
 internal class ThreadCopyHistory(private val request: suspend (String, JSONObject) -> JSONObject) {
-    suspend fun read(threadId: String): JSONObject {
+    private data class TurnSpool(var head: Long = -1, var tail: Long = -1, var progressive: Boolean = false)
+    suspend fun write(threadId: String, spool: File, output: Appendable, includeActivity: Boolean = false,
+        onProgress: suspend (Int) -> Unit = {}) {
         require(threadId.isNotBlank()) { "缺少会话标识" }
-        val turns = linkedMapOf<String, JSONArray>()
+        val offsets = linkedMapOf<String, TurnSpool>()
         val seenCursors = hashSetOf<String>()
         val seenItems = hashSetOf<Pair<String, String>>()
-        var cursor: String? = null
-        do {
-            val params = JSONObject().put("threadId", threadId).put("sortDirection", "asc").put("limit", 100)
-            cursor?.let { params.put("cursor", it) }
-            val page = request("thread/items/list", params)
-            val data = page.getJSONArray("data")
-            for (index in 0 until data.length()) {
-                var entry = data.getJSONObject(index)
-                val turn = entry.getString("turnId")
-                val id = entry.getJSONObject("item").getString("id")
-                check(turn.isNotBlank() && id.isNotBlank()) { "历史缺少条目标识" }
-                check(seenItems.add(turn to id)) { "历史条目重复，请重新读取" }
-                if (entry.optBoolean("outputDeferred")) {
-                    val detail = request("thread/items/read", JSONObject().put("threadId", threadId)
-                        .put("turnId", turn).put("itemIds", JSONArray().put(id))).getJSONArray("data")
-                    check(detail.length() == 1) { "历史输出读取不完整" }
-                    entry = detail.getJSONObject(0)
-                    check(entry.getString("turnId") == turn && entry.getJSONObject("item").getString("id") == id &&
-                        !entry.optBoolean("outputDeferred")) { "历史输出归属不一致或未读取完整" }
+        RandomAccessFile(spool, "rw").use { store ->
+            store.setLength(0)
+            var cursor: String? = null
+            do {
+                currentCoroutineContext().ensureActive()
+                val params = JSONObject().put("threadId", threadId).put("sortDirection", "asc").put("limit", 100)
+                cursor?.let { params.put("cursor", it) }
+                val page = request("thread/items/list", params)
+                val data = page.getJSONArray("data")
+                for (index in 0 until data.length()) {
+                    currentCoroutineContext().ensureActive()
+                    var entry = data.getJSONObject(index)
+                    val turn = entry.getString("turnId")
+                    val id = entry.getJSONObject("item").getString("id")
+                    check(turn.isNotBlank() && id.isNotBlank()) { "历史缺少条目标识" }
+                    check(seenItems.add(turn to id)) { "历史条目重复，请重新读取" }
+                    val turnSpool = offsets.getOrPut(turn) { TurnSpool() }
+                    val listedItem = entry.getJSONObject("item")
+                    // Normal chat export never needs deferred command/tool payloads.
+                    if (!includeActivity && listedItem.optString("type") !in
+                        setOf("userMessage", "agentMessage", "enteredReviewMode", "exitedReviewMode")) continue
+                    if (entry.optBoolean("outputDeferred")) {
+                        val detail = request("thread/items/read", JSONObject().put("threadId", threadId)
+                            .put("turnId", turn).put("itemIds", JSONArray().put(id))).getJSONArray("data")
+                        check(detail.length() == 1) { "历史输出读取不完整" }
+                        entry = detail.getJSONObject(0)
+                        check(entry.getString("turnId") == turn && entry.getJSONObject("item").getString("id") == id &&
+                            !entry.optBoolean("outputDeferred")) { "历史输出归属不一致或未读取完整" }
+                    }
+                    val item = entry.getJSONObject("item")
+                    val bytes = item.toString().toByteArray(Charsets.UTF_8)
+                    val position = store.length()
+                    if (turnSpool.head < 0) turnSpool.head = position
+                    else {
+                        store.seek(turnSpool.tail)
+                        store.writeLong(position)
+                    }
+                    store.seek(position)
+                    store.writeLong(-1)
+                    store.writeInt(bytes.size)
+                    store.write(bytes)
+                    turnSpool.tail = position
+                    if (item.optString("type") == "agentMessage" && item.optString("phase") == "partial_answer")
+                        turnSpool.progressive = true
                 }
-                turns.getOrPut(turn) { JSONArray() }.put(entry.getJSONObject("item"))
+                onProgress(seenItems.size)
+                cursor = historyCursor(page)
+                if (cursor != null) check(seenCursors.add(cursor)) { "历史分页重复，请重新读取" }
+            } while (cursor != null)
+            val outcomes = HistoryTurnOutcomes(threadId, request).load(offsets.keys)
+            val renderer = ThreadMarkdownExporter.Stream(output, includeActivity)
+            val context = currentCoroutineContext()
+            for ((id, turnSpool) in offsets) {
+                context.ensureActive()
+                val items = sequence {
+                    var position = turnSpool.head
+                    while (position >= 0) {
+                        context.ensureActive()
+                        store.seek(position)
+                        val next = store.readLong()
+                        val bytes = ByteArray(store.readInt())
+                        store.readFully(bytes)
+                        yield(JSONObject(bytes.toString(Charsets.UTF_8)))
+                        position = next
+                    }
+                }
+                renderer.turn(outcomes[id]?.optString("status") ?: "unverified", turnSpool.progressive, items)
             }
-            cursor = historyCursor(page)
-            if (cursor != null) check(seenCursors.add(cursor)) { "历史分页重复，请重新读取" }
-        } while (cursor != null)
-        val outcomes = HistoryTurnOutcomes(threadId, request).load(turns.keys)
-        return JSONObject().put("thread", JSONObject().put("turns", JSONArray().apply {
-            turns.forEach { (id, items) ->
-                val turn = outcomes[id]
-                put(JSONObject().put("id", id).put("items", items)
-                    .put("status", turn?.optString("status") ?: "unverified")
-                    .put("error", turn?.opt("error") ?: JSONObject.NULL))
-            }
-        }))
+            renderer.finish()
+        }
     }
 }

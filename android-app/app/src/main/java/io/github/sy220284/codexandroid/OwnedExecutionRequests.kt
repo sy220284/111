@@ -2,12 +2,6 @@ package io.github.sy220284.codexandroid
 
 import org.json.JSONObject
 
-internal fun accountScopedRead(method: String): Boolean = method in setOf(
-    "model/list", "modelProvider/list", "skills/list", "plugin/list", "plugin/installed",
-    "plugin/search", "plugin/read", "app/list", "mcpServerStatus/list",
-    "config/read", "configRequirements/read", "permissionProfile/list"
-)
-
 internal suspend fun CodexViewModel.ensureRemoteThread(
     id: String, binding: RemoteExecutionBinding, running: Boolean = false,
     expectedSession: Long = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" },
@@ -42,6 +36,9 @@ internal suspend fun CodexViewModel.dispatchOwnedRequest(
     ensureRemoteThread(parent, binding, expectedSession = epoch, sendPermit = sendPermit)
     val reply = bridge.request(method, params, expectedSession = epoch, sendPermit = sendPermit)
     val id = reply.getJSONObject("thread").getString("id")
+    check(bridge.connectedSession.value == epoch && sendPermit?.invoke() != false) {
+        "会话分叉所属账号或核心已变化，请核对会话目录"
+    }
     remoteBindings.bind(id, binding)
     ensureRemoteThread(id, binding, expectedSession = epoch, sendPermit = sendPermit)
     val confirmed = bridge.request("thread/read", JSONObject().put("threadId", id), expectedSession = epoch, sendPermit = sendPermit)

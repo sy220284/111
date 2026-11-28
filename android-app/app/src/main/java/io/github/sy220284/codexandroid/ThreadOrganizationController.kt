@@ -1,9 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import androidx.lifecycle.viewModelScope
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -72,16 +71,25 @@ internal class ThreadUndoGate {
 internal class ThreadOrganizationController(private val vm: CodexViewModel) {
     private val gate = ThreadUndoGate()
     val revision = MutableStateFlow(0L)
-    fun invalidate() = gate.invalidate()
-    fun begin(method: String, ids: List<String>) = gate.begin(method, ids)
-    fun complete(ticket: Long?, ids: List<String>) = gate.complete(ticket, ids)
-    fun isCurrent(offer: ThreadUndoOffer) = gate.isCurrent(offer)
+    private var undoOwner: TaskRequestOwner? = null
+    fun invalidate() {
+        undoOwner = null
+        gate.invalidate()
+    }
+    fun begin(method: String, ids: List<String>): Long? {
+        if (!ThreadOrganizationPolicy.isOrganization(method)) return null
+        undoOwner = vm.captureTaskOwner()
+        return gate.begin(method, ids)
+    }
+    fun complete(ticket: Long?, ids: List<String>) =
+        if (undoOwner?.current(vm) == true) gate.complete(ticket, ids) else null
+    fun isCurrent(offer: ThreadUndoOffer) = undoOwner?.current(vm) == true && gate.isCurrent(offer)
     fun observe(method: String, id: String) {
         gate.observe(method, id)
         revision.value++
     }
     fun undo(offer: ThreadUndoOffer) {
-        if (!gate.consume(offer)) {
+        if (!isCurrent(offer) || !gate.consume(offer)) {
             vm.viewModelScope.launch { vm.actionFeedback.emit(ActionFeedbackReceipt(
                 "会话状态已更新，请在会话历史中重新核对", isError = true)) }
             return
@@ -114,54 +122,58 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
             refuse("当前任务仍在执行或已有整理操作，请完成后重试")
             return@with
         }
-        val ticket = gate.begin(method, targets)
+        val owner = captureTaskOwner() ?: run {
+            refuse("运行核心尚未连接，请重新连接后操作")
+            return@with
+        }
+        val ticket = begin(method, targets)
         bulkCompletedThreadIds.value = emptySet()
         bulkActionSummary.value = "正在处理 0/${targets.size} 项会话"
         errors.value = errors.value - "threadLibraryBulk"
         loading.value = loading.value + "threadLibraryBulk"
         viewModelScope.launch {
             val completed = mutableListOf<String>()
+            var cancelled = false
             try {
                 for (id in targets) {
                     check(!firstThreadStarting.value && !threadSwitching.value &&
                         id !in threadExecutions.value) {
                         "批量处理期间启动了新任务，已停止后续操作"
                     }
-                    bridge.request(method, JSONObject().put("threadId", id))
+                    owner.request(vm, method, JSONObject().put("threadId", id))
                     completed += id
                     bulkCompletedThreadIds.value = completed.toSet()
                     bulkActionSummary.value = "正在处理 ${completed.size}/${targets.size} 项会话"
                 }
                 bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} ${completed.size} 条会话"
                 actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value,
-                    undo = if (offerUndo) gate.complete(ticket, completed) else null))
+                    undo = if (offerUndo) complete(ticket, completed) else null))
             } catch (failure: Exception) {
+                if (failure is CancellationException && failure !is TimeoutCancellationException) {
+                    cancelled = true
+                    throw failure
+                }
+                if (!owner.current(vm)) return@launch
                 val reason = "已完成 ${completed.size}/${targets.size} 条；" +
                     (failure.message ?: "操作中断，请核对未完成项")
                 bulkActionSummary.value = reason
                 errors.value = errors.value + ("threadLibraryBulk" to reason)
                 actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true,
-                    undo = if (offerUndo) gate.complete(ticket, completed) else null))
+                    undo = if (offerUndo) complete(ticket, completed) else null))
             } finally {
-                if (activeThread.value in bulkCompletedThreadIds.value && !running.value) newThread()
                 loading.value = loading.value - "threadLibraryBulk"
-                after()
-                syncRecentThreads()
+                if (!cancelled && owner.current(vm)) {
+                    if (activeThread.value in completed && !running.value) newThread()
+                    after()
+                    syncRecentThreads()
+                } else if (!cancelled) {
+                    bulkCompletedThreadIds.value = emptySet()
+                    bulkActionSummary.value = ""
+                    // Reconcile authoritative state; never replay the old mutation.
+                    syncRecentThreads()
+                }
             }
         }
         Unit
     }
-}
-
-/** Snackbar presents only a still-valid receipt; the controller validates it again on click. */
-internal suspend fun presentActionFeedback(host: SnackbarHostState, receipt: ActionFeedbackReceipt,
-    isCurrent: (ThreadUndoOffer) -> Boolean, onUndo: (ThreadUndoOffer) -> Unit) {
-    val undo = receipt.undo?.takeIf(isCurrent)
-    val result = host.showSnackbar(
-        message = receipt.message,
-        actionLabel = if (undo != null) "撤销" else null,
-        withDismissAction = receipt.isError || undo != null,
-        duration = if (receipt.isError || undo != null) SnackbarDuration.Long else SnackbarDuration.Short
-    )
-    if (result == SnackbarResult.ActionPerformed && undo != null) onUndo(undo)
 }

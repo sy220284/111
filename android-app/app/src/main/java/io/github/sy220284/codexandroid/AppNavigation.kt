@@ -96,6 +96,8 @@ fun CodexShell(vm: CodexViewModel) {
     val switching by vm.threadSwitching.collectAsStateWithLifecycle()
     val activeThread by vm.activeThread.collectAsStateWithLifecycle()
     val status by vm.bridge.status.collectAsStateWithLifecycle()
+    val accountRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
+    val coreSession by vm.bridge.connectedSession.collectAsStateWithLifecycle()
     val pendingCount by vm.bridge.prompts.collectProjection { it.size }
     val reduceMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     fun openDrawer() {
@@ -393,7 +395,12 @@ fun CodexShell(vm: CodexViewModel) {
                                 CompositionLocalProvider(LocalWorkPageTitle provides page.title,
                                     LocalWorkPageExplanation provides registerPageExplanation,
                                     LocalCodexProtectedTop provides inset.calculateTopPadding()) {
-                                    PageContent(selected, vm, move)
+                                    // Native account-scoped pages must re-read their authority;
+                                    // keep local editors, terminal transcript and composer drafts intact.
+                                    val nativeScoped = selected !in setOf("chat", "files", "terminal", "appearance", "about", "settings")
+                                    key(if (nativeScoped) accountRevision else null, if (nativeScoped) coreSession else null) {
+                                        PageContent(selected, vm, move)
+                                    }
                                 }
                             }
                         }
@@ -450,12 +457,14 @@ fun CodexShell(vm: CodexViewModel) {
             EngineStatusSheet(vm, onDismiss = { closeSheet("status") }, navigate = move)
         }
         if (activeSheet == "goals") pageStateHolder.SaveableStateProvider("sheet:goal:${activeThread}") {
-            ThreadGoalSheet(vm, onDismiss = { closeSheet("goals") })
+            key(accountRevision, coreSession) { ThreadGoalSheet(vm, onDismiss = { closeSheet("goals") }) }
         }
-        if (activeSheet == "modes") ModeChoiceSurface(vm) { closeSheet("modes") }
+        if (activeSheet == "modes") key(accountRevision, coreSession) { ModeChoiceSurface(vm) { closeSheet("modes") } }
         if (activeSheet == "history-tools") ThreadHistorySheet(vm) { closeSheet("history-tools") }
-        if (activeSheet == "thread-attachments") ThreadAttachmentsSheet(vm) { closeSheet("thread-attachments") }
-        if (activeSheet == "models") ModelChoiceSurface(vm) { closeSheet("models") }
+        if (activeSheet == "thread-attachments") key(accountRevision, coreSession) {
+            ThreadAttachmentsSheet(vm) { closeSheet("thread-attachments") }
+        }
+        if (activeSheet == "models") key(accountRevision, coreSession) { ModelChoiceSurface(vm) { closeSheet("models") } }
         if (activeSheet == "about") AboutInfoSheet(vm) { closeSheet("about") }
         // Archive transfer must block all foreground pages and sheets.
         ObserveDataTransferBusyOverlay(vm)

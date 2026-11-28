@@ -81,6 +81,7 @@ class CodexConnection internal constructor(private val appContext: Context,
     }
     internal fun releaseRestart() = ownership.releaseRestart()
     val prompts = MutableStateFlow<List<ServerPrompt>>(emptyList())
+    private val promptSubmissions = PromptSubmissionGate()
     val recentStderr = MutableStateFlow<List<String>>(emptyList())
     private val runtimeUserAgentState = MutableStateFlow<String?>(null)
     internal val runtimeUserAgent = runtimeUserAgentState.asStateFlow()
@@ -206,8 +207,11 @@ class CodexConnection internal constructor(private val appContext: Context,
                         (failure.message ?: failure.javaClass.simpleName))
                 }
             }
+            @Suppress("DEPRECATION")
+            val clientVersion = requireNotNull(appContext.packageManager
+                .getPackageInfo(appContext.packageName, 0).versionName)
             val info = JSONObject().put("name", "codex_android")
-                .put("title", "Codex Android").put("version", "0.1.0")
+                .put("title", "Codex Android").put("version", clientVersion)
             val capabilities = JSONObject().put("experimentalApi", true).put("requiredHumanApproval", true)
             val initialization = requestForSession("initialize", JSONObject().put("clientInfo", info)
                 .put("capabilities", capabilities), 45_000, epoch, null)
@@ -373,17 +377,24 @@ class CodexConnection internal constructor(private val appContext: Context,
                     "审批已过期，请刷新当前状态"
                 }
             }
-            registerRequest(id, RpcPriority.Control, userOwned = true)
+            if (prompt != null) check(promptSubmissions.claim(token, prompt.id)) { "该审批正在提交，请等待结果" }
+            try {
+                registerRequest(id, RpcPriority.Control, userOwned = true)
+            } catch (failure: Exception) {
+                if (prompt != null) promptSubmissions.release(token, prompt.id)
+                throw failure
+            }
             token
         }
         try {
-            withTimeout(RpcScheduling.WRITE_TIMEOUT_MS) {
-                write(epoch, message, permit = { prompt == null || prompts.value.contains(prompt) },
-                    requireReady = true, priority = RpcPriority.Control)
-            }
-            if (prompt != null) synchronized(ownership) {
-                if (ownership.owns(epoch)) prompts.value = prompts.value.filterNot { it == prompt }
-            }
+            write(epoch, message, permit = { prompt == null || prompts.value.contains(prompt) },
+                requireReady = true, priority = RpcPriority.Control,
+                onWritten = {
+                    if (prompt != null) synchronized(ownership) {
+                        if (ownership.owns(epoch)) prompts.value = prompts.value.filterNot { it.id == prompt.id }
+                    }
+                },
+                onFinished = { if (prompt != null) promptSubmissions.release(epoch, prompt.id) })
         } finally {
             synchronized(ownership) { unregisterRequest(id) }
         }
@@ -408,7 +419,8 @@ class CodexConnection internal constructor(private val appContext: Context,
     }
 
     private suspend fun write(epoch: Long, message: JSONObject, permit: (() -> Boolean)? = null,
-        requireReady: Boolean = false, priority: RpcPriority = RpcPriority.Control) {
+        requireReady: Boolean = false, priority: RpcPriority = RpcPriority.Control,
+        onWritten: () -> Unit = {}, onFinished: () -> Unit = {}) {
         // The independent IO job owns the physical writer until the blocking
         // flush returns. Caller cancellation cannot release a still-active pipe.
         val task = scope.async {
@@ -431,6 +443,7 @@ class CodexConnection internal constructor(private val appContext: Context,
                         }
                         permit?.invoke() != false
                     }
+                    onWritten()
                 } catch (failure: IOException) {
                     retireSession(epoch, "内核输入管道中断：" + (failure.message ?: "写入失败"))
                     throw failure
@@ -441,6 +454,7 @@ class CodexConnection internal constructor(private val appContext: Context,
                 }
             }
         }
+        task.invokeOnCompletion { onFinished() }
         try {
             withTimeout(RpcScheduling.WRITE_TIMEOUT_MS) { task.await() }
         } finally {

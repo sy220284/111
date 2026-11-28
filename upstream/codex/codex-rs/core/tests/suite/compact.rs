@@ -59,6 +59,7 @@ use core_test_support::skip_if_no_network;
 use core_test_support::streaming_sse::StreamingSseChunk;
 use core_test_support::streaming_sse::start_streaming_sse_server;
 use core_test_support::test_codex::local_requests;
+use core_test_support::test_codex::run_test_with_large_stack;
 use core_test_support::test_codex::test_codex;
 use core_test_support::test_codex::turn_permission_fields;
 use core_test_support::test_path_buf;
@@ -3476,9 +3477,16 @@ async fn pre_sampling_compact_falls_back_from_retired_previous_model_after_renam
     );
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn pre_sampling_compact_falls_back_when_previous_model_is_not_found() {
-    skip_if_no_network!();
+#[test_case::test_case(false; "model not found")]
+#[test_case::test_case(true; "account catalog denied")]
+fn pre_sampling_compact_falls_back_when_previous_model_is_not_found(account_catalog_denied: bool) -> Result<()> {
+    run_test_with_large_stack("previous-model-compaction-fallback", move || {
+        run_pre_sampling_compact_falls_back_when_previous_model_is_not_found(account_catalog_denied)
+    })
+}
+
+async fn run_pre_sampling_compact_falls_back_when_previous_model_is_not_found(account_catalog_denied: bool) -> Result<()> {
+    skip_if_no_network!(Ok(()));
 
     let server = MockServer::start().await;
     let retired_model = "gpt-5.5";
@@ -3504,7 +3512,18 @@ async fn pre_sampling_compact_falls_back_when_previous_model_is_not_found() {
                 ev_assistant_message("m1", "before switch"),
                 ev_completed_with_tokens("r1", /*total_tokens*/ 100),
             ])),
-            model_not_found_response(retired_model),
+            if account_catalog_denied {
+                wiremock::ResponseTemplate::new(/*status*/ 400).set_body_json(json!({
+                    "error": {
+                        "message": format!("The '{retired_model}' model is not supported when using Codex with a ChatGPT account."),
+                        "code": "model_not_in_accessible_catalog",
+                        "type": "invalid_request_error",
+                        "param": "model",
+                    }
+                }))
+            } else {
+                model_not_found_response(retired_model)
+            },
             sse_response(sse(vec![
                 json!({
                     "type": "response.output_item.done",
@@ -3614,6 +3633,7 @@ async fn pre_sampling_compact_falls_back_when_previous_model_is_not_found() {
         requests[3].body_json()["model"].as_str(),
         Some(renamed_model)
     );
+    Ok(())
 }
 
 #[test_case::test_case("openai"; "built in provider")]
@@ -4305,9 +4325,13 @@ async fn pre_sampling_compact_skips_when_either_comp_hash_is_missing() {
     }));
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn body_after_prefix_model_switch_budget_compacts_with_next_model() {
-    skip_if_no_network!();
+#[test]
+fn body_after_prefix_model_switch_budget_compacts_with_next_model() -> Result<()> {
+    run_test_with_large_stack("body_after_prefix_model_switch_budget_compacts_with_next_model", run_body_after_prefix_model_switch_budget_compacts_with_next_model)
+}
+
+async fn run_body_after_prefix_model_switch_budget_compacts_with_next_model() -> Result<()> {
+    skip_if_no_network!(Ok(()));
 
     let server = MockServer::start().await;
     let previous_model = "gpt-5.4";
@@ -4397,11 +4421,16 @@ async fn body_after_prefix_model_switch_budget_compacts_with_next_model() {
         body_contains_text(&requests[1].body_json().to_string(), SUMMARIZATION_PROMPT),
         "body-budget compaction request should include summarization prompt"
     );
+    Ok(())
 }
 
-#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
-    skip_if_no_network!();
+#[test]
+fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() -> Result<()> {
+    run_test_with_large_stack("pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model", run_pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model)
+}
+
+async fn run_pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() -> Result<()> {
+    skip_if_no_network!(Ok(()));
 
     let server = MockServer::start().await;
     let previous_model = "gpt-5.4";
@@ -4518,6 +4547,7 @@ async fn pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model() {
         previous_model,
         next_model,
     );
+    Ok(())
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

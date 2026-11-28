@@ -37,7 +37,7 @@ class ComposerPermissionPolicyTest {
                 else -> error("unexpected RPC: $method")
             }
         }
-        val readback = SecurityPermissionController.saveDefault(":workspace", "/workspace", request)
+        val readback = SecurityPermissionController.saveDefault(":workspace", "/workspace", request = request)
         assertEquals(":workspace", ComposerPermissionPolicy.selected(readback))
         assertEquals(listOf("config/batchWrite", "config/read"), calls)
         // A fresh read uses the persisted value, not a retained UI selection.
