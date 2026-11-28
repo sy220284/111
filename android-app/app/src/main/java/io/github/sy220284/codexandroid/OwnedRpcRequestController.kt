@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -62,8 +64,9 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
         val requestEpoch = bridge.connectedSession.value
         val accountOwner = catalogWarmup.accountRevision.value
         val permissionWorkspace = if (key in setOf("composerPermissionConfig", "permissionProfiles")) params?.optString("cwd") else null
-        fun ownsReceipt() = latestRequests.isLatest(key, ticket) && requestEpoch == bridge.connectedSession.value &&
-            (!accountScopedRead(method) || accountOwner == catalogWarmup.accountRevision.value) &&
+        fun ownsConnection() = latestRequests.isLatest(key, ticket) && requestEpoch == bridge.connectedSession.value
+        fun ownsReceipt() = ownsConnection() &&
+            accountOwner == catalogWarmup.accountRevision.value &&
             (method !in setOf("config/read", "configRequirements/read", "permissionProfile/list") || configOwner == configGeneration) &&
             (permissionWorkspace == null || permissionWorkspace == activeWorkspace.value)
         val retainQueue = method == "thread/queue/list" && key.startsWith("queue:")
@@ -75,7 +78,15 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
         viewModelScope.launch {
             try {
                 val response = dispatchOwnedRequest(method, params, requireNotNull(requestEpoch) { "运行核心尚未连接" },
-                    sendPermit = if (userAction || accountScopedRead(method)) ({ catalogWarmup.accountRevision.value == accountOwner }) else null)
+                    sendPermit = { catalogWarmup.accountRevision.value == accountOwner })
+                // Identity-changing commands may emit account/updated before their response.
+                // Re-read the new authority instead of publishing an old-identity payload.
+                if (userAction && ownsConnection() && !ownsReceipt() &&
+                    method in setOf("account/logout", "accountSession/switch")) {
+                    refresh("account", "account/read", JSONObject())
+                    refresh("accountSessions", "accountSession/list", CatalogRequestContract.accountSessions())
+                    return@launch
+                }
                 if (ownsReceipt()) {
                     val published = if (key == "apps" && method == "app/list" &&
                         !params?.optString("cursor").isNullOrBlank())
@@ -97,6 +108,7 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                                 listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank)))))
                 }
             } catch (failure: Exception) {
+                if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
                 if (ownsReceipt()) {
                     val reason = failure.message ?: "请求失败"
                     errors.value = errors.value + (key to reason)

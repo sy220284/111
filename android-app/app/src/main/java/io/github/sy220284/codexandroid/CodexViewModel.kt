@@ -442,8 +442,9 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 if (created != null && FirstTurnRecoveryPolicy.explicitlyRejected(failure)) {
                     try {
                         recoveryNote = FirstTurnRecoveryController { method, params, timeout ->
-                            bridge.request(method, params, timeoutMillis = timeout)
+                            owner.request(this@CodexViewModel, method, params, timeout)
                         }.reclaim(created, { activeThread.value }, { activeTurn.value }) {
+                            owner.requireCurrent(this@CodexViewModel)
                             composerDrafts.update {
                                 ThreadComposerDrafts.reclaimRejectedNewThread(it, created, draftOwner)
                             }

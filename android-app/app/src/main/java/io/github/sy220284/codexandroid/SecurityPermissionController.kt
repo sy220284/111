@@ -21,16 +21,8 @@ internal object ComposerPermissionPolicy {
 
 /** Persist to the core, and report success only after reading the effective configuration. */
 object SecurityPermissionController {
-    suspend fun saveDefault(bridge: CodexConnection, profileId: String, cwd: String? = null,
-        isCurrent: () -> Boolean = { true }): JSONObject =
-        saveDefault(profileId, cwd, isCurrent = isCurrent) { method, params -> bridge.request(method, params) }
-
     internal suspend fun saveDefault(profileId: String, cwd: String?,
-        request: suspend (String, JSONObject) -> JSONObject): JSONObject =
-        saveDefault(profileId, cwd, { true }, request)
-
-    private suspend fun saveDefault(profileId: String, cwd: String?,
-        isCurrent: () -> Boolean, request: suspend (String, JSONObject) -> JSONObject): JSONObject {
+        isCurrent: () -> Boolean = { true }, request: suspend (String, JSONObject) -> JSONObject): JSONObject {
         require(profileId in ComposerPermissionPolicy.ids) { "未知权限方案" }
         val params = JSONObject().put("edits", JSONArray().put(JSONObject()
             .put("keyPath", "default_permissions").put("value", profileId)
@@ -87,17 +79,24 @@ internal fun CodexViewModel.chooseComposerPermission(id: String) {
     }
     val cwd = activeWorkspace.value
     val generation = configGeneration
+    val owner = captureTaskOwner() ?: run {
+        errors.value = errors.value + ("securitySave" to "运行核心尚未连接")
+        return
+    }
+    fun current() = owner.current(this) && configGeneration == generation
     securitySaveBusy.value = true
     errors.value = errors.value - "securitySave"
     viewModelScope.launch {
         try {
-            val verified = SecurityPermissionController.saveDefault(bridge, id, cwd) { configGeneration == generation }
-            if (activeWorkspace.value == cwd && configGeneration == generation)
+            val verified = SecurityPermissionController.saveDefault(id, cwd, ::current) { method, params ->
+                owner.request(this@chooseComposerPermission, method, params)
+            }
+            if (activeWorkspace.value == cwd && current())
                 data.value = data.value + ("composerPermissionConfig" to verified)
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: Exception) {
-            if (configGeneration == generation) {
+            if (current()) {
                 errors.value = errors.value + ("securitySave" to (failure.message ?: "权限保存或回读失败"))
                 if (activeWorkspace.value == cwd) data.value = data.value - "composerPermissionConfig"
             }

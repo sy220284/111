@@ -48,6 +48,8 @@ internal class CatalogWarmupController(
 
     fun accountChanged() {
         accountRevisionState.value += 1
+        vm.threadOrganization.invalidate()
+        vm.invalidateConfigScope()
         invalidateModels()
         vm.refresh("models", "model/list")
         if (vm.composerCatalogKey() != "models") vm.refreshComposerCatalog()

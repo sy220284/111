@@ -4,6 +4,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONObject
@@ -114,6 +116,10 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
             refuse("当前任务仍在执行或已有整理操作，请完成后重试")
             return@with
         }
+        val owner = captureTaskOwner() ?: run {
+            refuse("运行核心尚未连接，请重新连接后操作")
+            return@with
+        }
         val ticket = gate.begin(method, targets)
         bulkCompletedThreadIds.value = emptySet()
         bulkActionSummary.value = "正在处理 0/${targets.size} 项会话"
@@ -127,7 +133,7 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                         id !in threadExecutions.value) {
                         "批量处理期间启动了新任务，已停止后续操作"
                     }
-                    bridge.request(method, JSONObject().put("threadId", id))
+                    owner.request(vm, method, JSONObject().put("threadId", id))
                     completed += id
                     bulkCompletedThreadIds.value = completed.toSet()
                     bulkActionSummary.value = "正在处理 ${completed.size}/${targets.size} 项会话"
@@ -136,6 +142,8 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                 actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value,
                     undo = if (offerUndo) gate.complete(ticket, completed) else null))
             } catch (failure: Exception) {
+                if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
+                if (!owner.current(vm)) return@launch
                 val reason = "已完成 ${completed.size}/${targets.size} 条；" +
                     (failure.message ?: "操作中断，请核对未完成项")
                 bulkActionSummary.value = reason
@@ -143,10 +151,17 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                 actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true,
                     undo = if (offerUndo) gate.complete(ticket, completed) else null))
             } finally {
-                if (activeThread.value in bulkCompletedThreadIds.value && !running.value) newThread()
                 loading.value = loading.value - "threadLibraryBulk"
-                after()
-                syncRecentThreads()
+                if (owner.current(vm)) {
+                    if (activeThread.value in completed && !running.value) newThread()
+                    after()
+                    syncRecentThreads()
+                } else {
+                    bulkCompletedThreadIds.value = emptySet()
+                    bulkActionSummary.value = ""
+                    // Reconcile authoritative state; never replay the old mutation.
+                    syncRecentThreads()
+                }
             }
         }
         Unit

@@ -15,9 +15,20 @@ internal data class TaskRequestOwner(val epoch: Long, val account: Long) {
     }
 
     suspend fun request(vm: CodexViewModel, method: String, params: JSONObject? = null): JSONObject {
+        return guarded(vm) {
+            vm.bridge.request(method, params, expectedSession = epoch, sendPermit = { current(vm) })
+        }
+    }
+
+    suspend fun request(vm: CodexViewModel, method: String, params: JSONObject?, timeoutMillis: Long?): JSONObject =
+        guarded(vm) {
+            vm.bridge.request(method, params, timeoutMillis = timeoutMillis,
+                expectedSession = epoch, sendPermit = { current(vm) })
+        }
+
+    private suspend fun <T> guarded(vm: CodexViewModel, execute: suspend () -> T): T {
         requireCurrent(vm)
-        val response = vm.bridge.request(method, params, expectedSession = epoch,
-            sendPermit = { current(vm) })
+        val response = execute()
         requireCurrent(vm)
         return response
     }

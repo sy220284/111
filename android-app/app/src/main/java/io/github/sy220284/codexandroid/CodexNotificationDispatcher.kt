@@ -55,7 +55,6 @@ internal object CodexNotificationDispatcher {
                 if (result.success) errors.value = errors.value - "account"
                 else errors.value = errors.value + ("account" to
                     result.error.ifBlank { "登录未成功，请重新开始授权" })
-                refresh("account", "account/read")
                 if (result.success) {
                     catalogWarmup.accountChanged()
                     modelPreviews.clear()
@@ -64,10 +63,11 @@ internal object CodexNotificationDispatcher {
                     refresh("mcp", "mcpServerStatus/list",
                         CatalogRequestContract.mcpStatus(activeThread.value))
                 }
+                refresh("account", "account/read")
             }
         } else if (method == "account/updated") {
-            refresh("account", "account/read")
             catalogWarmup.accountChanged()
+            refresh("account", "account/read")
             mcpCatalog.clearStartup()
             modelPreviews.clear()
             accountMetrics.accountChanged()

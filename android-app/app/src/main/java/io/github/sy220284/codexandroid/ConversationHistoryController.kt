@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -14,30 +16,35 @@ internal fun CodexViewModel.loadEarlierHistory() {
     val id = activeThread.value ?: return
     if (loadingEarlier.value || threadSwitching.value || timelineCompacting) return
     val epoch = timelineEpoch
+    val owner = captureTaskOwner() ?: run {
+        errors.value = errors.value + ("timeline" to "运行核心尚未连接，请重新连接后读取")
+        return
+    }
+    fun current() = owner.current(this) && activeThread.value == id && timelineEpoch == epoch && !threadSwitching.value
     loadingEarlier.value = true
     viewModelScope.launch {
         try {
             var older = timelineWindow.readEarlier(id, epoch)
-            if (older.isEmpty() && activeThread.value == id && timelineEpoch == epoch) {
+            if (older.isEmpty() && current()) {
                 val cursor = olderServerCursor.value ?: return@launch
-                val response = bridge.request("thread/items/list", JSONObject().put("threadId", id)
+                val response = owner.request(this@loadEarlierHistory, "thread/items/list", JSONObject().put("threadId", id)
                     .put("sortDirection", "desc").put("limit", 120).put("cursor", cursor))
-                if (activeThread.value != id || threadSwitching.value || timelineEpoch != epoch) return@launch
-                val session = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" }
+                if (!current()) return@launch
                 val reader = historyTurnOutcomes?.takeIf { it.threadId == id } ?: HistoryTurnOutcomes(id) { method, params ->
-                    bridge.request(method, params, expectedSession = session)
+                    owner.request(this@loadEarlierHistory, method, params)
                 }.also { historyTurnOutcomes = it }
                 older = reader.reconcile(readHistoryPage(response))
-                if (activeThread.value != id || threadSwitching.value || timelineEpoch != epoch) return@launch
+                if (!current()) return@launch
                 olderServerCursor.value = historyCursor(response)
             }
-            if (activeThread.value == id && timelineEpoch == epoch && !threadSwitching.value && older.isNotEmpty()) {
+            if (current() && older.isNotEmpty()) {
                 val known = timeline.value.mapTo(hashSetOf()) { it.id }
                 timeline.value = older.filterNot { it.id in known } + timeline.value
                 errors.value = errors.value - "timeline"
             }
         } catch (failure: Exception) {
-            if (timelineEpoch == epoch) errors.value = errors.value + ("timeline" to
+            if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
+            if (current()) errors.value = errors.value + ("timeline" to
                 (failure.message ?: "无法加载更早的记录"))
         } finally { loadingEarlier.value = false }
     }

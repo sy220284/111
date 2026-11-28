@@ -43,6 +43,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var exportMarkdown by remember(thread) { mutableStateOf<String?>(null) }
+    var exportOwner by remember(thread) { mutableStateOf<TaskRequestOwner?>(null) }
     var exportBusy by remember(thread) { mutableStateOf(false) }
     var exportStatus by remember(thread) { mutableStateOf("") }
     var includeActivity by remember(thread) { mutableStateOf(false) }
@@ -52,37 +53,52 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
         ActivityResultContracts.CreateDocument("text/markdown")
     ) { uri ->
         val snapshot = exportMarkdown
-        if (uri != null && snapshot != null) {
+        val operation = exportOwner
+        if (uri != null && snapshot != null && operation != null) {
             scope.launch {
                 try {
+                    operation.requireCurrent(vm)
                     withContext(Dispatchers.IO) {
+                        operation.requireCurrent(vm)
                         val output = context.contentResolver.openOutputStream(uri)
                             ?: throw IOException("无法创建导出文件")
                         output.bufferedWriter(Charsets.UTF_8).use { it.write(snapshot) }
                     }
+                    operation.requireCurrent(vm)
                     exportStatus = "会话 Markdown 文件已保存"
+                } catch (cancel: CancellationException) {
+                    throw cancel
                 } catch (failure: Exception) {
                     exportStatus = "保存失败：" + (failure.message ?: "请选择其他保存位置")
                 } finally {
                     exportMarkdown = null
                 }
             }
-        } else exportMarkdown = null
+        } else {
+            exportMarkdown = null
+            exportOwner = null
+        }
     }
     fun exportConversation(toClipboard: Boolean, activity: Boolean) {
         val owner = thread ?: return
         if (exportBusy || busy || exportMarkdown != null) return
+        val operation = vm.captureTaskOwner() ?: run {
+            exportStatus = "导出失败：运行核心尚未连接"
+            return
+        }
         exportBusy = true
         exportStatus = ""
         scope.launch {
             try {
-                val payload = ThreadCopyHistory { method, params -> vm.bridge.request(method, params) }.read(owner)
+                val payload = ThreadCopyHistory { method, params -> operation.request(vm, method, params) }.read(owner)
                 val markdown = withContext(Dispatchers.Default) { ThreadMarkdownExporter.render(payload, activity) }
+                operation.requireCurrent(vm)
                 check(currentThread == owner) { "会话已切换，请重新操作" }
                 if (toClipboard) {
                     val copied = ConversationClipboard.copy(context, markdown, CopyContentFormat.Literal)
                     if (currentThread == owner) exportStatus = if (copied) "已复制完整会话" else "复制失败：可尝试导出文件"
                 } else {
+                    exportOwner = operation
                     exportMarkdown = markdown
                     exportFilePicker.launch("Codex-会话记录.md")
                 }
