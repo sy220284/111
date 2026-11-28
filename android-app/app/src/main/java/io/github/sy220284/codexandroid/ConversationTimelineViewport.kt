@@ -134,13 +134,14 @@ internal fun ConversationTimelineViewport(
     var previousTailSize by remember { mutableIntStateOf(-1) }
     LaunchedEffect(scroll, thread, contextLoading) {
         if (contextLoading) return@LaunchedEffect
+        var pendingFollow = true
         // One collector per conversation; a stream of deltas must not cancel and restart it.
         snapshotFlow { TimelineRenderTarget(currentGroupCount, currentLogicalCount, currentTail, hasOlderPage,
             scroll.layoutInfo.viewportSize.height, scroll.layoutInfo.totalItemsCount,
             scroll.layoutInfo.visibleItemsInfo.lastOrNull { it.index == TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage) }?.size ?: -1) }
             .collect { (count, logicalCount, tail, older, viewportHeight, measuredCount, tailSize) ->
                 val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage ||
-                    measuredCount != previousMeasuredCount || tailSize != previousTailSize
+                    measuredCount != previousMeasuredCount || TimelineViewportPolicy.tailResized(previousTailSize, tailSize)
                 previousMeasuredCount = measuredCount
                 previousTailSize = tailSize
                 previousViewportHeight = viewportHeight
@@ -156,26 +157,32 @@ internal fun ConversationTimelineViewport(
                     unreadSteps = 0
                 }
                 val target = TimelineViewportPolicy.latestIndex(count, older)
-                if (target >= 0 && measuredCount == target + 1 && viewportHeight > 0 && followTail && !autoScrolling &&
-                    (threadChanged || change.changed || viewportChanged || collapsed)) {
-                    // Let the new list layout settle; a real drag takes precedence.
-                    withFrameNanos { }
-                    if (followTail && !autoScrolling && scroll.layoutInfo.totalItemsCount ==
-                        TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage) + 1) {
-                        // A user scroll may cancel this child without cancelling the collector.
-                        kotlinx.coroutines.coroutineScope {
-                            launch {
-                                autoScrolling = true
-                                try {
-                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage), animate = false)
-                                } finally {
-                                    autoScrolling = false
+                if (!followTail) {
+                    pendingFollow = false
+                    unreadSteps += change.newSteps
+                } else {
+                    // Preserve a request until the actual lazy layout has measured the
+                    // new item count. Visibility changes caused by scrolling cannot
+                    // create a fresh request and pull a reader away from history.
+                    pendingFollow = pendingFollow || threadChanged || change.changed || viewportChanged || collapsed
+                    if (pendingFollow && !autoScrolling && !scroll.isScrollInProgress &&
+                        TimelineViewportPolicy.measuredTargetReady(target, measuredCount, viewportHeight)) {
+                        withFrameNanos { }
+                        val latest = TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage)
+                        if (followTail && !autoScrolling && !scroll.isScrollInProgress &&
+                            TimelineViewportPolicy.measuredTargetReady(latest, scroll.layoutInfo.totalItemsCount,
+                                scroll.layoutInfo.viewportSize.height)) {
+                            pendingFollow = false
+                            autoScrolling = true
+                            try {
+                                kotlinx.coroutines.coroutineScope {
+                                    launch { scroll.scrollToLatest(latest, animate = false) }
                                 }
+                            } finally {
+                                autoScrolling = false
                             }
                         }
                     }
-                } else if (!followTail) {
-                    unreadSteps += change.newSteps
                 }
             }
     }

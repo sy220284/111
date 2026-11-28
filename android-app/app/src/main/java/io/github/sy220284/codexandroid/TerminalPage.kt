@@ -113,8 +113,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
         snapshotFlow { Triple(consoleScroll.isScrollInProgress,
             consoleScroll.value >= consoleScroll.maxValue - 24, automaticConsoleScroll) }
             .collect { (scrolling, atEnd, automatic) ->
-                if (!scrolling && atEnd) followConsoleTail = true
-                else if (scrolling && !automatic) followConsoleTail = false
+                if (!scrolling && atEnd && !automatic) followConsoleTail = true
+                else if (scrolling && !automatic && !automaticConsoleScroll) followConsoleTail = false
             }
     }
     LaunchedEffect(consoleScroll, session.processId) {
@@ -122,15 +122,13 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
             if (followConsoleTail) {
                 withFrameNanos { }
                 if (followConsoleTail && consoleScroll.value < consoleScroll.maxValue) {
-                    kotlinx.coroutines.coroutineScope {
-                        launch {
-                            automaticConsoleScroll = true
-                            try {
-                                consoleScroll.scrollTo(consoleScroll.maxValue)
-                            } finally {
-                                automaticConsoleScroll = false
-                            }
+                    automaticConsoleScroll = true
+                    try {
+                        kotlinx.coroutines.coroutineScope {
+                            launch { consoleScroll.scrollTo(consoleScroll.maxValue) }
                         }
+                    } finally {
+                        automaticConsoleScroll = false
                     }
                 }
             }

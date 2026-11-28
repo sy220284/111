@@ -130,7 +130,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             Text("不同服务商拥有独立目录与认证配置。", color = Ink.muted)
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth()) {
             Text("国内模型预置", style = MaterialTheme.typography.titleMedium)
             Text("官方国内接口 · 需单独授权，预置模型仅供选择参考。", color = Ink.muted)
             domesticPresets.forEach { preset ->
@@ -514,7 +514,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             }
             if (found.isNotEmpty()) {
                 AtlasListHeading("搜索结果", found.size, suffix = "个插件")
-                MaterialPanel(Modifier.fillMaxWidth()) {
+                WorkSection(Modifier.fillMaxWidth()) {
                     found.forEachIndexed { index, hit ->
                         if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                         val item = hit.plugin
@@ -537,7 +537,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (!searchActive || found.isEmpty()) groups.forEach { (market, items) ->
             Text(ExtensionCatalogPolicy.marketName(market).ifBlank { "插件目录" },
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSection(Modifier.fillMaxWidth()) {
                 items.forEachIndexed { index, item ->
                     if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                     ExtensionPluginRow(item, installed(market, item), canManage,

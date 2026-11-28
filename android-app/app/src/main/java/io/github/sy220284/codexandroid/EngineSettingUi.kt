@@ -20,7 +20,7 @@ internal fun EngineSettingRows(owner: String, config: JSONObject?, enabled: Bool
     onSelect: (EngineSetting) -> Unit) {
     val entries = EngineSettings.forOwner(owner)
     if (entries.isNotEmpty()) {
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth()) {
             entries.forEachIndexed { index, setting ->
                 val available = EngineSettings.choices(setting, config, models, requirements, requirementsRead)
                 val editable = enabled && (setting.type !in listOf("choice", "reasoning", "model") || available.isNotEmpty())
@@ -271,7 +271,7 @@ internal fun EngineSettingsSection(vm: CodexViewModel, owner: String, focusTarge
         return
     }
     val entries = EngineSettings.forOwner(owner)
-    MaterialPanel(Modifier.fillMaxWidth()) {
+    WorkSection(Modifier.fillMaxWidth()) {
         entries.forEachIndexed { index, setting ->
             key(setting.key) {
                 val current = EngineSettings.valueAt(config, setting.key)

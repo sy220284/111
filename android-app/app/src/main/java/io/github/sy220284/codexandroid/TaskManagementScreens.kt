@@ -54,7 +54,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
     ScreenColumn(modifier = Modifier.weight(1f)) {
         if (!inSheet) SectionIntro("任务目标", "设定希望达成的结果，并查看当前任务进度。")
         if (active == null) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSection(Modifier.fillMaxWidth()) {
                 Text("请先从历史记录或任务对话打开一个会话", style = MaterialTheme.typography.titleMedium)
                 Text("选中会话后即可读取、设定和更新该会话目标。", color = Ink.muted)
             }
@@ -306,7 +306,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     ScreenColumn {
         SectionIntro("后续指令", "当前任务结束后按顺序执行的指令，可以修改、排序或删除。")
         if (active == null) {
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSection(Modifier.fillMaxWidth()) {
                 Text("请先打开一个任务会话", style = MaterialTheme.typography.titleMedium)
                 Text("队列属于具体会话；切换会话后将显示对应任务。", color = Ink.muted)
             }

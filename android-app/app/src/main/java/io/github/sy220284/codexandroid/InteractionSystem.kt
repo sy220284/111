@@ -74,8 +74,10 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
         // Update only the native layer transform. The veil is a separate draw
         // operation, so translating the page needs no full-size alpha buffer.
         Box(Modifier.fillMaxSize().graphicsLayer {
-            translationX = if (reducedMotion || !NavigationPolicy.isDetailPage(route)) 0f
-                else 12.dp.toPx() * (1f - progress.value)
+            val detail = NavigationPolicy.isDetailPage(route)
+            val remaining = if (reducedMotion) 0f else 1f - progress.value
+            translationX = if (detail) 12.dp.toPx() * remaining else 0f
+            translationY = if (detail) 0f else 6.dp.toPx() * remaining
         }) {
             content()
         }

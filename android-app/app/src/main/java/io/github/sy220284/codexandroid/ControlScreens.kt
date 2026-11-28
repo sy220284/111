@@ -403,7 +403,7 @@ fun ConfigPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         saveMessage?.let {
             CodexNotice(it, NoticeTone.Success)
         }
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth()) {
             CodexDetailTrigger("诊断与日志", { navigate("diagnostics") }, Modifier.fillMaxWidth())
         }
         Text("专业配置", style = MaterialTheme.typography.titleSmall, color = Ink.muted)

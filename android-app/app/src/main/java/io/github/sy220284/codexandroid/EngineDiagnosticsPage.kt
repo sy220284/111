@@ -109,7 +109,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             Text(work.blockReason, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
         }
         Text("运行策略", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
-        MaterialPanel(Modifier.fillMaxWidth().testTag("diagnostics-runtime-policy")) {
+        WorkSection(Modifier.fillMaxWidth().testTag("diagnostics-runtime-policy")) {
             RuntimeInfoRow("打开应用时连接", "授权工作区后自动初始化")
             DividerLine()
             RuntimeInfoRow("异常恢复", "可恢复故障自动重连，保留历史与草稿")
@@ -156,7 +156,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             }
         }
         Text("运行环境", style = MaterialTheme.typography.titleSmall, color = Ink.muted)
-        MaterialPanel(Modifier.fillMaxWidth().testTag("diagnostics-environment")) {
+        WorkSection(Modifier.fillMaxWidth().testTag("diagnostics-environment")) {
             RuntimeInfoRow("应用版本", appVersion.ifBlank { "未读取" })
             DividerLine()
             RuntimeInfoRow("内核标识", coreIdentity?.takeIf { connected } ?: "等待内核握手回执")
@@ -165,7 +165,7 @@ fun EngineDiagnosticsPage(vm: CodexViewModel) {
             DividerLine()
             RuntimeInfoRow("通信方式", "stdio · JSON-RPC")
         }
-        MaterialPanel(Modifier.fillMaxWidth().testTag("diagnostics-crash-history")) {
+        WorkSection(Modifier.fillMaxWidth().testTag("diagnostics-crash-history")) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("本机崩溃记录", style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f))

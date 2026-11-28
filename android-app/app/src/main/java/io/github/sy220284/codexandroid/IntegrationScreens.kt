@@ -155,7 +155,7 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 val items = groups[isConnected].orEmpty()
                 if (items.isEmpty()) continue
                 AtlasListHeading(if (isConnected) "已连接应用" else "其他应用", items.size, suffix = "项")
-                MaterialPanel(Modifier.fillMaxWidth()) {
+                WorkSection(Modifier.fillMaxWidth()) {
                     items.forEachIndexed { index, app ->
                         if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                         val id = app.optString("id")
