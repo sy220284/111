@@ -135,7 +135,7 @@ internal fun CodexViewModel.composerCatalogKey(): String =
 
 internal fun CodexViewModel.refreshComposerCatalog(forceRefresh: Boolean = false) {
     val key = composerCatalogKey()
-    if (key in loading.value) return
+    if (!forceRefresh && key in loading.value) return
     val provider = currentComposerProvider().takeIf { key != "models" }
     refresh(key, "model/list", ComposerProviderScope.request(provider, forceRefresh))
 }

@@ -37,6 +37,14 @@ internal suspend fun CodexViewModel.dispatchOwnedRequest(
     if (method != "thread/fork" || params == null)
         return bridge.request(method, params, expectedSession = epoch, sendPermit = sendPermit)
     val parent = params.getString("threadId")
+    ComposerProviderScope.provider(params.optString("modelProvider"))?.let { provider ->
+        val model = ComposerProviderScope.provider(params.optString("model"))
+        if (model != null) {
+            val catalog = records(bridge.request("model/list", ComposerProviderScope.request(provider),
+                expectedSession = epoch, sendPermit = sendPermit))
+            ComposerProviderScope.requireModel(catalog, model, "")
+        }
+    }
     val binding = remoteBindings.forThread(parent)
         ?: return modelPreviews.request(method, params, expectedSession = epoch, sendPermit = sendPermit)
     ensureRemoteThread(parent, binding, expectedSession = epoch, sendPermit = sendPermit)

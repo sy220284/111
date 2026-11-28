@@ -85,6 +85,9 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                     if (method == "account/read" && key == "account") sessions.accountReady(response)
                     if (userAction && method in setOf("account/logout", "accountSession/switch",
                             "modelProvider/default/set", "modelProvider/config/write")) {
+                        if (method == "modelProvider/default/set" || method == "modelProvider/config/write") {
+                            catalogWarmup.providerChanged()
+                        }
                         accountMetrics.accountChanged()
                         extensions.invalidate()
                         refresh("account", "account/read", JSONObject())

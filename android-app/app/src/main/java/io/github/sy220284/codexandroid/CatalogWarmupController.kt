@@ -18,12 +18,13 @@ internal class CatalogWarmupController(
 
     fun connected() {
         // After reconnect, cached listings from the old core session are stale.
-        invalidateModels(includeDefault = false)
+        invalidateModels()
         vm.data.value = vm.data.value - "providers" - "skills"
         scope.launch {
             // Let account and thread restoration take priority over catalog I/O.
             delay(650)
             if (vm.bridge.status.value != EngineStatus.Connected) return@launch
+            ensure("models", "model/list")
             ensure("providers", "modelProvider/list")
             ensure("skills", "skills/list",
                 CatalogRequestContract.workspace(vm.workingDirectory))
@@ -36,9 +37,9 @@ internal class CatalogWarmupController(
             )) vm.refresh(key, method, params)
     }
 
-    private fun invalidateModels(includeDefault: Boolean = true) {
+    private fun invalidateModels() {
         val keys = (vm.data.value.keys + vm.loading.value + vm.errors.value.keys).filter {
-            it.startsWith("composerModels:") || (includeDefault && it == "models")
+            it.startsWith("composerModels:") || it == "models"
         }.toSet()
         keys.forEach { requests.cancel(it) }
         vm.data.value = vm.data.value - keys
@@ -48,6 +49,10 @@ internal class CatalogWarmupController(
 
     fun accountChanged() {
         accountRevisionState.value += 1
+        providerChanged()
+    }
+
+    fun providerChanged() {
         invalidateModels()
         vm.refresh("models", "model/list")
         if (vm.composerCatalogKey() != "models") vm.refreshComposerCatalog()

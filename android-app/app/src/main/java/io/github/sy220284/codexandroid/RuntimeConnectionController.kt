@@ -27,7 +27,6 @@ internal class RuntimeConnectionController(private val vm: CodexViewModel) {
                 vm.threadActivities.value = emptyMap()
                 vm.errors.value = vm.errors.value - "engine" - "protocol"
                 vm.refresh("account", "account/read", JSONObject())
-                vm.refresh("models", "model/list", JSONObject())
                 vm.syncRecentThreads()
                 vm.extensions.invalidate(preserveAuthorization = true)
                 vm.extensions.refreshAfterAppAuthorization()

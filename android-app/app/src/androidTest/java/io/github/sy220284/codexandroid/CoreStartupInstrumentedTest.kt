@@ -542,6 +542,10 @@ class CoreStartupInstrumentedTest {
             withTimeout(120_000L) {
                 bridge.connect()
                 val old = checkNotNull(bridge.connectedSession.value)
+                val userAgent = checkNotNull(bridge.runtimeUserAgent.value)
+                val version = Regex("""/([0-9]+\.[0-9]+\.[0-9]+)(?:[-+ /]|$)""").find(userAgent)?.groupValues?.get(1)
+                org.junit.Assert.assertNotNull("真实核心 User-Agent 应报告编译版本", version)
+                org.junit.Assert.assertNotEquals("0.0.0", version)
                 val first = checkNotNull(child)
                 assertNotNull(bridge.request("account/read"))
                 first.destroyForcibly()
