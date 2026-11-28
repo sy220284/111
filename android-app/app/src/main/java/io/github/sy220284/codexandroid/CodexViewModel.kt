@@ -547,11 +547,16 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     /** Reserve the login synchronously: concurrent taps cannot replace each other's codes. */
     private fun beginLogin(type: String) {
         if (loginBusy.value || activeLoginId.value.isNotBlank() ||
+            "accountLogout" in loading.value || "accountSessionSwitch" in loading.value ||
             AccountVoiceSettingsLease.blocks("account/login/start", loading.value)) return
+        val owner = captureTaskOwner() ?: run {
+            errors.value = errors.value + ("account" to "运行核心尚未连接")
+            return
+        }
         loginBusy.value = true
         viewModelScope.launch {
             try {
-                val result = bridge.request("account/login/start", JSONObject().put("type", type))
+                val result = owner.request(this@CodexViewModel, "account/login/start", JSONObject().put("type", type))
                 if (type == "chatgptDeviceCode") {
                     val login = AccountLoginContract.device(result)
                     activeLoginId.value = login.id
@@ -567,6 +572,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 errors.value = errors.value - "account"
             } catch (failure: Exception) {
+                if (failure is kotlinx.coroutines.CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
+                if (!owner.current(this@CodexViewModel)) return@launch
                 errors.value = errors.value + ("account" to
                     (failure.message ?: "无法发起本次登录"))
             } finally {
@@ -578,10 +585,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelLogin() {
         val id = activeLoginId.value
         if (id.isBlank() || loginBusy.value) return
+        val owner = captureTaskOwner() ?: return
         loginBusy.value = true
         viewModelScope.launch {
             try {
-                bridge.request("account/login/cancel", JSONObject().put("loginId", id))
+                owner.request(this@CodexViewModel, "account/login/cancel", JSONObject().put("loginId", id))
                 if (activeLoginId.value == id) {
                     activeLoginId.value = ""
                     accountLoginUrl.value = ""
@@ -590,6 +598,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 errors.value = errors.value - "account"
             } catch (failure: Exception) {
+                if (failure is kotlinx.coroutines.CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
+                if (!owner.current(this@CodexViewModel)) return@launch
                 errors.value = errors.value + ("account" to
                     (failure.message ?: "无法取消这次登录"))
             } finally {
@@ -622,7 +632,13 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             bridge.status.collect { current ->
-                if (current is EngineStatus.Unavailable) historyTurnOutcomes = null
+                if (current is EngineStatus.Unavailable) {
+                    historyTurnOutcomes = null
+                    activeLoginId.value = ""
+                    accountLoginUrl.value = ""
+                    deviceLoginCode.value = ""
+                    deviceLoginUrl.value = ""
+                }
                 if (current is EngineStatus.Unavailable &&
                     (running.value || threadExecutions.value.isNotEmpty() || firstThreadStarting.value)) {
                     val wasVisible = running.value

@@ -47,6 +47,9 @@ object ActionFeedbackCopy {
     )
 
     fun success(method: String, response: JSONObject): ActionFeedbackReceipt {
+        if (method == "accountSession/switch" && response.optString("authUrl").isNotBlank()) {
+            return ActionFeedbackReceipt("需要继续完成浏览器授权")
+        }
         if (method == "mcpServer/tool/call" && response.optBoolean("isError")) {
             return ActionFeedbackReceipt("外部工具返回错误，请查看执行结果", isError = true)
         }

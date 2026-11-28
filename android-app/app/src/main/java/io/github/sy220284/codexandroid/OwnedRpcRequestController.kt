@@ -17,6 +17,14 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
         userAction: Boolean = false
     ): Unit = with(vm) {
         if (userAction && DataTransferMutationGate.refuse(this, key, method)) return@with
+        if (userAction && method in setOf("account/logout", "accountSession/switch") &&
+            (loginBusy.value || activeLoginId.value.isNotBlank() ||
+                "accountLogout" in loading.value || "accountSessionSwitch" in loading.value)) {
+            val reason = "已有账号操作，请完成或取消当前授权后重试"
+            errors.value = errors.value + (key to reason)
+            viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure(method, reason)) }
+            return@with
+        }
         if (userAction && AccountVoiceSettingsLease.blocks(method, loading.value)) {
             val reason = "账号声音设置正在写入或读取，请完成后再切换账号"
             errors.value = errors.value + (key to reason)
@@ -85,6 +93,7 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                     method in setOf("account/logout", "accountSession/switch")) {
                     refresh("account", "account/read", JSONObject())
                     refresh("accountSessions", "accountSession/list", CatalogRequestContract.accountSessions())
+                    actionFeedback.emit(ActionFeedbackCopy.success(method, response))
                     return@launch
                 }
                 if (ownsReceipt()) {

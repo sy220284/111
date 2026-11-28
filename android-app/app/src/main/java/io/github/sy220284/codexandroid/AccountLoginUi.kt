@@ -176,7 +176,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 }
                 val epoch = voiceEpoch
                 if (identity != null && authMode == "chatgpt" && epoch != null && !loginBusy &&
-                    !pending && "account" !in loading && "accountSessionSwitch" !in loading) {
+                    !pending && "account" !in loading && "accountLogout" !in loading && "accountSessionSwitch" !in loading) {
                     DividerLine()
                     key(identity.toString(), epoch, voiceAccountRevision) {
                         AccountVoiceSettings(vm, identity.toString(), epoch, voiceAccountRevision)
@@ -200,7 +200,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                     if (connected) {
                         CodexTextAction(
                             onClick = { logoutConfirm = true },
-                            enabled = AccountVoiceSettingsLease.key !in loading,
+                            enabled = !loginBusy && !pending && "accountLogout" !in loading && "accountSessionSwitch" !in loading && AccountVoiceSettingsLease.key !in loading,
                             modifier = Modifier.heightIn(min = 48.dp)
                         ) { Text("退出账号") }
                     }
@@ -214,7 +214,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             Text("登录状态、使用记录和额度窗口来自同一账号，可从此处集中查看。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             CodexSecondaryButton(onClick = { showSessions = true },
-                enabled = AccountVoiceSettingsLease.key !in loading,
+                enabled = !loginBusy && !pending && "accountLogout" !in loading && "accountSessionSwitch" !in loading && AccountVoiceSettingsLease.key !in loading,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
                 CodexIcon(CodexGlyph.PeopleOutline, null, modifier = Modifier.size(19.dp))
                 Spacer(Modifier.width(8.dp))
@@ -232,6 +232,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 CodexGlyph.Settings, onClick = { navigate("providers") })
         }
         errors["account"]?.let { CodexNotice(it, NoticeTone.Warning) }
+        errors["accountLogout"]?.let { CodexNotice(it, NoticeTone.Warning) }
 
         CodexReveal(visible = loginBusy) {
             AtlasOperationProgress(
@@ -361,7 +362,7 @@ fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         confirmLabel = "退出登录",
         destructive = true,
         onConfirm = {
-            vm.rpc("account", "account/logout", JSONObject(),
+            vm.rpc("accountLogout", "account/logout", JSONObject(),
                 after = { vm.refresh("account", "account/read") })
             logoutConfirm = false
         },
