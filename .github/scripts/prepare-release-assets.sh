@@ -80,6 +80,7 @@ if [ -n "${PREVIOUS_TAG:-}" ] && [ "$PREVIOUS_TAG" != "$RELEASE_TAG" ]; then
               "$PATCHES_JSON" > "$PATCHES_JSON.tmp"
             mv "$PATCHES_JSON.tmp" "$PATCHES_JSON"
           else
+            echo "::notice::$ABI 差分包 $PATCH_SIZE 字节，完整 APK $NEW_SIZE 字节，超过 65% 收益阈值"
             rm -f "$PATCH"
           fi
         else

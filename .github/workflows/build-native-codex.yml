@@ -264,8 +264,8 @@ jobs:
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_RELEASE_DEBUG: "0"
-      CARGO_PROFILE_RELEASE_LTO: "false"
-      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+      CARGO_PROFILE_RELEASE_LTO: "thin"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "4"
     steps:
       - name: 检出已锁定的官方源码快照
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -413,6 +413,7 @@ jobs:
                 exit 1
               fi
             done
+            stat -c '%n %s bytes' "$CORE"
             sha256sum "$CORE"
           done
       - name: 上传原生内核二进制
