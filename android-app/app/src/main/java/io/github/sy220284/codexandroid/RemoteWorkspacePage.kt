@@ -32,10 +32,12 @@ internal fun RemoteWorkspacePage(vm: CodexViewModel, thread: String?, binding: R
     ScreenColumn {
         SectionIntro(if (files) "远端工作区" else "远端命令", "当前任务执行于 " + binding.id)
         MaterialPanel(Modifier.fillMaxWidth()) {
-            StatusPill(if (ready) "当前连接可用" else "等待连接或任务切换",
+            StatusPill(if (ready) "本机内核已连接" else "等待连接或任务切换",
                 tone = if (ready) StatusTone.Success else StatusTone.Warning)
             Text(binding.id, style = MaterialTheme.typography.titleMedium)
             Text(binding.cwd, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+            Text("读取文件时将再次核对远端设备和工作目录。", color = Ink.muted,
+                style = MaterialTheme.typography.bodySmall)
         }
         if (files) {
             Text("文件交付", style = MaterialTheme.typography.titleMedium)
@@ -49,7 +51,7 @@ internal fun RemoteWorkspacePage(vm: CodexViewModel, thread: String?, binding: R
                     check(current()) { "任务执行设备或会话已变化，请重新打开操作" }
                     val targetThread = requireNotNull(thread) { "请先建立远端会话" }
                     val epoch = requireNotNull(session) { "请先连接运行核心" }
-                    val target = path.trim()
+                    val target = path
                     RemoteFileDelivery.selection(binding, target)
                     val request = RemoteDeliveryRequest(targetThread, binding, target, epoch, revision)
                     check(request.owns(vm)) { "核心未确认当前远端会话" }

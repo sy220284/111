@@ -166,7 +166,7 @@ internal fun AtlasExclusiveChip(selected: Boolean, onClick: () -> Unit, label: @
             onClick = onClick),
         color = if (selected) Ink.copper.copy(alpha = .10f) else Ink.canvas,
         shape = RoundedCornerShape(12.dp),
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border)) {
+        border = BorderStroke(1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border)) {
         Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp)) {

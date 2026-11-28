@@ -265,7 +265,7 @@ fun AtlasSettingsActionRow(
         border = if (outlined) BorderStroke(1.dp, Ink.border) else null
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -296,8 +296,8 @@ fun AtlasChoiceRow(
     Surface(
         modifier = modifier.fillMaxWidth().heightIn(min = 56.dp)
             .codexSelectable(selected, enabled, onClick),
-        color = if (selected) Ink.panel else Ink.canvas,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border),
+        color = if (selected) Ink.copper.copy(alpha = .09f) else Ink.canvas,
+        border = BorderStroke(1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border),
         shape = RoundedCornerShape(15.dp)
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

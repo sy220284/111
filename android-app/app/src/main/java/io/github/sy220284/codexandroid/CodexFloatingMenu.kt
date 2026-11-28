@@ -13,6 +13,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 
 /**
@@ -32,7 +34,7 @@ internal fun CodexFloatingMenu(
     val viewport = rememberCodexViewport()
     val budget = CodexViewportPolicy.menu(viewport.width.value, viewport.height.value,
         if (ime > 0.dp) LocalCodexProtectedTop.current.value else 0f,
-        if (wide) 280f else 248f)
+        if (wide) 320f else 264f)
     val topClearance = budget.top.dp
     val height = budget.height.dp
     // A simple menu must not steal the existing text field's IME connection.
@@ -46,7 +48,7 @@ internal fun CodexFloatingMenu(
     ) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
             Text(title, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                .testTag("codex-floating-title"),
+                .testTag("codex-floating-title").semantics { heading() },
                 style = MaterialTheme.typography.titleMedium, color = Ink.parchment)
             if (description.isNotBlank()) Text(description,
                 modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
@@ -74,7 +76,8 @@ internal fun CodexFloatingMenuRow(
         selected == true -> Ink.copper
         else -> Ink.parchment
     }
-    val row = modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp))
+    val row = modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp))
+        .background(if (selected == true) Ink.copper.copy(alpha = .09f) else androidx.compose.ui.graphics.Color.Transparent)
     Row(
         (if (selected != null) row.codexSelectable(selected, enabled, onClick)
         else row.codexPressable(enabled = enabled, role = Role.Button, onClick = onClick))

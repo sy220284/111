@@ -6,8 +6,7 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -40,18 +39,21 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }.filter { (group, entries) ->
         entries.isNotEmpty() || "update" in group.routes
     } }
-    val detailRoutes = remember { setOf("environments", "features", "plugins", "mcp", "config") }
+    val detailRoutes = remember { setOf("models", "appearance", "environments", "features", "plugins", "mcp", "config") }
+    val viewport = rememberCodexViewport()
+    val compact by UiPreferences.compact.collectAsStateWithLifecycle()
+    val spacing = CodexViewportPolicy.pageSpacing(viewport.width.value, viewport.height.value, compact)
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
         state = listState,
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = spacing.horizontal.dp, vertical = minOf(12f, spacing.vertical).dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         item(key = "overview") {
             MaterialPanel(Modifier.fillMaxWidth().testTag("settings-overview")) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 51.dp)
-                        .clickable(role = Role.Button) { navigate("account") }
+                        .codexPressable(role = Role.Button) { navigate("account") }
                         .testTag("settings-account-overview"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -71,7 +73,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 51.dp)
-                        .clickable(role = Role.Button) { navigate("diagnostics") }
+                        .codexPressable(role = Role.Button) { navigate("diagnostics") }
                         .testTag("settings-engine-overview"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -99,12 +101,12 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 20.dp, bottom = 9.dp),
                     color = Ink.muted, style = MaterialTheme.typography.titleMedium)
             }
-            itemsIndexed(entries, key = { _, entry -> "settings-route:" + entry.id }) { index, entry ->
-                val top = if (index == 0) 15.dp else 0.dp
-                val bottom = if (index == entries.lastIndex) 15.dp else 0.dp
-                Surface(shape = RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
-                    color = Ink.canvas, border = BorderStroke(1.dp, Ink.border),
-                    shadowElevation = 0.dp, tonalElevation = 0.dp) {
+            if (entries.isNotEmpty()) item(key = "settings-group-content:" + group.title) {
+                Surface(shape = RoundedCornerShape(16.dp), color = Ink.canvas,
+                    border = BorderStroke(1.dp, Ink.border), shadowElevation = 0.dp, tonalElevation = 0.dp) {
+                    Column {
+                    entries.forEachIndexed { index, entry ->
+                    if (index > 0) HorizontalDivider(Modifier.padding(start = 48.dp), color = Ink.border.copy(alpha = .65f))
                     SettingRouteRow(page = entry, showDetail = entry.id in detailRoutes, detail = when(entry.id) {
                         "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                         "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
@@ -122,6 +124,8 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             "about" -> showAbout = true
                             else -> navigate(entry.id)
                         }
+                    }
+                    }
                     }
                 }
             }
@@ -151,11 +155,11 @@ private fun SettingRouteRow(page: Page, detail: String, showDetail: Boolean, onC
         CodexIcon(page.icon, null, modifier = Modifier.size(22.dp), tint = Ink.muted)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(page.title, style = MaterialTheme.typography.titleMedium,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (showDetail) {
                 Text(if (detail.isNotBlank()) detail else page.subtitle,
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
         CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted,

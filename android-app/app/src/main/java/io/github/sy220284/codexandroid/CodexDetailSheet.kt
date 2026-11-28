@@ -62,17 +62,19 @@ fun CodexDetailSheet(
         contentColor = Ink.parchment,
         modifier = Modifier.testTag("codex-detail-sheet")
     ) {
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val spacing = CodexViewportPolicy.panelSpacing(maxWidth.value.coerceAtLeast(1f), maxHeight.value.coerceAtLeast(1f))
         Column(
             Modifier.fillMaxWidth().then(if (startExpanded) Modifier.fillMaxHeight() else Modifier.heightIn(max = atlasSheetHeight()))
-                .padding(horizontal = 20.dp, vertical = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+                .padding(horizontal = spacing.horizontal.dp, vertical = spacing.vertical.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing.gap.dp)
         ) {
             CodexPanelHeader(title, onDismiss, closeDescription = closeDescription)
             HorizontalDivider(color = Ink.border)
             Column(
                 Modifier.fillMaxWidth().weight(1f, fill = false)
                     .verticalScroll(rememberScrollState()).testTag("codex-detail-body"),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(spacing.gap.dp)
             ) {
                 if (subtitle.isNotBlank()) Text(subtitle, color = Ink.muted,
                     style = MaterialTheme.typography.bodySmall)
@@ -82,6 +84,7 @@ fun CodexDetailSheet(
                 HorizontalDivider(color = Ink.border)
                 footer()
             }
+        }
         }
     }
 }

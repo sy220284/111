@@ -64,6 +64,23 @@ class CodexOverlayInstrumentedTest {
         rule.runOnIdle { assertEquals(1, accepted) }
     }
 
+    @Test fun detailCloseCanBeRetriedAfterBusyOperationCompletes() {
+        var blocked by mutableStateOf(true)
+        var visible by mutableStateOf(true)
+        rule.setContent {
+            CodexTheme {
+                if (visible) CodexDetailSheet("正在处理", onDismiss = { if (!blocked) visible = false }) {
+                    Text("等待业务操作结束")
+                }
+            }
+        }
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        rule.runOnIdle { blocked = false }
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+    }
+
     @Test fun sidebarFilterPanelKeepsQueryAndSelectionWhenReopened() {
         val state = SidebarUiState().apply { search = "登录" }
         rule.setContent { CodexTheme { SidebarQueryFilters(state) } }

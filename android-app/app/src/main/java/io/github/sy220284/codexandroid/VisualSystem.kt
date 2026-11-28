@@ -155,15 +155,15 @@ fun CodexTheme(content: @Composable () -> Unit) {
         typography = Typography(
             displaySmall = androidx.compose.ui.text.TextStyle(fontSize = (34 * fontScale).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.8).sp),
             headlineSmall = androidx.compose.ui.text.TextStyle(fontSize = (26 * fontScale).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp),
-            titleLarge = androidx.compose.ui.text.TextStyle(fontSize = (20 * fontScale).sp, fontWeight = FontWeight.SemiBold),
-            titleMedium = androidx.compose.ui.text.TextStyle(fontSize = (16 * fontScale).sp, fontWeight = FontWeight.SemiBold),
+            titleLarge = androidx.compose.ui.text.TextStyle(fontSize = (20 * fontScale).sp, lineHeight = (27 * fontScale).sp, fontWeight = FontWeight.SemiBold),
+            titleMedium = androidx.compose.ui.text.TextStyle(fontSize = (16 * fontScale).sp, lineHeight = (22 * fontScale).sp, fontWeight = FontWeight.SemiBold),
             bodyLarge = androidx.compose.ui.text.TextStyle(fontSize = (15 * fontScale).sp, lineHeight = (23 * fontScale).sp),
             bodyMedium = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (21 * fontScale).sp),
             labelMedium = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, fontWeight = FontWeight.Medium),
             labelSmall = androidx.compose.ui.text.TextStyle(fontSize = (11 * fontScale).sp),
-            bodySmall = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp),
-            labelLarge = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp),
-            titleSmall = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, fontWeight = FontWeight.Medium)
+            bodySmall = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, lineHeight = (18 * fontScale).sp),
+            labelLarge = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (20 * fontScale).sp, fontWeight = FontWeight.Medium),
+            titleSmall = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (20 * fontScale).sp, fontWeight = FontWeight.Medium)
         ),
         shapes = Shapes(
             small = RoundedCornerShape(10.dp),
