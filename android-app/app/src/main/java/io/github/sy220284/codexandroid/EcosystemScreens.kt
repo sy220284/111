@@ -76,7 +76,7 @@ fun ModelsPage(vm: CodexViewModel) {
         items.forEach { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
             val title = item.optString("displayName").ifBlank { id }
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 if (item.optBoolean("isDefault")) StatusPill("服务默认")
                 val description = PresentationPolicy.meaningful(item.optString("description"))
@@ -120,7 +120,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     }
     ScreenColumn {
         SectionIntro("模型服务商", "显示服务商来源与当前默认配置。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
             Text("默认服务商", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             val defaultName = entries.firstOrNull { it.optString("id") == defaultId }
                 ?.let { PresentationPolicy.meaningful(it.optString("name")) }

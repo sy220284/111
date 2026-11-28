@@ -194,9 +194,10 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         val active = installedById[id]
         val enabled = active?.takeIf { it.has("enabled") }?.optBoolean("enabled") ?: app.optBoolean("isEnabled", true)
         val appStatus = statuses.getValue(id)
-        CodexDetailSheet(title = name, onDismiss = { inspectingId = null }, startExpanded = true) {
+        CodexDetailSheet(title = name, onDismiss = { inspectingId = null }, startExpanded = description.length > 1200) {
             val closeWithAction = LocalCodexSheetAction.current
-            StatusPill(appStatus, appStatus == "已连接", tone = if (appStatus == "已连接") StatusTone.Success else StatusTone.Neutral)
+            StatusPill(appStatus, appStatus == "已连接", tone = if (appStatus == "已连接") StatusTone.Success
+                else if (appStatus == "待授权") StatusTone.Warning else StatusTone.Neutral)
             Text("应用说明", style = MaterialTheme.typography.titleMedium)
             Text(description.ifEmpty { "该应用暂未提供说明。" }, color = Ink.muted)
             if (installUrl.startsWith("https://")) {

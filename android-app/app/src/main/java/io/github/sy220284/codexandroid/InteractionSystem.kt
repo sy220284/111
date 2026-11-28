@@ -57,6 +57,32 @@ object CodexMotion {
     fun duration(normal: Int, reduce: Boolean): Int = if (reduce) 0 else normal
 }
 
+/** Window motion is finite, interruptible, and never changes its measured touch targets. */
+internal enum class WorkMotion { Menu, Panel, Selection }
+
+@Composable
+internal fun Modifier.workEntrance(kind: WorkMotion): Modifier {
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
+    val progress = remember(kind) { Animatable(if (reduced) 1f else 0f) }
+    val duration = when (kind) {
+        WorkMotion.Menu -> CodexMotion.menu
+        WorkMotion.Panel -> CodexMotion.sheet
+        WorkMotion.Selection -> CodexMotion.selection
+    }
+    LaunchedEffect(kind, reduced) {
+        if (reduced) progress.snapTo(1f) else progress.animateTo(1f, tween(duration))
+    }
+    val moving by remember(progress, reduced) { derivedStateOf { !reduced && progress.value < 1f } }
+    return if (!moving) this else this.graphicsLayer {
+        val remaining = 1f - progress.value
+        when (kind) {
+            WorkMotion.Menu -> { scaleX = 1f - .025f * remaining; scaleY = scaleX }
+            WorkMotion.Panel -> translationY = 8.dp.toPx() * remaining
+            WorkMotion.Selection -> { scaleX = 1f - .025f * remaining; scaleY = scaleX }
+        }
+    }
+}
+
 /** One incoming route only: outgoing pages never remain interactive or visible to accessibility. */
 @Composable
 internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: @Composable () -> Unit) {
@@ -331,8 +357,19 @@ fun CodexChoiceSheet(
     val groups = remember(choices) { CatalogNavigationPolicy.groups(choices) }
     var selectedGroup by remember(title, groups) { mutableStateOf<String?>(null) }
     var choosingGroup by remember(title, groups) { mutableStateOf(false) }
-    val visible = if (choosingGroup) emptyList() else
-        selectedGroup?.let { groups[it] } ?: choices
+    var query by remember(title) { mutableStateOf("") }
+    val groupChoices = selectedGroup?.let { groups[it] } ?: choices
+    val visible = if (choosingGroup) emptyList() else groupChoices.filter {
+        query.isBlank() || listOf(it.title, it.description, it.id).any { value -> value.contains(query, ignoreCase = true) }
+    }
+    val search: @Composable () -> Unit = {
+        if (choices.size >= 12 || query.isNotBlank()) {
+            ClipboardQueryAction("使用剪贴板检索选项", query, onQuery = { query = it.trim() },
+                onClear = { query = "" }, tag = "choice-clipboard-query")
+            if (query.isNotBlank()) Text("${visible.size} 项匹配", color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
+        }
+    }
     val navigation: @Composable () -> Unit = {
         if (groups.isNotEmpty()) CodexTextAction(onClick = { choosingGroup = !choosingGroup },
             modifier = Modifier.testTag("choice-group-picker")) {
@@ -348,9 +385,10 @@ fun CodexChoiceSheet(
             }
             extraContent?.invoke(this)
             navigation()
+            search()
             if (loading) AtlasOperationProgress("正在读取可用选项")
             if (visible.isEmpty() && !loading && !choosingGroup) {
-                Text("暂无可用选项",
+                Text(if (query.isBlank()) "暂无可用选项" else "没有匹配选项，可清除查找条件。",
                     color = Ink.muted, modifier = Modifier.padding(12.dp))
             }
             Column(Modifier.fillMaxWidth().selectableGroup()) {
@@ -383,7 +421,7 @@ fun CodexChoiceSheet(
             // Keep the existing title and large-directory navigator accessible.
             navigation()
             val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-            LaunchedEffect(selectedGroup, choosingGroup) { listState.scrollToItem(0) }
+            LaunchedEffect(selectedGroup, choosingGroup, query) { listState.scrollToItem(0) }
             LazyColumn(state = listState,
                 modifier = Modifier.fillMaxWidth().weight(1f, fill = false)
                     .selectableGroup().testTag("choice-scroll-body"),
@@ -398,7 +436,10 @@ fun CodexChoiceSheet(
                                 actionLabel = recoveryLabel, onAction = onRecovery)
                         }
                         extraContent?.invoke(this)
+                        search()
                         if (loading) AtlasOperationProgress("正在读取可用选项")
+                        if (query.isNotBlank() && visible.isEmpty() && !choosingGroup && !loading)
+                            CodexEmptyState("没有匹配选项", "清除查找条件或切换分类。")
                         if (choices.isEmpty() && !loading)
                             CodexEmptyState("暂无可用选项", "请先连接内核或刷新目录。")
                     }
@@ -532,17 +573,9 @@ fun CodexConfirmDialog(
             ) {
                 Text(message, style = MaterialTheme.typography.bodyMedium)
                 if (detail.isNotBlank()) {
-                    Surface(
-                        color = Ink.recessed,
-                        shape = RoundedCornerShape(12.dp),
-                        border = BorderStroke(1.dp, Ink.border)
-                    ) {
-                        Text(
-                            detail, modifier = Modifier.padding(12.dp),
-                            fontFamily = FontFamily.Monospace,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = Ink.parchment
-                        )
+                    WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Reading) {
+                        Text("操作对象与范围", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        Text(detail, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
                     }
                 }
             }

@@ -155,11 +155,10 @@ private fun ColumnScope.CodexActionRows(
                         if (closeWithAction != null) closeWithAction(action.onClick)
                         else { onDismiss(); action.onClick() }
                     },
-                color = Ink.panel,
-                shape = RoundedCornerShape(14.dp),
-                border = BorderStroke(1.dp, Ink.border)
+                color = if (action.destructive) Ink.red.copy(alpha = .06f) else androidx.compose.ui.graphics.Color.Transparent,
+                shape = RoundedCornerShape(12.dp)
             ) {
-                Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                Row(Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CodexIcon(action.icon, contentDescription = null,

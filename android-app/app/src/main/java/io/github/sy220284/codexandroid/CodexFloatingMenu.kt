@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -76,8 +79,12 @@ internal fun CodexFloatingMenuRow(
         selected == true -> Ink.copper
         else -> Ink.parchment
     }
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
+    val selectionColor by animateColorAsState(
+        if (selected == true) Ink.copper.copy(alpha = .09f) else androidx.compose.ui.graphics.Color.Transparent,
+        tween(CodexMotion.duration(CodexMotion.selection, reduced)), label = "menu-selection")
     val row = modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp))
-        .background(if (selected == true) Ink.copper.copy(alpha = .09f) else androidx.compose.ui.graphics.Color.Transparent)
+        .background(selectionColor)
     Row(
         (if (selected != null) row.codexSelectable(selected, enabled, onClick)
         else row.codexPressable(enabled = enabled, role = Role.Button, onClick = onClick))

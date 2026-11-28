@@ -68,7 +68,7 @@ fun CodexOverlayFrame(
             val bounds = if (fullScreen) Modifier.fillMaxSize()
                 else Modifier.width(CodexViewportPolicy.overlayWidth(maxWidth.value.coerceAtLeast(1f)).dp)
                     .heightIn(max = CodexViewportPolicy.sheetHeight(maxHeight.value.coerceAtLeast(1f), .86f).dp)
-            Surface(modifier = bounds.then(modifier),
+            Surface(modifier = bounds.then(modifier).workEntrance(WorkMotion.Panel),
                 shape = RoundedCornerShape(if (fullScreen) 0.dp else 24.dp),
                 color = containerColor, contentColor = contentColor,
                 border = if (fullScreen) null else BorderStroke(1.dp, Ink.border.copy(alpha = .65f)),
@@ -127,7 +127,7 @@ internal fun CodexPopupMenu(expanded: Boolean, onDismissRequest: () -> Unit,
         ) {
             // DropdownMenu internally requests intrinsic dimensions, which is
             // incompatible with search fields and subcomposed controls.
-            Surface(modifier = modifier, shape = RoundedCornerShape(24.dp),
+            Surface(modifier = modifier.workEntrance(WorkMotion.Menu), shape = RoundedCornerShape(20.dp),
                 color = Ink.elevated, contentColor = Ink.parchment, shadowElevation = 8.dp,
                 border = BorderStroke(1.dp, Ink.border.copy(alpha = .75f))) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp),

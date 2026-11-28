@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.background
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -216,7 +219,7 @@ fun AtlasListHeading(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Text("$total $suffix", color = Ink.muted,
                 style = MaterialTheme.typography.labelMedium)
         }
@@ -231,17 +234,9 @@ fun AtlasLoadingResults(
     modifier: Modifier = Modifier,
     placeholderRows: Int = 3
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth().testTag("atlas-loading-results"),
-        shape = RoundedCornerShape(18.dp),
-        color = Ink.panel,
-        border = BorderStroke(1.dp, Ink.border)
-    ) {
-        Column(Modifier.padding(15.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            CodexSkeletonRows(placeholderRows)
-        }
+    WorkSection(modifier.fillMaxWidth().testTag("atlas-loading-results"), WorkSectionKind.Group) {
+        Text(title, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        CodexSkeletonRows(placeholderRows)
     }
 }
 
@@ -293,10 +288,13 @@ fun AtlasChoiceRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
+    val background by animateColorAsState(if (selected) Ink.copper.copy(alpha = .09f) else Ink.canvas,
+        tween(CodexMotion.duration(CodexMotion.selection, reduced)), label = "choice-background")
     Surface(
         modifier = modifier.fillMaxWidth().heightIn(min = 56.dp)
             .codexSelectable(selected, enabled, onClick),
-        color = if (selected) Ink.copper.copy(alpha = .09f) else Ink.canvas,
+        color = background,
         border = BorderStroke(1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border),
         shape = RoundedCornerShape(15.dp)
     ) {

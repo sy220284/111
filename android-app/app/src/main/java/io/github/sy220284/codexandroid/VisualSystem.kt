@@ -285,9 +285,12 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
         StatusTone.Warning -> Ink.warning
         StatusTone.Danger -> Ink.red
     }
-    Surface(color = Ink.canvas, border = BorderStroke(1.dp, color.copy(alpha = .46f)),
-        shape = RoundedCornerShape(99.dp)) {
-        Text(text, color = color, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium)
+    Surface(color = color.copy(alpha = .07f), shape = RoundedCornerShape(8.dp)) {
+        Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Box(Modifier.size(6.dp).background(color, RoundedCornerShape(3.dp)))
+            Text(text, color = color, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
 
@@ -352,7 +355,7 @@ fun WhiteSwitch(
     Switch(
         checked = checked,
         onCheckedChange = onCheckedChange,
-        modifier = modifier,
+        modifier = modifier.then(if (onCheckedChange != null) Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp) else Modifier),
         enabled = enabled,
         colors = SwitchDefaults.colors(
             checkedTrackColor = Ink.copper,

@@ -67,10 +67,10 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         }, onDiagnostics = { navigate("diagnostics") })
         if (skills.isNotEmpty()) {
             AtlasListHeading("工作区技能 · ${skills.count { it.optBoolean("enabled") }} 项已启用", skills.size)
-            CodexInputField(query, onValueChange = { query = it },
-                label = { Text("搜索技能名称或说明") },
-                modifier = Modifier.fillMaxWidth().testTag("skills-search"), maxLines = 1)
-            if (query.isNotBlank()) CodexTextAction(onClick = { query = "" }) { Text("清除搜索 · ${visibleSkills.size} 项匹配") }
+            ClipboardQueryAction("使用剪贴板检索技能", query, onQuery = { query = it },
+                onClear = { query = "" }, tag = "skills-search")
+            if (query.isNotBlank()) Text("${visibleSkills.size} 项匹配", color = Ink.muted,
+                style = MaterialTheme.typography.labelMedium)
         }
         if (skills.isNotEmpty() || readErrors > 0) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -118,7 +118,7 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 NoticeTone.Warning)
         } else if (filter == "errors" && data["skills"] != null && "skills" !in mutationLoading && skillErrors["skills"] == null) {
             CodexEmptyState("当前没有技能读取异常", "所有已返回的技能均已成功读取。")
-        } else if (filter in setOf("enabled", "available") &&
+        } else if (query.isBlank() && filter in setOf("enabled", "available") &&
             visibleSkills.isEmpty() && data["skills"] != null && "skills" !in mutationLoading && skillErrors["skills"] == null) {
             CodexEmptyState("没有匹配的技能", "可以切回全部查看工作区里的技能。",
                 actionLabel = "查看全部", onAction = { filter = "all" }, artworkRes = R.drawable.ic_empty_no_results)

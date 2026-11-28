@@ -94,7 +94,7 @@ internal fun CodexInputField(value: String, onValueChange: (String) -> Unit,
     val protected = visualTransformation is PasswordVisualTransformation
     var revealSecret by remember(protected, enabled, readOnly) { mutableStateOf(false) }
     val secretToggle = protected && enabled && !readOnly && trailingIcon == null
-    OutlinedTextField(value = value, onValueChange = onValueChange, modifier = modifier,
+    OutlinedTextField(value = value, onValueChange = onValueChange, modifier = modifier.heightIn(min = 48.dp),
         enabled = enabled, readOnly = readOnly, textStyle = textStyle, label = label,
         placeholder = placeholder, leadingIcon = leadingIcon,
         trailingIcon = if (secretToggle) {{
@@ -130,7 +130,8 @@ internal fun CodexFilterChip(selected: Boolean, onClick: () -> Unit, label: @Com
 @Composable
 internal fun CodexCheckBox(checked: Boolean, onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier, enabled: Boolean = true) {
-    Checkbox(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier,
+    Checkbox(checked = checked, onCheckedChange = onCheckedChange,
+        modifier = modifier.then(if (onCheckedChange != null) Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp) else Modifier),
         enabled = enabled, colors = CheckboxDefaults.colors(checkedColor = Ink.jade,
             uncheckedColor = Ink.muted, checkmarkColor = Ink.canvas))
 }
@@ -139,7 +140,8 @@ internal fun CodexCheckBox(checked: Boolean, onCheckedChange: ((Boolean) -> Unit
 internal fun CodexRadio(selected: Boolean, onClick: (() -> Unit)?, modifier: Modifier = Modifier,
     enabled: Boolean = true, colors: RadioButtonColors = RadioButtonDefaults.colors(
         selectedColor = Ink.copper, unselectedColor = Ink.muted)) {
-    RadioButton(selected = selected, onClick = onClick, modifier = modifier,
+    RadioButton(selected = selected, onClick = onClick,
+        modifier = modifier.then(if (onClick != null) Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp) else Modifier),
         enabled = enabled, colors = colors)
 }
 

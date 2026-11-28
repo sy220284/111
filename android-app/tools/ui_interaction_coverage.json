@@ -70,7 +70,7 @@
       "route": "modes",
       "file": "UiSharedSurfaces.kt",
       "owner": "ModeChoiceSurface",
-      "component": "AtlasCompactChoice"
+      "component": "AtlasChoiceRow"
     },
     {
       "route": "skills",
