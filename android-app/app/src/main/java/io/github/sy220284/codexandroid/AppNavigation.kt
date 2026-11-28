@@ -460,7 +460,7 @@ fun CodexShell(vm: CodexViewModel) {
             key(accountRevision, coreSession) { ThreadGoalSheet(vm, onDismiss = { closeSheet("goals") }) }
         }
         if (activeSheet == "modes") key(accountRevision, coreSession) { ModeChoiceSurface(vm) { closeSheet("modes") } }
-        if (activeSheet == "history-tools") key(accountRevision, coreSession) { ThreadHistorySheet(vm) { closeSheet("history-tools") } }
+        if (activeSheet == "history-tools") ThreadHistorySheet(vm) { closeSheet("history-tools") }
         if (activeSheet == "thread-attachments") ThreadAttachmentsSheet(vm) { closeSheet("thread-attachments") }
         if (activeSheet == "models") key(accountRevision, coreSession) { ModelChoiceSurface(vm) { closeSheet("models") } }
         if (activeSheet == "about") AboutInfoSheet(vm) { closeSheet("about") }

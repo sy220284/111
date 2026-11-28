@@ -104,5 +104,5 @@ internal class TimelineNativeStream private constructor(
     }
 }
 
-internal class InvalidNativeSummaryIndex(index: Long) :
+internal class InvalidNativeSummaryIndex(index: Any) :
     IllegalArgumentException("无效的原生消息分段索引：$index")

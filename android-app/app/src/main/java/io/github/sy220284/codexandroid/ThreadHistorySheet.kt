@@ -31,6 +31,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val thread by vm.activeThread.collectAsStateWithLifecycle()
     val busy by vm.running.collectAsStateWithLifecycle()
+    val accountRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
+    val coreSession by vm.bridge.connectedSession.collectAsStateWithLifecycle()
     val data by vm.data.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
@@ -46,6 +48,7 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     var exportCount by remember(thread) { mutableIntStateOf(0) }
     var exportJob by remember(thread) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var exportBusy by remember(thread) { mutableStateOf(false) }
+    var saving by remember(thread) { mutableStateOf(false) }
     var exportStatus by remember(thread) { mutableStateOf("") }
     var includeActivity by remember(thread) { mutableStateOf(false) }
     var confirmActivity by remember(thread) { mutableStateOf<Boolean?>(null) }
@@ -62,21 +65,33 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     ) { uri ->
         val snapshot = exportMarkdown
         if (uri != null && snapshot != null) {
-            scope.launch {
+            exportBusy = true
+            saving = true
+            exportJob = scope.launch {
                 try {
                     val exportingThread = thread
                     ThreadHistoryExport.save(context, uri, snapshot) {
                         snapshot.owner.current(vm) && vm.activeThread.value == exportingThread
                     }
-                    exportStatus = "会话 Markdown 文件已保存"
+                    exportStatus = "会话 Markdown 文件已保存，字节回读校验通过"
                 } catch (cancel: CancellationException) {
                     throw cancel
                 } catch (failure: Exception) {
                     exportStatus = "保存失败：" + (failure.message ?: "请选择其他保存位置")
                 } finally {
                     snapshot.close()
-                    exportMarkdown = null
+                    if (exportMarkdown === snapshot) exportMarkdown = null
+                    exportBusy = false
+                    saving = false
                 }
+            }
+        } else if (uri != null) {
+            scope.launch {
+                val removed = withContext(Dispatchers.IO) {
+                    VerifiedDocumentDelivery.discardNewDocument(context.contentResolver, uri)
+                }
+                exportStatus = if (removed) "导出任务已失效，未完成文件已清理，请重新导出"
+                    else "导出任务已失效，请检查所选位置的空文件后重新导出"
             }
         } else {
             snapshot?.close()
@@ -133,8 +148,10 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val turns = pages.flatMap { records(it) }.distinctBy { it.optString("id") }
     val next = pages.lastOrNull()?.optString("nextCursor").orEmpty()
     val key = prefix + page
-    LaunchedEffect(thread) {
-        if (thread != null) {
+    LaunchedEffect(thread, accountRevision, coreSession) {
+        page = 0; target = null; inspected = null; fullReader = null
+        exportJob?.cancel()
+        if (thread != null && coreSession != null) {
             vm.refresh(prefix + "0", "thread/turns/list",
                 JSONObject().put("threadId", thread).put("limit", 40)
                     .put("sortDirection", "desc"))
@@ -180,8 +197,11 @@ fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
             if (busy) Text("当前任务结束后可复制或导出完整记录", color = Ink.muted,
                 style = MaterialTheme.typography.labelSmall)
             if (exportBusy) {
-                AtlasOperationProgress("正在整理会话记录 · 已读取 $exportCount 条")
-                CodexSecondaryButton(onClick = { exportJob?.cancel(); exportStatus = "已取消整理会话记录" },
+                AtlasOperationProgress(if (saving) "正在保存并校验文件" else "正在整理会话记录 · 已读取 $exportCount 条")
+                CodexSecondaryButton(onClick = {
+                    exportJob?.cancel()
+                    exportStatus = if (saving) "已取消保存；若所选位置仍有未完成文件，请清理后重试" else "已取消整理会话记录"
+                },
                     modifier = Modifier.fillMaxWidth()) { Text("取消整理") }
             }
             if (exportStatus.isNotBlank()) Text(

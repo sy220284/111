@@ -9,8 +9,6 @@ import kotlin.coroutines.coroutineContext
 import org.json.JSONObject
 import java.security.MessageDigest
 import java.io.File
-import java.nio.file.Files
-import java.nio.file.LinkOption.NOFOLLOW_LINKS
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -146,53 +144,15 @@ internal object RemoteFileDelivery {
 
     suspend fun save(vm: CodexViewModel, resolver: ContentResolver, destination: Uri, payload: Payload,
         onVerified: suspend (Long) -> Unit = {}, onWritten: suspend () -> Unit = {}) = lock.withLock {
-        withContext(Dispatchers.IO) {
-            require(destination.scheme == "content") { "请选择系统文档保存位置" }
-            val ctx = coroutineContext
-            fun permit() {
-                ctx.ensureActive()
-                check(payload.request.owns(vm)) { "文件交付授权已变化，须重新读取" }
-            }
-            permit()
-            requireNotNull(checkpoint).verify(payload.entry, ::permit)
-            permit()
-            requireNotNull(resolver.openOutputStream(destination, "wt")) { "无法打开保存位置" }.use { output ->
-                Files.newInputStream(payload.entry.file.toPath(), NOFOLLOW_LINKS).use { input ->
-                    val buffer = ByteArray(64 * 1024)
-                    while (true) {
-                        permit()
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        permit()
-                        output.write(buffer, 0, count)
-                    }
-                }
-                permit()
-                output.flush()
-            }
-            withContext(Dispatchers.Main.immediate) { permit(); onWritten() }
-            val digest = MessageDigest.getInstance("SHA-256")
-            var total = 0L
-            var lastReport = 0L
-            requireNotNull(resolver.openInputStream(destination)) { "无法回读保存文件" }.use { stream ->
-                val buffer = ByteArray(64 * 1024)
-                while (true) {
-                    permit()
-                    val count = stream.read(buffer)
-                    if (count < 0) break
-                    total += count
-                    require(total <= payload.size) { "保存结果大小不符" }
-                    digest.update(buffer, 0, count)
-                    if (total - lastReport >= 256 * 1024 || total == payload.size) {
-                        lastReport = total
-                        withContext(Dispatchers.Main.immediate) { permit(); onVerified(total) }
-                    }
-                }
-            }
-            permit()
-            check(total == payload.size && RemoteTransferCheckpoint.hex(digest.digest()) == payload.sha256) {
-                "保存后文件校验失败"
-            }
+        val ctx = coroutineContext
+        fun permit() {
+            ctx.ensureActive()
+            check(payload.request.owns(vm)) { "文件交付授权已变化，须重新读取" }
         }
+        VerifiedDocumentDelivery.saveNewDocument(resolver, destination, payload.entry.file, payload.size,
+            expectedHash = payload.sha256, permit = ::permit,
+            beforeWrite = { requireNotNull(checkpoint).verify(payload.entry, ::permit) },
+            onWritten = { withContext(Dispatchers.Main.immediate) { permit(); onWritten() } },
+            onVerified = { count -> withContext(Dispatchers.Main.immediate) { permit(); onVerified(count) } })
     }
 }
