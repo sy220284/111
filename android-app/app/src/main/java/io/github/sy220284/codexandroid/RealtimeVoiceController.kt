@@ -264,11 +264,11 @@ internal class RealtimeVoiceController(private val vm: CodexViewModel, private v
         if (params.value("threadId") != threadId) return
         val method = message.value("method")
         // Old-owner closure/error is still needed to release the native lease.
-        if (method !in setOf("thread/realtime/closed", "thread/realtime/error") &&
+        if (method !in setOf("thread/realtime/closed", "thread/realtime/error", "thread/closed") &&
             voiceOwner?.current(vm) != true) return
         when (method) {
             "thread/realtime/started" -> startup?.ready?.complete(Unit)
-            "thread/realtime/closed" -> {
+            "thread/realtime/closed", "thread/closed" -> {
                 closed.complete(Unit)
                 stop()
             }

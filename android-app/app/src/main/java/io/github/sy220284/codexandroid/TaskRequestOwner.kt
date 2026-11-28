@@ -33,7 +33,10 @@ internal data class TaskRequestOwner(val epoch: Long, val account: Long) {
     internal suspend fun <T> guarded(isCurrent: () -> Boolean, execute: suspend () -> T): T {
         currentCoroutineContext().ensureActive()
         check(isCurrent()) { "操作所属连接或账号已变化，请核对原任务后重试" }
-        val response = execute()
+        val response = try { execute() } catch (revoked: RpcWriteRevoked) {
+            check(isCurrent()) { "操作所属连接或账号已变化，请核对原任务后重试" }
+            throw revoked
+        }
         currentCoroutineContext().ensureActive()
         check(isCurrent()) { "操作所属连接或账号已变化，请核对原任务后重试" }
         return response

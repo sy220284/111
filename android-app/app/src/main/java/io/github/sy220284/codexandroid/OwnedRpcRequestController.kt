@@ -34,8 +34,9 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
         if (userAction && DataTransferMutationGate.refuse(this, key, method)) return@with
         if (userAction && method in setOf("account/logout", "accountSession/switch") &&
             (loginBusy.value || activeLoginId.value.isNotBlank() ||
-                "accountLogout" in loading.value || "accountSessionSwitch" in loading.value)) {
-            val reason = "已有账号操作，请完成或取消当前授权后重试"
+                "accountLogout" in loading.value || "accountSessionSwitch" in loading.value ||
+                configTransactionBusy.value || securitySaveBusy.value || connectionRestarter.busy.value)) {
+            val reason = "已有账号、配置或核心切换操作，请完成当前操作后重试"
             errors.value = errors.value + (key to reason)
             viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure(method, reason)) }
             return@with

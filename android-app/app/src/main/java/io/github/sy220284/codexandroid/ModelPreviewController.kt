@@ -112,18 +112,20 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
         expectedSession: Long? = vm.bridge.connectedSession.value, sendPermit: (() -> Boolean)? = null): JSONObject {
         require(method in setOf("thread/start", "thread/resume", "thread/fork"))
         val epoch = requireNotNull(expectedSession) { "运行核心尚未连接" }
-        val revision = vm.catalogWarmup.accountRevision.value
+        val owner = TaskRequestOwner(epoch, vm.catalogWarmup.accountRevision.value)
+        val revision = owner.account
+        fun owns() = owner.current(vm) && sendPermit?.invoke() != false
         return PreviewOptionalRequest.execute(params, prepare = {
             val configuration = effective ?: run {
                 val explicit = (params.opt("cwd") as? String)?.takeIf { it.isNotBlank() }
-                val cwd = explicit ?: vm.bridge.request("thread/read",
-                    JSONObject().put("threadId", params.getString("threadId")), expectedSession = epoch)
+                val cwd = explicit ?: owner.request(vm, "thread/read",
+                    JSONObject().put("threadId", params.getString("threadId")))
                     .getJSONObject("thread").getString("cwd")
                 val directory = WorkspaceSelectionContract.validate(root, File(cwd))
-                vm.bridge.request("config/read", JSONObject().put("cwd", directory.absolutePath), expectedSession = epoch)
+                owner.request(vm, "config/read", JSONObject().put("cwd", directory.absolutePath))
             }
             configure(params, configuration)
-        }, dispatch = { vm.bridge.request(method, it, sendPermit = sendPermit, expectedSession = epoch) }, unavailable = { receipt, failure ->
+        }, dispatch = { owner.guarded({ owner.current(vm) }) { vm.bridge.request(method, it, sendPermit = ::owns, expectedSession = epoch) } }, unavailable = { receipt, failure ->
             // Log only the error category: configuration and transport exceptions can contain credentials.
             android.util.Log.w("ModelPreview", "预览服务准备失败：" + failure.javaClass.simpleName)
             val thread = receipt.optJSONObject("thread")?.optString("id").orEmpty()
@@ -141,10 +143,11 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
         withTimeout(12000) {
             val (path, line) = ModelPreviewPolicy.target(args)
             val thread = ModelPreviewPolicy.thread(meta)
-            val epoch = vm.bridge.connectedSession.value ?: error("内核未连接")
-            val revision = vm.catalogWarmup.accountRevision.value
+            val owner = vm.captureTaskOwner() ?: error("内核未连接")
+            val epoch = owner.epoch
+            val revision = owner.account
             check(vm.bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy)
-            val native = vm.bridge.request("thread/read", JSONObject().put("threadId", thread), timeoutMillis = 9000)
+            val native = owner.request(vm, "thread/read", JSONObject().put("threadId", thread), 9000L)
                 .getJSONObject("thread")
             check(native.getString("id") == thread)
             check(ThreadActivityPolicy.isActive(ThreadActivityPolicy.fromThread(native)) ||

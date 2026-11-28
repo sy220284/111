@@ -552,7 +552,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     private fun beginLogin(type: String) {
         if (loginBusy.value || activeLoginId.value.isNotBlank() ||
             "accountLogout" in loading.value || "accountSessionSwitch" in loading.value ||
-            AccountVoiceSettingsLease.blocks("account/login/start", loading.value)) return
+            configTransactionBusy.value || securitySaveBusy.value || connectionRestarter.busy.value ||
+            AccountVoiceSettingsLease.blocks("account/login/start", loading.value)) {
+            errors.value = errors.value + ("account" to "已有账号、配置或核心切换操作，请完成当前操作后重试")
+            return
+        }
         val owner = captureTaskOwner() ?: run {
             errors.value = errors.value + ("account" to "运行核心尚未连接")
             return

@@ -69,8 +69,9 @@ internal class TerminalTaskOperations(
                 val result = bridge.request("command/exec", args, timeoutMillis = null, expectedSession = owner.epoch, sendPermit = { owner.current(vm) })
                 terminalTranscript.appendTail(id, result)
                 val active = terminalSession.value
-                if (active.processId == id) terminalSession.value = if (owner.current(vm)) active.finish(result)
-                    else active.fail("原任务已结束，账号或连接发生变化；输出保留在原终端记录")
+                // This is the original process receipt, even if the UI account changed.
+                // Keep the actual exit code in its own transcript rather than synthesize failure.
+                if (active.processId == id) terminalSession.value = active.finish(result)
             } catch (failure: Exception) {
                 val active = terminalSession.value
                 if (active.processId == id && active.running) {
