@@ -22,6 +22,24 @@ test -x "$MANAGER"
 test -r /dev/kvm && test -w /dev/kvm
 LOG="${RUNNER_TEMP:-/tmp}/111-emulator-$$.log"
 PID=""
+stop_emulator() {
+  if [ -z "$PID" ]; then return; fi
+  if kill -0 "$PID" 2>/dev/null; then
+    timeout 15 adb -s "$ANDROID_SERIAL" emu kill >/dev/null 2>&1 || kill "$PID" 2>/dev/null || true
+    local stop_deadline=$((SECONDS+5))
+    while kill -0 "$PID" 2>/dev/null && [ "$SECONDS" -lt "$stop_deadline" ]; do sleep 1; done
+    if kill -0 "$PID" 2>/dev/null; then
+      kill -KILL "$PID" 2>/dev/null || true
+      sleep 1
+    fi
+  fi
+  if kill -0 "$PID" 2>/dev/null; then
+    echo "Emulator process did not exit after forced termination: $PID" >&2
+    return 1
+  fi
+  wait "$PID" 2>/dev/null || true
+  PID=""
+}
 cleanup() {
   result=$?
   trap - EXIT
@@ -31,10 +49,7 @@ cleanup() {
     timeout 10 adb -s "$ANDROID_SERIAL" shell pidof system_server >&2 || true
     timeout 15 adb -s "$ANDROID_SERIAL" logcat -d -b crash -b system -b events -t 350 >&2 || true
   fi
-  if [ -n "$PID" ]; then
-    timeout 15 adb -s "$ANDROID_SERIAL" emu kill >/dev/null 2>&1 || kill "$PID" 2>/dev/null || true
-    wait "$PID" 2>/dev/null || true
-  fi
+  stop_emulator || result=1
   if [ "$result" -ne 0 ]; then tail -n 120 "$LOG" 2>/dev/null || true; fi
   rm -rf "$ANDROID_AVD_HOME" "$ANDROID_USER_HOME"
   exit "$result"
@@ -53,8 +68,6 @@ python3 - "$ANDROID_AVD_HOME/test.avd/config.ini" "${CONFIG[@]:0:3}" <<'PY'
 import pathlib,sys
 p=pathlib.Path(sys.argv[1]); updates=dict(x.split("=",1) for x in sys.argv[2:]); lines=[x for x in p.read_text().splitlines() if x.split("=",1)[0].strip() not in updates]; p.write_text("\n".join(lines+[f"{k}={v}" for k,v in updates.items()])+"\n")
 PY
-"$ANDROID_HOME/emulator/emulator" -port 5554 -avd test -accel on "${CONFIG[@]:3}" > "$LOG" 2>&1 &
-PID=$!
 # A boot property alone can remain set while system_server restarts. Require
 # real Binder calls and the same system_server PID over a stability window.
 device_shell() { timeout 15 adb -s "$ANDROID_SERIAL" shell "$@"; }
@@ -76,27 +89,44 @@ ready_pid() {
   [ "$compositor" = "$compositor_after" ] || return 1
   printf '%s:%s\n' "$before" "$compositor"
 }
-deadline=$((SECONDS+1200))
-stable_since=0
-last_pid=""
-ready=false
-while [ "$SECONDS" -lt "$deadline" ]; do
-  kill -0 "$PID"
-  if current="$(ready_pid)"; then
-    if [ "$current" != "$last_pid" ]; then
-      last_pid="$current"
-      stable_since=$SECONDS
-    elif [ "$((SECONDS-stable_since))" -ge 30 ]; then
-      ready=true
-      break
+start_emulator() {
+  "$ANDROID_HOME/emulator/emulator" -port 5554 -avd test -accel on "${CONFIG[@]:3}" "$@" >> "$LOG" 2>&1 &
+  PID=$!
+}
+await_system_ready() {
+  local deadline="$1" stable_since=0 current
+  last_pid=""
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    if ! kill -0 "$PID" 2>/dev/null; then return 2; fi
+    if current="$(ready_pid)"; then
+      if [ "$current" != "$last_pid" ]; then
+        last_pid="$current"
+        stable_since=$SECONDS
+      elif [ "$((SECONDS-stable_since))" -ge 30 ]; then
+        return 0
+      fi
+    else
+      last_pid=""
     fi
-  else
-    last_pid=""
-  fi
-  sleep 2
-done
-if [ "$ready" != true ]; then
-  echo "Android system services failed to become stable before the boot deadline" >&2
+    sleep 2
+  done
+  return 1
+}
+deadline=$((SECONDS+1200))
+last_pid=""
+start_emulator
+boot_status=0
+await_system_ready "$deadline" || boot_status=$?
+if [ "$boot_status" -eq 2 ] && [ "$SECONDS" -lt "$deadline" ]; then
+  echo "Emulator exited before system services became ready; retrying once on a clean AVD" >&2
+  tail -n 60 "$LOG" >&2
+  stop_emulator
+  start_emulator -wipe-data
+  boot_status=0
+  await_system_ready "$deadline" || boot_status=$?
+fi
+if [ "$boot_status" -ne 0 ]; then
+  echo "Android system services failed to become stable before the boot deadline (status $boot_status)" >&2
   exit 1
 fi
 echo "Android system services ready; system_server:surfaceflinger=$last_pid"

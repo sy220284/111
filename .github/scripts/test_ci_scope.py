@@ -47,6 +47,34 @@ class UnifiedScopeTests(unittest.TestCase):
             self.assertIn(read, before_motion)
         self.assertIn("null|1.0", before_motion)
 
+    def test_emulator_retries_early_exit_once_within_original_boot_budget(self):
+        script = (ROOT / "tools/build/run-emulator.sh").read_text()
+        boot = script[script.index("deadline=$((SECONDS+1200))"):script.index('echo "Android system services ready;')]
+        fakes = """
+LOG=/dev/null
+attempt=0
+start_emulator() {
+    attempt=$((attempt+1))
+    echo "boot:$*"
+}
+await_system_ready() {
+    if [ "$attempt" -eq 1 ]; then return "$FIRST"; fi
+    return "$SECOND"
+}
+stop_emulator() { echo stop; }
+"""
+        for first, second, status, expected in (
+            (0, 0, 0, ["boot:"]),
+            (2, 0, 0, ["boot:", "stop", "boot:-wipe-data"]),
+            (2, 2, 1, ["boot:", "stop", "boot:-wipe-data"]),
+            (1, 0, 1, ["boot:"]),
+        ):
+            with self.subTest(first=first, second=second):
+                command = f"set -euo pipefail\nFIRST={first}\nSECOND={second}\n" + fakes + boot
+                result = subprocess.run(["bash", "-c", command], capture_output=True, text=True)
+                self.assertEqual(status, result.returncode, result.stderr)
+                self.assertEqual(expected, result.stdout.splitlines())
+
     def test_emulator_boot_dismisses_keyguard_without_injecting_input_and_checks_home_focus(self):
         script = (ROOT / "tools/build/run-emulator.sh").read_text()
         self.assertNotIn("input keyevent 82", script)

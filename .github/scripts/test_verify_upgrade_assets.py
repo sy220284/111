@@ -7,7 +7,7 @@ class UpgradeAssetTests(unittest.TestCase):
     def test_complete_full_and_incremental_and_tampering(self):
         with TemporaryDirectory() as d:
             root=Path(d);old="0.1.0-111.47";new="0.1.0-111.48"
-            prev=root/f"codex-android-arm64-v8a-{old}.apk";prev.write_bytes(b"old"*100)
+            prev=root/f"codex-android-arm64-v8a-v{old}-signed.apk";prev.write_bytes(b"old"*100)
             sums=root/"SHA256SUMS.txt";sums.write_text(f"{sha(prev)}  {prev.name}\n")
             target=root/f"codex-android-arm64-v8a-{new}.apk";target.write_bytes(b"new"*100)
             patch=root/f"delta-{old}-to-{new}-arm64-v8a.hpatch";patch.write_bytes(b"delta")

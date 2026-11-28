@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-from resolve_codex_catalog_version import resolve, validate
+from resolve_codex_catalog_version import resolve, stamp_workspace, validate
 
 
 class CatalogVersionTest(unittest.TestCase):
@@ -58,6 +58,18 @@ class CatalogVersionTest(unittest.TestCase):
         snapshot = self.commit('source snapshot', 3)
         with self.assertRaises(RuntimeError):
             resolve(self.repo, snapshot)
+
+    def test_stamp_uses_verified_version_and_preserves_other_fields(self):
+        self.manifest.write_text('[workspace.package]\nversion = "0.0.0"\nedition = "2024"\n[workspace.dependencies]\nfoo = { version = "0.0.0" }\n')
+        stamp_workspace(self.manifest, "0.174.0-alpha.5")
+        self.assertIn('version = "0.174.0-alpha.5"', self.manifest.read_text())
+        self.assertIn('foo = { version = "0.0.0" }', self.manifest.read_text())
+        saved = self.manifest.read_text()
+        stamp_workspace(self.manifest, "0.174.0-alpha.5")
+        self.assertEqual(saved, self.manifest.read_text())
+        with self.assertRaises(ValueError):
+            stamp_workspace(self.manifest, "0.175.0")
+        self.assertEqual(saved, self.manifest.read_text())
 
     def test_lock_validation(self):
         marker = self.repo / 'CODEX_UPSTREAM_COMMIT'

@@ -391,6 +391,13 @@ impl ModelsEndpointClient for OpenAiModelsEndpoint {
         }))
     }
 
+    fn account_catalog_required(&self) -> bool {
+        self.provider_info.is_openai()
+            && self.provider_info.supports_codex_backend_routes()
+            && !self.has_provider_api_key()
+            && self.auth_manager.as_ref().is_some_and(|auth| auth.current_auth_uses_codex_backend())
+    }
+
     fn supports_api_key_models(&self) -> bool {
         is_provider_catalog(&self.provider_info)
             || (self.provider_info.is_openai() && self.provider_info.base_url.is_none())

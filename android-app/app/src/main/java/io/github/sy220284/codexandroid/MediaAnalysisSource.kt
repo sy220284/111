@@ -22,7 +22,7 @@ internal suspend fun CodexViewModel.establishMediaAnalysisSource(draftOwner: Str
         "default", options) { method, params -> owner.request(this, method, params) }
     val cwd = WorkspaceSelectionContract.validate(workspaceRoot, File(workspace)).absolutePath
     val permission = AnswerWorkspaceStore.permission(workspaceRoot, workspace, ComposerPermissionPolicy.selected(config))
-    workspaceTasks.relocateProject(project, owner.epoch)
+    workspaceTasks.relocateProject(project, owner)
     check(permit()) { "分析所属草稿已变化" }
     val params = ComposerPermissionPolicy.apply(ProjectRequestContract.threadStart(
         File(cwd), project, submission.model, submission.provider).apply {

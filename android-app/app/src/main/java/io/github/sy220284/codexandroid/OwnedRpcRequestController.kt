@@ -1,12 +1,36 @@
 package io.github.sy220284.codexandroid
 
+import androidx.annotation.MainThread
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
 /** Owns generic RPC dispatch, mutation admission, response leases, and receipts. */
 internal class OwnedRpcRequestController(private val vm: CodexViewModel, private val latestRequests: LatestRequestGate) {
     private val dynamicRequestHistory by lazy { TransientRequestCache(latestRequests, vm.data, vm.errors, vm.loading) }
+    private data class CatalogRead(
+        val ticket: Any, val query: ModelCatalogQuery, val force: Boolean, val epoch: Long?, val account: Long
+    )
+    private val catalogReads = mutableMapOf<String, CatalogRead>()
+    private val receiptKeys = mutableSetOf<String>()
+    private val pendingMutations = mutableSetOf<String>()
+
+    @MainThread
+    fun invalidateAccountReceipts() {
+        val keys = receiptKeys + vm.data.value.keys.filter {
+            it.startsWith("goal:") || it.startsWith("queue:") || it.startsWith("tokenUsage:")
+        }
+        val reads = keys - pendingMutations
+        reads.forEach(latestRequests::cancel)
+        vm.data.value = vm.data.value - keys
+        vm.errors.value = vm.errors.value - keys
+        vm.loading.value = vm.loading.value - reads
+        receiptKeys.retainAll(pendingMutations)
+    }
+
+    @MainThread
     fun request(
         key: String,
         method: String,
@@ -15,6 +39,15 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
         userAction: Boolean = false
     ): Unit = with(vm) {
         if (userAction && DataTransferMutationGate.refuse(this, key, method)) return@with
+        if (userAction && method in setOf("account/logout", "accountSession/switch") &&
+            (loginBusy.value || activeLoginId.value.isNotBlank() ||
+                "accountLogout" in loading.value || "accountSessionSwitch" in loading.value ||
+                configTransactionBusy.value || securitySaveBusy.value || connectionRestarter.busy.value)) {
+            val reason = "已有账号、配置或核心切换操作，请完成当前操作后重试"
+            errors.value = errors.value + (key to reason)
+            viewModelScope.launch { actionFeedback.emit(ActionFeedbackCopy.failure(method, reason)) }
+            return@with
+        }
         if (userAction && AccountVoiceSettingsLease.blocks(method, loading.value)) {
             val reason = "账号声音设置正在写入或读取，请完成后再切换账号"
             errors.value = errors.value + (key to reason)
@@ -56,26 +89,51 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
         }
         val organizationTicket = if (userAction) threadOrganization.begin(method,
             listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank))) else null
-        dynamicRequestHistory.retain(key)
-        val ticket = latestRequests.begin(key)
-        val configOwner = configGeneration
+        val modelRead = !userAction && method == "model/list" &&
+            (key == "models" || key.startsWith("composerModels:"))
+        val catalogQuery = if (modelRead) {
+            ModelCatalogQuery.from(params, data.value["providers"]?.optString("defaultProviderId"))
+        } else null
+        val force = params?.optBoolean("forceRefresh") == true
         val requestEpoch = bridge.connectedSession.value
         val accountOwner = catalogWarmup.accountRevision.value
+        val inFlight = catalogReads[key]
+        if (catalogQuery != null && onSuccess == null && inFlight != null &&
+            inFlight.query == catalogQuery && latestRequests.isLatest(key, inFlight.ticket) &&
+            inFlight.epoch == requestEpoch && inFlight.account == accountOwner &&
+            (!force || inFlight.force)) return@with
+        dynamicRequestHistory.retain(key)
+        receiptKeys.retainAll(data.value.keys + errors.value.keys + loading.value)
+        receiptKeys.add(key)
+        if (userAction) pendingMutations.add(key) else pendingMutations.remove(key)
+        val ticket = latestRequests.begin(key)
+        if (catalogQuery != null) catalogReads[key] = CatalogRead(ticket, catalogQuery, force, requestEpoch, accountOwner)
+        val configOwner = configGeneration
         val permissionWorkspace = if (key in setOf("composerPermissionConfig", "permissionProfiles")) params?.optString("cwd") else null
-        fun ownsReceipt() = latestRequests.isLatest(key, ticket) && requestEpoch == bridge.connectedSession.value &&
-            (!accountScopedRead(method) || accountOwner == catalogWarmup.accountRevision.value) &&
+        fun ownsConnection() = latestRequests.isLatest(key, ticket) && requestEpoch == bridge.connectedSession.value
+        fun ownsReceipt() = ownsConnection() &&
+            accountOwner == catalogWarmup.accountRevision.value &&
             (method !in setOf("config/read", "configRequirements/read", "permissionProfile/list") || configOwner == configGeneration) &&
             (permissionWorkspace == null || permissionWorkspace == activeWorkspace.value)
         val retainQueue = method == "thread/queue/list" && key.startsWith("queue:")
         val retainModelCatalog = method == "model/list" && (key == "models" || key.startsWith("composerModels:"))
-        if (userAction || (!retainQueue && !retainModelCatalog && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
+        if (userAction || (modelRead && force) || (!retainQueue && !retainModelCatalog && !ExtensionCatalogPolicy.retainsSnapshot(key, method)))
             data.value = data.value - key
         errors.value = errors.value - key
         loading.value = loading.value + key
         viewModelScope.launch {
             try {
                 val response = dispatchOwnedRequest(method, params, requireNotNull(requestEpoch) { "运行核心尚未连接" },
-                    sendPermit = if (userAction || accountScopedRead(method)) ({ catalogWarmup.accountRevision.value == accountOwner }) else null)
+                    sendPermit = { catalogWarmup.accountRevision.value == accountOwner })
+                // Identity-changing commands may emit account/updated before their response.
+                // Re-read the new authority instead of publishing an old-identity payload.
+                if (userAction && ownsConnection() && !ownsReceipt() &&
+                    method in setOf("account/logout", "accountSession/switch")) {
+                    refresh("account", "account/read", JSONObject())
+                    refresh("accountSessions", "accountSession/list", CatalogRequestContract.accountSessions())
+                    actionFeedback.emit(ActionFeedbackCopy.success(method, response))
+                    return@launch
+                }
                 if (ownsReceipt()) {
                     val published = if (key == "apps" && method == "app/list" &&
                         !params?.optString("cursor").isNullOrBlank())
@@ -83,8 +141,12 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                     data.value = data.value + (key to published)
                     errors.value = errors.value - key
                     if (method == "account/read" && key == "account") sessions.accountReady(response)
+                    if (method == "modelProvider/list" && key == "providers") catalogWarmup.providerCatalogRead()
                     if (userAction && method in setOf("account/logout", "accountSession/switch",
                             "modelProvider/default/set", "modelProvider/config/write")) {
+                        if (method == "modelProvider/default/set" || method == "modelProvider/config/write") {
+                            catalogWarmup.providerChanged()
+                        }
                         accountMetrics.accountChanged()
                         extensions.invalidate()
                         refresh("account", "account/read", JSONObject())
@@ -97,14 +159,20 @@ internal class OwnedRpcRequestController(private val vm: CodexViewModel, private
                                 listOfNotNull(params?.optString("threadId")?.takeIf(String::isNotBlank)))))
                 }
             } catch (failure: Exception) {
+                if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
                 if (ownsReceipt()) {
                     val reason = failure.message ?: "请求失败"
                     errors.value = errors.value + (key to reason)
+                    if (userAction && method == "thread/fork" && ComposerProviderScope.isModelRejection(reason, (failure as? RpcServerRejection)?.codexErrorInfo)) {
+                        catalogWarmup.modelRejected(params?.optString("threadId"), params?.optString("modelProvider"))
+                    }
                     if (userAction) actionFeedback.emit(
                         ActionFeedbackCopy.failure(method, reason))
                 }
             } finally {
+                if (catalogReads[key]?.ticket === ticket) catalogReads.remove(key)
                 if (latestRequests.complete(key, ticket)) {
+                    pendingMutations.remove(key)
                     loading.value = loading.value - key
                 }
             }

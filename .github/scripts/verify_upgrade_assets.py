@@ -31,8 +31,8 @@ def verify(previous,previous_tag,sums,candidate,version):
         raise ValueError("候选版本格式错误")
     if int(baseline.rsplit(".",1)[1])>=int(version.rsplit(".",1)[1]):
         raise ValueError("候选 versionCode 必须严格递增")
-    if previous.name!=f"codex-android-arm64-v8a-{baseline}.apk":
-        raise ValueError("旧版 APK 文件名不匹配")
+    # The release job verifies the APK's signed application and version identity.
+    # The published checksum is indexed by the asset's actual filename.
     old_sha=sha(previous)
     if published_checksum(sums,previous.name)!=old_sha:
         raise ValueError("旧版 APK 与正式发布摘要不一致")

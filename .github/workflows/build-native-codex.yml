@@ -153,6 +153,7 @@ jobs:
             .github/scripts
             .github/actions/ci-rust
             upstream/codex
+            CODEX_UPSTREAM_COMMIT
             android-app/tools
       - name: 准备共享完整工作区依赖缓存
         uses: ./.github/actions/ci-rust
@@ -264,8 +265,8 @@ jobs:
     env:
       CARGO_INCREMENTAL: "0"
       CARGO_PROFILE_RELEASE_DEBUG: "0"
-      CARGO_PROFILE_RELEASE_LTO: "false"
-      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "16"
+      CARGO_PROFILE_RELEASE_LTO: "thin"
+      CARGO_PROFILE_RELEASE_CODEGEN_UNITS: "4"
     steps:
       - name: 检出已锁定的官方源码快照
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -309,7 +310,6 @@ jobs:
           cat CODEX_UPSTREAM_COMMIT
           python3 android-app/tools/resolve_codex_catalog_version.py --marker CODEX_UPSTREAM_COMMIT \
             --lock upstream/codex/codex-rs/models-manager/android-client-release.txt
-          grep -Fq 'android_catalog_client_version()' upstream/codex/codex-rs/models-manager/src/lib.rs
           python3 -m unittest discover -s android-app/tools -p 'test_resolve_codex_catalog_version.py'
       # Check the pristine lock before any Android adaptation modifies Cargo.lock.
       - name: 下载并核验独立 V8 产物及原始构建输入
@@ -413,6 +413,7 @@ jobs:
                 exit 1
               fi
             done
+            stat -c '%n %s bytes' "$CORE"
             sha256sum "$CORE"
           done
       - name: 上传原生内核二进制
@@ -486,10 +487,16 @@ jobs:
           CARGO_BUILD_JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs rust)"
           export CARGO_BUILD_JOBS
           cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
+          cargo test --locked -p codex-core --lib authoritative_model_effort
           cargo test --locked -p codex-models-manager --lib image_input
           cargo test --locked -p codex-model-provider --lib domestic_
           cargo test --locked -p codex-model-provider-info --lib domestic_workspace_tests
           cargo test --locked -p codex-api --lib body_model_reporting
+          cargo test --locked -p codex-api --lib map_http_error_classifies_provider_codes
+          cargo test --locked -p codex-api --lib statusless_model_errors_have_no_http_status
+          cargo test --locked -p codex-core --test all pre_sampling_compact_falls_back_when_previous_model_is_not_found
+          cargo test --locked -p codex-core --test all pre_sampling_compact_runs_after_resume_and_switch_to_smaller_model
+          cargo test --locked -p codex-core --test all body_after_prefix_model_switch_budget_compacts_with_next_model
           cargo test --locked -p codex-app-server --test all media_sample_native_
       - name: 验证工作站真实文件安全读取并构建 Linux 执行器
         working-directory: upstream/codex/codex-rs

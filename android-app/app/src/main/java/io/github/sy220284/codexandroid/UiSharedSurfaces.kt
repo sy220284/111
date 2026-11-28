@@ -73,7 +73,8 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     var choosingProvider by remember(owner) { mutableStateOf(false) }
     var confirmModel by remember(owner) { mutableStateOf<String?>(null) }
     val scopedProvider = targetProvider ?: if (active != null) currentProvider else draftProvider
-    val catalogKey = ComposerProviderScope.catalogKey(scopedProvider)
+    val catalogKey = ComposerProviderScope.catalogKey(scopedProvider,
+        ComposerProviderScope.provider(providerData["providers"]?.optString("defaultProviderId")))
     val models by vm.data.collectEntries(catalogKey)
     val running by vm.running.collectAsStateWithLifecycle()
     val creating by vm.firstThreadStarting.collectAsStateWithLifecycle()
@@ -168,12 +169,12 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
             !connected -> "连接尚未恢复，可查看已有选择。"
             running -> "当前任务保持运行；此处仅设置下一次普通发送，已排队任务不变。"
             loading && !catalogReady -> "正在读取可用模型…"
-            errors[catalogKey] != null -> "目录更新失败，可重试；发送前会再次核验模型。"
+            errors[catalogKey] != null -> "目录更新失败，可继续使用已选模型或重新读取；实际调用由服务商确认。"
             destination != null -> "选择模型后确认跨服务商交接。"
             else -> "仅影响后续任务 · $providerName"
         },
         choices = (if (destination == null) listOf(CodexChoice("", if (active == null) "使用默认模型" else "沿用会话模型")) else emptyList()) + choices,
-        selectedId = selected, enabled = catalogReady,
+        selectedId = selected, enabled = selectable && (destination == null || catalogReady),
         recoveryLabel = if (!connected) "重新连接" else if (errors[catalogKey] != null || (!loading && choices.isEmpty())) "重新读取" else null,
         onRecovery = { reload() },
         recoveryMessage = if (!connected) "连接恢复后可以选择模型。" else "可重新获取当前服务商目录。",

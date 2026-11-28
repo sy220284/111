@@ -2,6 +2,8 @@ package io.github.sy220284.codexandroid
 
 import android.content.SharedPreferences
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -22,8 +24,10 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
         return
     }
     if (!forceReload && !ThreadDisplayPolicy.canOpenThread(activeThread.value, id, running.value)) return
-    val epoch = bridge.connectedSession.value
-    val accountRevision = catalogWarmup.accountRevision.value
+    val owner = captureTaskOwner() ?: run {
+        errors.value = errors.value + ("conversation" to "运行核心尚未连接")
+        return
+    }
     threadSwitching.value = true
     activeThread.value?.let { current ->
         if (running.value) liveTimelines.capture(current, activeTurn.value, timeline.value)
@@ -33,8 +37,7 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
     errors.value = errors.value - "conversation"
     viewModelScope.launch {
         try {
-            val session = requireNotNull(epoch) { "运行核心尚未连接" }
-            val history = bridge.request("thread/read", JSONObject().put("threadId", id), expectedSession = session)
+            val history = owner.request(this@selectConversation, "thread/read", JSONObject().put("threadId", id))
             val nativeThread = history.getJSONObject("thread")
             val remote = remoteBindings.forThread(id)
             check(remote != null || !RemoteExecutionBinding.hasRemote(nativeThread)) { "远端会话缺少本机连接记录，请先核对执行环境" }
@@ -42,17 +45,17 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
             // verify the remote binding only when a user actually starts execution.
             val threadDirectory = if (remote != null) WorkspaceSelectionContract.validate(java.io.File(workingDirectory), java.io.File(workingDirectory))
                 else workspaceTasks.resumeDirectory(id, nativeThread.getString("cwd"),
-                    nativeThread.optString("projectId").takeUnless { value -> value == "null" }.orEmpty(), null, session)
-            val page = bridge.request("thread/items/list", JSONObject().put("threadId", id)
-                .put("sortDirection", "desc").put("limit", 120), expectedSession = session)
-            check(bridge.connectedSession.value == session && catalogWarmup.accountRevision.value == accountRevision) { "会话连接已变化，请重新打开" }
+                    nativeThread.optString("projectId").takeUnless { value -> value == "null" }.orEmpty(), null, owner)
+            val page = owner.request(this@selectConversation, "thread/items/list", JSONObject().put("threadId", id)
+                .put("sortDirection", "desc").put("limit", 120))
             val outcomeReader = HistoryTurnOutcomes(id) { method, params ->
-                bridge.request(method, params, expectedSession = session)
+                owner.request(this@selectConversation, method, params)
             }
             val restored = outcomeReader.reconcile(readHistoryPage(page))
-            check(bridge.connectedSession.value == session && catalogWarmup.accountRevision.value == accountRevision) { "会话连接已变化，请重新打开" }
+            owner.requireCurrent(this@selectConversation)
             val turns = TimelineEventReducer.historyTurns(restored)
             val newest = timelineWindow.replace(id, restored, ++timelineEpoch)
+            owner.requireCurrent(this@selectConversation)
             workspacePreferences.edit()
                 .putString("activeDirectory", threadDirectory.absolutePath).apply()
             restoreComposerOptions(id)
@@ -71,7 +74,8 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
             answerVersions.select(id); sessions.markRead(id, false, history.optJSONObject("readState"))
             onOpened?.invoke()
         } catch (failure: Exception) {
-            errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
+            if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
+            if (owner.current(this@selectConversation)) errors.value = errors.value + ("conversation" to (failure.message ?: "无法打开会话"))
         } finally {
             hydratingThread = null
             threadSwitching.value = false

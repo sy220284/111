@@ -1854,25 +1854,11 @@ async fn maybe_run_previous_model_inline_compact(
     if !should_compact_for_comp_hash_change && previous_model == turn_context.model_info().slug {
         return Ok(());
     }
-    let mut previous_model_turn_context = turn_context
-        .with_model(previous_model.clone(), &sess.services.models_manager)
-        .await;
-    // `with_model` preserves the current turn's access program. Restore the previous
-    // turn's program so compaction uses the same model/cyber_access_program pair as that turn.
-    // Combining the previous model with the current turn's program can produce a pair
-    // that the server rejects.
-    previous_model_turn_context.cyber_access_program = cyber_access_program::for_provider(
-        &previous_model_turn_context.config,
-        previous_turn_settings.cyber_access_program,
-    );
-    let previous_model_turn_context = Arc::new(previous_model_turn_context);
-
-    let reason = if should_compact_for_comp_hash_change {
-        CompactionReason::CompHashChanged
+    // A model switch alone does not require compaction. Check the current
+    // window's threshold before allocating a previous-model context.
+    let downshift_window = if should_compact_for_comp_hash_change {
+        None
     } else {
-        let Some(old_context_window) = previous_model_turn_context.model_context_window() else {
-            return Ok(());
-        };
         let Some(new_context_window) = turn_context.model_context_window() else {
             return Ok(());
         };
@@ -1891,13 +1877,31 @@ async fn maybe_run_previous_model_inline_compact(
                     active_context_tokens >= new_context_window
                 }
             };
-        if !previous_model_limit_reached
-            || previous_model_turn_context.model_info().slug == turn_context.model_info().slug
+        if !previous_model_limit_reached {
+            return Ok(());
+        }
+        Some(new_context_window)
+    };
+    let mut previous_model_turn_context = turn_context
+        .with_model(previous_model.clone(), &sess.services.models_manager)
+        .await;
+    previous_model_turn_context.cyber_access_program = cyber_access_program::for_provider(
+        &previous_model_turn_context.config,
+        previous_turn_settings.cyber_access_program,
+    );
+    let previous_model_turn_context = Arc::new(previous_model_turn_context);
+    let reason = if let Some(new_context_window) = downshift_window {
+        let Some(old_context_window) = previous_model_turn_context.model_context_window() else {
+            return Ok(());
+        };
+        if previous_model_turn_context.model_info().slug == turn_context.model_info().slug
             || old_context_window <= new_context_window
         {
             return Ok(());
         }
         CompactionReason::ModelDownshift
+    } else {
+        CompactionReason::CompHashChanged
     };
 
     let step_context = sess

@@ -6,16 +6,17 @@ package io.github.sy220284.codexandroid
  */
 internal data class ThreadExecution(
     val turnId: String? = null,
-    val images: List<String> = emptyList()
+    val images: List<String> = emptyList(),
+    val submission: Any = Any()
 )
 
 internal object ThreadExecutionPolicy {
     fun reserve(
-        previous: Map<String, ThreadExecution>, threadId: String, images: List<String>
+        previous: Map<String, ThreadExecution>, threadId: String, images: List<String>, submission: Any = Any()
     ): Map<String, ThreadExecution> {
         require(threadId.isNotBlank()) { "会话编号不能为空" }
         check(threadId !in previous) { "该会话已有执行中的任务" }
-        return previous + (threadId to ThreadExecution(images = images.toList()))
+        return previous + (threadId to ThreadExecution(images = images.toList(), submission = submission))
     }
 
     fun started(

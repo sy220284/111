@@ -23,7 +23,7 @@ class TimelineItem private constructor(
         if (stream?.field == "aggregatedOutput") stream.outputTail(limit)
         else metadata()?.optString("aggregatedOutput").orEmpty().takeLast(limit)
 
-    internal fun appendNative(field: String, delta: String, index: Int, lifecycle: String): TimelineItem {
+    internal fun appendNative(field: String, delta: String, index: Long, lifecycle: String): TimelineItem {
         val source = stream?.takeIf { it.field == field } ?: TimelineNativeStream.from(this, field)
         val next = source.append(delta, index)
         val nativeStatus = source.metadata.optString("status").takeUnless { source.metadata.isNull("status") }.orEmpty()

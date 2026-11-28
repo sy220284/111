@@ -97,10 +97,12 @@ internal object ConversationCopyContent {
 
 /** Android owns the actual clipboard. Native Rust TUI disables its Android clipboard path. */
 internal object ConversationClipboard {
-    suspend fun copy(context: Context, source: String, format: CopyContentFormat): Boolean {
+    suspend fun copy(context: Context, source: String, format: CopyContentFormat,
+        isCurrent: () -> Boolean = { true }): Boolean {
         return try {
             val payload = withContext(Dispatchers.Default) { ConversationCopyContent.payload(source, format) }
             withContext(Dispatchers.Main.immediate) {
+                check(isCurrent()) { "复制所属会话或账号已变化，请重新操作" }
                 val manager = context.getSystemService(ClipboardManager::class.java)
                     ?: error("系统剪贴板不可用")
                 val clip = payload.html?.let { ClipData.newHtmlText("Codex", payload.text, it) }

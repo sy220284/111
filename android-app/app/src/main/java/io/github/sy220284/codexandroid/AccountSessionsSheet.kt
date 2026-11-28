@@ -27,6 +27,8 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val data by vm.data.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
+    val loginBusy by vm.loginBusy.collectAsStateWithLifecycle()
+    val loginId by vm.activeLoginId.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val payload = data["accountSessions"]
     val currentSession = payload?.optString("activeSessionId").orEmpty()
@@ -138,7 +140,7 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                                         target = Triple(sid, aid,
                                             PresentationPolicy.meaningful(workspace.optString("name"))
                                                 .ifEmpty { "未命名工作区" })
-                                    }, enabled = "accountSessionSwitch" !in loading && AccountVoiceSettingsLease.key !in loading) {
+                                    }, enabled = !loginBusy && loginId.isBlank() && "accountLogout" !in loading && "accountSessionSwitch" !in loading && AccountVoiceSettingsLease.key !in loading) {
                                     Text("切换")
                                 }
                             }

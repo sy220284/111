@@ -6,7 +6,6 @@ import android.util.Base64
 import java.io.File
 import java.security.KeyStore
 import java.security.MessageDigest
-import java.util.zip.ZipInputStream
 
 /** Signed APK native code; versioned, verified data in the app-private directory. */
 internal object DeveloperRuntime {
@@ -48,8 +47,11 @@ internal object DeveloperRuntime {
     }
 
     private fun prepareData(context: Context): File {
-        val digest = context.assets.open("$ASSET.sha256").bufferedReader().use { it.readText().trim() }
-        require(digest.matches(Regex("[a-f0-9]{64}"))) { "开发环境清单校验失败" }
+        val archiveDigest = context.assets.open("$ASSET.sha256").bufferedReader().use { it.readText().trim() }
+        require(archiveDigest.matches(Regex("[a-f0-9]{64}"))) { "开发环境归档摘要异常" }
+        val manifestBytes = context.assets.open("$ASSET.files.tsv").use { it.readBytes() }
+        val entries = RuntimePayloadIntegrity.manifest(manifestBytes)
+        val digest = RuntimePayloadIntegrity.manifestDigest(manifestBytes)
         val parent = File(context.filesDir, "developer-runtime")
         check(!java.nio.file.Files.isSymbolicLink(parent.toPath())) { "开发环境目录不能是符号链接" }
         check(parent.isDirectory || parent.mkdirs())
@@ -57,62 +59,25 @@ internal object DeveloperRuntime {
         fun valid(dir: File) = File(dir, "python/home/lib/python3.14/encodings/__init__.py").isFile &&
             File(dir, "python/home/lib/python3.14/site-packages/pip/__init__.py").isFile &&
             File(dir, "node/npm/package/bin/npm-cli.js").isFile
-        if (target.isDirectory && valid(target) &&
-            context.assets.open("$ASSET.zip").use { RuntimePayloadIntegrity.matches(target, it) }) {
+        if (RuntimePayloadIntegrity.matches(target, entries) && valid(target)) {
             RuntimePayloadIntegrity.sealReadOnly(target)
+            RuntimePayloadIntegrity.removeRetired(parent, target)
             return target
         }
-        RuntimePayloadIntegrity.removeTree(target)
         val staging = File(parent, "$digest.partial")
         RuntimePayloadIntegrity.removeTree(staging)
         check(staging.mkdir())
-        val archive = File.createTempFile("developer-runtime", ".zip", context.cacheDir)
         try {
-            val md = MessageDigest.getInstance("SHA-256")
-            context.assets.open("$ASSET.zip").use { input ->
-                archive.outputStream().use { output ->
-                    val buffer = ByteArray(65536)
-                    while (true) {
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        md.update(buffer, 0, count)
-                        output.write(buffer, 0, count)
-                    }
-                }
+            context.assets.open("$ASSET.zip").use {
+                RuntimePayloadIntegrity.install(staging, it, entries, archiveDigest)
             }
-            check(md.digest().joinToString("") { "%02x".format(it.toInt() and 255) } == digest) { "开发环境数据校验失败" }
-            val prefix = staging.canonicalPath + File.separator
-            ZipInputStream(archive.inputStream().buffered()).use { zip ->
-                val seen = mutableSetOf<String>()
-                var total = 0L
-                while (true) {
-                    val entry = zip.nextEntry ?: break
-                    val file = File(staging, entry.name).canonicalFile
-                    require(file.path.startsWith(prefix) && seen.add(file.path)) { "开发环境压缩包路径异常" }
-                    if (entry.isDirectory) check(file.isDirectory || file.mkdirs())
-                    else {
-                        check(file.parentFile!!.isDirectory || file.parentFile!!.mkdirs())
-                        file.outputStream().use { output ->
-                            val buffer = ByteArray(65536)
-                            while (true) {
-                                val count = zip.read(buffer)
-                                if (count < 0) break
-                                total += count
-                                check(total <= 512L * 1024 * 1024) { "开发环境数据超过安全上限" }
-                                output.write(buffer, 0, count)
-                            }
-                        }
-                    }
-                    zip.closeEntry()
-                }
-            }
-            check(valid(staging) &&
-                archive.inputStream().use { RuntimePayloadIntegrity.matches(staging, it) }) { "开发环境数据不完整" }
+            check(valid(staging)) { "开发环境必要工具数据缺失" }
             RuntimePayloadIntegrity.sealReadOnly(staging)
+            RuntimePayloadIntegrity.removeTree(target)
             check(staging.renameTo(target)) { "无法安装开发环境数据" }
+            RuntimePayloadIntegrity.removeRetired(parent, target)
             return target
         } finally {
-            archive.delete()
             RuntimePayloadIntegrity.removeTree(staging)
         }
     }

@@ -25,14 +25,18 @@ internal class WorkspaceTaskOperations(
     private fun sendPrompt(prompt: String) = vm.sendPrompt(prompt)
 
     /** Resume by the official cwd override; require the server to confirm the real path. */
-    suspend fun resumeDirectory(id: String, oldCwd: String, projectId: String, remote: RemoteExecutionBinding? = null, expectedSession: Long = requireNotNull(bridge.connectedSession.value)): File {
+    suspend fun resumeDirectory(id: String, oldCwd: String, projectId: String, remote: RemoteExecutionBinding?, owner: TaskRequestOwner): File {
+        owner.requireCurrent(vm)
+        val expectedSession = owner.epoch
+        val permit = { owner.current(vm) }
         if (remote != null) {
-            vm.ensureRemoteThread(id, remote, id in vm.threadExecutions.value, expectedSession)
+            vm.ensureRemoteThread(id, remote, id in vm.threadExecutions.value, expectedSession, permit)
+            owner.requireCurrent(vm)
             return WorkspaceSelectionContract.validate(workspaceRoot, workspaceRoot)
         }
         val selected = WorkspaceSelectionContract.validate(workspaceRoot,
             File(WorkspaceStorage.remap(vm.getApplication(), oldCwd)))
-        relocateProject(projectId, expectedSession)
+        relocateProject(projectId, owner)
         val params = org.json.JSONObject().put("threadId", id).put("cwd", selected.absolutePath).put("excludeTurns", true)
         val isolated = AnswerWorkspaceStore.isolated(workspaceRoot, selected.absolutePath)
         if (isolated) {
@@ -40,12 +44,13 @@ internal class WorkspaceTaskOperations(
             // Loaded running sessions reject permission overrides. Resume the
             // established profile and verify it rather than attempting to change it.
             if (id !in vm.threadExecutions.value) {
-                val config = bridge.request("config/read", org.json.JSONObject().put("cwd", selected.absolutePath), expectedSession = expectedSession)
+                val config = owner.request(vm, "config/read", org.json.JSONObject().put("cwd", selected.absolutePath))
                 ComposerPermissionPolicy.apply(params, AnswerWorkspaceStore.permission(workspaceRoot, selected.absolutePath, ComposerPermissionPolicy.selected(config)))
             }
         }
-        val resumed = if (id in vm.threadExecutions.value) bridge.request("thread/resume", params, expectedSession = expectedSession)
-            else vm.modelPreviews.request("thread/resume", params, expectedSession = expectedSession)
+        val resumed = if (id in vm.threadExecutions.value) owner.request(vm, "thread/resume", params)
+            else vm.modelPreviews.request("thread/resume", params, expectedSession = expectedSession, sendPermit = permit)
+        owner.requireCurrent(vm)
         if (isolated) AnswerWorkspaceStore.verifyRuntime(resumed, selected.absolutePath)
         check(File(resumed.getJSONObject("thread").getString("cwd")).canonicalFile == selected) {
             "运行核心未确认新工作目录，请重新打开会话"
@@ -54,9 +59,9 @@ internal class WorkspaceTaskOperations(
     }
 
     /** Lazily migrate registered roots when an old project is used; preserve all unchanged roots. */
-    suspend fun relocateProject(id: String?, expectedSession: Long? = bridge.connectedSession.value) {
+    suspend fun relocateProject(id: String?, owner: TaskRequestOwner) {
         if (id.isNullOrBlank()) return
-        val roots = bridge.request("project/read", ProjectRequestContract.read(id), expectedSession = expectedSession)
+        val roots = owner.request(vm, "project/read", ProjectRequestContract.read(id))
             .getJSONObject("project").getJSONArray("roots")
         val mapped = org.json.JSONArray()
         var changed = false
@@ -70,7 +75,7 @@ internal class WorkspaceTaskOperations(
             mapped.put(org.json.JSONObject().put("path", newPath))
         }
         if (!changed) return
-        val result = bridge.request("project/update", ProjectRequestContract.relocate(id, mapped), expectedSession = expectedSession)
+        val result = owner.request(vm, "project/update", ProjectRequestContract.relocate(id, mapped))
             .getJSONObject("project").getJSONArray("roots")
         check(result.length() == mapped.length() && (0 until result.length()).all {
             result.getJSONObject(it).getString("path") == mapped.getJSONObject(it).getString("path")

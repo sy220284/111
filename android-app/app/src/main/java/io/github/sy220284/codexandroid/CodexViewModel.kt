@@ -9,10 +9,8 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.UUID
 
 class CodexViewModel(application: Application) : AndroidViewModel(application) {
     // Owned by CodexApplication for the entire process, shared by Activity and foreground Service.
@@ -56,7 +54,10 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val loadingEarlier = MutableStateFlow(false)
     internal var hydratingThread: String? = null
     internal var timelineEpoch = 0L
-    internal var timelineCompacting = false
+    internal val timelineCompaction = MutableStateFlow(false)
+    internal var timelineCompacting: Boolean
+        get() = timelineCompaction.value
+        set(value) { timelineCompaction.value = value }
     internal val liveTimelines = ConversationLiveTimeline()
     fun loadEarlierTimeline() = loadEarlierHistory()
     private val draftStorage = DraftStorageController(application.applicationContext, viewModelScope)
@@ -88,7 +89,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val attachmentController by lazy {
         AttachmentImportController(getApplication(), viewModelScope, composerDrafts, errors) {
-            threadExecutions.value.values.flatMap { it.images } + firstTurnImages + pendingComposerImages.value
+            threadExecutions.value.values.flatMap { it.images } + submission.reservedImages + pendingComposerImages.value
         }
     }
     val attachmentImport get() = attachmentController.state
@@ -126,14 +127,15 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
             canRead = { bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy },
             clock = android.os.SystemClock::elapsedRealtime,
             read = { key ->
+                val owner = captureTaskOwner() ?: error("运行核心尚未连接")
                 when (key) {
-                    "usage" -> bridge.request("account/usage/read", null)
-                    "limits" -> bridge.request("account/rateLimits/read", null)
+                    "usage" -> owner.request(this, "account/usage/read", null)
+                    "limits" -> owner.request(this, "account/rateLimits/read", null)
                     else -> error("未知账号统计类型：$key")
                 }
             })
     }
-    private var firstTurnImages: List<String> = emptyList()
+    private val submission by lazy { ConversationSubmissionController(this, workspaceRoot, workspaceTasks) }
 
     internal val recoveryDelayMs = MutableStateFlow<Long?>(null)
     private val runtimeConnection by lazy { RuntimeConnectionController(this) }
@@ -159,6 +161,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     internal val featureSwitches by lazy { FeatureSwitchController(this) }
     internal val extensions by lazy { ExtensionCatalogController(this, latestRequests) }
     private val ownedRequests by lazy { OwnedRpcRequestController(this, latestRequests) }
+    internal fun invalidateAccountReceipts() = ownedRequests.invalidateAccountReceipts()
     private fun request(key: String, method: String, params: JSONObject?,
         onSuccess: ((JSONObject) -> Unit)?, userAction: Boolean = false) =
         ownedRequests.request(key, method, params, onSuccess, userAction)
@@ -273,210 +276,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         establishMediaAnalysisSource(draftOwner, owner, workspaceRoot, workspaceTasks, onCreated)
 
     fun sendPrompt(text: String, localImages: List<String> = emptyList(),
-                   references: List<ComposerReference> = emptyList(), afterAccepted: (String) -> Unit = {}) {
-        if (securitySaveBusy.value) {
-            errors.value = errors.value + ("conversation" to "正在保存权限，请完成后再发送指令")
-            return
-        }
-        if (!globalWorkSnapshot().canStartNewTask) {
-            errors.value = errors.value + ("conversation" to
-                "本机数据正在备份或恢复，完成后再发送指令")
-            return
-        }
-        if (connectionRestarter.busy.value) { errors.value = errors.value + ("conversation" to "正在重新连接内核，请完成后发送"); return }
-        val prompt = text.trim()
-        if (activeThread.value?.let(::answerFamilyBusy) == true) {
-            errors.value = errors.value + ("conversation" to "正在整理会话，请完成后再发送指令")
-            return
-        }
-        if (threadSwitching.value) {
-            errors.value = errors.value + ("conversation" to "正在恢复会话，请在完成后发送指令")
-            return
-        }
-        val owner = captureTaskOwner()
-        if (owner == null) {
-            errors.value = errors.value + ("conversation" to "运行核心尚未连接，草稿已保留")
-            return
-        }
-        val epoch = owner.epoch
-        val permit = { owner.current(this) }
-        val submittedThread = activeThread.value
-        if ((prompt.isEmpty() && localImages.isEmpty() && references.isEmpty()) || running.value ||
-            (submittedThread == null && firstThreadStarting.value) ||
-            (submittedThread != null && submittedThread in threadExecutions.value)) return
-        val images = localImages.toList()
-        // Own the destination synchronously; a second tap on this thread cannot
-        // submit twice and switching to another thread does not transfer the turn.
-        if (submittedThread == null) {
-            firstThreadStarting.value = true
-            firstTurnImages = images
-        } else {
-            threadExecutions.value = ThreadExecutionPolicy.reserve(
-                threadExecutions.value, submittedThread, images)
-            threadFailures.value = threadFailures.value - submittedThread
-            threadActivities.value = ThreadActivityPolicy.updated(
-                threadActivities.value, submittedThread, ThreadActivity.Running)
-        }
-        running.value = true
-        val chosenModel = modelId.value
-        val chosenMode = selectedMode.value
-        val chosenWorkspace = activeWorkspace.value
-        val chosenRemote = conversationState.value.remote
-        val draftOwner = composerOwner(submittedThread, chosenWorkspace)
-        val chosenOptions = composerDrafts.value[draftOwner]?.options ?: ComposerTaskOptions()
-        val chosenEffort = chosenOptions.effort
-        val chosenProject = activeProjectId.value
-        viewModelScope.launch {
-            var newlyCreatedThreadId: String? = null
-            var turnRequestDispatched = false
-            val pendingId = "pending-" + UUID.randomUUID()
-            if (activeThread.value == submittedThread) timeline.value = timeline.value + TimelineItem(
-                pendingId, "user",
-                if (images.isEmpty()) prompt else
-                    listOf(prompt, LocalMediaAttachmentPolicy.summary(images)).filter { it.isNotBlank() }.joinToString("\n"),
-                "sending")
-            try {
-                // Android must confirm foreground mode before any turn RPC is sent.
-                CodexForegroundService.startAndAwaitReady(getApplication())
-                require(chosenMode == "default" || chosenMode == "plan") {
-                    "未知协作方式：" + chosenMode
-                }
-                chosenRemote?.requireTextOnly(images, references)
-                check(bridge.connectedSession.value == epoch && permit()) { "连接或账号已变化，草稿已保留" }
-                if (chosenRemote != null) {
-                    if (submittedThread == null) remoteBindings.ready(epoch, chosenRemote) { method, params ->
-                        owner.request(this@CodexViewModel, method, params)
-                    } else ensureRemoteThread(submittedThread, chosenRemote, expectedSession = epoch, sendPermit = permit)
-                }
-                val permissionConfig = owner.request(this@CodexViewModel, "config/read", JSONObject().put("cwd", chosenWorkspace))
-                val chosenPermission = AnswerWorkspaceStore.permission(workspaceRoot, chosenWorkspace, ComposerPermissionPolicy.selected(permissionConfig))
-                val (provider, requestModel, catalog, effectiveConfig) = ComposerProviderScope.submission(
-                    permissionConfig.getJSONObject("config"), submittedThread, chosenModel, chosenMode,
-                    chosenOptions, mediaKinds = LocalMediaAttachmentPolicy.modalities(images)) { method, params -> owner.request(this@CodexViewModel, method, params) }
-                AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(images, LocalImageAttachments.directory(getApplication())) { owner.requireCurrent(this@CodexViewModel) } }
-                ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
-                owner.requireCurrent(this@CodexViewModel)
-                if (submittedThread == null && chosenRemote == null) workspaceTasks.relocateProject(chosenProject, epoch)
-                if (chosenRemote == null) captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread)
-                LocalImageAttachments.preserveForHistory(getApplication(), images, pendingId.removePrefix("pending-"))
-                val outcome = TurnSubmissionCoordinator { method, params ->
-                    check(permit()) { "账号已变化，未继续提交任务" }
-                    if (method == "thread/start" && chosenRemote != null) {
-                        val response = bridge.request(method, chosenRemote.apply(params), sendPermit = permit, expectedSession = epoch)
-                        val created = response.getJSONObject("thread")
-                        remoteBindings.bind(created.getString("id"), chosenRemote)
-                        check(chosenRemote.matches(created)) { "内核没有确认远端会话，未发送任务" }
-                        response
-                    } else if (method == "thread/start") modelPreviews.request(method, params, permissionConfig, expectedSession = epoch, sendPermit = permit)
-                    else bridge.request(method, if (chosenRemote != null && method == "turn/start") chosenRemote.apply(params) else params, sendPermit = permit, expectedSession = epoch)
-                }.submit(
-                    existingThreadId = submittedThread,
-                    createThreadParams = {
-                        val cwd = WorkspaceSelectionContract.validate(
-                            workspaceRoot, File(chosenWorkspace)).absolutePath
-                        ComposerPermissionPolicy.apply(ProjectRequestContract.threadStart(
-                            File(cwd), chosenProject, requestModel, provider).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, cwd)) put("runtimeWorkspaceRoots", JSONArray().put(cwd)) }, chosenPermission)
-                    },
-                    turnParams = { id ->
-                        ComposerPermissionPolicy.apply(TurnRequestContract.build(
-                            threadId = id, text = prompt, modelId = requestModel,
-                            mode = chosenMode, catalog = catalog, localImages = images,
-                            effort = chosenEffort, references = references, effectiveConfig = effectiveConfig
-                        ).put("clientUserMessageId", pendingId.removePrefix("pending-")).apply { if (AnswerWorkspaceStore.isolated(workspaceRoot, chosenWorkspace)) put("cwd", chosenWorkspace).put("runtimeWorkspaceRoots", JSONArray().put(chosenWorkspace)) }, chosenPermission)
-                    },
-                    onThreadCreated = { createdId ->
-                        newlyCreatedThreadId = createdId
-                        threadExecutions.value = ThreadExecutionPolicy.reserve(
-                            threadExecutions.value, createdId, images)
-                        threadFailures.value = threadFailures.value - createdId
-                        threadActivities.value = ThreadActivityPolicy.updated(
-                            threadActivities.value, createdId, ThreadActivity.Running)
-                        firstTurnImages = emptyList()
-                        firstThreadStarting.value = false
-                        composerDrafts.update {
-                            ThreadComposerDrafts.attachNewThread(it, createdId, draftOwner)
-                        }
-                        conversationState.update { it.copy(threadId = createdId, modelProvider = provider) }
-                        sessions.refreshChanged(createdId)
-                    }
-                )
-                when (outcome) {
-                    is TurnSubmissionOutcome.Accepted -> {
-                        turnRequestDispatched = true
-                        val id = outcome.threadId
-                        if (id in threadExecutions.value) {
-                            threadExecutions.value = ThreadExecutionPolicy.started(
-                                threadExecutions.value, id, outcome.turnId)
-                            if (activeThread.value == id) {
-                                conversationState.update { it.copy(turnId = threadExecutions.value[id]?.turnId, running = true) }
-                                errors.value = errors.value - "conversation"
-                            }
-                        }
-                        afterAccepted(id)
-                    }
-                    is TurnSubmissionOutcome.Failed -> {
-                        newlyCreatedThreadId = outcome.newlyCreatedThreadId
-                        turnRequestDispatched = outcome.turnRequestDispatched
-                        throw outcome.failure
-                    }
-                }
-            } catch (failure: Exception) {
-                // An ambiguous timeout retains this thread's ownership and images:
-                // the core may have accepted the turn while its response was lost.
-                val definiteFailure = !turnRequestDispatched ||
-                    FirstTurnRecoveryPolicy.explicitlyRejected(failure)
-                firstThreadStarting.value = false
-                firstTurnImages = emptyList()
-                val submittedId = newlyCreatedThreadId ?: submittedThread
-                if (definiteFailure && submittedId != null) {
-                    threadExecutions.value = ThreadExecutionPolicy.finish(
-                        threadExecutions.value, submittedId)
-                    threadActivities.value = ThreadActivityPolicy.updated(
-                        threadActivities.value, submittedId, ThreadActivity.Failed)
-                }
-                var recoveryNote = ""
-                val created = newlyCreatedThreadId
-                // Reclaim an empty newly created session only after an explicit
-                // server rejection. Never delete after timeout/disconnect:
-                // the server may already have accepted the turn.
-                if (created != null && FirstTurnRecoveryPolicy.explicitlyRejected(failure)) {
-                    try {
-                        recoveryNote = FirstTurnRecoveryController { method, params, timeout ->
-                            bridge.request(method, params, timeoutMillis = timeout)
-                        }.reclaim(created, { activeThread.value }, { activeTurn.value }) {
-                            composerDrafts.update {
-                                ThreadComposerDrafts.reclaimRejectedNewThread(it, created, draftOwner)
-                            }
-                            restoreComposerOptions(null)
-                            activeThread.value = null
-                            sessions.refreshChanged(created)
-                        }
-                    } catch (recoveryFailure: Exception) {
-                        recoveryNote = "；新建会话检查失败：" +
-                            (recoveryFailure.message ?: "请到侧栏会话列表核查")
-                    }
-                }
-                if (activeThread.value == submittedId ||
-                    (submittedThread == null && activeThread.value == null)) {
-                    running.value = !definiteFailure && submittedId != null &&
-                        submittedId in threadExecutions.value
-                    if (definiteFailure) activeTurn.value = null
-                    timeline.value = timeline.value.filterNot { it.id == pendingId }
-                }
-                val message = SubmissionFailurePolicy.message(
-                    failure, turnRequestDispatched) + recoveryNote
-                if (submittedId != null) {
-                    threadFailures.value = ThreadExecutionPolicy.failureUpdated(
-                        threadFailures.value, submittedId, message)
-                }
-                if (activeThread.value == submittedId) {
-                    errors.value = errors.value + ("conversation" to message)
-                    timeline.value = timeline.value + TimelineItem(
-                        "failure-" + UUID.randomUUID(), "error", message)
-                }
-            }
-        }
-    }
+                   references: List<ComposerReference> = emptyList(), afterAccepted: (String) -> Unit = {}) =
+        submission.send(text, localImages, references, afterAccepted)
 
     /**
      * Capture the running turn and reserve ownership before launching so rapid
@@ -546,11 +347,20 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     /** Reserve the login synchronously: concurrent taps cannot replace each other's codes. */
     private fun beginLogin(type: String) {
         if (loginBusy.value || activeLoginId.value.isNotBlank() ||
-            AccountVoiceSettingsLease.blocks("account/login/start", loading.value)) return
+            "accountLogout" in loading.value || "accountSessionSwitch" in loading.value ||
+            configTransactionBusy.value || securitySaveBusy.value || connectionRestarter.busy.value ||
+            AccountVoiceSettingsLease.blocks("account/login/start", loading.value)) {
+            errors.value = errors.value + ("account" to "已有账号、配置或核心切换操作，请完成当前操作后重试")
+            return
+        }
+        val owner = captureTaskOwner() ?: run {
+            errors.value = errors.value + ("account" to "运行核心尚未连接")
+            return
+        }
         loginBusy.value = true
         viewModelScope.launch {
             try {
-                val result = bridge.request("account/login/start", JSONObject().put("type", type))
+                val result = owner.request(this@CodexViewModel, "account/login/start", JSONObject().put("type", type))
                 if (type == "chatgptDeviceCode") {
                     val login = AccountLoginContract.device(result)
                     activeLoginId.value = login.id
@@ -566,6 +376,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 errors.value = errors.value - "account"
             } catch (failure: Exception) {
+                if (failure is kotlinx.coroutines.CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
+                if (!owner.current(this@CodexViewModel)) return@launch
                 errors.value = errors.value + ("account" to
                     (failure.message ?: "无法发起本次登录"))
             } finally {
@@ -577,10 +389,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     fun cancelLogin() {
         val id = activeLoginId.value
         if (id.isBlank() || loginBusy.value) return
+        val owner = captureTaskOwner() ?: return
         loginBusy.value = true
         viewModelScope.launch {
             try {
-                bridge.request("account/login/cancel", JSONObject().put("loginId", id))
+                owner.request(this@CodexViewModel, "account/login/cancel", JSONObject().put("loginId", id))
                 if (activeLoginId.value == id) {
                     activeLoginId.value = ""
                     accountLoginUrl.value = ""
@@ -589,6 +402,8 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 errors.value = errors.value - "account"
             } catch (failure: Exception) {
+                if (failure is kotlinx.coroutines.CancellationException && failure !is kotlinx.coroutines.TimeoutCancellationException) throw failure
+                if (!owner.current(this@CodexViewModel)) return@launch
                 errors.value = errors.value + ("account" to
                     (failure.message ?: "无法取消这次登录"))
             } finally {
@@ -602,8 +417,11 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
-        modelPreviews.close()
-        bridge.close()
+        try {
+            modelPreviews.close()
+        } finally {
+            bridge.dispose()
+        }
         super.onCleared()
     }
 
@@ -621,27 +439,14 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             bridge.status.collect { current ->
-                if (current is EngineStatus.Unavailable) historyTurnOutcomes = null
-                if (current is EngineStatus.Unavailable &&
-                    (running.value || threadExecutions.value.isNotEmpty() || firstThreadStarting.value)) {
-                    val wasVisible = running.value
-                    threadExecutions.value.keys.forEach { id ->
-                        threadActivities.value = ThreadActivityPolicy.updated(
-                            threadActivities.value, id, ThreadActivity.Failed)
-                    }
-                    threadExecutions.value = emptyMap()
-                    firstThreadStarting.value = false
-                    firstTurnImages = emptyList()
-                    conversationState.update { state ->
-                        val retained = when {
-                            !wasVisible -> state.timeline
-                            !state.turnId.isNullOrBlank() -> TimelineEventReducer.connectionLost(state.timeline, state.turnId)
-                            else -> state.timeline + TimelineItem("disconnect-" + UUID.randomUUID(), "error",
-                                "运行核心已断开。已保留会话记录和未发送指令，请重新连接后核查任务结果。")
-                        }
-                        state.copy(running = false, turnId = null, timeline = IndexedTimeline.from(retained))
-                    }
+                if (current is EngineStatus.Unavailable) {
+                    historyTurnOutcomes = null
+                    activeLoginId.value = ""
+                    accountLoginUrl.value = ""
+                    deviceLoginCode.value = ""
+                    deviceLoginUrl.value = ""
                 }
+                if (current is EngineStatus.Unavailable) submission.connectionLost()
             }
         }
 

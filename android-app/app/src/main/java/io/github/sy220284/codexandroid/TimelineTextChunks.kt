@@ -47,42 +47,62 @@ internal class TimelineTextChunks private constructor(private val last: Node?, v
  * never modify it, and evidence JSON is materialized only when explicitly read. */
 internal class TimelineNativeStream private constructor(
     private val base: String, val metadata: JSONObject, private val label: String,
-    val field: String, private val parts: List<TimelineTextChunks>
+    val field: String, private val parts: PersistentIndex<Long, TimelineTextChunks>,
+    private val partCount: Int, private val totalLength: Long
 ) {
-    fun append(delta: String, index: Int): TimelineNativeStream {
-        require(index >= 0) { "无效的消息分段索引" }
-        val next = parts.toMutableList()
-        while (next.size <= index) next.add(TimelineTextChunks.from(""))
-        next[index] = next[index].append(delta)
-        return TimelineNativeStream(base, metadata, label, field, next)
+    fun append(delta: String, index: Long): TimelineNativeStream {
+        if (index < 0 || (field != "summary" && index != 0L))
+            throw InvalidNativeSummaryIndex(index)
+        val previous = parts[index]
+        val next = (previous ?: TimelineTextChunks.from("")).append(delta)
+        // The protocol index is i64. Store only received segments, never
+        // manufacture a list padded to an index supplied by the provider.
+        return TimelineNativeStream(base, metadata, label, field, parts.put(index, next),
+            partCount + if (previous == null) 1 else 0, totalLength + delta.length)
     }
+    private fun orderedParts(): Sequence<TimelineTextChunks> = parts.values().asSequence()
     val text: String by lazy(LazyThreadSafetyMode.PUBLICATION) {
         when (field) {
-            "text" -> parts.first().text
-            "summary" -> parts.map { it.text }.filter(String::isNotBlank).joinToString("\n\n")
+            "text" -> parts[0L]?.text.orEmpty()
+            "summary" -> orderedParts().map { it.text }.filter(String::isNotBlank).joinToString("\n\n")
             else -> label
         }
     }
     val evidence: String by lazy(LazyThreadSafetyMode.PUBLICATION) {
         JSONObject(base).apply {
-            put(field, if (field == "summary") JSONArray(parts.map { it.text }) else parts.first().text)
+            // Streaming evidence contains observed segments in native index order;
+            // completed items replace it with the authoritative native payload.
+            put(field, if (field == "summary") JSONArray(orderedParts().map { it.text }.toList())
+                else parts[0L]?.text.orEmpty())
         }.toString()
     }
-    fun displayChunks(): TimelineTextChunks? = if (field == "text") parts.first() else null
-    fun outputTail(limit: Int) = parts.firstOrNull()?.tail(limit).orEmpty()
+    fun displayChunks(): TimelineTextChunks? = if (field == "text") parts[0L] else null
+    fun outputTail(limit: Int) = parts[0L]?.tail(limit).orEmpty()
     fun definitelyDifferent(other: TimelineNativeStream): Boolean =
         field == other.field && base == other.base &&
-            (parts.size != other.parts.size || parts.indices.any { parts[it].length != other.parts[it].length })
+            (partCount != other.partCount || totalLength != other.totalLength)
 
     companion object {
         fun from(item: TimelineItem, field: String): TimelineNativeStream {
             val base = item.evidence
             val metadata = JSONObject(base)
-            val parts = if (field == "summary") {
+            var parts = PersistentIndex<Long, TimelineTextChunks>()
+            var count = 0
+            var length = 0L
+            fun add(index: Long, text: String) {
+                parts = parts.put(index, TimelineTextChunks.from(text))
+                count++
+                length += text.length
+            }
+            if (field == "summary") {
                 val values = metadata.optJSONArray(field) ?: JSONArray()
-                (0 until values.length()).map { TimelineTextChunks.from(values.optString(it)) }
-            } else listOf(TimelineTextChunks.from(if (metadata.isNull(field)) "" else metadata.optString(field)))
-            return TimelineNativeStream(base, metadata, if (field in setOf("text", "summary")) "" else item.text, field, parts)
+                for (index in 0 until values.length()) add(index.toLong(), values.optString(index))
+            } else add(0L, if (metadata.isNull(field)) "" else metadata.optString(field))
+            return TimelineNativeStream(base, metadata, if (field in setOf("text", "summary")) "" else item.text,
+                field, parts, count, length)
         }
     }
 }
+
+internal class InvalidNativeSummaryIndex(index: Any) :
+    IllegalArgumentException("无效的原生消息分段索引：$index")

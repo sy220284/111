@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import org.json.JSONObject
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.AbstractCoroutineContextElement
+import kotlin.coroutines.CoroutineContext
 
 /** Immutable ownership of an admitted task; never silently move it to a new account or core. */
 internal data class TaskRequestOwner(val epoch: Long, val account: Long) {
@@ -15,13 +19,35 @@ internal data class TaskRequestOwner(val epoch: Long, val account: Long) {
     }
 
     suspend fun request(vm: CodexViewModel, method: String, params: JSONObject? = null): JSONObject {
-        requireCurrent(vm)
-        val response = vm.bridge.request(method, params, expectedSession = epoch,
-            sendPermit = { current(vm) })
-        requireCurrent(vm)
+        return guarded({ current(vm) }) {
+            vm.bridge.request(method, params, expectedSession = epoch, sendPermit = { current(vm) })
+        }
+    }
+
+    suspend fun request(vm: CodexViewModel, method: String, params: JSONObject?, timeoutMillis: Long?,
+        additionalPermit: () -> Boolean = { true }): JSONObject =
+        guarded({ current(vm) }) {
+            vm.bridge.request(method, params, timeoutMillis = timeoutMillis,
+                expectedSession = epoch, sendPermit = { current(vm) && additionalPermit() })
+        }
+
+    internal suspend fun <T> guarded(isCurrent: () -> Boolean, execute: suspend () -> T): T {
+        currentCoroutineContext().ensureActive()
+        check(isCurrent()) { "操作所属连接或账号已变化，请核对原任务后重试" }
+        val response = try { execute() } catch (revoked: RpcWriteRevoked) {
+            check(isCurrent()) { "操作所属连接或账号已变化，请核对原任务后重试" }
+            throw revoked
+        }
+        currentCoroutineContext().ensureActive()
+        check(isCurrent()) { "操作所属连接或账号已变化，请核对原任务后重试" }
         return response
     }
 }
 
 internal fun CodexViewModel.captureTaskOwner(): TaskRequestOwner? =
     bridge.connectedSession.value?.let { TaskRequestOwner(it, catalogWarmup.accountRevision.value) }
+
+/** Captured once for a multi-request capability operation, inherited by nested suspend calls. */
+internal class CapabilityRequestOwner(val owner: TaskRequestOwner) : AbstractCoroutineContextElement(Key) {
+    companion object Key : CoroutineContext.Key<CapabilityRequestOwner>
+}
