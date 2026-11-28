@@ -56,12 +56,15 @@ fun EngineStatusSheet(
 
 @Composable
 fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
-    val active by vm.activeThread.collectAsStateWithLifecycle()
-    val workspace by vm.activeWorkspace.collectAsStateWithLifecycle()
+    val task by vm.conversationState.collectProjection { Triple(it.threadId, it.workspace, it.remote) }
+    val (active, workspace, remote) = task
     val threadProvider by vm.activeModelProvider.collectAsStateWithLifecycle()
     val agentWorkspace by vm.agentDraftWorkspace.collectAsStateWithLifecycle()
-    val owner = if (active == null && agentWorkspace == workspace) ThreadComposerDrafts.agentKey(workspace)
-        else ThreadComposerDrafts.key(active, workspace)
+    val owner = when {
+        active == null && remote != null -> vm.composerOwner(active, workspace)
+        active == null && agentWorkspace == workspace -> ThreadComposerDrafts.agentKey(workspace)
+        else -> ThreadComposerDrafts.key(active, workspace)
+    }
     val drafts by vm.composerDrafts.collectEntries(owner)
     val draft = drafts[owner] ?: ComposerDraft()
     val options = draft.options

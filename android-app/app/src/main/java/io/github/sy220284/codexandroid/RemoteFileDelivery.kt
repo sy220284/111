@@ -19,7 +19,8 @@ internal data class RemoteDeliveryRequest(val thread: String, val binding: Remot
     fun owns(vm: CodexViewModel): Boolean =
         vm.activeThread.value == thread && vm.bridge.connectedSession.value == epoch &&
             vm.catalogWarmup.accountRevision.value == revision && !vm.threadSwitching.value &&
-            !AppDataTransfer.state.value.busy && vm.remoteBindings.forThread(thread) == binding
+            !AppDataTransfer.state.value.busy && !AppDataTransfer.state.value.pendingRestore &&
+            vm.conversationState.value.remote == binding && vm.remoteBindings.forThread(thread) == binding
 }
 
 /** Derive a non-display identity solely from an authenticated core response.
