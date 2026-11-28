@@ -95,16 +95,20 @@ def affected(path):
         return {"static", "ui", "preflight"}
     return set(GROUPS)
 
-def required_groups(full, runtime, event, ref):
-    if not full:
+def required_groups(full, runtime, event, ref, paths=()):
+    if full:
+        if not runtime:
+            raise ValueError("Full acceptance requires x86 real runtime")
+        result = set(FULL_GROUPS)
+    else:
         if runtime:
             raise ValueError("Runtime requires full acceptance")
-        return set()
-    result = set(FULL_GROUPS)
-    if not runtime:
-        raise ValueError("Full acceptance requires x86 real runtime")
-    if event == "pull_request" or (event == "workflow_dispatch" and ref != "refs/heads/main"):
+        result = set().union(*(affected(path) for path in paths)) if paths else set()
+    signing_event = event == "pull_request" or (event == "workflow_dispatch" and ref != "refs/heads/main")
+    if signing_event and (full or "sign" in result):
         result.add("sign")
+    else:
+        result.discard("sign")
     return result
 
 def git(*args):

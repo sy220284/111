@@ -912,7 +912,11 @@ jobs:
           test -s "$APK"
           python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode ui-smoke
           test ! -e "android-app/app/build/outputs/apk/release/app-x86_64-release.apk"
-          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --min-sdk-version 29 "$APK"
+          CERT="$(java --class-path "$ANDROID_HOME/build-tools/37.0.0/lib/apksigner.jar" .github/scripts/VerifyApkSigning.java "$APK")"
+          [[ "$CERT" =~ ^[0-9a-f]{64}$ ]]
+          EXPECTED_CERT="$(keytool -exportcert -keystore "$CODEX_RELEASE_KEYSTORE_PATH" -storepass:env CODEX_RELEASE_PASSWORD -alias "$CODEX_RELEASE_KEY_ALIAS" | sha256sum | cut -d ' ' -f 1)"
+          test "$CERT" = "$EXPECTED_CERT"
+          echo "测试 APK 签名验证通过：$CERT"
           BADGE="$("$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging "$APK" | sed -n '1p')"
           [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
           [[ "$BADGE" == *"versionCode='999'"* ]]
@@ -1003,6 +1007,7 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
           EVENT: ${{ github.event_name }}
           REF: ${{ github.ref }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
           SOURCE: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 .github/scripts/ci_gate.py
       - name: 强制核对已审查的 Gradle 依赖基线
