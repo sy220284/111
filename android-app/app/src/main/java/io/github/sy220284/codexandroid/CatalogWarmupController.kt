@@ -41,10 +41,27 @@ internal class CatalogWarmupController(
         val keys = (vm.data.value.keys + vm.loading.value + vm.errors.value.keys).filter {
             it.startsWith("composerModels:") || it == "models"
         }.toSet()
+        invalidate(keys)
+    }
+
+    private fun invalidate(keys: Set<String>) {
         keys.forEach { requests.cancel(it) }
         vm.data.value = vm.data.value - keys
         vm.errors.value = vm.errors.value - keys
         vm.loading.value = vm.loading.value - keys
+    }
+
+    /** A definitive account rejection retires the affected provider's stale picker snapshots. */
+    fun accountModelRejected() {
+        val provider = vm.currentComposerProvider() ?: "openai"
+        val scoped = ComposerProviderScope.catalogKey(provider)
+        val defaultProvider = ComposerProviderScope.provider(vm.data.value["providers"]?.optString("defaultProviderId"))
+        val keys = if (defaultProvider == null || defaultProvider == provider) setOf(scoped, "models") else setOf(scoped)
+        invalidate(keys)
+        keys.forEach { key ->
+            vm.refresh(key, "model/list", ComposerProviderScope.request(
+                provider.takeIf { key != "models" }, forceRefresh = true))
+        }
     }
 
     fun accountChanged() {

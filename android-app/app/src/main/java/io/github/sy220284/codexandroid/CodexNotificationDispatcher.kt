@@ -166,9 +166,11 @@ internal object CodexNotificationDispatcher {
                     threadFailures.value, threadId, reason)
                 if (threadId == activeThread.value) {
                     val accountModelRejected = ComposerProviderScope.isAccountModelRejection(reason)
-                    if (accountModelRejected || execution?.images?.isNotEmpty() == true ||
+                    if (accountModelRejected) {
+                        catalogWarmup.accountModelRejected()
+                    } else if (execution?.images?.isNotEmpty() == true ||
                         reason.contains("模型已明确拒绝图片输入") || reason.contains("模型已明确拒绝音频输入")) {
-                        refreshComposerCatalog(forceRefresh = accountModelRejected)
+                        refreshComposerCatalog()
                     }
                 }
             } else threadFailures.value = threadFailures.value - threadId

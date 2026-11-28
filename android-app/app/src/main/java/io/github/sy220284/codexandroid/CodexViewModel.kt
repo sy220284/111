@@ -471,7 +471,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (activeThread.value == submittedId) {
                     errors.value = errors.value + ("conversation" to message)
-                    if (ComposerProviderScope.isAccountModelRejection(message)) refreshComposerCatalog(forceRefresh = true)
+                    if (owner.current(this@CodexViewModel) && ComposerProviderScope.isAccountModelRejection(message)) catalogWarmup.accountModelRejected()
                     timeline.value = timeline.value + TimelineItem(
                         "failure-" + UUID.randomUUID(), "error", message)
                 }

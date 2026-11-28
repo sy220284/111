@@ -204,7 +204,7 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
                 if (method == "turn/start") threadFailures.value = ThreadExecutionPolicy.failureUpdated(threadFailures.value, id, message)
                 if (activeThread.value == id) {
                     errors.value = errors.value + ("conversation" to message)
-                    if (ComposerProviderScope.isAccountModelRejection(reason)) refreshComposerCatalog(forceRefresh = true)
+                    if (owner.current(vm) && ComposerProviderScope.isAccountModelRejection(reason)) catalogWarmup.accountModelRejected()
                 }
                 actionFeedback.emit(ActionFeedbackCopy.failure(method, message))
             } finally {

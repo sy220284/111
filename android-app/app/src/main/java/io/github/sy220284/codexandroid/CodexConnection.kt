@@ -206,8 +206,11 @@ class CodexConnection internal constructor(private val appContext: Context,
                         (failure.message ?: failure.javaClass.simpleName))
                 }
             }
+            @Suppress("DEPRECATION")
+            val clientVersion = requireNotNull(appContext.packageManager
+                .getPackageInfo(appContext.packageName, 0).versionName)
             val info = JSONObject().put("name", "codex_android")
-                .put("title", "Codex Android").put("version", "0.1.0")
+                .put("title", "Codex Android").put("version", clientVersion)
             val capabilities = JSONObject().put("experimentalApi", true).put("requiredHumanApproval", true)
             val initialization = requestForSession("initialize", JSONObject().put("clientInfo", info)
                 .put("capabilities", capabilities), 45_000, epoch, null)
