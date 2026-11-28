@@ -17,7 +17,7 @@ import time
 
 PART_SIZE = 350 * 1024 * 1024
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-NAMES = ("jdk", "android-sdk", "gradle", "rust", "cargo", "wheelhouse", "emulator", "runtime-arm64", "runtime-x86", "v8-arm64", "v8-x86", "llvm", "patcher")
+NAMES = ("node", "jdk", "android-sdk", "gradle", "rust", "cargo", "wheelhouse", "emulator", "runtime-arm64", "runtime-x86", "v8-arm64", "v8-x86", "llvm", "patcher")
 
 def digest(path):
     with path.open("rb") as stream:

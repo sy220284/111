@@ -1,5 +1,7 @@
 import importlib.util
 import pathlib
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -9,6 +11,20 @@ m = importlib.util.module_from_spec(s)
 s.loader.exec_module(m)
 
 class BundleTests(unittest.TestCase):
+    def test_node_cli_roundtrip(self):
+        with tempfile.TemporaryDirectory() as d:
+            root = pathlib.Path(d)
+            src = root / "source"
+            (src / "bin").mkdir(parents=True)
+            (src / "bin/node").write_bytes(b"node fixture")
+            (src / "bin/node").chmod(0o755)
+            (src / "bin/npm").symlink_to("node")
+            pin = subprocess.check_output([sys.executable, str(p), "pack", "node",
+                str(src), str(root / "bundle"), "--head", "a" * 40], text=True).strip()
+            dest = m.install("node", root / "bundle", root / "installed", pin)
+            self.assertEqual(m.inventory(dest), m.inventory(src))
+            self.assertIn("verityIndex", m.load(root / "bundle", "node", pin))
+
     def test_roundtrip_shards_and_tamper(self):
         with tempfile.TemporaryDirectory() as d:
             root = pathlib.Path(d)

@@ -116,9 +116,11 @@ jobs:
             esac
           done
           if [ "$V8_ONLY" = true ]; then
-            echo "provider_reuse=false" >> "$GITHUB_OUTPUT"
-            echo "matrix=$MISSING" >> "$GITHUB_OUTPUT"
-            echo "reuse=false" >> "$GITHUB_OUTPUT"
+            {
+              echo "provider_reuse=false"
+              echo "matrix=$MISSING"
+              echo "reuse=false"
+            } >> "$GITHUB_OUTPUT"
             exit 0
           fi
           PROVIDER_STATUS=0
@@ -388,7 +390,8 @@ jobs:
           fi
           export "CARGO_TARGET_${TARGET_ENV}_RUSTFLAGS=$RUST_LINK_FLAGS"
           cd upstream/codex/codex-rs
-          export CARGO_BUILD_JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs rust)"
+          CARGO_BUILD_JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs rust)"
+          export CARGO_BUILD_JOBS
           python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --label "Rust ${{ matrix.abi }}" -- cargo build --locked --offline --release \
             -p codex-app-server --bin codex-app-server \
             -p codex-code-mode-host --bin codex-code-mode-host \
@@ -478,7 +481,8 @@ jobs:
         working-directory: upstream/codex/codex-rs
         run: |
           set -euo pipefail
-          export CARGO_BUILD_JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs rust)"
+          CARGO_BUILD_JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs rust)"
+          export CARGO_BUILD_JOBS
           cargo test --locked -p codex-models-manager --lib android_catalog_version_tests
           cargo test --locked -p codex-models-manager --lib image_input
           cargo test --locked -p codex-model-provider --lib domestic_
@@ -489,7 +493,8 @@ jobs:
         working-directory: upstream/codex/codex-rs
         run: |
           set -euo pipefail
-          export CARGO_BUILD_JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs rust)"
+          CARGO_BUILD_JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs rust)"
+          export CARGO_BUILD_JOBS
           python3 -B -m unittest discover -s "$GITHUB_WORKSPACE/android-app/tools" -p test_prepare_android_remote_delivery.py
           python3 "$GITHUB_WORKSPACE/android-app/tools/prepare_android_remote_delivery.py" --exec-only .
           cargo test --locked -p codex-exec-server --lib local_file_system_read::tests::android_delivery_ 2>&1 | tee "$RUNNER_TEMP/android-delivery-rust-tests.log"
