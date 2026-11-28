@@ -1,0 +1,57 @@
+name: Termux 双 ABI 签名索引变动核查
+on:
+  push:
+    branches: [validation/termux-lock-89bf100]
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: 核验双 ABI 同批官方签名及全部锁定记录
+        run: |
+          set -euo pipefail
+          root="$RUNNER_TEMP/termux-lock"
+          mkdir -p "$root/gnupg"
+          chmod 700 "$root/gnupg"
+          repo=https://packages.termux.dev/apt/termux-main/dists/stable
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/termux/termux-packages/93c8e0b136bf39e2eb1735f9187f43d7e029bb2e/packages/termux-keyring/termux-autobuilds.gpg -o "$root/key.gpg"
+          curl -fsSL --retry 3 "$repo/InRelease" -o "$root/InRelease"
+          source tools/runtime/verify-termux-signature.sh
+          verify_termux_signature "$root/InRelease" "$root/key.gpg" CC72CF8BA7DBFA0182877D045A897D96E57CF20C "$root/gnupg"
+          grep -Fxq "Origin: termux-main stable" "$root/InRelease"
+          for arch in aarch64 x86_64; do
+            curl -fsSL --retry 3 "$repo/main/binary-$arch/Packages" -o "$root/$arch"
+          done
+          python3 - "$root" <<'PY'
+          import hashlib, json, pathlib, sys
+          sys.path.insert(0, "tools/runtime")
+          from termux_package_lock import LOCK, package_records
+          root=pathlib.Path(sys.argv[1])
+          lock=json.loads(LOCK.read_text())
+          release=(root/"InRelease").read_text()
+          hashes={}
+          for line in release.split("SHA256:\n",1)[1].splitlines():
+              if not line.startswith(" "): break
+              digest,size,path=line.split()
+              hashes[path]=(digest,int(size))
+          source=dict(lock["source"])
+          source["inReleaseSha256"]=hashlib.sha256((root/"InRelease").read_bytes()).hexdigest()
+          source["indexSha256"]={}
+          for arch in ("aarch64","x86_64"):
+              data=(root/arch).read_bytes()
+              actual=hashlib.sha256(data).hexdigest()
+              assert (actual,len(data))==hashes[f"main/binary-{arch}/Packages"]
+              source["indexSha256"][arch]=actual
+              expected=lock["packages"][arch]
+              records=package_records(root/arch,set(expected))
+              assert set(records)==set(expected), (arch, sorted(set(expected)-set(records)))
+              for name, old in expected.items():
+                  if records[name]!=old:
+                      print("LOCK_DIFF "+json.dumps({"arch":arch,"name":name,"old":old,"new":records[name]},sort_keys=True))
+          print("LOCK_SOURCE "+json.dumps(source,sort_keys=True))
+          PY
