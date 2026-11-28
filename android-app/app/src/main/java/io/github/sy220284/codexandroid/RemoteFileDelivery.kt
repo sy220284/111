@@ -219,6 +219,7 @@ internal object RemoteFileDelivery {
 
     suspend fun save(vm: CodexViewModel, resolver: ContentResolver, destination: Uri, payload: Payload,
         onVerified: suspend (Long) -> Unit = {}, onWritten: suspend () -> Unit = {}) = lock.withLock {
+        AppDataTransfer.withLocalMutation {
         withContext(Dispatchers.IO) {
             require(destination.scheme == "content") { "请选择系统文档保存位置" }
             val ctx = coroutineContext
@@ -266,6 +267,7 @@ internal object RemoteFileDelivery {
             check(total == payload.size && RemoteTransferCheckpoint.hex(digest.digest()) == payload.sha256) {
                 "保存后文件校验失败"
             }
+        }
         }
     }
 }

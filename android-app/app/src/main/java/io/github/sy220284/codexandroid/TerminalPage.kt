@@ -145,9 +145,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("本地终端", style = MaterialTheme.typography.titleLarge)
-                    Text("工作区 · " + File(activeWorkspace).relativeTo(
-                        File(vm.workingDirectory)).path.takeIf { it != "." }
-                        ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
+                    Text((if (session.running) "执行中 · " else "新命令位置 · ") + (if (session.running) session.workspace ?: activeWorkspace else activeWorkspace).let { directory ->
+                        File(directory).toRelativeString(File(vm.workingDirectory)).takeIf { it.isNotBlank() && it != "." }
+                            ?.let { "projects/" + it } ?: "projects/"
+                    },
                         color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                 }
                 CodexIcon(CodexGlyph.Terminal, contentDescription = null, tint = Ink.muted)
@@ -160,6 +161,11 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (session.processId.isNotEmpty()) {
                     MaterialPanel(Modifier.fillMaxWidth()) {
+                        session.workspace?.let { directory ->
+                            Text("执行位置 · " + File(directory).toRelativeString(File(vm.workingDirectory))
+                                .let { if (it.isBlank() || it == ".") "projects/" else "projects/$it" },
+                                style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CodexIcon(
                                 if (session.running) CodexGlyph.Terminal

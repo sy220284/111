@@ -102,14 +102,15 @@ data class TerminalSessionState(
     val stderrBytes: ByteArray = byteArrayOf(),
     val outputTruncated: Boolean = false,
     val exitCode: Int? = null,
-    val error: String? = null
+    val error: String? = null,
+    val workspace: String? = null
 ) {
     companion object {
         const val MAX_STREAM_BYTES = 128 * 1024
 
-        fun start(processId: String, command: String, tty: Boolean = false) =
+        fun start(processId: String, command: String, tty: Boolean = false, workspace: String? = null) =
             TerminalSessionState(processId = processId, command = command,
-                tty = tty, running = true)
+                tty = tty, running = true, workspace = workspace)
     }
 
     val stdoutText: String get() = String(stdoutBytes, StandardCharsets.UTF_8)

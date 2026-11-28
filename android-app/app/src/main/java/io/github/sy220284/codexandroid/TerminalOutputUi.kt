@@ -23,11 +23,12 @@ import androidx.compose.ui.unit.dp
 /** Output events do not change input, confirmation or command controls. */
 internal data class TerminalControlState(
     val processId: String, val command: String, val tty: Boolean, val running: Boolean,
-    val terminating: Boolean, val outputTruncated: Boolean, val exitCode: Int?, val error: String?
+    val terminating: Boolean, val outputTruncated: Boolean, val exitCode: Int?, val error: String?,
+    val workspace: String?
 ) {
     companion object {
         fun from(state: TerminalSessionState) = TerminalControlState(state.processId, state.command,
-            state.tty, state.running, state.terminating, state.outputTruncated, state.exitCode, state.error)
+            state.tty, state.running, state.terminating, state.outputTruncated, state.exitCode, state.error, state.workspace)
     }
 }
 

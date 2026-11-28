@@ -62,7 +62,7 @@ internal class TerminalTaskOperations(
                     "备份或恢复正在进行，终端命令未启动"
                 }
                 owner.requireCurrent(vm)
-                terminalSession.value = TerminalSessionState.start(id, command, tty)
+                terminalSession.value = TerminalSessionState.start(id, command, tty, workspace = cwd)
                 vm.terminalStarting.value = false
                 errors.value = errors.value - "terminal"
                 terminalTranscript.begin(id)
