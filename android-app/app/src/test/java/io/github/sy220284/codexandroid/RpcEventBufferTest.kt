@@ -7,6 +7,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
@@ -17,6 +18,31 @@ class RpcEventBufferTest {
     private fun event(n: Int) = JSONObject()
         .put("sequence", n).put("method", if (n % 2 == 0) "turn/completed"
             else "item/agentMessage/delta")
+
+    @Test fun transientSaturationDrainsInOrderWithoutRetiringTheConnection() = runBlocking {
+        val inbox = Channel<JSONObject>(1)
+        RpcEventBuffer.enqueue(inbox, event(1))
+        val next = async(start = CoroutineStart.UNDISPATCHED) {
+            RpcEventBuffer.enqueue(inbox, event(2))
+        }
+        assertFalse(next.isCompleted)
+        assertEquals(1, inbox.receive().getInt("sequence"))
+        withTimeout(5_000) { next.await() }
+        assertEquals(2, inbox.receive().getInt("sequence"))
+        inbox.close()
+        Unit
+    }
+
+    @Test fun stalledConsumerFailsExplicitlyWithoutReplacingQueuedEvents() = runBlocking {
+        val inbox = Channel<JSONObject>(1)
+        RpcEventBuffer.enqueue(inbox, event(1))
+        val failure = runCatching { RpcEventBuffer.enqueue(inbox, event(2), drainTimeoutMs = 1) }
+        assertTrue(failure.exceptionOrNull() is IllegalStateException)
+        assertEquals(1, inbox.receive().getInt("sequence"))
+        assertTrue(inbox.tryReceive().isFailure)
+        inbox.close()
+        Unit
+    }
 
     @Test fun fullBufferSuspendsRatherThanDiscardingCriticalEvents() = runBlocking {
         val stream = RpcEventBuffer.create()

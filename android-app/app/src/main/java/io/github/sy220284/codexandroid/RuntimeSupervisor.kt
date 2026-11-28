@@ -1,6 +1,8 @@
 package io.github.sy220284.codexandroid
 
 import android.content.Context
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -32,12 +34,16 @@ internal class RuntimeSupervisor(
             }.distinctUntilChanged().collectLatest { idle ->
                 if (!idle) return@collectLatest
                 delay(90_000)
-                val retired = withContext(NonCancellable + Dispatchers.IO) {
-                    vm.bridge.closeIfIdle {
-                        !foreground.value && vm.globalWorkSnapshot().canDisruptCoreOrData
+                RuntimeRecoveryPolicy.attempt({ failure ->
+                    Log.w("RuntimeSupervisor", "后台内核回收失败", failure)
+                }) {
+                    val retired = withContext(NonCancellable + Dispatchers.IO) {
+                        vm.bridge.closeIfIdle {
+                            !foreground.value && vm.globalWorkSnapshot().canDisruptCoreOrData
+                        }
                     }
+                    if (retired && foreground.value) vm.reconnectIfNeeded()
                 }
-                if (retired && foreground.value) vm.reconnectIfNeeded()
             }
         }
         scope.launch {
@@ -62,7 +68,10 @@ internal class RuntimeSupervisor(
                         }
                         if (!RuntimeRecoveryPolicy.shouldRecover(foreground.value, vm.globalWorkSnapshot(),
                                 (vm.bridge.status.value as? EngineStatus.Unavailable)?.recoverable == true)) continue
-                        vm.connect().join()
+                        RuntimeRecoveryPolicy.attempt({ failure ->
+                            Log.w("RuntimeSupervisor", "自动重连执行失败", failure)
+                            vm.errors.value = vm.errors.value + ("engine" to "自动重连执行失败，将继续尝试")
+                        }) { vm.connect().join() }
                         interval = if (vm.bridge.status.value == EngineStatus.Connected) 1_000L
                             else (interval * 2).coerceAtMost(60_000L)
                     }
@@ -81,6 +90,16 @@ internal class RuntimeSupervisor(
 }
 
 internal object RuntimeRecoveryPolicy {
+    suspend fun attempt(onFailure: (Exception) -> Unit, operation: suspend () -> Unit) {
+        try {
+            operation()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            onFailure(failure)
+        }
+    }
+
     suspend fun waitForRetry(eligible: Flow<Boolean>, delayMillis: Long): Boolean =
         withTimeoutOrNull(delayMillis) { eligible.first { !it } } == null
 

@@ -4,6 +4,9 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import android.util.Log
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,7 +16,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.cancel
 
 /** The process owns a single Codex core, and releases it after background inactivity. */
-class CodexApplication : Application() {
+class CodexApplication : Application(), ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
     private var workspacePrepared = false
     @Synchronized internal fun prepareWorkspace() {
         WorkspaceStorage.root(this)
@@ -25,7 +29,8 @@ class CodexApplication : Application() {
     }
     private val holder = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         prepareWorkspace()
-        CodexViewModel(this).also { RuntimeSupervisor(this, it, foreground, runtimeScope) }
+        ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(this))
+            .get(CodexViewModel::class.java).also { RuntimeSupervisor(this, it, foreground, runtimeScope) }
     }
     val session: CodexViewModel get() = holder.value
     val pendingDeepLink = MutableStateFlow<String?>(null)
@@ -95,7 +100,7 @@ class CodexApplication : Application() {
         runtimeScope.cancel()
         maintenance.cancel()
         unregisterActivityLifecycleCallbacks(activities)
-        if (holder.isInitialized()) holder.value.bridge.close()
+        viewModelStore.clear()
         super.onTerminate()
     }
 }

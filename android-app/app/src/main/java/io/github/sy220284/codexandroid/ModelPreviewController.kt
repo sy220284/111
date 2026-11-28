@@ -119,7 +119,7 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
             val configuration = effective ?: run {
                 val explicit = (params.opt("cwd") as? String)?.takeIf { it.isNotBlank() }
                 val cwd = explicit ?: owner.request(vm, "thread/read",
-                    JSONObject().put("threadId", params.getString("threadId")))
+                    JSONObject().put("threadId", params.getString("threadId")).put("includeTurns", false))
                     .getJSONObject("thread").getString("cwd")
                 val directory = WorkspaceSelectionContract.validate(root, File(cwd))
                 owner.request(vm, "config/read", JSONObject().put("cwd", directory.absolutePath))
@@ -139,6 +139,8 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
         })
     }
 
+    // NanoHTTPD invokes this synchronous tool handler on its bounded loopback workers.
+    // Keep the live native ownership check, without reading any conversation turns.
     private fun queue(args: JSONObject, meta: JSONObject): JSONObject = runBlocking {
         withTimeout(12000) {
             val (path, line) = ModelPreviewPolicy.target(args)
@@ -147,7 +149,8 @@ internal class ModelPreviewController(private val vm: CodexViewModel, private va
             val epoch = owner.epoch
             val revision = owner.account
             check(vm.bridge.status.value == EngineStatus.Connected && !AppDataTransfer.state.value.busy)
-            val native = owner.request(vm, "thread/read", JSONObject().put("threadId", thread), 9000L)
+            val native = owner.request(vm, "thread/read",
+                JSONObject().put("threadId", thread).put("includeTurns", false), 9000L)
                 .getJSONObject("thread")
             check(native.getString("id") == thread)
             check(ThreadActivityPolicy.isActive(ThreadActivityPolicy.fromThread(native)) ||

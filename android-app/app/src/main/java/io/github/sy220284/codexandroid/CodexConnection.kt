@@ -6,6 +6,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.cancel
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +63,7 @@ class CodexConnection internal constructor(private val appContext: Context,
     internal val retirementBusy = retirementState.asStateFlow()
     @Volatile private var process: Process? = null
     @Volatile private var wire: RpcProcessChannel? = null
+    private val disposed = AtomicBoolean(false)
     private val shutdownHook = Thread({ close() }, "codex-native-process-cleanup")
 
     init {
@@ -92,6 +94,7 @@ class CodexConnection internal constructor(private val appContext: Context,
         val previousRetirement = synchronized(ownership) { retirementCompletion }
         if (previousRetirement != null) withTimeout(RpcScheduling.RETIRE_TIMEOUT_MS) { previousRetirement.await() }
         val epoch = synchronized(ownership) {
+            check(!disposed.get()) { "运行核心连接所有者已释放" }
             if (status.value == EngineStatus.Connected) return@withContext
             check(!AppDataTransfer.state.value.busy) { "本机数据正在备份或恢复" }
             val token = ownership.begin()
@@ -167,11 +170,7 @@ class CodexConnection internal constructor(private val appContext: Context,
                         if (!finished.get()) retireSession(epoch, "模型凭据启动通道写入超时")
                     }
                     try {
-                        java.io.DataOutputStream(child.outputStream).apply {
-                            writeInt(providerBootstrap.size)
-                            write(providerBootstrap)
-                            flush()
-                        }
+                        channel.sendBootstrap(providerBootstrap) { ownership.owns(epoch) }
                     } finally {
                         finished.set(true)
                         watchdog.cancel()
@@ -233,19 +232,21 @@ class CodexConnection internal constructor(private val appContext: Context,
 
     private suspend fun listen(epoch: Long, child: Process, channel: RpcProcessChannel) =
         withContext(Dispatchers.IO) {
-            // Only notifications enter the bounded queue. Replies and Host requests
-            // are consumed by the reader independently of slow screen collectors.
+            // Short notification bursts are buffered independently of replies and host
+            // requests. At saturation, let the consumer drain without losing events.
             val notifications = Channel<JSONObject>(RpcScheduling.EVENT_CAPACITY)
             val delivery = scope.launch {
                 for (message in notifications) publish(epoch, message)
             }
-            fun enqueue(message: JSONObject) {
-                check(notifications.trySend(message).isSuccess) {
-                    "内核事件积压超过安全上限，需重新同步会话"
-                }
-            }
+            suspend fun enqueue(message: JSONObject) = RpcEventBuffer.enqueue(notifications, message)
+            var reportedStdoutDiagnostic = false
             try {
-                channel.readFrames { message ->
+                channel.readFrames(onNonProtocolLine = {
+                    if (!reportedStdoutDiagnostic) {
+                        reportedStdoutDiagnostic = true
+                        android.util.Log.w("CodexConnection", "已跳过内核标准输出中的非协议诊断行")
+                    }
+                }) { message ->
                     if (!ownership.owns(epoch)) return@readFrames
                     val id = message.opt("id")
                     val method = message.optString("method")
@@ -510,13 +511,23 @@ class CodexConnection internal constructor(private val appContext: Context,
                 completion?.complete(Unit)
             }
         }
-        if (terminate(retired.second, retired.third)) complete()
+        val terminated = try {
+            terminate(retired.second, retired.third)
+        } catch (failure: InterruptedException) {
+            Thread.currentThread().interrupt()
+            android.util.Log.w("CodexConnection", "等待旧内核退出被中断，将继续回收", failure)
+            false
+        }
+        if (terminated) complete()
         else {
             status.value = EngineStatus.Unavailable("旧内核尚未退出，请等待进程回收", recoverable)
             scope.launch {
                 // This wait owns only the retired child. A replacement must wait
                 // for the same completion signal and cannot overlap it.
-                retired.second?.waitFor()
+                retired.second?.let { child ->
+                    if (child.isAlive) child.destroyForcibly()
+                    child.waitFor()
+                }
                 closeWriter(retired.third)
                 complete()
             }
@@ -563,6 +574,22 @@ class CodexConnection internal constructor(private val appContext: Context,
             return retireSession(epoch, "后台空闲内核已释放", reservedRestart = true, canClose = canClose)
         } finally {
             ownership.releaseRestart()
+        }
+    }
+
+    /** Permanently release the process-scoped owner; ordinary retirement can still reconnect. */
+    internal fun dispose() {
+        if (!disposed.compareAndSet(false, true)) return
+        Runtime.getRuntime().removeShutdownHook(shutdownHook)
+        scope.launch {
+            try {
+                close()
+                // A child can still be getting attached while an earlier connect is unwinding.
+                lifecycleMutex.withLock { }
+                synchronized(ownership) { retirementCompletion }?.await()
+            } finally {
+                scope.cancel()
+            }
         }
     }
 
