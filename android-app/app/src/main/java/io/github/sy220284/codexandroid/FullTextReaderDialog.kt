@@ -32,6 +32,7 @@ internal fun FullTextReaderDialog(title: String, text: String,
     copyFormat: CopyContentFormat = CopyContentFormat.Literal, onDismiss: () -> Unit) {
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        val prose = copyFormat == CopyContentFormat.Markdown
         val chunks by loadCodexUiState<List<ReaderTextIndex.Chunk>?>(null, text,
             dispatcher = Dispatchers.Default) { ReaderTextIndex.chunks(text) }
         var selecting by remember(text) { mutableStateOf(false) }
@@ -153,8 +154,8 @@ internal fun FullTextReaderDialog(title: String, text: String,
                             }
                         } }
                         val content: @Composable () -> Unit = {
-                            Text(marked, fontFamily = FontFamily.Monospace,
-                                color = Ink.parchment, style = MaterialTheme.typography.bodyMedium,
+                            Text(marked, fontFamily = if (prose) FontFamily.Default else FontFamily.Monospace,
+                                color = Ink.parchment, style = if (prose) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
                                 onTextLayout = { layouts[index] = it },
                                 modifier = Modifier.testTag("full-text-chunk-" + index).then(
                                     if (selecting) Modifier.pointerInput(text, chunk.start) {

@@ -5,9 +5,20 @@ import org.junit.Test
 
 class InteractionViewportPolicyTest {
     @Test fun olderPageEntryDoesNotOffsetLatestMessageIncorrectly() {
-        assertEquals(-1, TimelineViewportPolicy.latestIndex(0, true))
-        assertEquals(2, TimelineViewportPolicy.latestIndex(3, false))
-        assertEquals(3, TimelineViewportPolicy.latestIndex(3, true))
+        assertEquals(-1, TimelineViewportPolicy.latestIndex(0))
+        assertEquals(0, TimelineViewportPolicy.latestIndex(3))
+        assertEquals(0, TimelineViewportPolicy.latestIndex(4))
+        assertEquals(3, TimelineViewportPolicy.measuredCount(3, false))
+        assertEquals(4, TimelineViewportPolicy.measuredCount(3, true))
+        assertEquals(0, TimelineViewportPolicy.measuredCount(0, true))
+        // Chronological content coordinates are independent of the older-page control.
+        for (size in 1..128) for (recovery in 0..1) {
+            val indices = (0 until size).map { TimelineViewportPolicy.physicalIndex(it, size, recovery) }
+            assertEquals((recovery until recovery + size).reversed().toList(), indices)
+            assertEquals(recovery, indices.last())
+            assertEquals(-1, TimelineViewportPolicy.physicalIndex(-1, size, recovery))
+            assertEquals(-1, TimelineViewportPolicy.physicalIndex(size, size, recovery))
+        }
     }
 
     @Test fun streamingGrowthFollowsTailWithoutCountingAsNewStep() {
@@ -19,6 +30,23 @@ class InteractionViewportPolicyTest {
         val next = TimelineViewportPolicy.change(1, updated, 2, TimelineItem("b", "plan", "完成"))
         assertEquals(1, next.newSteps)
         assertFalse(TimelineViewportPolicy.change(1, updated, 5, updated).changed)
+    }
+
+    @Test fun initialTailFollowWaitsForMeasurementAndConfirmsActualEnd() {
+        with(TimelineViewportPolicy) {
+            assertEquals(TimelineViewportPolicy.FollowAction.Await, followAction(33, 0, 0, "tail", null, true))
+            assertEquals(TimelineViewportPolicy.FollowAction.RequestTarget, followAction(33, 33, 640, "tail", "history", true))
+            assertEquals(TimelineViewportPolicy.FollowAction.RequestTarget, followAction(33, 33, 640, "tail", "tail", true))
+            assertEquals(TimelineViewportPolicy.FollowAction.AtEnd, followAction(33, 33, 640, "tail", "tail", false))
+            // A growing row remains bottom-anchored with zero scroll; a new row
+            // must take over index zero only when its actual layout exists.
+            assertEquals(TimelineViewportPolicy.FollowAction.AtEnd, followAction(33, 33, 640, "tail", "tail", false))
+            assertEquals(TimelineViewportPolicy.FollowAction.Await, followAction(34, 33, 640, "new", "tail", false))
+            assertEquals(TimelineViewportPolicy.FollowAction.RequestTarget, followAction(34, 34, 640, "new", "tail", true))
+            assertEquals(TimelineViewportPolicy.FollowAction.AtEnd, followAction(34, 34, 640, "new", "new", false))
+            assertEquals(TimelineViewportPolicy.FollowAction.RequestTarget, followAction(33, 33, 640, "replacement", "tail", false))
+            assertEquals(TimelineViewportPolicy.FollowAction.Await, followAction(0, 0, 640, null, null, false))
+        }
     }
 
     @Test fun readerFindsMatchesAcrossChunksAndHighlightsBothParts() {

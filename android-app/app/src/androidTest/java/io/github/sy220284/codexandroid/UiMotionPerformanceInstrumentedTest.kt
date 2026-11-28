@@ -149,6 +149,7 @@ class UiMotionPerformanceInstrumentedTest {
             .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
         val scenario = ActivityScenario.launch<MainActivity>(intent)
         var tracing = false
+        var scenarioFailure: Throwable? = null
         try {
             if (InstrumentationRegistry.getArguments().getString("methodTrace") == "true") {
                 val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
@@ -214,6 +215,8 @@ class UiMotionPerformanceInstrumentedTest {
             scenario.onActivity { (it.application as CodexApplication).session.timeline.value =
                 history + tail.copy(text = "流式最终成果", status = "completed") }
             waitForLabel("流式最终成果", textOnly = true)
+        } catch (failure: Throwable) {
+            scenarioFailure = failure
         } finally {
             scenario.onActivity {
                 if (attached) it.window.removeOnFrameMetricsAvailableListener(listener)
@@ -276,7 +279,8 @@ class UiMotionPerformanceInstrumentedTest {
         report.put("navigation_stage_metrics", stageReport)
         val drawerRounds = JSONArray()
         for ((index, start) in drawerRoundStarts.withIndex()) {
-            val end = stageStarts.first { (at, stage) -> at >= start && stage == "drawer_close_settings_entrance" }.first
+            val end = stageStarts.firstOrNull { (at, stage) -> at >= start && stage == "drawer_close_settings_entrance" }?.first
+                ?: Long.MAX_VALUE
             val roundFrames = frames.filter { it.intendedVsyncNs in start until end }.map { it.durationNs }.sorted()
             drawerRounds.put(JSONObject().put("round", index + 1)
                 .put("kind", if (index == 0) "first_open" else "reopen")
@@ -285,9 +289,16 @@ class UiMotionPerformanceInstrumentedTest {
                     roundFrames[(kotlin.math.ceil(roundFrames.size * .95).toInt() - 1).coerceAtLeast(0)] / 1_000_000.0))
         }
         report.put("drawer_open_rounds", drawerRounds)
-        report.put("long_reply_scroll_anchor_verified", true)
+        report.put("long_reply_scroll_anchor_verified", scenarioFailure == null)
+        report.put("scenario_completed", scenarioFailure == null)
+        scenarioFailure?.let { failure ->
+            report.put("failed_stage", stageStarts.lastOrNull()?.second ?: "startup")
+            report.put("failure_type", failure.javaClass.simpleName)
+            report.put("failure_message", failure.message ?: failure.toString())
+        }
         val folder = requireNotNull(instrumentation.targetContext.getExternalFilesDir(null))
         File(folder, "ui-motion-performance.json").writeText(report.toString(2))
+        scenarioFailure?.let { throw it }
         for (stage in listOf("reply_scroll_drag", "reply_scroll_return")) {
             val measured = stageReport.optJSONObject(stage)
             assertTrue("缺少长回复实际动效帧：" + stage, measured != null && measured.optInt("frames") > 0)

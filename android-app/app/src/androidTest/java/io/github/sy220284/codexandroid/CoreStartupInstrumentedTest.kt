@@ -142,6 +142,12 @@ class CoreStartupInstrumentedTest {
         File(workspace, "empty.bin").createNewFile()
         val secret = File(root, "outside.bin").apply { writeText("outside workspace") }
         android.system.Os.symlink(secret.absolutePath, File(workspace, "escape.bin").absolutePath)
+        File(workspace, "nested").apply { mkdir(); File(this, "readme.txt").writeText("nested") }
+        val outsideDirectory = File(root, "outside-directory").apply {
+            check(mkdir())
+            File(this, "nested").apply { check(mkdir()); File(this, "secret.txt").writeText("outside") }
+        }
+        android.system.Os.symlink(outsideDirectory.absolutePath, File(workspace, "escape-dir").absolutePath)
         val port = ServerSocket(0).use { it.localPort }
         // The upstream App Server accepts its own options, not the full Codex CLI subcommands.
         val executable = File(app.applicationInfo.nativeLibraryDir, "libcodex_test_executor.so")
@@ -181,6 +187,24 @@ class CoreStartupInstrumentedTest {
                 org.junit.Assert.assertArrayEquals(expected, android.util.Base64.decode(reply.getString("dataBase64"), android.util.Base64.NO_WRAP))
                 for (path in listOf("../outside.bin", "escape.bin", "/outside.bin")) {
                     org.junit.Assert.assertTrue("真实核心接受了不允许的路径：$path", runCatching { read(path) }.isFailure)
+                }
+                suspend fun directory(path: String) = bridge.request("android/remoteFile/listDirectory", JSONObject()
+                    .put("environmentId", id).put("workspaceUri", cwd).put("relativePath", path))
+                val listing = directory("")
+                assertEquals(id, listing.getString("environmentId"))
+                assertEquals(cwd, listing.getString("pathUri"))
+                val entries = listing.getJSONArray("entries")
+                val kinds = (0 until entries.length()).associate {
+                    val item = entries.getJSONObject(it)
+                    item.getString("name") to item.getString("kind")
+                }
+                assertEquals("directory", kinds["nested"])
+                assertEquals("file", kinds["receipt.bin"])
+                assertEquals("other", kinds["escape-dir"])
+                assertEquals("other", kinds["escape.bin"])
+                assertEquals("readme.txt", directory("nested").getJSONArray("entries").getJSONObject(0).getString("name"))
+                for (path in listOf("..", "escape-dir", "escape-dir/nested", "receipt.bin", "/")) {
+                    org.junit.Assert.assertTrue("目录读取接受了不安全路径：$path", runCatching { directory(path) }.isFailure)
                 }
                 suspend fun chunk(path: String, offset: Long = 0, version: String? = null) =
                     bridge.request("android/remoteFile/readChunk", JSONObject().put("environmentId", id)
@@ -229,6 +253,8 @@ class CoreStartupInstrumentedTest {
             bridge.close()
             executor.destroy()
             if (!executor.waitFor(5, TimeUnit.SECONDS)) executor.destroyForcibly()
+            java.nio.file.Files.deleteIfExists(File(workspace, "escape-dir").toPath())
+            java.nio.file.Files.deleteIfExists(File(workspace, "escape.bin").toPath())
             root.deleteRecursively()
         }
     }

@@ -19,7 +19,7 @@ internal fun SkillDetailSheet(skill: JSONObject, onDismiss: () -> Unit) {
         .ifEmpty { PresentationPolicy.skillName(skill.optString("name")) }
     val description = PresentationPolicy.meaningful(skill.optString("description"))
         .ifEmpty { PresentationPolicy.meaningful(meta.optString("shortDescription")) }
-    CodexDetailSheet(title = name, onDismiss = onDismiss, startExpanded = true) {
+    CodexDetailSheet(title = name, onDismiss = onDismiss, startExpanded = description.length > 1200) {
         StatusPill(if (skill.optBoolean("enabled")) "已启用" else "已停用",
             skill.optBoolean("enabled"))
         Text("技能说明", style = MaterialTheme.typography.titleMedium)

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.*
@@ -152,11 +153,15 @@ fun WorkspacePage(vm: CodexViewModel) {
     }
     val children = directoryResult?.getOrNull().orEmpty()
     var directoryFilter by remember(folder) { mutableStateOf("all") }
-    val visibleChildren = if (children.size < 30) children else children.filter {
+    val visibleChildren = children.filter {
         directoryFilter == "all" || (directoryFilter == "folders" && it.directory) ||
             (directoryFilter == "files" && !it.directory)
     }
+    val directoryScroll = rememberLazyListState()
+    // Enter a new directory at its path; refreshing the current directory keeps its reading position.
+    LaunchedEffect(folder) { directoryScroll.scrollToItem(0) }
     LazyColumn(
+        state = directoryScroll,
         modifier = Modifier.fillMaxSize().testTag("workspace-list"),
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(13.dp)
@@ -170,7 +175,7 @@ fun WorkspacePage(vm: CodexViewModel) {
                     Text(folder.relativeTo(root).path.takeIf { it != "." }
                         ?.let { (WorkspaceStorage.DISPLAY_ROOT + "/") + it } ?: (WorkspaceStorage.DISPLAY_ROOT + "/"),
                         fontFamily = FontFamily.Monospace, style = MaterialTheme.typography.bodyMedium,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        maxLines = 3, overflow = TextOverflow.Ellipsis)
                 }
                 CodexIconAction(onClick = {
                     folder.parentFile?.let {
@@ -186,6 +191,9 @@ fun WorkspacePage(vm: CodexViewModel) {
                     CodexIcon(CodexGlyph.FileUpload, "导入")
                 }
             }
+        }
+        item(key = "workspace-directory-summary") {
+            WorkSectionHeading("目录内容", "${children.count { it.directory }} 个文件夹 · ${children.count { !it.directory }} 个文件")
         }
         item(key = "workspace-context") {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

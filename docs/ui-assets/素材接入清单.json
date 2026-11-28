@@ -895,7 +895,10 @@
     "audit-update-progress",
     "engine-settings-editor",
     "audit-sidebar-query-filters",
-    "audit-detail-long-context"
+    "audit-detail-long-context",
+    "audit-task-context-combined",
+    "audit-skill-detail",
+    "audit-app-detail"
   ],
   "optionalStateScreens": [
     "audit-goal-budget-editor"

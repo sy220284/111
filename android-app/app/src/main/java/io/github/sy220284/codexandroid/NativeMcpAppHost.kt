@@ -127,7 +127,8 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
     val contract = remember(call, source, originCallId) { McpAppHostContract(call, originCallId) }
     val currentSession by vm.bridge.connectedSession.collectAsStateWithLifecycle()
     val currentRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
-    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    val currentThread by vm.activeThread.collectAsStateWithLifecycle()
+    val dark by UiPreferences.darkMode.collectAsStateWithLifecycle()
     val theme = if (dark) "dark" else "light"
     var port by remember { mutableStateOf<WebMessagePort?>(null) }
     var web by remember { mutableStateOf<WebView?>(null) }
@@ -190,7 +191,7 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
         val params = req.optJSONObject("params") ?: JSONObject()
         if (id == null || id == JSONObject.NULL) {
             if (method == "ui/notifications/initialized") {
-                try { contract.initialized().forEach(::send) }
+                try { contract.initialized(theme).forEach(::send) }
                 catch (e: IllegalArgumentException) { failure = "应用初始化顺序无效" }
             }
             return
@@ -214,8 +215,8 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
         } catch (e: Exception) { send(contract.error(id, -32602, "无效应用请求")) }
     }
     val receive by rememberUpdatedState<(String) -> Unit>(::handle)
-    LaunchedEffect(currentSession, currentRevision) {
-        if (currentSession != epoch || currentRevision != revision || vm.activeThread.value != thread) onDismiss()
+    LaunchedEffect(currentSession, currentRevision, currentThread) {
+        if (currentSession != epoch || currentRevision != revision || currentThread != thread) onDismiss()
     }
     DisposableEffect(Unit) {
         onDispose {
@@ -225,7 +226,7 @@ internal fun NativeMcpAppHost(vm: CodexViewModel, thread: String, call: JSONObje
         }
     }
     LaunchedEffect(theme) {
-        if (contract.ready) send(contract.notification("ui/notifications/host-context-changed", JSONObject().put("theme", theme)))
+        contract.themeChanged(theme)?.let(::send)
     }
     Dialog(onDismissRequest = ::close, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize().testTag("mcp-app-host"), color = Ink.canvas) {

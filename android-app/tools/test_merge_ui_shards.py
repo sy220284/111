@@ -28,7 +28,7 @@ class ShardMergeTests(unittest.TestCase):
             screens.mkdir(parents=True)
             (screens / f"{shard}-android.png").write_bytes(png())
             ids = [PACKAGE + "." + c + f"#test{i}" for c in shard_classes("mainstream","adaptive",shard) for i in range(40)]
-            common = dimensions("mainstream","adaptive") | dict(profile="mainstream",mode="adaptive",shard=shard,commit="head",android_api=CONFIG["api"],page_size=CONFIG["page_size"],build_fingerprint="fingerprint",android_release="17",physical_size="1272x2772",physical_density_dpi=480,width_dp=424,height_dp=800,run_id=shard)
+            common = dimensions("mainstream","adaptive") | dict(profile="mainstream",mode="adaptive",audit_theme="dark",shard=shard,commit="head",android_api=CONFIG["api"],page_size=CONFIG["page_size"],build_fingerprint="fingerprint",android_release="17",physical_size="1272x2772",physical_density_dpi=480,width_dp=424,height_dp=800,run_id=shard)
             report = common | dict(status="passed",tests=len(ids),test_ids=ids,missing_screens=[],screenshot_collection_exit=0)
             manifest = common | dict(present=[shard],required=[shard],discovered=[shard],missing=[],screenshot_dimensions={shard:{"width_px":1,"height_px":1}})
             (directory/"ui-shard-input.json").write_text(json.dumps(dict(source="head",profile="mainstream",mode="adaptive",shard=shard,apk={"debug/app-debug.apk":"a"*64,"androidTest/debug/app-debug-androidTest.apk":"b"*64})))
@@ -47,6 +47,15 @@ class ShardMergeTests(unittest.TestCase):
         result=self.run_case()
         self.assertEqual(240,result["tests"])
         self.assertEqual(set(SHARDS),set(result["shard_run_ids"]))
+
+    def test_wrong_theme_excludes_screenshot_evidence(self):
+        def change(root):
+            path=root/"ui-shard-mainstream-adaptive-navigation/ui-screenshots-adaptive/manifest.json"
+            data=json.loads(path.read_text()); data["audit_theme"]="light"; path.write_text(json.dumps(data))
+        result=self.run_case(change)
+        self.assertEqual("passed",result["status"])
+        self.assertEqual("incomplete",result["screenshot_observation"]["status"])
+        self.assertIn("navigation",result["missing_screens"])
 
     def test_missing_shard_is_rejected(self):
         with self.assertRaises(ValueError):

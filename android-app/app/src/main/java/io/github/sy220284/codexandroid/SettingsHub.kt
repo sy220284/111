@@ -6,7 +6,6 @@ import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
@@ -40,18 +39,21 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     }.filter { (group, entries) ->
         entries.isNotEmpty() || "update" in group.routes
     } }
-    val detailRoutes = remember { setOf("environments", "features", "plugins", "mcp", "config") }
+    val detailRoutes = remember { setOf("models", "appearance", "environments", "features", "plugins", "mcp", "config") }
+    val viewport = rememberCodexViewport()
+    val compact by UiPreferences.compact.collectAsStateWithLifecycle()
+    val spacing = CodexViewportPolicy.pageSpacing(viewport.width.value, viewport.height.value, compact)
     LazyColumn(
         modifier = Modifier.fillMaxSize().testTag("settings-list"),
         state = listState,
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 12.dp),
+        contentPadding = PaddingValues(horizontal = spacing.horizontal.dp, vertical = minOf(12f, spacing.vertical).dp),
         verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         item(key = "overview") {
             MaterialPanel(Modifier.fillMaxWidth().testTag("settings-overview")) {
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 51.dp)
-                        .clickable(role = Role.Button) { navigate("account") }
+                        .codexPressable(role = Role.Button) { navigate("account") }
                         .testTag("settings-account-overview"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -71,7 +73,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 51.dp)
-                        .clickable(role = Role.Button) { navigate("diagnostics") }
+                        .codexPressable(role = Role.Button) { navigate("diagnostics") }
                         .testTag("settings-engine-overview"),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -97,14 +99,12 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         groups.forEach { (group, entries) ->
             item(key = "settings-group:" + group.title) {
                 Text(group.title, modifier = Modifier.padding(start = 8.dp, top = 20.dp, bottom = 9.dp),
-                    color = Ink.muted, style = MaterialTheme.typography.titleMedium)
+                    color = Ink.parchment, style = MaterialTheme.typography.titleMedium)
             }
-            itemsIndexed(entries, key = { _, entry -> "settings-route:" + entry.id }) { index, entry ->
-                val top = if (index == 0) 15.dp else 0.dp
-                val bottom = if (index == entries.lastIndex) 15.dp else 0.dp
-                Surface(shape = RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
-                    color = Ink.canvas, border = BorderStroke(1.dp, Ink.border),
-                    shadowElevation = 0.dp, tonalElevation = 0.dp) {
+            entries.forEachIndexed { index, entry ->
+                item(key = "settings-route:" + entry.id, contentType = "settings-route") {
+                    Column(Modifier.fillMaxWidth().background(Ink.canvas)) {
+                    if (index > 0) HorizontalDivider(Modifier.padding(start = 48.dp), color = Ink.border.copy(alpha = .65f))
                     SettingRouteRow(page = entry, showDetail = entry.id in detailRoutes, detail = when(entry.id) {
                         "account" -> if (isAccountLoaded) (if (isSignedIn) "已登录" else "未登录") else "等待状态"
                         "diagnostics" -> if (status == EngineStatus.Connected) "已连接" else "待处理"
@@ -122,6 +122,7 @@ fun SettingsHubPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             "about" -> showAbout = true
                             else -> navigate(entry.id)
                         }
+                    }
                     }
                 }
             }
@@ -151,11 +152,11 @@ private fun SettingRouteRow(page: Page, detail: String, showDetail: Boolean, onC
         CodexIcon(page.icon, null, modifier = Modifier.size(22.dp), tint = Ink.muted)
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(page.title, style = MaterialTheme.typography.titleMedium,
-                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                maxLines = 2, overflow = TextOverflow.Ellipsis)
             if (showDetail) {
                 Text(if (detail.isNotBlank()) detail else page.subtitle,
                     color = Ink.muted, style = MaterialTheme.typography.labelMedium,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
         CodexIcon(CodexGlyph.ChevronRight, null, tint = Ink.muted,
@@ -193,7 +194,7 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
             Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 ThemePreviewCard(
                     title = "典雅白", background = Color(0xFFFFFFFF),
-                    foreground = Color(0xFF263139), accent = Color(0xFFC8483E),
+                    foreground = Color(0xFF263139), accent = Color(0xFFB94037),
                     selected = !darkMode, modifier = Modifier.fillMaxWidth()
                 ) { UiPreferences.setDarkMode(false) }
                 ThemePreviewCard(
@@ -206,7 +207,7 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 ThemePreviewCard(
                     title = "典雅白", background = Color(0xFFFFFFFF),
-                    foreground = Color(0xFF263139), accent = Color(0xFFC8483E),
+                    foreground = Color(0xFF263139), accent = Color(0xFFB94037),
                     selected = !darkMode, modifier = Modifier.weight(1f)
                 ) { UiPreferences.setDarkMode(false) }
                 ThemePreviewCard(
@@ -233,17 +234,26 @@ fun AppearanceInlineControls(focusTarget: String? = null, modifier: Modifier = M
         Text("文字大小", style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.padding(top = 6.dp).bringIntoViewRequester(fontRequester)
                 .testTag("appearance-font-heading"))
-        Row(Modifier.fillMaxWidth().testTag("appearance-font-controls"),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")
-                .forEach { (scale, label) ->
-                    CodexFilterChip(
-                        selected = kotlin.math.abs(fontScale - scale) < .01f,
-                        onClick = { UiPreferences.setFontScale(scale) },
-                        label = { Text(label, style = MaterialTheme.typography.labelSmall) },
-                        modifier = Modifier.weight(1f)
-                    )
+        val scales = listOf(.9f to "较小", 1f to "标准", 1.125f to "较大", 1.25f to "最大")
+        BoxWithConstraints(Modifier.fillMaxWidth().testTag("appearance-font-controls")) {
+            val columns = if (CodexViewportPolicy.fitsActions(maxWidth.value, codexEffectiveFontScale(), 4, 60f, 6f)) 4 else 2
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                scales.chunked(columns).forEach { group ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        group.forEach { (scale, label) ->
+                            CodexFilterChip(selected = kotlin.math.abs(fontScale - scale) < .01f,
+                                onClick = { UiPreferences.setFontScale(scale) },
+                                label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+                                modifier = Modifier.weight(1f).heightIn(min = 48.dp))
+                        }
+                    }
                 }
+            }
+        }
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Reading) {
+            Text("阅读效果预览", style = MaterialTheme.typography.titleMedium)
+            Text("任务说明与执行结果使用当前字号。", style = MaterialTheme.typography.bodyLarge)
+            Text("辅助信息 · 记录与状态", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
         }
         Text("文字大小会随系统字体设置叠加调整。",
             color = Ink.muted, style = MaterialTheme.typography.labelMedium)

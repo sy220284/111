@@ -41,6 +41,16 @@ class RemoteDeliveryAdapterTest(unittest.TestCase):
                       "response.version", "response.sha256", "chunk length mismatch"):
             self.assertIn(value, PROCESSOR)
 
+    def test_directory_uses_opened_handle_and_bounded_receipt(self):
+        adapted = "\n".join(new for _, _, new in EXEC_CHANGES)
+        for value in ("fs/androidDeliveryDirectory", "Dir::read_from(&readable)",
+                      "GetFileInformationByHandleEx(handle.as_raw_handle()",
+                      "AtFlags::SYMLINK_NOFOLLOW", "FILE_ATTRIBUTE_REPARSE_POINT",
+                      "directory listing exceeds 4096 entries"):
+            self.assertIn(value, adapted)
+        self.assertIn("android_list_delivery_directory", PROCESSOR)
+        self.assertIn("params.relative_path, true", PROCESSOR)
+
     def test_multi_edit_source_is_composed_and_drift_does_not_write(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

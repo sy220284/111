@@ -76,7 +76,7 @@ fun ModelsPage(vm: CodexViewModel) {
         items.forEach { item ->
             val id = item.optString("id").ifBlank { item.optString("model") }
             val title = item.optString("displayName").ifBlank { id }
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 if (item.optBoolean("isDefault")) StatusPill("服务默认")
                 val description = PresentationPolicy.meaningful(item.optString("description"))
@@ -120,7 +120,7 @@ fun ProvidersPage(vm: CodexViewModel) {
     }
     ScreenColumn {
         SectionIntro("模型服务商", "显示服务商来源与当前默认配置。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
             Text("默认服务商", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             val defaultName = entries.firstOrNull { it.optString("id") == defaultId }
                 ?.let { PresentationPolicy.meaningful(it.optString("name")) }
@@ -130,7 +130,7 @@ fun ProvidersPage(vm: CodexViewModel) {
             Text("不同服务商拥有独立目录与认证配置。", color = Ink.muted)
         }
         SourceState(vm, "providers") { vm.refresh("providers", "modelProvider/list") }
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth()) {
             Text("国内模型预置", style = MaterialTheme.typography.titleMedium)
             Text("官方国内接口 · 需单独授权，预置模型仅供选择参考。", color = Ink.muted)
             domesticPresets.forEach { preset ->
@@ -486,7 +486,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
                 onClear = { searchDraft = ""; searchSubmitted = ""; searchPage = 0 },
                 enabled = canOperate && searchKey !in busy, tag = "plugins-clipboard-query")
         }
-        ProtocolFeedback(vm, listOf("pluginMutation"))
+        ProtocolFeedback(vm, listOf("pluginMutation"), connectionRecoveryShown = !searchActive || found.isEmpty())
         if (!installedOnly && connected && !installedVerified && "installedPlugins" !in busy)
             CodexNotice("安装状态待核对，确认后可管理插件。", NoticeTone.Warning,
                 actionLabel = "重试", onAction = { vm.extensions.refreshPluginCatalog("installedPlugins", workspace) })
@@ -514,7 +514,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             }
             if (found.isNotEmpty()) {
                 AtlasListHeading("搜索结果", found.size, suffix = "个插件")
-                MaterialPanel(Modifier.fillMaxWidth()) {
+                WorkSection(Modifier.fillMaxWidth()) {
                     found.forEachIndexed { index, hit ->
                         if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                         val item = hit.plugin
@@ -537,7 +537,7 @@ fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
         if (!searchActive || found.isEmpty()) groups.forEach { (market, items) ->
             Text(ExtensionCatalogPolicy.marketName(market).ifBlank { "插件目录" },
                 color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSection(Modifier.fillMaxWidth()) {
                 items.forEachIndexed { index, item ->
                     if (index > 0) HorizontalDivider(color = Ink.border.copy(alpha = .5f))
                     ExtensionPluginRow(item, installed(market, item), canManage,

@@ -1,17 +1,15 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.*
-import androidx.compose.foundation.gestures.animateScrollBy
-import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -42,20 +40,22 @@ internal fun ConversationTimelineViewport(
     val reducedMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    var followTail by remember { mutableStateOf(true) }
+    var followTail by rememberSaveable { mutableStateOf(true) }
     var autoScrolling by remember { mutableStateOf(false) }
-    var lastKnownStepCount by remember { mutableIntStateOf(0) }
+    var userScrolling by remember { mutableStateOf(false) }
+    var lastKnownStepCount by rememberSaveable { mutableIntStateOf(0) }
     var lastKnownTail by remember { mutableStateOf<TimelineItem?>(null) }
-    var unreadSteps by remember { mutableIntStateOf(0) }
-    var observedThread by remember { mutableStateOf<String?>(null) }
+    var unreadSteps by rememberSaveable { mutableIntStateOf(0) }
+    var observedThread by remember { mutableStateOf(thread) }
     var turnAction by remember(thread) { mutableStateOf<Pair<TimelineItem, MessageTurnAction>?>(null) }
     var outlineOpen by remember(thread) { mutableStateOf(false) }
     var headingTarget by remember(thread) { mutableStateOf<ReplyHeadingEntry?>(null) }
     var filePreview by remember(thread) { mutableStateOf<ModelPreviewRequest?>(null) }
     var remoteDelivery by remember(thread) { mutableStateOf<RemoteDeliveryRequest?>(null) }
-    var anchorKey by remember(thread) { mutableStateOf<String?>(null) }
-    var anchorRowKey by remember(thread) { mutableStateOf<String?>(null) }
-    var anchorOffset by remember(thread) { mutableIntStateOf(0) }
+    var anchorKey by rememberSaveable(thread) { mutableStateOf<String?>(null) }
+    var anchorRowKey by rememberSaveable(thread) { mutableStateOf<String?>(null) }
+    var anchorOffset by rememberSaveable(thread) { mutableIntStateOf(0) }
+    var restoreAnchor by remember(thread) { mutableStateOf(!followTail && anchorKey != null) }
     val mutatingHistory by vm.loading.collectProjection {
         "threadFork:$thread" in it || "threadRevert:$thread" in it
     }
@@ -80,96 +80,103 @@ internal fun ConversationTimelineViewport(
     val recoveryCount = if (fallbackVersion != null && items.isNotEmpty()) 1 else 0
     val visibleGroups = displayRows.size + recoveryCount
     val logicalGroups = rows.size + recoveryCount
-    val latestIndex = TimelineViewportPolicy.latestIndex(visibleGroups, olderPageVisible)
+    val latestIndex = TimelineViewportPolicy.latestIndex(visibleGroups)
+    val latestKey = if (recoveryCount > 0) "answer-version-recovery" else displayRows.lastOrNull()?.key
+    val expectedCount = TimelineViewportPolicy.measuredCount(visibleGroups, olderPageVisible)
 
     // 被动内容增长不能被误判为用户离开底部；主动滚动时才暂停跟随。
     LaunchedEffect(scroll) {
         scroll.interactionSource.interactions.collect { interaction ->
-            if (interaction is DragInteraction.Start) followTail = false
+            if (interaction is DragInteraction.Start) {
+                userScrolling = true
+                followTail = false
+                restoreAnchor = false
+            }
         }
     }
     LaunchedEffect(scroll) {
-        snapshotFlow { Triple(scroll.isScrollInProgress, scroll.canScrollForward, autoScrolling) }
-            .collect { (scrolling, canForward, automatic) ->
-                if (!scrolling && !canForward) {
-                    followTail = true
-                    unreadSteps = 0
-                } else if (scrolling && canForward && !automatic) {
+        snapshotFlow { Triple(scroll.isScrollInProgress, scroll.canScrollBackward, autoScrolling) }
+            .collect { (scrolling, canTowardLatest, automatic) ->
+                if (scrolling && scroll.isScrollInProgress && !automatic && !autoScrolling) {
+                    userScrolling = true
                     followTail = false
+                    restoreAnchor = false
+                } else if (!scrolling && userScrolling && !automatic) {
+                    userScrolling = false
+                    if (!canTowardLatest && scroll.layoutInfo.totalItemsCount > 0) {
+                        followTail = true
+                        unreadSteps = 0
+                    }
                 }
             }
     }
-    val hasOlderPage by rememberUpdatedState(olderPageVisible)
-    val currentGroupCount by rememberUpdatedState(visibleGroups)
+    val currentExpectedCount by rememberUpdatedState(expectedCount)
+    val currentLatestKey by rememberUpdatedState(latestKey)
     val currentTail by rememberUpdatedState(if (contextLoading) null else projection?.tail)
     val currentLogicalCount by rememberUpdatedState(logicalGroups)
     val currentPresentation by rememberUpdatedState(if (contextLoading) null else projection)
     LaunchedEffect(scroll, thread) {
-        snapshotFlow { Triple(scroll.isScrollInProgress, scroll.layoutInfo.visibleItemsInfo.firstOrNull()?.key,
+        snapshotFlow { Triple(scroll.isScrollInProgress,
+            scroll.layoutInfo.visibleItemsInfo.firstOrNull { it.index == scroll.firstVisibleItemIndex }?.key,
             scroll.firstVisibleItemScrollOffset) }.collect { (scrolling, key, offset) ->
-            if (!scrolling && !followTail && key is String && key != "timeline-older-pages") {
+            if (!scrolling && !followTail && !restoreAnchor && !autoScrolling && key is String && key != "timeline-older-pages") {
                 anchorKey = key; anchorOffset = offset
                 val presentation = currentPresentation
                 anchorRowKey = presentation?.displayRows?.getOrNull(presentation.displayIndex(key))?.row?.key
             }
         }
     }
-    LaunchedEffect(displayRows, followTail) {
+    LaunchedEffect(displayRows, followTail, contextLoading) {
         val anchor = anchorKey
-        if (!followTail && !scroll.isScrollInProgress && anchor != null &&
-            projection?.displayIndex(anchor) == -1) {
-            val owner = anchorRowKey ?: anchor
-            val logical = ReplyReadingNavigation.replacementIndex(rows, owner)
-            val replacement = if (logical >= 0) projection?.displayIndex(rows[logical].key) ?: -1 else -1
-            if (replacement >= 0) {
-                scroll.scrollToItem(replacement + if (olderPageVisible) 1 else 0, anchorOffset.coerceAtLeast(0))
-                anchorKey = displayRows[replacement].key
-                anchorRowKey = displayRows[replacement].row.key
+        if (!contextLoading && !followTail && !scroll.isScrollInProgress && anchor != null &&
+            (restoreAnchor || projection?.displayIndex(anchor) == -1)) {
+            val direct = projection?.displayIndex(anchor) ?: -1
+            val logical = if (direct < 0) ReplyReadingNavigation.replacementIndex(rows, anchorRowKey ?: anchor) else -1
+            val replacement = if (direct >= 0) direct else if (logical >= 0) projection?.displayIndex(rows[logical].key) ?: -1 else -1
+            if (replacement in displayRows.indices) {
+                autoScrolling = true
+                try {
+                    scroll.scrollToItem(TimelineViewportPolicy.physicalIndex(replacement, displayRows.size, recoveryCount),
+                        anchorOffset.coerceAtLeast(0))
+                    anchorKey = displayRows[replacement].key
+                    anchorRowKey = displayRows[replacement].row.key
+                    restoreAnchor = false
+                } finally { autoScrolling = false }
             }
         }
     }
-    var previousViewportHeight by remember { mutableIntStateOf(0) }
-    var previousOlderPage by remember { mutableStateOf(false) }
     LaunchedEffect(scroll, thread, contextLoading) {
         if (contextLoading) return@LaunchedEffect
-        // One collector per conversation; a stream of deltas must not cancel and restart it.
-        snapshotFlow { TimelineRenderTarget(currentGroupCount, currentLogicalCount, currentTail, hasOlderPage,
-            scroll.layoutInfo.viewportSize.height) }
-            .collect { (count, logicalCount, tail, older, viewportHeight) ->
-                val viewportChanged = viewportHeight != previousViewportHeight || older != previousOlderPage
-                previousViewportHeight = viewportHeight
-                previousOlderPage = older
-                val threadChanged = observedThread != thread
-                val collapsed = logicalCount < lastKnownStepCount
-                val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, logicalCount, tail)
-                observedThread = thread
-                lastKnownStepCount = logicalCount
-                lastKnownTail = tail
-                if (threadChanged) {
-                    followTail = true
-                    unreadSteps = 0
-                }
-                val target = TimelineViewportPolicy.latestIndex(count, older)
-                if (target >= 0 && followTail && !autoScrolling && (threadChanged || change.changed || viewportChanged || collapsed)) {
-                    // Let the new list layout settle; a real drag takes precedence.
-                    withFrameNanos { }
-                    if (followTail && !autoScrolling) {
-                        // A user scroll may cancel this child without cancelling the collector.
-                        kotlinx.coroutines.coroutineScope {
-                            launch {
-                                autoScrolling = true
-                                try {
-                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage), animate = false)
-                                } finally {
-                                    autoScrolling = false
-                                }
-                            }
-                        }
-                    }
-                } else if (!followTail) {
-                    unreadSteps += change.newSteps
+        // The native lazy list maintains a stable-key historical anchor. When
+        // following, only index zero is authoritative. A growing last fragment
+        // is bottom-aligned by reverseLayout without pixel-delta scroll jobs.
+        snapshotFlow {
+            TimelineRenderTarget(currentLogicalCount, currentTail, currentExpectedCount, currentLatestKey,
+                scroll.layoutInfo.totalItemsCount, scroll.layoutInfo.viewportSize.height,
+                scroll.layoutInfo.visibleItemsInfo.firstOrNull { it.index == 0 }?.key,
+                scroll.isScrollInProgress, followTail, autoScrolling, scroll.canScrollBackward)
+        }.collect { target ->
+            val change = TimelineViewportPolicy.change(lastKnownStepCount, lastKnownTail, target.logicalCount, target.tail)
+            val threadChanged = observedThread != thread
+            observedThread = thread
+            lastKnownStepCount = target.logicalCount
+            lastKnownTail = target.tail
+            if (threadChanged) {
+                followTail = true
+                unreadSteps = 0
+            }
+            if (!followTail) {
+                unreadSteps += change.newSteps
+            } else if (target.following && !target.automatic && !target.scrolling &&
+                !autoScrolling && !scroll.isScrollInProgress) {
+                when (TimelineViewportPolicy.followAction(target.expectedCount, target.measuredCount,
+                    target.viewportHeight, target.expectedKey, target.measuredKey, target.canTowardLatest)) {
+                    TimelineViewportPolicy.FollowAction.Await -> Unit
+                    TimelineViewportPolicy.FollowAction.RequestTarget -> scroll.requestScrollToItem(0)
+                    TimelineViewportPolicy.FollowAction.AtEnd -> unreadSteps = 0
                 }
             }
+        }
     }
     BoxWithConstraints(modifier.fillMaxWidth().clipToBounds()) {
         if (contextLoading || frame == null) {
@@ -204,18 +211,14 @@ internal fun ConversationTimelineViewport(
                     }
                 }
             }
-        } else LazyColumn(state = scroll, modifier = Modifier.fillMaxSize().testTag("conversation-timeline"), contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (olderPageVisible) item(key = "timeline-older-pages") {
-                CodexSecondaryButton(
-                    onClick = { vm.loadEarlierTimeline() }, enabled = !loadingEarlier,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                        .testTag("timeline-load-older")
-                ) {
-                    Text(if (loadingEarlier) "正在加载…" else "加载更早记录")
-                }
+        } else LazyColumn(state = scroll, reverseLayout = true,
+            modifier = Modifier.fillMaxSize().testTag("conversation-timeline"), contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.Bottom)) {
+            if (fallbackVersion != null) item(key = "answer-version-recovery") {
+                Column { Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                    AnswerVersionSwitcher(fallbackVersion, if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null, "recovery") }
             }
-            items(displayRows, key = { it.key }) { display ->
+            items(displayRows.asReversed(), key = { it.key }) { display ->
                 val row = display.row
                 val message = if (!display.lastPage) null else row.actionItem ?: row.group.singleOrNull()?.takeIf {
                     row.showActions && ProgressiveReplyProjection.answer(it)
@@ -261,9 +264,14 @@ internal fun ConversationTimelineViewport(
                 }
                 }
             }
-            if (fallbackVersion != null) item(key = "answer-version-recovery") {
-                Column { Text(if (busy) "正在生成此版本" else "此版本尚无完整回答", color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                    AnswerVersionSwitcher(fallbackVersion, if (canSwitchVersion) ({ target -> vm.chooseThread(target) }) else null, "recovery") }
+            if (olderPageVisible) item(key = "timeline-older-pages") {
+                CodexSecondaryButton(
+                    onClick = { vm.loadEarlierTimeline() }, enabled = !loadingEarlier,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .testTag("timeline-load-older")
+                ) {
+                    Text(if (loadingEarlier) "正在加载…" else "加载更早记录")
+                }
             }
         }
         if (!contextLoading && frame?.running == false && projection?.hasFormalReply == true) {
@@ -279,13 +287,13 @@ internal fun ConversationTimelineViewport(
                         if (autoScrolling) return@clickable
                         scope.launch {
                             followTail = true
+                            restoreAnchor = false
+                            userScrolling = false
                             autoScrolling = true
                             try {
-                                scroll.scrollToLatest(latestIndex, animate = !reducedMotion)
-                                if (followTail) {
-                                    scroll.scrollToLatest(TimelineViewportPolicy.latestIndex(currentGroupCount, hasOlderPage), animate = false)
-                                    unreadSteps = 0
-                                }
+                                if (reducedMotion) scroll.scrollToItem(0) else scroll.animateScrollToItem(0)
+                                // The geometry collector confirms the actual new tail,
+                                // including rows appended during this user-requested animation.
                             } finally {
                                 autoScrolling = false
                             }
@@ -312,7 +320,10 @@ internal fun ConversationTimelineViewport(
                     CodexTextAction(onClick = {
                         outlineOpen = false; followTail = false
                         val index = projection?.headingIndex(entry.rowKey, entry.heading) ?: -1
-                        if (index >= 0) scope.launch { scroll.scrollToItem(index + if (olderPageVisible) 1 else 0); headingTarget = entry }
+                        if (index >= 0) scope.launch {
+                            scroll.scrollToItem(TimelineViewportPolicy.physicalIndex(index, displayRows.size, recoveryCount))
+                            headingTarget = entry
+                        }
                     }, modifier = Modifier.fillMaxWidth().padding(start = ((entry.level - 1).coerceIn(0, 3) * 8).dp)) {
                         Text(entry.title, Modifier.fillMaxWidth())
                     }
@@ -357,24 +368,10 @@ internal fun ConversationTimelineViewport(
 }
 
 private data class TimelineRenderTarget(
-    val count: Int, val logicalCount: Int, val tail: TimelineItem?, val older: Boolean, val viewportHeight: Int
+    val logicalCount: Int, val tail: TimelineItem?, val expectedCount: Int, val expectedKey: String?,
+    val measuredCount: Int, val viewportHeight: Int, val measuredKey: Any?, val scrolling: Boolean,
+    val following: Boolean, val automatic: Boolean, val canTowardLatest: Boolean
 )
-
-/** 末项可能是长流式消息，滚动到末项后还要让消息尾部可见。 */
-private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {
-    if (index < 0) return
-    // Streaming changes often extend the already visible last item. Avoid jumping to its start.
-    if (layoutInfo.visibleItemsInfo.none { it.index == index }) {
-        if (animate) animateScrollToItem(index) else scrollToItem(index)
-    }
-    val info = layoutInfo
-    val last = info.visibleItemsInfo.lastOrNull { it.index == index } ?: return
-    val remaining = (last.offset + last.size - info.viewportEndOffset +
-        info.afterContentPadding).coerceAtLeast(0)
-    if (remaining > 0 && canScrollForward) {
-        if (animate) animateScrollBy(remaining.toFloat()) else scrollBy(remaining.toFloat())
-    }
-}
 
 /** Step count and kind are stable across text deltas; keep the composer out of these updates. */
 @Composable

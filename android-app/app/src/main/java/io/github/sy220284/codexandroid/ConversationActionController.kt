@@ -148,12 +148,11 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
         }
     }
 
-    fun review(id: String, target: JSONObject) {
+    fun review(id: String, target: JSONObject): Boolean =
         start(id, "review:$id", "review/start") { owner ->
             owner.request(vm, "review/start", JSONObject().put("threadId", id)
                 .put("delivery", "inline").put("target", target))
         }
-    }
 
     private fun start(id: String, key: String, method: String, images: List<String> = emptyList(),
         foregroundOnly: Boolean = true, owner: TaskRequestOwner? = vm.captureTaskOwner(), onAccepted: (JSONObject) -> Unit = {},

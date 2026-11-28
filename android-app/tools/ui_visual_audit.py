@@ -15,7 +15,7 @@ import re
 from html import escape
 from pathlib import Path
 from PIL import Image, ImageStat, ImageChops
-from device_matrix import API, CONFIG, dimensions
+from device_matrix import API, CONFIG, dimensions, audit_theme
 from ui_evidence_manifest import load_evidence_manifest, required_screens
 
 SIZE = (64, 128)
@@ -105,7 +105,7 @@ def audit(profile, root, mode):
             if (manifest.get("commit") != source or manifest.get("profile") != profile
                 or manifest.get("mode") != mode or manifest.get("android_api") != API):
                 raise ValueError("Screenshot manifest does not match actual source or configuration")
-            expected = dimensions(profile, mode)
+            expected = dimensions(profile, mode) | {"audit_theme": audit_theme(mode)}
             if any(manifest.get(key) != value for key,value in expected.items()):
                 raise ValueError("Screenshot device geometry or font mismatch")
             if manifest.get("missing") or set(REQUIRED) - set(manifest["present"]):

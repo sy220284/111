@@ -17,7 +17,8 @@ internal data class RemoteDeliveryRequest(val thread: String, val binding: Remot
     fun owns(vm: CodexViewModel): Boolean =
         vm.activeThread.value == thread && vm.bridge.connectedSession.value == epoch &&
             vm.catalogWarmup.accountRevision.value == revision && !vm.threadSwitching.value &&
-            !AppDataTransfer.state.value.busy && vm.remoteBindings.forThread(thread) == binding
+            !AppDataTransfer.state.value.busy && !AppDataTransfer.state.value.pendingRestore &&
+            vm.conversationState.value.remote == binding && vm.remoteBindings.forThread(thread) == binding
 }
 
 /** Derive a non-display identity solely from an authenticated core response.
@@ -29,6 +30,74 @@ internal object RemoteDeliveryAccountIdentity {
         val identity = org.json.JSONArray().put("111-remote-delivery-v1").put(owner.user).put(owner.session).put(owner.workspace)
             .put(thread).put(binding.id).put(binding.endpoint).put(binding.cwd).put(relative).toString()
         return RemoteTransferCheckpoint.hex(MessageDigest.getInstance("SHA-256").digest(identity.toByteArray(Charsets.UTF_8)))
+    }
+}
+
+/** Shared live owner/work-directory verification for every remote file operation. */
+internal class RemoteWorkspaceAccess(private val vm: CodexViewModel, private val owner: RemoteDeliveryRequest) {
+    fun owns() = owner.owns(vm)
+    suspend fun request(method: String, params: JSONObject): JSONObject {
+        check(owns()) { "远端会话或账号已变化" }
+        val result = vm.bridge.request(method, params, expectedSession = owner.epoch, sendPermit = ::owns)
+        check(owns()) { "远端会话或账号已变化" }
+        return result
+    }
+    suspend fun confirmedRoot(): String {
+        val binding = owner.binding
+        vm.remoteBindings.ready(owner.epoch, binding, ::request)
+        check(binding.matches(request("thread/read", JSONObject().put("threadId", owner.thread)).getJSONObject("thread"))) {
+            "核心未确认会话的远端工作区"
+        }
+        val root = request("environment/info", JSONObject().put("environmentId", binding.id)).getString("cwd")
+        check(RemoteExecutionBinding.nativePath(root) == binding.cwd) { "远端工作区已变化" }
+        return root
+    }
+}
+
+internal data class RemoteDirectoryEntry(val name: String, val relative: String?, val kind: String)
+
+internal object RemoteDirectory {
+    const val METHOD = "android/remoteFile/listDirectory"
+    fun relative(binding: RemoteExecutionBinding, target: String): String =
+        if (target.isEmpty()) "" else RemoteFileDelivery.selection(binding, target).relative
+
+    fun decode(binding: RemoteExecutionBinding, requested: String, result: JSONObject): List<RemoteDirectoryEntry> {
+        val returned = RemoteExecutionBinding.nativePath(result.getString("pathUri"))
+        check(result.getString("environmentId") == binding.id &&
+            (if (requested.isEmpty()) returned == binding.cwd else relative(binding, returned) == requested)) {
+            "远端目录回执归属不一致"
+        }
+        val array = result.getJSONArray("entries")
+        require(array.length() <= 4096) { "远端目录超过浏览容量" }
+        val seen = mutableSetOf<String>()
+        var bytes = 0
+        val separator = if (binding.cwd.startsWith("\\\\") || binding.cwd.getOrNull(1) == ':') "\\" else "/"
+        return (0 until array.length()).map {
+            val entry = array.getJSONObject(it)
+            val name = entry.getString("name")
+            val kind = entry.getString("kind")
+            bytes += name.toByteArray(Charsets.UTF_8).size
+            require(name.isNotEmpty() && name != "." && name != ".." && name.length <= 4096 &&
+                '/' !in name && name.none(Char::isISOControl) && seen.add(name) &&
+                kind in setOf("file", "directory", "other") && bytes <= 512 * 1024) { "远端目录回执无效" }
+            val candidate = if (requested.isEmpty()) name else requested + separator + name
+            // Links and unrepresentable names are visible but never actionable.
+            val safe = if (kind == "other" || '\\' in name) null else try {
+                RemoteFileDelivery.selection(binding, candidate).relative
+            } catch (_: IllegalArgumentException) { null }
+            RemoteDirectoryEntry(name, safe, kind)
+        }.sortedWith(compareBy<RemoteDirectoryEntry> { it.kind != "directory" }.thenBy { it.name.lowercase(java.util.Locale.ROOT) }.thenBy { it.name })
+    }
+
+    suspend fun read(vm: CodexViewModel, owner: RemoteDeliveryRequest): List<RemoteDirectoryEntry> {
+        val path = relative(owner.binding, owner.target)
+        val access = RemoteWorkspaceAccess(vm, owner)
+        val root = access.confirmedRoot()
+        val result = access.request(METHOD, JSONObject().put("environmentId", owner.binding.id)
+            .put("workspaceUri", root).put("relativePath", path))
+        return withContext(Dispatchers.Default) { decode(owner.binding, path, result) }.also {
+            check(access.owns()) { "远端会话或账号已变化" }
+        }
     }
 }
 
@@ -64,20 +133,10 @@ internal object RemoteFileDelivery {
         onProgress: suspend (Long, Long) -> Unit = { _, _ -> }): Payload = lock.withLock {
         val selected = selection(binding, target)
         val ownerRequest = RemoteDeliveryRequest(thread, binding, target, epoch, revision)
-        fun owns() = ownerRequest.owns(vm)
-        suspend fun request(method: String, params: JSONObject): JSONObject {
-            check(owns()) { "远端会话或账号已变化" }
-            val result = vm.bridge.request(method, params, expectedSession = epoch, sendPermit = ::owns)
-            check(owns()) { "远端会话或账号已变化" }
-            return result
-        }
-        vm.remoteBindings.ready(epoch, binding, ::request)
-        check(binding.matches(request("thread/read", JSONObject().put("threadId", thread)).getJSONObject("thread"))) {
-            "核心未确认会话的远端工作区"
-        }
-        val info = request("environment/info", JSONObject().put("environmentId", binding.id))
-        val root = info.getString("cwd")
-        check(RemoteExecutionBinding.nativePath(root) == binding.cwd) { "远端工作区已变化" }
+        val access = RemoteWorkspaceAccess(vm, ownerRequest)
+        fun owns() = access.owns()
+        suspend fun request(method: String, params: JSONObject) = access.request(method, params)
+        val root = access.confirmedRoot()
         suspend fun chunk(offset: Long, version: String?): JSONObject {
             val result = request(METHOD, JSONObject().put("environmentId", binding.id)
                 .put("workspaceUri", root).put("relativePath", selected.relative)
@@ -144,6 +203,7 @@ internal object RemoteFileDelivery {
 
     suspend fun save(vm: CodexViewModel, resolver: ContentResolver, destination: Uri, payload: Payload,
         onVerified: suspend (Long) -> Unit = {}, onWritten: suspend () -> Unit = {}) = lock.withLock {
+        AppDataTransfer.withLocalMutation {
         val ctx = coroutineContext
         fun permit() {
             ctx.ensureActive()
@@ -154,5 +214,6 @@ internal object RemoteFileDelivery {
             beforeWrite = { requireNotNull(checkpoint).verify(payload.entry, ::permit) },
             onWritten = { withContext(Dispatchers.Main.immediate) { permit(); onWritten() } },
             onVerified = { count -> withContext(Dispatchers.Main.immediate) { permit(); onVerified(count) } })
+    }
     }
 }

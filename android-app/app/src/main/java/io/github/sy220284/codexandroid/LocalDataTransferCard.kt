@@ -58,18 +58,18 @@ internal fun LocalDataTransferCard(vm: CodexViewModel) {
             }
             if (scopeDetails) Text("账号、核心权限、模型服务地址、MCP、插件和运行组件需在新环境中重新配置；项目依赖按声明重新安装。",
                 color = Ink.muted, style = MaterialTheme.typography.bodySmall)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                CodexSecondaryButton(
-                    onClick = { exportPicker.launch("111-本机备份.zip") },
-                    enabled = !state.busy && available,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("backup-export")
-                ) { Text("导出数据") }
-                CodexSecondaryButton(
-                    onClick = { importPicker.launch(arrayOf("application/zip", "application/octet-stream")) },
-                    enabled = !state.busy && available,
-                    modifier = Modifier.weight(1f).heightIn(min = 48.dp).testTag("backup-import")
-                ) { Text("导入备份") }
-            }
+            CodexAdaptiveActions(
+                first = { modifier ->
+                    CodexPrimaryButton(onClick = { exportPicker.launch("111-本机备份.zip") },
+                        enabled = !state.busy && available,
+                        modifier = modifier.testTag("backup-export")) { Text("导出数据") }
+                },
+                second = { modifier ->
+                    CodexSecondaryButton(onClick = { importPicker.launch(arrayOf("application/zip", "application/octet-stream")) },
+                        enabled = !state.busy && available,
+                        modifier = modifier.testTag("backup-import")) { Text("导入备份") }
+                }
+            )
             if (!available) Text(work.blockReason,
                 color = Ink.warning, style = MaterialTheme.typography.labelMedium)
             errors["dataTransfer"]?.let { ErrorText(it) }

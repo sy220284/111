@@ -51,14 +51,28 @@ internal fun AppUpdateCard(vm: CodexViewModel) {
             if (status.targetVersion.isNotBlank()) {
                 Text("目标版本：${status.targetVersion}", style = MaterialTheme.typography.bodyMedium)
             }
-            AtlasUpdateStatus(status, Modifier.testTag("update-status"),
-                progressTag = "update-progress")
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+                Text(when (status.phase) {
+                    UpdatePhase.CHECKING -> "检查版本"
+                    UpdatePhase.DOWNLOADING -> "下载更新"
+                    UpdatePhase.PATCHING -> "应用增量补丁"
+                    UpdatePhase.VERIFYING_INSTALL -> "校验安装包"
+                    UpdatePhase.READY -> "等待安装"
+                    UpdatePhase.NEEDS_PERMISSION -> "需要安装授权"
+                    UpdatePhase.INSTALLING -> "系统安装"
+                    UpdatePhase.ERROR -> "更新未完成"
+                    UpdatePhase.UP_TO_DATE -> "已是最新版本"
+                    UpdatePhase.IDLE -> "检查更新"
+                }, style = MaterialTheme.typography.titleSmall)
+                AtlasUpdateStatus(status, Modifier.testTag("update-status"),
+                    progressTag = "update-progress")
+            }
             CodexPrimaryButton(
                 onClick = { activity?.let(AppUpdateManager::checkAndDownload) },
                 enabled = activity != null && !busy,
                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                     .testTag("update-check")
-            ) { Text(if (busy) "正在处理" else "检查并下载更新") }
+            ) { Text(if (busy) "正在处理" else if (status.phase == UpdatePhase.ERROR) "重新检查并下载" else "检查并下载更新") }
             if (busy) {
                 CodexSecondaryButton(
                     onClick = AppUpdateManager::cancel,

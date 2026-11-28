@@ -167,6 +167,10 @@ object PresentationPolicy {
             .map(::readableError)
             .distinct()
 
+    /** The page's connection recovery owns only the exact generic disconnect reason. */
+    fun operationErrors(errors: List<String>, disconnected: Boolean): List<String> =
+        if (disconnected) errors.filterNot { it == "Codex 内核尚未连接" } else errors
+
     fun readableError(value: String?): String {
         // Drop the internal RPC method prefix, keeping the server's actual explanation.
         val raw = meaningful(value).replace(

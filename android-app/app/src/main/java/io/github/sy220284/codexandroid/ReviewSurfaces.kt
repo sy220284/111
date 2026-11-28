@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
@@ -23,14 +24,16 @@ fun ReviewScopePanel(
 ) {
     val active by vm.activeThread.collectAsStateWithLifecycle()
     val running by vm.running.collectAsStateWithLifecycle()
+    val connection by vm.bridge.status.collectAsStateWithLifecycle()
     val loading by vm.loading.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
     val data by vm.data.collectAsStateWithLifecycle()
     val reviewDraft = vm.taskPanelDraft(active)
     val selection = reviewDraft.reviewScope
     val value = reviewDraft.reviewText
-    var confirm by remember { mutableStateOf(false) }
+    var confirm by remember(active) { mutableStateOf(false) }
     var submitted by remember(active) { mutableStateOf(false) }
+    var rejected by remember(active) { mutableStateOf(false) }
     val requestKey = "review:$active"
     LaunchedEffect(submitted, data[requestKey]) {
         if (submitted && data[requestKey] != null) onStarted()
@@ -40,7 +43,23 @@ fun ReviewScopePanel(
         if (active == null) {
             RequiresThreadPanel("代码审查", onSelectThread)
         } else {
-            Text("审查范围", style = MaterialTheme.typography.titleMedium)
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+                Text("审查工作流", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                Text(if (requestKey in loading) "正在提交审查" else if (running) "当前任务执行中" else "准备代码审查",
+                    style = MaterialTheme.typography.headlineSmall)
+                Text("选择范围后由核心执行；发现与修复结果在当前任务流中查看。",
+                    style = MaterialTheme.typography.bodySmall, color = Ink.muted)
+                StatusPill(when {
+                    requestKey in loading -> "等待内核回执"
+                    running -> "执行中"
+                    connection != EngineStatus.Connected -> "等待连接"
+                    else -> "待选择审查范围"
+                }, tone = if (requestKey in loading || running) StatusTone.Info else StatusTone.Neutral)
+                if (connection != EngineStatus.Connected) CodexTextAction(onClick = { vm.connect() }) {
+                    Text("重新连接")
+                }
+            }
+            WorkSectionHeading("审查范围", "明确需要检查的代码变更。")
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     Triple("uncommittedChanges", "尚未提交的改动", "检查当前变更"),
@@ -69,15 +88,17 @@ fun ReviewScopePanel(
             if (running) CodexNotice("当前任务执行中，完成后再发起审查。", NoticeTone.Info)
             CodexPrimaryButton(
                 onClick = { confirm = true },
-                enabled = !running && requestKey !in loading &&
+                enabled = connection == EngineStatus.Connected && !running && requestKey !in loading &&
                     (selection == "uncommittedChanges" || value.isNotBlank()),
                 modifier = Modifier.fillMaxWidth().heightIn(min = 49.dp)
+                    .then(Modifier.testTag("review-submit"))
             ) {
                 CodexIcon(CodexGlyph.FactCheck, null)
                 Spacer(Modifier.width(8.dp))
                 Text("发起代码审查")
             }
         }
+        if (rejected) CodexNotice("未能发起审查，请核对当前会话和运行状态后重试。", NoticeTone.Warning)
         if (submitted && requestKey in loading) AtlasOperationProgress("正在提交代码审查")
         if (submitted) errors[requestKey]?.let { ErrorText(it) }
         if (submitted) data[requestKey]?.let { response ->
@@ -107,8 +128,8 @@ fun ReviewScopePanel(
                     "commit" -> target.put("sha", value.trim())
                     "custom" -> target.put("instructions", value.trim())
                 }
-                submitted = true
-                active?.let { vm.conversationActions.review(it, target) }
+                submitted = active?.let { vm.conversationActions.review(it, target) } == true
+                rejected = !submitted
                 confirm = false
             },
             onDismiss = { confirm = false }

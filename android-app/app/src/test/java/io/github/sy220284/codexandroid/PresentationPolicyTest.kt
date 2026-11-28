@@ -84,6 +84,15 @@ class PresentationPolicyTest {
         assertEquals(emptyList<String>(), PresentationPolicy.visibleErrors(errors, listOf("models")))
     }
 
+    @Test fun connectionRecoveryDoesNotHideDistinctOperationFailures() {
+        val errors = listOf("Codex 内核尚未连接", "连接已超时", "权限申请被拒绝")
+        assertEquals(listOf("连接已超时", "权限申请被拒绝"),
+            PresentationPolicy.operationErrors(errors, disconnected = true))
+        assertEquals(errors, PresentationPolicy.operationErrors(errors, disconnected = false))
+        assertEquals(emptyList<String>(),
+            PresentationPolicy.operationErrors(listOf("Codex 内核尚未连接"), disconnected = true))
+    }
+
     @Test fun readableErrorKeepsMeaningAndHidesInternalIdentifiers() {
         val source = "访问失败：/data/user/0/io.github.sy220284.codexandroid/files/projects"
         val shown = PresentationPolicy.readableError(source)

@@ -56,12 +56,9 @@ fun CodexOverlayFrame(
             action()
         }
     }
-    val close: () -> Unit = {
-        if (!dismissed) {
-            dismissed = true
-            dismiss()
-        }
-    }
+    // The caller may reject closing during a write. Only an executed action is
+    // permanently consumed; a rejected close must remain retryable.
+    val close: () -> Unit = { if (!dismissed) dismiss() }
     // In-window detail navigation consumes Back without marking the window dismissed.
     Dialog(onDismissRequest = { back?.invoke() ?: close() }, properties = DialogProperties(
         usePlatformDefaultWidth = false, dismissOnClickOutside = !fullScreen)) {
@@ -69,10 +66,9 @@ fun CodexOverlayFrame(
         BoxWithConstraints((if (fullScreen) Modifier.fillMaxSize() else Modifier.wrapContentSize())
             .safeDrawingPadding().imePadding(), contentAlignment = Alignment.Center) {
             val bounds = if (fullScreen) Modifier.fillMaxSize()
-                else Modifier.widthIn(max = 360.dp).fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+                else Modifier.width(CodexViewportPolicy.overlayWidth(maxWidth.value.coerceAtLeast(1f)).dp)
                     .heightIn(max = CodexViewportPolicy.sheetHeight(maxHeight.value.coerceAtLeast(1f), .86f).dp)
-            Surface(modifier = bounds.then(modifier),
+            Surface(modifier = bounds.then(modifier).workEntrance(WorkMotion.Panel),
                 shape = RoundedCornerShape(if (fullScreen) 0.dp else 24.dp),
                 color = containerColor, contentColor = contentColor,
                 border = if (fullScreen) null else BorderStroke(1.dp, Ink.border.copy(alpha = .65f)),
@@ -131,8 +127,9 @@ internal fun CodexPopupMenu(expanded: Boolean, onDismissRequest: () -> Unit,
         ) {
             // DropdownMenu internally requests intrinsic dimensions, which is
             // incompatible with search fields and subcomposed controls.
-            Surface(modifier = modifier, shape = RoundedCornerShape(24.dp),
-                color = Ink.elevated, contentColor = Ink.parchment, shadowElevation = 8.dp) {
+            Surface(modifier = modifier.workEntrance(WorkMotion.Menu), shape = RoundedCornerShape(20.dp),
+                color = Ink.elevated, contentColor = Ink.parchment, shadowElevation = 8.dp,
+                border = BorderStroke(1.dp, Ink.border.copy(alpha = .75f))) {
                 Column(Modifier.verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
                     content = content)
             }
