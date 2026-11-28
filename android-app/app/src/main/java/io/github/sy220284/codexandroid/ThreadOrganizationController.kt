@@ -74,16 +74,25 @@ internal class ThreadUndoGate {
 internal class ThreadOrganizationController(private val vm: CodexViewModel) {
     private val gate = ThreadUndoGate()
     val revision = MutableStateFlow(0L)
-    fun invalidate() = gate.invalidate()
-    fun begin(method: String, ids: List<String>) = gate.begin(method, ids)
-    fun complete(ticket: Long?, ids: List<String>) = gate.complete(ticket, ids)
-    fun isCurrent(offer: ThreadUndoOffer) = gate.isCurrent(offer)
+    private var undoOwner: TaskRequestOwner? = null
+    fun invalidate() {
+        undoOwner = null
+        gate.invalidate()
+    }
+    fun begin(method: String, ids: List<String>): Long? {
+        if (!ThreadOrganizationPolicy.isOrganization(method)) return null
+        undoOwner = vm.captureTaskOwner()
+        return gate.begin(method, ids)
+    }
+    fun complete(ticket: Long?, ids: List<String>) =
+        if (undoOwner?.current(vm) == true) gate.complete(ticket, ids) else null
+    fun isCurrent(offer: ThreadUndoOffer) = undoOwner?.current(vm) == true && gate.isCurrent(offer)
     fun observe(method: String, id: String) {
         gate.observe(method, id)
         revision.value++
     }
     fun undo(offer: ThreadUndoOffer) {
-        if (!gate.consume(offer)) {
+        if (!isCurrent(offer) || !gate.consume(offer)) {
             vm.viewModelScope.launch { vm.actionFeedback.emit(ActionFeedbackReceipt(
                 "会话状态已更新，请在会话历史中重新核对", isError = true)) }
             return
@@ -120,7 +129,7 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
             refuse("运行核心尚未连接，请重新连接后操作")
             return@with
         }
-        val ticket = gate.begin(method, targets)
+        val ticket = begin(method, targets)
         bulkCompletedThreadIds.value = emptySet()
         bulkActionSummary.value = "正在处理 0/${targets.size} 项会话"
         errors.value = errors.value - "threadLibraryBulk"
@@ -140,7 +149,7 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                 }
                 bulkActionSummary.value = "已${ThreadBulkActionPolicy.display(kind)} ${completed.size} 条会话"
                 actionFeedback.emit(ActionFeedbackReceipt(bulkActionSummary.value,
-                    undo = if (offerUndo) gate.complete(ticket, completed) else null))
+                    undo = if (offerUndo) complete(ticket, completed) else null))
             } catch (failure: Exception) {
                 if (failure is CancellationException && failure !is TimeoutCancellationException) throw failure
                 if (!owner.current(vm)) return@launch
@@ -149,7 +158,7 @@ internal class ThreadOrganizationController(private val vm: CodexViewModel) {
                 bulkActionSummary.value = reason
                 errors.value = errors.value + ("threadLibraryBulk" to reason)
                 actionFeedback.emit(ActionFeedbackReceipt(reason, isError = true,
-                    undo = if (offerUndo) gate.complete(ticket, completed) else null))
+                    undo = if (offerUndo) complete(ticket, completed) else null))
             } finally {
                 loading.value = loading.value - "threadLibraryBulk"
                 if (owner.current(vm)) {

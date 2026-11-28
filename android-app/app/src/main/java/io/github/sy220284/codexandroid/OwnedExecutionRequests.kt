@@ -2,12 +2,6 @@ package io.github.sy220284.codexandroid
 
 import org.json.JSONObject
 
-internal fun accountScopedRead(method: String): Boolean = method in setOf(
-    "model/list", "modelProvider/list", "skills/list", "plugin/list", "plugin/installed",
-    "plugin/search", "plugin/read", "app/list", "mcpServerStatus/list",
-    "config/read", "configRequirements/read", "permissionProfile/list"
-)
-
 internal suspend fun CodexViewModel.ensureRemoteThread(
     id: String, binding: RemoteExecutionBinding, running: Boolean = false,
     expectedSession: Long = requireNotNull(bridge.connectedSession.value) { "运行核心尚未连接" },
