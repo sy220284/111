@@ -352,7 +352,7 @@ jobs:
           retention-days: 90
       - name: 应用同一 Android 适配并核对完整锁定依赖
         run: bash .github/scripts/prepare-native-dependencies.sh
-      - name: 使用 Android Bionic 编译 App Server 与 Code Mode Host
+      - name: 使用 Android Bionic 编译产品核心与独立测试执行器
         shell: bash
         run: |
           set -euo pipefail
@@ -395,9 +395,10 @@ jobs:
           python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --label "Rust ${{ matrix.abi }}" -- cargo build --locked --offline --release \
             -p codex-app-server --bin codex-app-server \
             -p codex-code-mode-host --bin codex-code-mode-host \
+            -p codex-exec-server-cli --bin codex-exec-server \
             --target "$TARGET"
           # Git, rg and other CLI tools are imported from the verified 777 runtime.
-          COMPONENTS=(codex-app-server codex-code-mode-host)
+          COMPONENTS=(codex-app-server codex-code-mode-host codex-exec-server)
           for NAME in "${COMPONENTS[@]}"; do
             CORE="target/$TARGET/release/$NAME"
             test -s "$CORE"
@@ -422,6 +423,7 @@ jobs:
           path: |
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-app-server
             upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-code-mode-host
+            upstream/codex/codex-rs/target/${{ matrix.rust_target }}/release/codex-exec-server
           if-no-files-found: error
           retention-days: 90
       - name: 生成按源码指纹索引的原生构建凭证

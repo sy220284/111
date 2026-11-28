@@ -660,7 +660,7 @@ jobs:
           set -euo pipefail
           APK="android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk"
           test -s "android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full --report "$RUNNER_TEMP/arm64-apk-audit.json"
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full --debug-executor --report "$RUNNER_TEMP/arm64-apk-audit.json"
           python3 .github/scripts/verify_git_corresponding_source.py "$APK" "$RUNNER_TEMP/git-corresponding-source.tar.xz"
 
       - name: 保存完整 APK 审计及字节摘要
@@ -768,7 +768,7 @@ jobs:
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
           bash .github/scripts/ci-gradle.sh -p android-app --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
-          python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
+          python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full --debug-executor
           mkdir -p "$RUNNER_TEMP/runtime-baseline" "$RUNNER_TEMP/runtime-api37"
           cp android-app/app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/runtime-baseline/app.apk"
           cp android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk "$RUNNER_TEMP/runtime-baseline/test.apk"
@@ -776,7 +776,7 @@ jobs:
           cp android-app/app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/runtime-api37/app.apk"
           cp android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk "$RUNNER_TEMP/runtime-api37/test.apk"
           "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging "$RUNNER_TEMP/runtime-api37/app.apk" | grep -Fx "targetSdkVersion:'37'"
-          python3 .github/scripts/audit_apk_contents.py --apk "$RUNNER_TEMP/runtime-api37/app.apk" --abi x86_64 --mode full
+          python3 .github/scripts/audit_apk_contents.py --apk "$RUNNER_TEMP/runtime-api37/app.apk" --abi x86_64 --mode full --debug-executor
       - name: 使用 Runner 模拟器及独立镜像缓存
         uses: ./.github/actions/ci-emulator
       - name: 允许模拟器硬件加速
@@ -832,7 +832,7 @@ jobs:
           name: codex-android-arm64-apk-audit
           path: audit
       - name: 独立核对上传下载 APK 的完整字节哈希
-        run: python3 .github/scripts/audit_apk_contents.py --apk apks/app-arm64-v8a-debug.apk --abi arm64-v8a --mode full --verify-report audit/arm64-apk-audit.json
+        run: python3 .github/scripts/audit_apk_contents.py --apk apks/app-arm64-v8a-debug.apk --abi arm64-v8a --mode full --debug-executor --verify-report audit/arm64-apk-audit.json
 
   preflight:
     name: 发布脚本回归检查

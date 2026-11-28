@@ -143,12 +143,16 @@ class CoreStartupInstrumentedTest {
         val secret = File(root, "outside.bin").apply { writeText("outside workspace") }
         android.system.Os.symlink(secret.absolutePath, File(workspace, "escape.bin").absolutePath)
         val port = ServerSocket(0).use { it.localPort }
-        val executable = File(app.applicationInfo.nativeLibraryDir, "libcodex_server.so")
+        // The upstream App Server accepts its own options, not the full Codex CLI subcommands.
+        val executable = File(app.applicationInfo.nativeLibraryDir, "libcodex_test_executor.so")
+        check(executable.isFile && executable.canExecute()) { "缺少独立调试执行器：${executable.absolutePath}" }
         val log = File(root, "executor.log")
-        val executor = ProcessBuilder(executable.absolutePath, "exec-server", "--listen", "ws://127.0.0.1:$port")
+        val executor = ProcessBuilder(executable.absolutePath, "--listen", "ws://127.0.0.1:$port")
             .directory(workspace).redirectErrorStream(true).redirectOutput(log).apply {
                 environment()["CODEX_HOME"] = home.absolutePath
                 environment()["HOME"] = home.absolutePath
+                environment()["TMPDIR"] = root.absolutePath
+                environment()["LD_LIBRARY_PATH"] = app.applicationInfo.nativeLibraryDir
                 environment()["SHELL"] = "/system/bin/sh"
             }.start()
         val bridge = CodexConnection(app)

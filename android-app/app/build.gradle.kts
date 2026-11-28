@@ -86,6 +86,7 @@ android {
             useLegacyPackaging = true
             keepDebugSymbols += "**/libcodex_server.so"
             keepDebugSymbols += "**/libcodex_code_mode_host.so"
+            keepDebugSymbols += "**/libcodex_test_executor.so"
             keepDebugSymbols += "**/libcodex_rg.so"
             keepDebugSymbols += "**/libcodex_git.so"
             keepDebugSymbols += "**/libcodex_git_remote_http.so"
