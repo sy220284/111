@@ -356,7 +356,7 @@ class CodexViewModel(application: Application) : AndroidViewModel(application) {
                 AppDataTransfer.withLocalMutation { LocalMediaAttachmentPolicy.prepare(images, LocalImageAttachments.directory(getApplication())) { owner.requireCurrent(this@CodexViewModel) } }
                 ComposerInputPolicy.validate(images, references, LocalImageAttachments.directory(getApplication()), File(chosenWorkspace))
                 owner.requireCurrent(this@CodexViewModel)
-                if (submittedThread == null && chosenRemote == null) workspaceTasks.relocateProject(chosenProject, epoch)
+                if (submittedThread == null && chosenRemote == null) workspaceTasks.relocateProject(chosenProject, owner)
                 if (chosenRemote == null) captureAnswerBaseline(pendingId.removePrefix("pending-"), chosenWorkspace, submittedThread)
                 LocalImageAttachments.preserveForHistory(getApplication(), images, pendingId.removePrefix("pending-"))
                 val outcome = TurnSubmissionCoordinator { method, params ->

@@ -36,6 +36,9 @@ internal suspend fun CodexViewModel.dispatchOwnedRequest(
     ensureRemoteThread(parent, binding, expectedSession = epoch, sendPermit = sendPermit)
     val reply = bridge.request(method, params, expectedSession = epoch, sendPermit = sendPermit)
     val id = reply.getJSONObject("thread").getString("id")
+    check(bridge.connectedSession.value == epoch && sendPermit?.invoke() != false) {
+        "会话分叉所属账号或核心已变化，请核对会话目录"
+    }
     remoteBindings.bind(id, binding)
     ensureRemoteThread(id, binding, expectedSession = epoch, sendPermit = sendPermit)
     val confirmed = bridge.request("thread/read", JSONObject().put("threadId", id), expectedSession = epoch, sendPermit = sendPermit)

@@ -37,7 +37,6 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
     errors.value = errors.value - "conversation"
     viewModelScope.launch {
         try {
-            val session = owner.epoch
             val history = owner.request(this@selectConversation, "thread/read", JSONObject().put("threadId", id))
             val nativeThread = history.getJSONObject("thread")
             val remote = remoteBindings.forThread(id)
@@ -46,7 +45,7 @@ internal fun CodexViewModel.selectConversation(id: String, forceReload: Boolean,
             // verify the remote binding only when a user actually starts execution.
             val threadDirectory = if (remote != null) WorkspaceSelectionContract.validate(java.io.File(workingDirectory), java.io.File(workingDirectory))
                 else workspaceTasks.resumeDirectory(id, nativeThread.getString("cwd"),
-                    nativeThread.optString("projectId").takeUnless { value -> value == "null" }.orEmpty(), null, session)
+                    nativeThread.optString("projectId").takeUnless { value -> value == "null" }.orEmpty(), null, owner)
             val page = owner.request(this@selectConversation, "thread/items/list", JSONObject().put("threadId", id)
                 .put("sortDirection", "desc").put("limit", 120))
             val outcomeReader = HistoryTurnOutcomes(id) { method, params ->
