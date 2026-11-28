@@ -2,10 +2,10 @@
   "source": {
     "url": "https://packages.termux.dev/apt/termux-main/dists/stable/",
     "signer": "CC72CF8BA7DBFA0182877D045A897D96E57CF20C",
-    "inReleaseSha256": "040346f494e2aedfa8a71e7ac3caf41be06eab7127441ee8b754f70a2cdd11f3",
+    "inReleaseSha256": "2c342a621660994f3187ef16cec4f5d1efb4f560f15a49c6718d9e7ca3ee4241",
     "indexSha256": {
-      "aarch64": "eadccc9684205eb23a291bcda0a92255c21a92c22a8437f260124ad4a5f7107d",
-      "x86_64": "fb3b490ec9b085fd5ec8c87d3e6d916ea21f5ccd5168db4101c20dbf65debbaa"
+      "aarch64": "b49c41f085f087b096a3ae21e30492e1e7a9b6a07cb151dcd827a3ebf799041c",
+      "x86_64": "6f5ce0ab48c3043ec60704fc215724d29daf5a52e20635173700bfe160485903"
     }
   },
   "selection": {
@@ -187,9 +187,9 @@
         "sha256": "ac744cb7cd047997da4410ca11d356ca9c952aa474b14a0032414d5677e0fbf1"
       },
       "libffi": {
-        "version": "3.8.1",
-        "file": "pool/main/libf/libffi/libffi_3.8.1_aarch64.deb",
-        "sha256": "9e13f3b5c40625c384101992bb669a278e07d9e2baa37d286d7ed164288fab1a"
+        "version": "3.8.2",
+        "file": "pool/main/libf/libffi/libffi_3.8.2_aarch64.deb",
+        "sha256": "24e32ef321a2c8969cece066422d94928b1062f8fb4ed44b2e3d55bd85903863"
       },
       "libiconv": {
         "version": "1.19.1",
@@ -364,9 +364,9 @@
         "sha256": "0e703576d59ac8bd4d3592786ac7932338fea8bdce032d052bf0edbc6dce8675"
       },
       "libffi": {
-        "version": "3.8.1",
-        "file": "pool/main/libf/libffi/libffi_3.8.1_x86_64.deb",
-        "sha256": "1a10292f4fe21e17b89337172ed6493bd6314b01923ba54d067355ef5efc00fc"
+        "version": "3.8.2",
+        "file": "pool/main/libf/libffi/libffi_3.8.2_x86_64.deb",
+        "sha256": "f1163fccc2c7d51d0036c451b7e180215287aef4e768321b133f17f9de1b15bb"
       },
       "libiconv": {
         "version": "1.19.1",

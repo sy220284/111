@@ -30,10 +30,15 @@ def verify(component, arch, index, packages):
     if sorted(packages) != expected_names:
         raise ValueError(f"Termux {arch}/{component} dependency set changed")
     snapshot = package_records(index, set(expected_names))
+    changed = {}
     for name in expected_names:
         expected = locked["packages"][arch][name]
-        if snapshot.get(name) != expected:
-            raise ValueError(f"Termux {arch}/{component} package changed: {name} ({expected['version']})")
+        actual = snapshot.get(name)
+        if actual != expected:
+            changed[name] = {"locked": expected, "signedIndex": actual}
+    if changed:
+        raise ValueError(f"Termux {arch}/{component} locked packages changed: "
+                         + json.dumps(changed, sort_keys=True))
 
 
 if __name__ == "__main__":
