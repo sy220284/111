@@ -91,6 +91,7 @@ internal class CatalogWarmupController(
         accountRevisionState.value += 1
         vm.threadOrganization.invalidate()
         vm.invalidateAccountReceipts()
+        vm.sessions.invalidateIdentity()
         vm.historyTurnOutcomes = null
         refreshRouting()
     }
