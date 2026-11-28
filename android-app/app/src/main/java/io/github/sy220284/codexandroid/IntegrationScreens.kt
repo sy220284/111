@@ -18,6 +18,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 @Composable
@@ -28,11 +29,11 @@ private fun IntegrationState(vm: CodexViewModel, key: String, retry: () -> Unit)
 @Composable
 fun CollaborationModesPage(vm: CodexViewModel) {
     val payload by vm.data.collectEntries("modes")
-    val selected by vm.selectedMode.collectAsState()
+    val selected by vm.selectedMode.collectAsStateWithLifecycle()
     val catalog = remember(payload) { records(payload["modes"]) }
-    val running by vm.running.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val status by vm.bridge.status.collectAsState()
+    val running by vm.running.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     val planSupported = catalog.any { it.optString("mode") == "plan" }
     val refreshing = "modes" in loading
     LaunchedEffect(status) {
@@ -90,12 +91,12 @@ fun CollaborationModesPage(vm: CodexViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val engineStatus by vm.bridge.status.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
     val loading by vm.loading.collectProjection { it.intersect(setOf("apps", "appInstalled", "appMutation")) }
     val errors by vm.errors.collectEntries("apps", "appInstalled", "appMutation")
     val context = LocalContext.current
     val data by vm.data.collectEntries("apps", "appInstalled")
-    val epoch by vm.extensions.epoch.collectAsState()
+    val epoch by vm.extensions.epoch.collectAsStateWithLifecycle()
     val installed = data["appInstalled"]
     val directory = data["apps"]
     val apps = remember(directory, installed) { ExtensionCatalogPolicy.apps(directory, installed) }
@@ -239,13 +240,13 @@ fun ConnectedAppsPage(vm: CodexViewModel, navigate: (String) -> Unit) {
 @Composable
 fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
     val data by vm.data.collectEntries("mcp")
-    val loading by vm.loading.collectAsState()
-    val activeThread by vm.activeThread.collectAsState()
-    val engineStatus by vm.bridge.status.collectAsState()
-    val errors by vm.errors.collectAsState()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val activeThread by vm.activeThread.collectAsStateWithLifecycle()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
     val usable = remember(data) { McpAvailableServices.visible(records(data["mcp"])) }
-    val startup by vm.mcpCatalog.startup.collectAsState()
-    val epoch by vm.bridge.connectedSession.collectAsState()
+    val startup by vm.mcpCatalog.startup.collectAsStateWithLifecycle()
+    val epoch by vm.bridge.connectedSession.collectAsStateWithLifecycle()
     val receipts = remember(startup, epoch, activeThread) {
         startup.filter { it.epoch == epoch && it.name != ModelPreviewMcpServer.NAME && (it.thread == null || it.thread == activeThread) }
     }

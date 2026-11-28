@@ -23,6 +23,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** 本地附件全屏查看：保留真实图片、支持缩放、平移、切换和移除。 */
 @Composable
@@ -52,7 +53,7 @@ private fun AttachmentPreviewContent(paths: List<String>, path: String,
     var scale by remember(path) { mutableFloatStateOf(1f) }
     var offset by remember(path) { mutableStateOf(Offset.Zero) }
     var animateZoom by remember(path) { mutableStateOf(false) }
-    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val renderedScale by animateFloatAsState(scale,
         animationSpec = if (animateZoom && !reduced) tween(CodexMotion.imageZoom) else snap(), label = "attachment-scale")
     val renderedOffset by animateOffsetAsState(offset,

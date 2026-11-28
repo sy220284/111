@@ -41,15 +41,15 @@ class CodexApplication : Application() {
             foreground.value = true
         }
         override fun onActivityResumed(activity: Activity) {
-            // Resume a verified install at the process boundary; the Activity only
-            // renders UI and never owns the long-running download/patch operation.
-            AppUpdateManager.resumeInstall(activity)
             if (holder.isInitialized()) {
                 holder.value.reconnectIfNeeded()
                 holder.value.sessions.refreshIfStale()
                 holder.value.accountMetrics.foreground(true)
                 holder.value.extensions.refreshAfterAppAuthorization()
             }
+        }
+        override fun onActivityPostResumed(activity: Activity) {
+            AppUpdateManager.resumeInstall(activity)
         }
         override fun onActivityPaused(activity: Activity) {}
         override fun onActivityStopped(activity: Activity) {
@@ -77,11 +77,7 @@ class CodexApplication : Application() {
                 maintenance.launch(Dispatchers.IO) {
                     delay(retryAfter)
                     try {
-                        val currentCode =
-                            packageManager.getPackageInfo(packageName, 0).longVersionCode
-                        UpdateCache.cleanupStale(
-                            cacheDir, currentCode, System.currentTimeMillis()
-                        )
+                        AppUpdateManager.cleanupRetiredInstallerCache(this@CodexApplication)
                     } catch (error: Exception) {
                         Log.e("CodexUpdateCache", "延迟清理安装交接缓存失败", error)
                     }

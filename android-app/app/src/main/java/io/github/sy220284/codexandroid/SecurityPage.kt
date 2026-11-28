@@ -8,6 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** Only three permission choices, in the composer; saving survives closing the popup. */
 @Composable
@@ -16,9 +17,9 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean,
     val data by vm.data.collectEntries("composerPermissionWorkspace", "composerPermissionConfig", "permissionProfiles", "securityRequirements")
     val loading by vm.loading.collectProjection { it.intersect(setOf("config", ENGINE_SETTING_SAVE, "appMutation", "skillsWrite", "configWrite", "modelProviderWrite", "composerPermissionConfig", "securityRequirements", "permissionProfiles")) }
     val errors by vm.errors.collectEntries("securitySave")
-    val saving by vm.securitySaveBusy.collectAsState()
-    val status by vm.bridge.status.collectAsState()
-    val workspace by vm.activeWorkspace.collectAsState()
+    val saving by vm.securitySaveBusy.collectAsStateWithLifecycle()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
+    val workspace by vm.activeWorkspace.collectAsStateWithLifecycle()
     var confirmFull by remember(workspace) { mutableStateOf(false) }
     val currentWorkspace = data["composerPermissionWorkspace"]?.optString("cwd") == workspace
     val isolated = AnswerWorkspaceStore.isolated(java.io.File(vm.workingDirectory), workspace)

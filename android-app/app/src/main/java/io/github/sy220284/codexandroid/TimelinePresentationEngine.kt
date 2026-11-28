@@ -1,6 +1,10 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.runtime.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.conflate
@@ -116,26 +120,29 @@ internal class TimelinePresentationEngine {
 @Composable
 internal fun collectTimelinePresentation(vm: CodexViewModel, thread: String?,
     hasEarlier: Boolean): State<TimelinePresentation?> {
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
     val earlier by rememberUpdatedState(hasEarlier)
-    val session = vm.bridge.connectedSession.collectAsState().value
-    val account = vm.catalogWarmup.accountRevision.collectAsState().value
+    val session = vm.bridge.connectedSession.collectAsStateWithLifecycle().value
+    val account = vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle().value
     return key(vm, thread, session, account) {
-        produceCodexUiState<TimelinePresentation?>(null, vm, thread, session, account) {
+        produceCodexUiState<TimelinePresentation?>(null, vm, thread, session, account, lifecycle) {
             val engine = TimelinePresentationEngine()
             // Conflate immutable inputs; one frame gate after preparation avoids double cadence.
-            combine(vm.conversationState, snapshotFlow { earlier }) { frame, older -> frame to older }
-                .conflate().collect { (snapshot, older) ->
-                if (snapshot.threadId != thread) value = null
-                else {
-                    val epoch = vm.timelineEpoch
-                    val prepared = withContext(Dispatchers.Default) { engine.project(snapshot, older) }
-                    fun owns() = vm.conversationState.value.threadId == thread &&
-                        vm.timelineEpoch == epoch && vm.bridge.connectedSession.value == session &&
-                        vm.catalogWarmup.accountRevision.value == account
-                    if (owns()) {
-                        withFrameNanos { }
-                        value = if (owns()) prepared else null
-                    } else value = null
+            lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                combine(vm.conversationState, snapshotFlow { earlier }) { frame, older -> frame to older }
+                    .conflate().collect { (snapshot, older) ->
+                        if (snapshot.threadId != thread) value = null
+                        else {
+                            val epoch = vm.timelineEpoch
+                            val prepared = withContext(Dispatchers.Default) { engine.project(snapshot, older) }
+                            fun owns() = vm.conversationState.value.threadId == thread &&
+                                vm.timelineEpoch == epoch && vm.bridge.connectedSession.value == session &&
+                                vm.catalogWarmup.accountRevision.value == account
+                            if (owns()) {
+                                withFrameNanos { }
+                                value = if (owns()) prepared else null
+                            } else value = null
+                        }
                 }
             }
         }

@@ -15,6 +15,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 /**
@@ -26,11 +27,11 @@ import org.json.JSONObject
 fun EngineStatusSheet(
     vm: CodexViewModel, onDismiss: () -> Unit, navigate: (String) -> Unit
 ) {
-    val status by vm.bridge.status.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     val terminalRunning by vm.terminalSession.collectProjection { it.running }
-    val retirement by vm.bridge.retirementBusy.collectAsState()
-    val retry by vm.recoveryDelayMs.collectAsState()
-    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val retirement by vm.bridge.retirementBusy.collectAsStateWithLifecycle()
+    val retry by vm.recoveryDelayMs.collectAsStateWithLifecycle()
+    val restarting by vm.connectionRestarter.busy.collectAsStateWithLifecycle()
     CodexDetailSheet(title = "运行状态", onDismiss = onDismiss) {
         val label = RuntimeStatusPresentation.label(status, retirement, restarting, retry)
         StatusPill(label, tone = if (status == EngineStatus.Connected) StatusTone.Success else StatusTone.Warning)
@@ -55,10 +56,10 @@ fun EngineStatusSheet(
 
 @Composable
 fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
-    val active by vm.activeThread.collectAsState()
-    val workspace by vm.activeWorkspace.collectAsState()
-    val threadProvider by vm.activeModelProvider.collectAsState()
-    val agentWorkspace by vm.agentDraftWorkspace.collectAsState()
+    val active by vm.activeThread.collectAsStateWithLifecycle()
+    val workspace by vm.activeWorkspace.collectAsStateWithLifecycle()
+    val threadProvider by vm.activeModelProvider.collectAsStateWithLifecycle()
+    val agentWorkspace by vm.agentDraftWorkspace.collectAsStateWithLifecycle()
     val owner = if (active == null && agentWorkspace == workspace) ThreadComposerDrafts.agentKey(workspace)
         else ThreadComposerDrafts.key(active, workspace)
     val drafts by vm.composerDrafts.collectEntries(owner)
@@ -74,14 +75,14 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
     val scopedProvider = targetProvider ?: if (active != null) currentProvider else draftProvider
     val catalogKey = ComposerProviderScope.catalogKey(scopedProvider)
     val models by vm.data.collectEntries(catalogKey)
-    val running by vm.running.collectAsState()
-    val creating by vm.firstThreadStarting.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
-    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val running by vm.running.collectAsStateWithLifecycle()
+    val creating by vm.firstThreadStarting.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
+    val restarting by vm.connectionRestarter.busy.collectAsStateWithLifecycle()
     val transfer by AppDataTransfer.state.collectProjection { it.busy }
     val loading by vm.loading.collectProjection { catalogKey in it }
     val errors by vm.errors.collectEntries(catalogKey)
-    val engineStatus by vm.bridge.status.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
     val connected = engineStatus == EngineStatus.Connected
     LaunchedEffect(engineStatus, owner, scopedProvider, providerData["providers"]?.optString("defaultProviderId")) {
         if (connected) {
@@ -209,15 +210,15 @@ fun ModelChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss:
 
 @Composable
 fun ModeChoiceSurface(vm: CodexViewModel, anchored: Boolean = false, onDismiss: () -> Unit) {
-    val selected by vm.selectedMode.collectAsState()
+    val selected by vm.selectedMode.collectAsStateWithLifecycle()
     val data by vm.data.collectEntries("modes")
-    val running by vm.running.collectAsState()
-    val creating by vm.firstThreadStarting.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
+    val running by vm.running.collectAsStateWithLifecycle()
+    val creating by vm.firstThreadStarting.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
     val busy = running || creating || switching
     val loading by vm.loading.collectProjection { it.intersect(setOf("modes")) }
     val errors by vm.errors.collectEntries("modes")
-    val status by vm.bridge.status.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     LaunchedEffect(status) {
         if (status == EngineStatus.Connected)
             vm.refresh("modes", "collaborationMode/list")
@@ -271,7 +272,7 @@ fun RequiresThreadPanel(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AboutInfoSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val status by vm.bridge.status.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     var copied by remember { mutableStateOf(false) }
     val context = androidx.compose.ui.platform.LocalContext.current

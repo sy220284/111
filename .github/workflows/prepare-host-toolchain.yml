@@ -22,7 +22,7 @@ jobs:
     outputs:
       key: ${{ steps.key.outputs.key }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 0
@@ -48,7 +48,7 @@ jobs:
       descriptor: ${{ steps.restore.outputs.descriptor || steps.emit.outputs.descriptor }}
     timeout-minutes: 80
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 0
@@ -59,20 +59,17 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           HOST_KEY: ${{ needs.fingerprint.outputs.key }}
         run: python3 tools/dev/ci_host.py restore --group android --key "$HOST_KEY"
-      - uses: actions/setup-java@cf277c60eb25467037889841efdb72551f06f6c3
+      - name: 安装固定 JDK 和 Python
         if: steps.restore.outputs.reused != 'true'
-        with:
-          distribution: temurin
-          java-version: "17"
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" jdk python
       - name: 准备独立 SDK 与 Gradle 缓存
         if: steps.restore.outputs.reused != 'true'
         run: |
           set -euo pipefail
-          SDK_MANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager -print -quit)"
-          "$SDK_MANAGER" "platforms;android-35" "build-tools;35.0.0" "platforms;android-36" "build-tools;36.0.0" "ndk;27.2.12479018" "platform-tools"
+          python3 tools/build/platform_toolchain.py sdk "$ANDROID_HOME" developer-android
           mkdir -p "$RUNNER_TEMP/gradle-home" "$RUNNER_TEMP/stage/android-sdk" "$RUNNER_TEMP/stage/gradle" "$RUNNER_TEMP/bundles"
           echo "GRADLE_USER_HOME=$RUNNER_TEMP/gradle-home" >> "$GITHUB_ENV"
-          printf '%s  %s\n' 2db75c40782f5e8ba1fc278a5574bab070adccb2d21ca5a6e5ed840888448046 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
+          printf '%s  %s\n' 621008afc4f5d59357fcf06ffa644dd5aade5e091bdc363742710445f73cdaf8 android-app/gradle/wrapper/gradle-wrapper.jar | sha256sum -c -
       - name: 验证已提交的 Gradle 依赖基线与所有 Android 变体
         if: steps.restore.outputs.reused != 'true'
         run: |
@@ -86,7 +83,7 @@ jobs:
           ./android-app/gradlew -p android-app "${tasks[@]}" -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --dependency-verification strict --no-daemon --stacktrace --info
           git diff --exit-code -- android-app/app/gradle.lockfile android-app/gradle/verification-metadata.xml
           echo "committed" > "$RUNNER_TEMP/baseline-status"
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.restore.outputs.reused != 'true'
         with:
           name: 111-toolchain-gradle-dependency-baseline
@@ -100,7 +97,8 @@ jobs:
           set -euo pipefail
           cp -aL "$JAVA_HOME" "$RUNNER_TEMP/stage/jdk"
           SDK="$RUNNER_TEMP/stage/android-sdk"
-          for path in platforms/android-35 platforms/android-36 build-tools/35.0.0 build-tools/36.0.0 ndk/27.2.12479018 platform-tools licenses cmdline-tools; do
+          mapfile -t packages < <(PYTHONPATH=tools/build python3 -c 'import platform_toolchain as p; print(*(p.ANDROID[n]["package"].replace(";", "/") for n in p.PROFILES["developer-android"]), sep="\n")')
+          for path in "${packages[@]}" licenses; do
             mkdir -p "$SDK/$(dirname "$path")"
             cp -a "$ANDROID_HOME/$path" "$SDK/$path"
           done
@@ -138,7 +136,7 @@ jobs:
           test -s android-app/app/build/outputs/apk/debug/app-debug.apk
           test -s android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           test -s android-app/app/build/outputs/apk/release/app-release.apk
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.restore.outputs.reused != 'true'
         id: upload-jdk
         with:
@@ -147,7 +145,7 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 90
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.restore.outputs.reused != 'true'
         id: upload-android-sdk
         with:
@@ -156,7 +154,7 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 90
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.restore.outputs.reused != 'true'
         id: upload-gradle
         with:
@@ -165,7 +163,7 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 90
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.restore.outputs.reused != 'true'
         id: upload-pins
         with:
@@ -206,7 +204,7 @@ jobs:
       descriptor: ${{ steps.restore.outputs.descriptor || steps.emit.outputs.descriptor }}
     timeout-minutes: 80
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
           fetch-depth: 0
@@ -269,7 +267,7 @@ jobs:
               "CARGO_HOME=$CARGO_HOME" "RUSTC=$RUSTC" "RUSTDOC=$RUSTDOC" "CARGO_NET_OFFLINE=true" \
               "$(command -v cargo)" fetch --locked --offline --target "$target"
           done
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.restore.outputs.reused != 'true'
         id: upload-rust
         with:
@@ -278,7 +276,7 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 90
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.restore.outputs.reused != 'true'
         id: upload-cargo
         with:
@@ -287,7 +285,7 @@ jobs:
           compression-level: 0
           if-no-files-found: error
           retention-days: 90
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: steps.restore.outputs.reused != 'true'
         id: upload-pins
         with:

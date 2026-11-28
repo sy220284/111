@@ -24,6 +24,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 
 class MainActivity : ComponentActivity() {
@@ -127,7 +128,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT)
         )
         setContent {
-            val dark by UiPreferences.darkMode.collectAsState()
+            val dark by UiPreferences.darkMode.collectAsStateWithLifecycle()
             LaunchedEffect(dark) {
                 enableEdgeToEdge(
                     statusBarStyle = if (dark)

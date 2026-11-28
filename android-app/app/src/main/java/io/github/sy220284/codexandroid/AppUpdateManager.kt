@@ -7,9 +7,10 @@ import android.content.Intent
 import android.content.ClipData
 import android.content.pm.ApplicationInfo
 import android.net.Uri
-import android.os.Build
 import android.provider.Settings
+import androidx.activity.ComponentActivity
 import androidx.core.content.FileProvider
+import androidx.lifecycle.Lifecycle
 import com.github.sisong.HPatch
 import java.io.File
 import java.io.FileOutputStream
@@ -20,6 +21,7 @@ import java.net.URL
 import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -32,7 +34,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.json.JSONObject
 
 internal enum class UpdatePhase {
-    IDLE, CHECKING, DOWNLOADING, PATCHING, READY, UP_TO_DATE, NEEDS_PERMISSION, INSTALLING, ERROR
+    IDLE, CHECKING, DOWNLOADING, PATCHING, VERIFYING_INSTALL, READY, UP_TO_DATE, NEEDS_PERMISSION, INSTALLING, ERROR
 }
 
 internal data class AppUpdateState(
@@ -57,22 +59,40 @@ internal object AppUpdateManager {
     private val mutableState = MutableStateFlow(AppUpdateState())
     val state = mutableState.asStateFlow()
 
-    @Volatile private var readyApk: File? = null
-    @Volatile private var readySha: String? = null
-    @Volatile private var readyVersionCode: Long? = null
+    private data class PreparedUpdate(
+        val file: File,
+        val sha256: String,
+        val version: String,
+        val versionCode: Long,
+    )
+
+    @Volatile private var prepared: PreparedUpdate? = null
     @Volatile private var waitingForPermission = false
+    // Both download and installation recheck own the staging directory until
+    // their finally blocks have completed, including while cancellation unwinds.
     private var task: Job? = null
 
     @Synchronized
+    private fun startOperation(block: suspend CoroutineScope.() -> Unit) {
+        if (task?.isCompleted == false) return
+        val job = scope.launch(start = CoroutineStart.LAZY, block = block)
+        task = job
+        job.start()
+    }
+
+    @Synchronized
+    fun cleanupRetiredInstallerCache(app: Context) {
+        if (task?.isCompleted == false || prepared != null) return
+        val version = app.packageManager.getPackageInfo(app.packageName, 0).longVersionCode
+        UpdateCache.cleanupStale(app.cacheDir, version, System.currentTimeMillis())
+    }
+
     fun checkAndDownload(activity: Activity) {
-        if (task?.isActive == true) return
         val app = activity.applicationContext
         val owner = WeakReference(activity)
-        readyApk = null
-        readySha = null
-        readyVersionCode = null
-        waitingForPermission = false
-        task = scope.launch {
+        startOperation {
+            prepared = null
+            waitingForPermission = false
             var temporary: File? = null
             var recovered: File? = null
             var stagingRoot: File? = null
@@ -106,7 +126,7 @@ internal object AppUpdateManager {
                 require(tag == "v${manifest.targetVersion}") { "发布标签与更新清单不一致" }
                 if (!manifest.isNewer(installedCode)) {
                     set(UpdatePhase.UP_TO_DATE, "已经是最新版本（$installedVersion）", version = installedVersion)
-                    return@launch
+                    return@startOperation
                 }
                 val apkUrl = urls[manifest.apk.name]
                     ?: throw IOException("正式版 APK 下载地址缺失")
@@ -168,27 +188,28 @@ internal object AppUpdateManager {
                         manifest.targetVersion, false)
                     commit(temporary, output)
                 }
-                verifyInstalledSigner(app, output)
-                readyApk = output
-                readySha = manifest.apk.sha256
-                readyVersionCode = requireNotNull(UpdateManifest.versionCode(manifest.targetVersion))
+                val candidate = PreparedUpdate(output, manifest.apk.sha256, manifest.targetVersion,
+                    requireNotNull(UpdateManifest.versionCode(manifest.targetVersion)))
+                verifyInstalledPackage(app, candidate)
+                currentCoroutineContext().ensureActive()
+                prepared = candidate
                 mutableState.value = AppUpdateState(
                     UpdatePhase.READY,
                     (if (deltaUsed) "增量更新已完成。" else fallbackNotice) +
                         "版本 ${manifest.targetVersion} 已校验，准备安装。",
                     100, manifest.targetVersion, deltaUsed
                 )
-                val activeActivity = owner.get()
-                if (activeActivity != null && !activeActivity.isFinishing &&
-                    !activeActivity.isDestroyed) {
-                    withContext(Dispatchers.Main) { requestSystemInstall(activeActivity) }
+                withContext(Dispatchers.Main) {
+                    owner.get()?.let { requestSystemInstall(it, candidate) }
                 }
             } catch (e: CancellationException) {
-                if (readyApk == null) stagingRoot?.let(UpdateCache::discard)
-                set(UpdatePhase.IDLE, "更新已取消。")
+                if (prepared == null) {
+                    stagingRoot?.let(UpdateCache::discard)
+                    set(UpdatePhase.IDLE, "更新已取消。", version = "")
+                }
                 throw e
             } catch (e: Exception) {
-                if (readyApk == null) stagingRoot?.let(UpdateCache::discard)
+                if (prepared == null) stagingRoot?.let(UpdateCache::discard)
                 set(UpdatePhase.ERROR, "更新失败：${e.message ?: e.javaClass.simpleName}")
             } finally {
                 temporary?.delete()
@@ -202,30 +223,22 @@ internal object AppUpdateManager {
     }
 
     fun install(activity: Activity) {
-        // The installer replaces the whole application process. Check all live
-        // sessions, including background turns, not only the visible chat.
-        val current = (activity.application as CodexApplication).session.globalWorkSnapshot()
-        if (!current.canDisruptCoreOrData) {
-            set(UpdatePhase.READY, current.blockReason + "；安装包已保留")
-            return
-        }
-        val file = readyApk ?: return
-        val hash = readySha ?: return
-        scope.launch {
+        startOperation {
+            val candidate = prepared ?: return@startOperation
+            waitingForPermission = false
             try {
-                if (!file.isFile || !sha256(file).equals(hash, ignoreCase = true)) {
+                set(UpdatePhase.VERIFYING_INSTALL, "正在复核安装包…")
+                if (!candidate.file.isFile || !sha256(candidate.file).equals(candidate.sha256, ignoreCase = true)) {
                     throw IOException("安装包缓存校验失败，请重新检查更新")
                 }
-                verifyInstalledSigner(activity.applicationContext, file)
-                withContext(Dispatchers.Main) {
-                    val latest = (activity.application as CodexApplication).session.globalWorkSnapshot()
-                    if (latest.canDisruptCoreOrData) {
-                        requestSystemInstall(activity)
-                    } else {
-                        set(UpdatePhase.READY, latest.blockReason + "；安装包已保留")
-                    }
-                }
+                verifyInstalledPackage(activity.applicationContext, candidate)
+                withContext(Dispatchers.Main) { requestSystemInstall(activity, candidate) }
+            } catch (e: CancellationException) {
+                set(UpdatePhase.READY, "已取消安装准备，安装包已保留。")
+                throw e
             } catch (e: Exception) {
+                prepared = null
+                waitingForPermission = false
                 set(UpdatePhase.ERROR, "安装准备失败：" + (e.message ?: "请检查系统授权"))
             }
         }
@@ -233,15 +246,26 @@ internal object AppUpdateManager {
 
     /** 用户从系统“允许安装未知应用”页返回后继续安装。 */
     fun resumeInstall(activity: Activity) {
-        if (waitingForPermission && activity.packageManager.canRequestPackageInstalls()) {
-            waitingForPermission = false
-            install(activity)
-        }
+        if (waitingForPermission && activity.packageManager.canRequestPackageInstalls()) install(activity)
     }
 
-    private fun requestSystemInstall(activity: Activity) {
-        val file = readyApk ?: return
-        val targetVersionCode = readyVersionCode ?: return
+    // All install triggers finish here on Main. Keep the verified package until
+    // the user can launch the installer from a resumed activity with no live work.
+    private fun requestSystemInstall(activity: Activity, candidate: PreparedUpdate) {
+        val lifecycle = (activity as? ComponentActivity)?.lifecycle
+        if (activity.isFinishing || activity.isDestroyed || lifecycle?.currentState != Lifecycle.State.RESUMED) {
+            if (state.value.phase == UpdatePhase.VERIFYING_INSTALL) {
+                set(UpdatePhase.READY, "安装包已复核，回到设置后可继续安装。")
+            }
+            return
+        }
+        val work = (activity.application as CodexApplication).session.globalWorkSnapshot()
+        if (!work.canDisruptCoreOrData) {
+            set(UpdatePhase.READY, work.blockReason + "；安装包已保留")
+            return
+        }
+        val file = candidate.file
+        val targetVersionCode = candidate.versionCode
         val app = activity.applicationContext
         if (!activity.packageManager.canRequestPackageInstalls()) {
             waitingForPermission = true
@@ -318,14 +342,14 @@ internal object AppUpdateManager {
         }
     }
 
-    private fun readSmall(url: URL): String {
+    private suspend fun readSmall(url: URL): String {
         val conn = connection(url)
         try {
             conn.inputStream.use { stream ->
                 val output = java.io.ByteArrayOutputStream()
                 val bytes = ByteArray(8192)
                 while (true) {
-                    currentCoroutineCheck()
+                    currentCoroutineContext().ensureActive()
                     val count = stream.read(bytes)
                     if (count < 0) break
                     if (output.size() + count > MAX_JSON_BYTES) {
@@ -383,11 +407,11 @@ internal object AppUpdateManager {
      * application. Android verifies this again at installation time; checking
      * now gives the user an actionable error before showing the system installer.
      */
-    private fun verifyInstalledSigner(app: Context, apk: File) {
+    private fun verifyInstalledPackage(app: Context, update: PreparedUpdate) {
         val pm = app.packageManager
         val flags = PackageManager.GET_SIGNING_CERTIFICATES
         val installed = pm.getPackageInfo(app.packageName, flags)
-        val incoming = pm.getPackageArchiveInfo(apk.absolutePath, flags)
+        val incoming = pm.getPackageArchiveInfo(update.file.absolutePath, flags)
             ?: throw IOException("更新包无法识别或签名不完整")
         val active = installed.signingInfo?.apkContentsSigners.orEmpty()
             .map { hex(MessageDigest.getInstance("SHA-256").digest(it.toByteArray())) }.toSet()
@@ -396,9 +420,13 @@ internal object AppUpdateManager {
         if (!InstallSignaturePolicy.accepts(app.packageName, incoming.packageName, active, proposed)) {
             throw IOException("更新包应用身份或发布签名与当前安装版本不一致，请勿安装")
         }
+        if (!UpdateManifest.matchesUpgrade(update.version, update.versionCode,
+                incoming.versionName, incoming.longVersionCode, installed.longVersionCode)) {
+            throw IOException("更新包的实际版本与发布清单不符，或该版本已经安装")
+        }
     }
 
-    private fun verify(file: File, asset: UpdateAsset) {
+    private suspend fun verify(file: File, asset: UpdateAsset) {
         require(file.length() == asset.size &&
             sha256(file).equals(asset.sha256, ignoreCase = true)) {
             "恢复后的 APK 与正式签名发布文件不一致"
@@ -410,12 +438,12 @@ internal object AppUpdateManager {
         if (!source.renameTo(output)) throw IOException("无法保存校验后的 APK")
     }
 
-    private fun sha256(file: File): String {
+    private suspend fun sha256(file: File): String {
         val digest = MessageDigest.getInstance("SHA-256")
         file.inputStream().use { stream ->
             val bytes = ByteArray(128 * 1024)
             while (true) {
-                currentCoroutineCheck()
+                currentCoroutineContext().ensureActive()
                 val count = stream.read(bytes)
                 if (count < 0) break
                 digest.update(bytes, 0, count)
@@ -426,9 +454,4 @@ internal object AppUpdateManager {
 
     private fun hex(bytes: ByteArray): String =
         bytes.joinToString("") { "%02x".format(it.toInt() and 255) }
-
-    // 文件摘要也会在非 suspend 的安装检查中使用。
-    private fun currentCoroutineCheck() {
-        if (Thread.currentThread().isInterrupted) throw IOException("任务被中断")
-    }
 }

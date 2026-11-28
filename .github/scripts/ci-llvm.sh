@@ -1,28 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-PACKAGES=(clang-21 libclang-21-dev llvm-21 lld-21 ninja-build pkg-config libssl-dev)
-missing=()
-for p in "${PACKAGES[@]}"; do
-  if ! dpkg-query -W -f='${db:Status-Abbrev}' "$p" 2>/dev/null | grep -q '^ii '; then missing+=("$p"); fi
-done
-if [ "${#missing[@]}" -gt 0 ]; then
-  sudo apt-get update
-  if ! apt-cache policy clang-21 | grep -Eq 'Candidate: [^ (]'; then
-    key="$(mktemp)"
-    trap 'rm -f "$key"' EXIT
-    curl --fail --location --retry 3 https://apt.llvm.org/llvm-snapshot.gpg.key -o "$key"
-    fingerprint="$(gpg --batch --with-colons --show-keys "$key" | awk -F: '$1=="fpr" && !found {print $10; found=1}')"
-    test "$fingerprint" = 6084F3CF814B57C1CF12EFD515CF4D18AF4F7421
-    sudo install -m 0644 "$key" /usr/share/keyrings/111-llvm-snapshot.asc
-    echo 'deb [signed-by=/usr/share/keyrings/111-llvm-snapshot.asc] https://apt.llvm.org/noble/ llvm-toolchain-noble-21 main' | sudo tee /etc/apt/sources.list.d/111-llvm.list >/dev/null
-    sudo apt-get update
-  fi
-  sudo apt-get install -y --no-install-recommends "${missing[@]}"
-fi
-LLVM=/usr/lib/llvm-21
-"$LLVM/bin/clang" --version | grep -E 'clang version 21\.'
+python3 tools/build/native_toolchain.py install
+LLVM="/usr/lib/llvm-$(python3 -c 'import json; print(json.load(open("tools/build/native-toolchain.json"))["llvmMajor"])')"
+"$LLVM/bin/clang" --version
 test -s "$LLVM/lib/libclang.so"
-command -v ninja
-command -v pkg-config
+# Prefer the very binaries in the pinned signed packages over Runner aliases.
+TOOLS="$(mktemp -d "$RUNNER_TEMP/111-native-tools.XXXXXX")"
+for tool in ninja cmake pkg-config openssl; do
+  ln -s "/usr/bin/$tool" "$TOOLS/$tool"
+  if [ "$tool" = openssl ]; then "$TOOLS/$tool" version; else "$TOOLS/$tool" --version; fi
+done
 printf 'LLVM_HOME=%s\nLIBCLANG_PATH=%s/lib\n' "$LLVM" "$LLVM" >> "$GITHUB_ENV"
-printf '%s/bin\n' "$LLVM" >> "$GITHUB_PATH"
+printf '%s/bin\n%s\n' "$LLVM" "$TOOLS" >> "$GITHUB_PATH"

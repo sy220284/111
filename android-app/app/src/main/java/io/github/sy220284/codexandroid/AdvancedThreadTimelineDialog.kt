@@ -12,15 +12,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 /** 历史窗口内的实验时间线内容，复用同一原生窗口、分页与完整条目。 */
 @Composable
 fun AdvancedThreadTimelineDialog(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val thread by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val thread by vm.activeThread.collectAsStateWithLifecycle()
+    val data by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
     var page by remember(thread) { mutableIntStateOf(0) }
     val prefix = "advancedTimeline:" + (thread ?: "none") + ":"
     val currentKey = prefix + page

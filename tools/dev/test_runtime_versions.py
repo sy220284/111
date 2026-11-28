@@ -33,9 +33,37 @@ class RuntimeVersionTests(unittest.TestCase):
         for version in ("15.2.0", "16.0.1", "16.0.0-1"):
             with self.subTest(version=version), tempfile.TemporaryDirectory() as directory:
                 root = pathlib.Path(directory)
-                self.fixture(root, "x86_64", rg=version)
-                with self.assertRaisesRegex(ValueError, "expected 16.0.0, actual"):
-                    m.verify_versions(root, "x86_64")
+                for abi in ("arm64-v8a", "x86_64"):
+                    target = root / abi
+                    self.fixture(target, abi, rg=version)
+                    with self.assertRaisesRegex(ValueError, "expected 16.0.0, actual"):
+                        m.verify_versions(target, abi)
+
+class TermuxPackageLockTests(unittest.TestCase):
+    def test_reports_all_signed_package_changes_and_rejects_them(self):
+        from unittest.mock import patch
+        path = p.with_name("termux_package_lock.py")
+        spec = importlib.util.spec_from_file_location("termux_package_lock", path)
+        verifier = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(verifier)
+        locked = {"selection": {"x86_64": {"node": ["a", "b"]}},
+                  "packages": {"x86_64": {
+                      name: {"version": "1", "file": f"pool/{name}.deb", "sha256": "a"*64}
+                      for name in ("a", "b")}}}
+        with tempfile.TemporaryDirectory() as directory:
+            root = pathlib.Path(directory)
+            lock = root / "lock.json"
+            lock.write_text(json.dumps(locked))
+            index = root / "Packages"
+            index.write_text("Package: a\nVersion: 2\nFilename: pool/a.deb\nSHA256: "
+                             + "b"*64 + "\n\n")
+            with patch.object(verifier, "LOCK", lock):
+                with self.assertRaises(ValueError) as caught:
+                    verifier.verify("node", "x86_64", index, ["a", "b"])
+                report = json.loads(str(caught.exception).split("changed: ", 1)[1])
+                self.assertEqual(report["a"]["signedIndex"]["version"], "2")
+                self.assertIsNone(report["b"]["signedIndex"])
+                self.assertEqual(report["b"]["locked"]["version"], "1")
 
 if __name__ == "__main__":
     unittest.main()

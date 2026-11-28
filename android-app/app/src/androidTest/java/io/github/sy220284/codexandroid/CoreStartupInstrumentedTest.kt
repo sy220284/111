@@ -143,12 +143,16 @@ class CoreStartupInstrumentedTest {
         val secret = File(root, "outside.bin").apply { writeText("outside workspace") }
         android.system.Os.symlink(secret.absolutePath, File(workspace, "escape.bin").absolutePath)
         val port = ServerSocket(0).use { it.localPort }
-        val executable = File(app.applicationInfo.nativeLibraryDir, "libcodex_server.so")
+        // The upstream App Server accepts its own options, not the full Codex CLI subcommands.
+        val executable = File(app.applicationInfo.nativeLibraryDir, "libcodex_test_executor.so")
+        check(executable.isFile && executable.canExecute()) { "缺少独立调试执行器：${executable.absolutePath}" }
         val log = File(root, "executor.log")
-        val executor = ProcessBuilder(executable.absolutePath, "exec-server", "--listen", "ws://127.0.0.1:$port")
+        val executor = ProcessBuilder(executable.absolutePath, "--listen", "ws://127.0.0.1:$port")
             .directory(workspace).redirectErrorStream(true).redirectOutput(log).apply {
                 environment()["CODEX_HOME"] = home.absolutePath
                 environment()["HOME"] = home.absolutePath
+                environment()["TMPDIR"] = root.absolutePath
+                environment()["LD_LIBRARY_PATH"] = app.applicationInfo.nativeLibraryDir
                 environment()["SHELL"] = "/system/bin/sh"
             }.start()
         val bridge = CodexConnection(app)
@@ -620,7 +624,7 @@ class CoreStartupInstrumentedTest {
     @Test fun bundledDeveloperToolsActuallyExecute() {
         val app = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext
         val tools = NativeToolInstaller.prepare(app)
-        val ripgrepVersion = if (Build.SUPPORTED_ABIS.firstOrNull() == "x86_64") "16.0.0" else "15.2.0"
+        val ripgrepVersion = "16.0.0"
         val command = """set -e
             case ":${'$'}PATH:" in *":${'$'}PYTHONUSERBASE/bin:"*) ;; *) exit 91 ;; esac
             case ":${'$'}PATH:" in *":${'$'}npm_config_prefix/bin:"*) ;; *) exit 92 ;; esac
@@ -637,7 +641,7 @@ class CoreStartupInstrumentedTest {
             pip --version | grep -F 26.3
             node --version | grep -F 26.13.1
             node -e 'if (require("node:crypto").createHash("sha256").update("111").digest("hex").length !== 64) process.exit(1)'
-            npm --version | grep -x 11.6.2
+            npm --version | grep -x 12.2.3
             printf developer-runtime-ok
         """.trimIndent()
         val process = ProcessBuilder("/system/bin/sh", "-c", command)

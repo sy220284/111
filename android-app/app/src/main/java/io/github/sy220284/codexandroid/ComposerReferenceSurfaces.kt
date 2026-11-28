@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
@@ -109,7 +110,7 @@ internal fun ComposerSkillSheet(vm: CodexViewModel, workspace: String, onSelect:
     val data by vm.data.collectEntries(key)
     val errors by vm.errors.collectEntries(key)
     val loading by vm.loading.collectProjection { it.intersect(setOf(key, "skillsWrite")) }
-    val status by vm.bridge.status.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     fun reload() = vm.extensions.refreshSkills(workspace)
     LaunchedEffect(workspace, status) { if (status == EngineStatus.Connected) reload() }
     val skills = records(data[key]).flatMap { group ->

@@ -15,7 +15,7 @@ from build_recipe import job_recipe
 WORKFLOWS = {".github/workflows/dev-toolchain.yml"}
 # Keep actual production and verification inputs, not download/monitoring consumers.
 RECIPE = ("tools/build/component-bundle.py", "tools/dev/host_components.py",
-          "tools/dev/toolchain-lock.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py")
+          "tools/dev/toolchain-lock.json", "tools/build/platform_toolchain.py", "tools/build/platform-toolchain.json", "tools/dev/run-without-network.sh", "tools/dev/ai-toolchain.py")
 HEX = re.compile(r"[0-9a-f]{64}")
 SHA = re.compile(r"[0-9a-f]{40}")
 
@@ -30,9 +30,11 @@ def key(group, source="HEAD"):
     elif group == "rust":
         paths += ["upstream/codex/codex-rs", "upstream/codex/.cargo", "android-app/tools/prepare_android_mxc.py"]
     else:
-        paths += ["tools/dev/auxiliary.py"]
+        paths += ["tools/dev/auxiliary.py","tools/dev/portable_host.py"]
+        if group=="node": paths += ["tools/runtime/npm_archive.py","tools/runtime/npm-lock.json","tools/runtime/runtime-lock.json"]
+        if group=="llvm": paths += ["tools/build/native_toolchain.py","tools/build/native-toolchain.json"]
         if group=="wheelhouse":
-            paths += ["tools/dev/requirements-host.lock","android-app/tools/requirements-ui-visual.txt","upstream/codex/.github/actions/publish-dotslash/requirements.txt"]
+            paths += [".github/ci/requirements.lock","android-app/tools/requirements-ui-visual.txt","upstream/codex/.github/actions/publish-dotslash/requirements.txt"]
         if group=="emulator": paths += ["android-app/tools/device-matrix.json","android-app/tools/device_matrix.py","tools/build/run-emulator.sh",".github/actions/run-emulator"]
         if group=="patcher": paths += [".github/scripts/prepare-android-patcher.sh",".github/scripts/create-android-update-fixture.sh"]
     raw=subprocess.check_output(["git","ls-tree","-r","-z",source,"--",*paths])

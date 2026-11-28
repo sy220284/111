@@ -34,6 +34,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -97,12 +98,12 @@ fun ScreenColumn(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val compact by UiPreferences.compact.collectAsState()
+    val compact by UiPreferences.compact.collectAsStateWithLifecycle()
     BoxWithConstraints(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         val spacing = CodexViewportPolicy.pageSpacing(maxWidth.value.coerceAtLeast(1f),
             maxHeight.value.coerceAtLeast(1f), compact)
         Column(
-            modifier = Modifier.fillMaxHeight().widthIn(max = 840.dp).fillMaxWidth()
+            modifier = Modifier.fillMaxHeight().widthIn(max = CodexContentMaxWidth).fillMaxWidth()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = spacing.horizontal.dp, vertical = spacing.vertical.dp),
             verticalArrangement = Arrangement.spacedBy(spacing.gap.dp),
@@ -156,10 +157,10 @@ fun ErrorText(error: String) {
 
 @Composable
 fun CatalogPage(page: Page, vm: CodexViewModel) {
-    val result by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val engineStatus by vm.bridge.status.collectAsState()
+    val result by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
     val payload = result[page.id]
     val entries = records(payload)
     var selectedDetail by remember(page.id) { mutableStateOf<Pair<String, String>?>(null) }
@@ -225,10 +226,10 @@ fun CatalogPage(page: Page, vm: CodexViewModel) {
 
 @Composable
 fun ThreadScopedPage(id: String, vm: CodexViewModel) {
-    val active by vm.activeThread.collectAsState()
+    val active by vm.activeThread.collectAsStateWithLifecycle()
     val page = pages.first { it.id == id }
-    val errors by vm.errors.collectAsState()
-    val payload by vm.data.collectAsState()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val payload by vm.data.collectAsStateWithLifecycle()
     val method = page.rpc ?: return
     ScreenColumn {
         SectionIntro(page.title, page.subtitle)

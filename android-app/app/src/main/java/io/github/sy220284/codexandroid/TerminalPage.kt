@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collect
@@ -55,8 +56,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
     var readerOutput by remember { mutableStateOf<Pair<String, String>?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val transcriptAvailable by vm.terminalTranscript.available.collectAsState()
-    val transcriptError by vm.terminalTranscript.error.collectAsState()
+    val transcriptAvailable by vm.terminalTranscript.available.collectAsStateWithLifecycle()
+    val transcriptError by vm.terminalTranscript.error.collectAsStateWithLifecycle()
     var exportTarget by remember { mutableStateOf<Pair<String, String>?>(null) }
     var exportBusy by remember { mutableStateOf(false) }
     var exportStatus by remember { mutableStateOf("") }
@@ -88,7 +89,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
     val session by vm.terminalSession.collectProjection { TerminalControlState.from(it) }
     val outputState = vm.terminalSession.collectFrameState(session.processId)
     val renderedOutput = rememberTerminalOutput(outputState, session.processId)
-    val terminalStarting by vm.terminalStarting.collectAsState()
+    val terminalStarting by vm.terminalStarting.collectAsStateWithLifecycle()
     val errors by vm.errors.collectEntries("terminal", "terminalInput", "terminalStop", "terminalResize")
     var historicalPages by remember(session.processId) { mutableStateOf<List<String>>(emptyList()) }
     var selectedHistoryPage by remember(session.processId) { mutableIntStateOf(0) }
@@ -97,7 +98,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
     var historicalMore by remember(session.processId) { mutableStateOf(true) }
     var historicalLoading by remember(session.processId) { mutableStateOf(false) }
     var historicalError by remember(session.processId) { mutableStateOf("") }
-    val activeWorkspace by vm.activeWorkspace.collectAsState()
+    val activeWorkspace by vm.activeWorkspace.collectAsStateWithLifecycle()
     val consoleScroll = key(session.processId) { rememberScrollState() }
     var followConsoleTail by remember(session.processId) { mutableStateOf(true) }
     var automaticConsoleScroll by remember(session.processId) { mutableStateOf(false) }

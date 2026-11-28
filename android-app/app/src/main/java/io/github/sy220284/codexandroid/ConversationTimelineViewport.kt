@@ -18,6 +18,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
 /** Only the timeline viewport observes high-frequency presentation snapshots. */
@@ -27,9 +28,9 @@ internal fun ConversationTimelineViewport(
     firstThreadStarting: Boolean, compactWorkArea: Boolean, setupHint: ChatSetupHint?,
     navigate: (String) -> Unit, modifier: Modifier = Modifier
 ) {
-    val olderTimelineCount by vm.olderTimelineCount.collectAsState()
-    val olderCursor by vm.olderServerCursor.collectAsState()
-    val loadingEarlier by vm.loadingEarlier.collectAsState()
+    val olderTimelineCount by vm.olderTimelineCount.collectAsStateWithLifecycle()
+    val olderCursor by vm.olderServerCursor.collectAsStateWithLifecycle()
+    val loadingEarlier by vm.loadingEarlier.collectAsStateWithLifecycle()
     val olderPageVisible = (olderTimelineCount > 0 || olderCursor != null) && thread != null
     val projection by collectTimelinePresentation(vm, thread, olderPageVisible)
     val frame = projection?.frame
@@ -37,8 +38,8 @@ internal fun ConversationTimelineViewport(
     val items = if (contextLoading) emptyList() else frame?.timeline.orEmpty()
     val rows = if (contextLoading) emptyList() else projection?.rows.orEmpty()
     val displayRows = if (contextLoading) emptyList() else projection?.displayRows.orEmpty()
-    val answerVersions by vm.answerVersions.state.collectAsState()
-    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
+    val answerVersions by vm.answerVersions.state.collectAsStateWithLifecycle()
+    val reducedMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val scroll = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var followTail by remember { mutableStateOf(true) }
@@ -60,9 +61,9 @@ internal fun ConversationTimelineViewport(
     }
     val familyBusy by vm.threadExecutions.collectProjection { executions -> thread?.let { id -> answerVersions.members(id).any { it != id && it in executions } } ?: false }
     val connected by vm.bridge.status.collectProjection { it == EngineStatus.Connected }
-    val savingPermissions by vm.securitySaveBusy.collectAsState()
-    val restarting by vm.connectionRestarter.busy.collectAsState()
-    val steering by vm.steerBusy.collectAsState()
+    val savingPermissions by vm.securitySaveBusy.collectAsStateWithLifecycle()
+    val restarting by vm.connectionRestarter.busy.collectAsStateWithLifecycle()
+    val steering by vm.steerBusy.collectAsStateWithLifecycle()
     val queueBusy by vm.loading.collectProjection { "queueWrite" in it || "interrupt" in it }
     val queueData by vm.data.collectEntries("queue:$thread")
     val queue = queueData["queue:$thread"]
@@ -378,7 +379,7 @@ private suspend fun LazyListState.scrollToLatest(index: Int, animate: Boolean) {
 /** Step count and kind are stable across text deltas; keep the composer out of these updates. */
 @Composable
 internal fun ConversationExecutionNotice(vm: CodexViewModel, stopping: Boolean) {
-    val turnId by vm.activeTurn.collectAsState()
+    val turnId by vm.activeTurn.collectAsStateWithLifecycle()
     val progress by vm.timeline.collectProjection { items ->
         items.lastOrNull { it.turnId == turnId && it.status in setOf("inProgress", "running", "streaming", "in_progress") }?.kind
     }

@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /**
  * 对话底部是一块可自适应键盘的输入面板。业务层负责真正的 turn/start、
@@ -65,7 +66,7 @@ internal fun ConversationComposer(
     taskMenu: (@Composable () -> Unit)? = null,
     providerLabel: String = ""
 ) {
-    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    val reduceMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
     var expandedEditor by remember { mutableStateOf(false) }

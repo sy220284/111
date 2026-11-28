@@ -14,16 +14,17 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 internal fun FeatureSwitchPage(vm: CodexViewModel) {
     val controller = vm.featureSwitches
-    val session by vm.bridge.connectedSession.collectAsState()
-    val account by vm.catalogWarmup.accountRevision.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val transaction by vm.configTransactionBusy.collectAsState()
-    val securityBusy by vm.securitySaveBusy.collectAsState()
-    val transfer by AppDataTransfer.state.collectAsState()
+    val session by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    val account by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val transaction by vm.configTransactionBusy.collectAsStateWithLifecycle()
+    val securityBusy by vm.securitySaveBusy.collectAsStateWithLifecycle()
+    val transfer by AppDataTransfer.state.collectAsStateWithLifecycle()
     val snapshot = controller.snapshot?.takeIf { it.session == session && it.account == account }
     var filter by rememberSaveable { mutableStateOf("preferred") }
     var category by rememberSaveable { mutableStateOf("all") }

@@ -11,16 +11,17 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 /** 与当前会话绑定的持久化资料：列出、增加文本备注、删除准确身份键。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadAttachmentsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val active by vm.activeThread.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val active by vm.activeThread.collectAsStateWithLifecycle()
+    val data by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
     var customNoteKey by rememberSaveable(active) { mutableStateOf("") }
     var noteSuffix by rememberSaveable(active) { mutableStateOf(java.util.UUID.randomUUID().toString().take(8)) }
     var editNoteName by rememberSaveable(active) { mutableStateOf(false) }

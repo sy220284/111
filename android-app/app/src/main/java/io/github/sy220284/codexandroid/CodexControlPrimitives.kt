@@ -30,13 +30,14 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** Shared press response; native ripple, click semantics and cancellation remain on the control. */
 @Composable
 internal fun Modifier.codexActionPress(interaction: MutableInteractionSource, enabled: Boolean,
     shape: Shape = RoundedCornerShape(13.dp)): Modifier {
     val pressed by interaction.collectIsPressedAsState()
-    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val focused by interaction.collectIsFocusedAsState()
     val hovered by interaction.collectIsHoveredAsState()
     val scale = animateFloatAsState(
@@ -146,7 +147,7 @@ internal fun CodexRadio(selected: Boolean, onClick: (() -> Unit)?, modifier: Mod
 @Composable
 internal fun CodexActivityIndicator(modifier: Modifier = Modifier,
     color: Color = Ink.copper, strokeWidth: Dp = 4.dp) {
-    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     if (reduced) CodexIcon(CodexGlyph.TaskRunning, "正在处理",
         modifier = modifier.semantics { progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate },
         tint = color)

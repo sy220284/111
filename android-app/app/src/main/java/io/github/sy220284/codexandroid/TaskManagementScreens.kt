@@ -22,13 +22,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.UUID
 
 @Composable
 fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
-    val active by vm.activeThread.collectAsState()
+    val active by vm.activeThread.collectAsStateWithLifecycle()
     val key = "goal:" + (active ?: "none")
     val data by vm.data.collectEntries(key)
     val errors by vm.errors.collectEntries(key, "goalWrite")
@@ -238,7 +239,7 @@ fun ThreadGoalPage(vm: CodexViewModel, inSheet: Boolean = false) {
 
 @Composable
 fun ThreadQueuePage(vm: CodexViewModel) {
-    val active = vm.activeThread.collectAsState().value
+    val active = vm.activeThread.collectAsStateWithLifecycle().value
     val rootKey = "queue:" + (active ?: "none")
     var pageCount by remember(active) { mutableIntStateOf(0) }
     val queueKeys = remember(rootKey, pageCount) { listOf(rootKey) + (1..pageCount).map { rootKey + ":page:" + it } }
@@ -259,14 +260,14 @@ fun ThreadQueuePage(vm: CodexViewModel) {
     val readKeys = listOf(rootKey) + (1..pageCount).map { rootKey + ":page:" + it }
     val hasAllPages = readKeys.all { it in data && it !in loading && it !in errors } && nextCursor.isBlank()
     val ids = all.map { it.optString("id") }
-    val connection by vm.bridge.status.collectAsState()
-    val running by vm.running.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
-    val starting by vm.firstThreadStarting.collectAsState()
-    val steering by vm.steerBusy.collectAsState()
-    val permissionSaving by vm.securitySaveBusy.collectAsState()
+    val connection by vm.bridge.status.collectAsStateWithLifecycle()
+    val running by vm.running.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
+    val starting by vm.firstThreadStarting.collectAsStateWithLifecycle()
+    val steering by vm.steerBusy.collectAsStateWithLifecycle()
+    val permissionSaving by vm.securitySaveBusy.collectAsStateWithLifecycle()
     val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
-    val restarting by vm.connectionRestarter.busy.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsStateWithLifecycle()
     val paused by vm.queuePausedThreads.collectProjection { active != null && active in it }
     val canStart = active != null && !running && !switching && !starting && !steering &&
         !permissionSaving && !transferBusy && !restarting &&
@@ -556,7 +557,7 @@ fun ThreadQueuePage(vm: CodexViewModel) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadQueueQuickSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val active by vm.activeThread.collectAsState()
+    val active by vm.activeThread.collectAsStateWithLifecycle()
     val key = "queue:" + (active ?: "none")
     val data by vm.data.collectEntries(key)
     CodexOverlayFrame(

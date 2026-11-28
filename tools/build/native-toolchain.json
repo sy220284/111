@@ -1,0 +1,30 @@
+{
+  "os": "ubuntu-24.04",
+  "architecture": "x86_64",
+  "llvmMajor": 23,
+  "aptRepository": "https://apt.llvm.org/noble/",
+  "aptSuite": "llvm-toolchain-noble-23",
+  "keyFingerprint": "6084F3CF814B57C1CF12EFD515CF4D18AF4F7421",
+  "packages": {
+    "clang-23": "1:23.1.6~++20261116013850+5b10d2d74929-1~exp1~20261116133903.98",
+    "libclang-23-dev": "1:23.1.6~++20261116013850+5b10d2d74929-1~exp1~20261116133903.98",
+    "llvm-23": "1:23.1.6~++20261116013850+5b10d2d74929-1~exp1~20261116133903.98",
+    "lld-23": "1:23.1.6~++20261116013850+5b10d2d74929-1~exp1~20261116133903.98",
+    "ninja-build": "1.11.1-2",
+    "cmake": "3.28.3-1build7",
+    "pkg-config": "1.8.1-2build1",
+    "pkgconf": "1.8.1-2build1",
+    "libssl-dev": "3.0.13-0ubuntu3.16",
+    "openssl": "3.0.13-0ubuntu3.16",
+    "cmake-data": "3.28.3-1build7",
+    "pkgconf-bin": "1.8.1-2build1",
+    "libpkgconf3": "1.8.1-2build1",
+    "libssl3t64": "3.0.13-0ubuntu3.16"
+  },
+  "executables": {
+    "ninja": "/usr/bin/ninja",
+    "cmake": "/usr/bin/cmake",
+    "pkg-config": "/usr/bin/pkg-config",
+    "openssl": "/usr/bin/openssl"
+  }
+}

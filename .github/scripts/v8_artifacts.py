@@ -17,6 +17,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'tools/build'))
 from transfer_progress import download, TransferUnavailable
 from build_recipe import job_recipe
+from platform_toolchain import PROFILES, recipe as platform_recipe
 
 TARGETS = {"aarch64-linux-android": ("arm64-v8a", "arm64"),
            "x86_64-linux-android": ("x86_64", "x64")}
@@ -26,7 +27,9 @@ WORKFLOW = ".github/workflows/build-native-codex.yml"
 INPUTS = ("android-app/tools/prepare_android_v8.sh",
           "android-app/tools/adapt_android_v8_build.py",
           "android-app/tools/v8_toolchain_provenance.py",
-          ".github/scripts/ci-android-sdk.sh")
+          ".github/scripts/ci-android-sdk.sh",
+          "tools/build/platform_toolchain.py",
+          "tools/build/native_toolchain.py", "tools/build/native-toolchain.json")
 LOCK_PATH = "upstream/codex/codex-rs/Cargo.lock"
 KEY_INPUTS = (*INPUTS, ".github/scripts/ci-llvm.sh")
 SETUP_ACTIONS = (".github/actions/ci-android/action.yml", ".github/actions/ci-rust/action.yml")
@@ -76,6 +79,7 @@ def key(target, sha="HEAD"):
         raise ValueError("Unsupported V8 target")
     recipe = producer_recipe(git("show", f"{sha}:{WORKFLOW}"))
     inputs = [git("rev-parse", f"{sha}:{p}") for p in KEY_INPUTS]
+    inputs.append(platform_recipe(git("show", f"{sha}:tools/build/platform-toolchain.json"), host=("jdk", "python"), android=PROFILES["v8"]))
     inputs.append(v8_lock_identity(git("show", f"{sha}:{LOCK_PATH}")))
     inputs.extend(compiler_action_recipe(git("show", f"{sha}:{p}")) for p in SETUP_ACTIONS)
     return hashlib.sha256(json.dumps([target, recipe, inputs], separators=(",",":")).encode()).hexdigest()
@@ -121,10 +125,10 @@ def expected_inputs(root, target):
         raise ValueError("Unexpected Rust compiler version")
     ndk = Path(os.environ["ANDROID_NDK_HOME"], "source.properties").read_bytes().splitlines()
     revisions = [x for x in ndk if x.startswith(b"Pkg.Revision")]
-    if len(revisions) != 1 or revisions[0].split(b"=",1)[1].strip() != b"27.2.12479018":
+    if len(revisions) != 1 or revisions[0].split(b"=",1)[1].strip() != b"30.0.16248370":
         raise ValueError("Unexpected NDK revision")
     result = (f"source={SOURCE}\nversion={VERSION}\ntarget={target}\n".encode() + rust
-              + b"Pkg.Revision=27.2.12479018\n" + host_identity())
+              + b"Pkg.Revision=30.0.16248370\n" + host_identity())
     lock = v8_lock_identity((root/LOCK_PATH).read_text())
     return result + f"v8-package={lock}\n".encode() + "".join(f"{sha256(root/p)}  {p}\n" for p in INPUTS).encode()
 

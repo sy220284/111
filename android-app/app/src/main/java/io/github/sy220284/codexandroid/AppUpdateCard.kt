@@ -21,7 +21,7 @@ internal fun AppUpdateCard(vm: CodexViewModel) {
         activity?.packageManager?.getPackageInfo(activity.packageName, 0)?.versionName.orEmpty()
     }
     val busy = status.phase in setOf(UpdatePhase.CHECKING,
-        UpdatePhase.DOWNLOADING, UpdatePhase.PATCHING)
+        UpdatePhase.DOWNLOADING, UpdatePhase.PATCHING, UpdatePhase.VERIFYING_INSTALL)
 
     Surface(
         modifier = Modifier.fillMaxWidth().testTag("settings-update"),
@@ -68,15 +68,7 @@ internal fun AppUpdateCard(vm: CodexViewModel) {
             if (status.phase in setOf(UpdatePhase.READY,
                     UpdatePhase.NEEDS_PERMISSION, UpdatePhase.INSTALLING)) {
                 CodexSecondaryButton(
-                    onClick = {
-                        val current = vm.globalWorkSnapshot()
-                        if (current.canDisruptCoreOrData) {
-                            activity?.let(AppUpdateManager::install)
-                        } else {
-                            vm.errors.value = vm.errors.value +
-                                ("update" to current.blockReason)
-                        }
-                    },
+                    onClick = { activity?.let(AppUpdateManager::install) },
                     enabled = activity != null && work.canDisruptCoreOrData,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag("update-install")
@@ -99,7 +91,7 @@ internal fun AtlasUpdateStatus(status: AppUpdateState, modifier: Modifier = Modi
         when (status.phase) {
             UpdatePhase.DOWNLOADING -> AtlasOperationProgress(status.message,
                 Modifier.testTag(progressTag), progress = status.progress / 100f)
-            UpdatePhase.CHECKING, UpdatePhase.PATCHING -> AtlasOperationProgress(status.message,
+            UpdatePhase.CHECKING, UpdatePhase.PATCHING, UpdatePhase.VERIFYING_INSTALL -> AtlasOperationProgress(status.message,
                 Modifier.testTag(progressTag))
             UpdatePhase.ERROR -> CodexNotice(status.message, NoticeTone.Error)
             UpdatePhase.READY, UpdatePhase.UP_TO_DATE -> CodexNotice(status.message, NoticeTone.Success)

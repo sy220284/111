@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -107,8 +108,8 @@ fun ProvidersPage(vm: CodexViewModel) {
     var selectedProviderId by remember { mutableStateOf<String?>(null) }
     var customApiKey by remember { mutableStateOf("") }
     var customizeProvider by remember { mutableStateOf(false) }
-    val credentials by vm.bridge.domesticCredentials.collectAsState()
-    val changingCredentials by vm.connectionRestarter.busy.collectAsState()
+    val credentials by vm.bridge.domesticCredentials.collectAsStateWithLifecycle()
+    val changingCredentials by vm.connectionRestarter.busy.collectAsStateWithLifecycle()
     var revokePreset by remember { mutableStateOf<DomesticModelPreset?>(null) }
     var inspectCatalog by remember { mutableStateOf<Pair<DomesticModelPreset, String>?>(null) }
     var confirmCustom by remember { mutableStateOf(false) }
@@ -256,8 +257,8 @@ fun ProvidersPage(vm: CodexViewModel) {
                 onDismiss = { showCapabilities = false }
             ) {
                 val caps = data["providerCapabilities"]
-                val loading by vm.loading.collectAsState()
-                val errors by vm.errors.collectAsState()
+                val loading by vm.loading.collectAsStateWithLifecycle()
+                val errors by vm.errors.collectAsStateWithLifecycle()
                 if ("providerCapabilities" in loading) {
                     AtlasOperationProgress("正在读取服务商能力")
                 } else if (errors["providerCapabilities"] != null) {
@@ -275,7 +276,7 @@ fun ProvidersPage(vm: CodexViewModel) {
                         artworkRes = R.drawable.ic_empty_content)
                 }
             }
-            val errors by vm.errors.collectAsState()
+            val errors by vm.errors.collectAsStateWithLifecycle()
             errors["providerWrite"]?.let { ErrorText(it) }
             errors["providerDefaultWrite"]?.let { ErrorText(it) }
         }
@@ -368,9 +369,9 @@ fun ProvidersPage(vm: CodexViewModel) {
 
 @Composable
 fun PluginsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
-    val engineStatus by vm.bridge.status.collectAsState()
-    val workspace by vm.activeWorkspace.collectAsState()
-    val epoch by vm.extensions.epoch.collectAsState()
+    val engineStatus by vm.bridge.status.collectAsStateWithLifecycle()
+    val workspace by vm.activeWorkspace.collectAsStateWithLifecycle()
+    val epoch by vm.extensions.epoch.collectAsStateWithLifecycle()
     var installedOnly by rememberSaveable { mutableStateOf(true) }
     val activeKey = if (installedOnly) "installedPlugins" else "plugins"
     var action by remember(epoch) { mutableStateOf<Triple<JSONObject, JSONObject, Boolean>?>(null) }

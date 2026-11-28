@@ -7,7 +7,7 @@ CHAIN = ("developer-runtime", "release", "device-ready", "device", "publish", "c
 REASONS = {"waiting-ci": "等待完整验收", "waiting-native": "等待原生内核",
            "already-published": "当前源码已发布", "no-client-change": "无客户端发布变更"}
 
-def verdict(jobs, event, ref, eligible):
+def verdict(jobs, event, ref, eligible, main_ci_conclusion=""):
     if set(jobs) != {"preflight", "check-release", *CHAIN}:
         raise ValueError("发布任务集合不完整")
     results = {key: item["result"] for key, item in jobs.items()}
@@ -20,6 +20,11 @@ def verdict(jobs, event, ref, eligible):
     if not eligible:
         if any(results[k] != "skipped" for k in ("check-release", *CHAIN)):
             raise ValueError("不适用的发布任务被执行")
+        if event == "workflow_run" and main_ci_conclusion:
+            if main_ci_conclusion == "cancelled":
+                return "上游主线验收已取消，未发布"
+            if main_ci_conclusion != "success":
+                raise ValueError(f"上游主线验收未通过（{main_ci_conclusion}），未发布")
         return "当前触发条件无需发布"
     if results["check-release"] != "success":
         raise ValueError("发布候选识别失败")
@@ -38,7 +43,8 @@ def verdict(jobs, event, ref, eligible):
 if __name__ == "__main__":
     with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as out:
         try:
-            message = verdict(json.loads(os.environ["RESULTS"]), os.environ["EVENT"], os.environ["REF"], os.environ["TRIGGER_ELIGIBLE"] == "true")
+            message = verdict(json.loads(os.environ["RESULTS"]), os.environ["EVENT"], os.environ["REF"], os.environ["TRIGGER_ELIGIBLE"] == "true",
+                              os.environ.get("MAIN_CI_CONCLUSION", ""))
         except ValueError as exc:
             print(f"## 发布未完成：{exc}", file=out)
             raise

@@ -11,15 +11,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** Portable backup and restore are independent of the update-checking screen lifecycle. */
 @Composable
 internal fun LocalDataTransferCard(vm: CodexViewModel) {
     val context = LocalContext.current
-    val state by AppDataTransfer.state.collectAsState()
+    val state by AppDataTransfer.state.collectAsStateWithLifecycle()
     val work = observeGlobalWorkSnapshot(vm)
     val available = work.canDisruptCoreOrData
-    val errors by vm.errors.collectAsState()
+    val errors by vm.errors.collectAsStateWithLifecycle()
     val exportPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/zip")
     ) { uri ->

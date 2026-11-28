@@ -72,6 +72,21 @@ class ApkAuditTests(unittest.TestCase):
         with self.assertRaisesRegex(ApkAuditError, "libcodex_server"):
             audit(self.path, "arm64-v8a", "full")
 
+    def test_debug_executor_required_only_in_debug_package_and_receipt(self):
+        self.package()
+        with self.assertRaisesRegex(ApkAuditError, "libcodex_test_executor"):
+            audit(self.path, "arm64-v8a", "full", debug_executor=True)
+        with ZipFile(self.path, "a") as archive:
+            archive.writestr("lib/arm64-v8a/libcodex_test_executor.so", elf(183))
+        with self.assertRaisesRegex(ApkAuditError, "测试专用执行器"):
+            audit(self.path, "arm64-v8a", "full")
+        result = audit(self.path, "arm64-v8a", "full", debug_executor=True)
+        report = self.path.with_suffix(".json")
+        report.write_text(json.dumps(result))
+        self.assertTrue(verify_report(self.path, "arm64-v8a", "full", report, True)["debug_executor"])
+        with self.assertRaises(ApkAuditError):
+            verify_report(self.path, "arm64-v8a", "full", report)
+
     def test_full_package_rejects_missing_runtime_provider_catalog(self):
         self.package()
         with ZipFile(self.path) as original:

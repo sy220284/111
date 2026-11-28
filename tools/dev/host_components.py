@@ -15,6 +15,7 @@ import time
 HERE = pathlib.Path(__file__).resolve().parent
 BUILD = HERE.parent / "build"
 sys.path.insert(0, str(BUILD))
+from platform_toolchain import ANDROID as ANDROID_PACKAGES, HOST as HOST_TOOLS, PROFILES, android_available, android_path
 from transfer_progress import download
 LOCK = json.loads((HERE/"toolchain-lock.json").read_text())
 spec = importlib.util.spec_from_file_location("component_bundle", BUILD/"component-bundle.py")
@@ -22,7 +23,7 @@ bundle = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(bundle)
 ANDROID = ("jdk", "android-sdk", "gradle")
 RUST = ("rust", "cargo")
-AUX = ("wheelhouse","emulator","llvm","patcher")
+AUX = ("node","wheelhouse","emulator","llvm","patcher")
 GROUPS = {"android":ANDROID,"rust":RUST,**{name:(name,) for name in AUX}}
 HOST = ANDROID + RUST + AUX
 REPOSITORY = "sy220284/111"
@@ -119,17 +120,16 @@ def environment(root,names):
     if "jdk" in paths:
         java=paths["jdk"]/"bin/java"
         version=subprocess.check_output([str(java),"-version"],stderr=subprocess.STDOUT,text=True)
-        require(re.search(r'version "'+p["jdk"]+r'(?:[."]|$)',version),"JDK version drift")
+        require("Temurin-"+HOST_TOOLS["jdk"]["version"]+" " in version,"JDK version drift")
         env["JAVA_HOME"]=str(paths["jdk"])
         search.append(str(java.parent))
     if "android-sdk" in paths:
         sdk=paths["android-sdk"]
-        ndk=sdk/"ndk"/p["ndk"]
-        for relative in ("platforms/android-"+str(p["compileSdk"])+"/android.jar","build-tools/"+p["buildTools"]+"/aapt","platform-tools/adb"):
-            require((sdk/relative).is_file(),"SDK component missing: "+relative)
-        require(re.search(r"^Pkg\.Revision\s*=\s*"+re.escape(p["ndk"])+r"\s*$",(ndk/"source.properties").read_text(),re.M),"NDK version drift")
+        ndk=android_path(sdk,"ndk")
+        for package in PROFILES["developer-android"]:
+            require(android_available(android_path(sdk,package),ANDROID_PACKAGES[package]),"SDK package drift: "+package)
         env.update(ANDROID_HOME=str(sdk),ANDROID_SDK_ROOT=str(sdk),ANDROID_NDK_HOME=str(ndk))
-        search.append(str(sdk/"platform-tools"))
+        search.append(str(android_path(sdk,"adb")))
     if "gradle" in paths:
         gradle=paths["gradle"]
         require((gradle/"wrapper/dists").is_dir() and (gradle/"caches/modules-2").is_dir(),"Gradle cache incomplete")
@@ -147,15 +147,24 @@ def environment(root,names):
         cargo=paths["cargo"]
         require((cargo/"git/db").is_dir() and (cargo/"registry").is_dir(),"Cargo cache incomplete")
         env.update(CARGO_HOME=str(cargo),CARGO_NET_OFFLINE="true")
+    if "node" in paths:
+        node=paths["node"]
+        require(subprocess.check_output([str(node/"bin/node"),"--version"],text=True).strip()=="v"+p["hostNode"]["version"],"host Node version drift")
+        npm=json.loads((HERE.parent/"runtime/runtime-lock.json").read_text())["runtimeOverrides"]["npm"]
+        require(subprocess.check_output([str(node/"bin/node"),str(node/"bin/npm"),"--version"],text=True).strip()==npm,"host npm version drift")
+        search.append(str(node/"bin"))
     if "wheelhouse" in paths:
         wheel=paths["wheelhouse"]
+        python=wheel/"python/bin/python3"
+        require(subprocess.check_output([str(python),"-c","import platform; print(platform.python_version())"],text=True).strip()==HOST_TOOLS["python"]["version"],"host Python version drift")
+        env["CODEX_HOST_PYTHON"]=str(python)
+        search.append(str(python.parent))
         require((wheel/"requirements.lock").is_file() and any(wheel.glob("*.whl")), "wheelhouse incomplete")
         env["CODEX_WHEELHOUSE"]=str(wheel)
     if "emulator" in paths:
         sdk=paths["emulator"]
-        image=sdk/"system-images"/("android-"+p["deviceImage"])/p["deviceTarget"]/"x86_64"
-        require((image/"package.xml").is_file() and (image/"system.img").is_file() and (sdk/"emulator/emulator").is_file() and (sdk/"platform-tools/adb").is_file(),"emulator image incomplete")
-        require("system-images;android-"+p["deviceImage"]+";"+p["deviceTarget"]+";x86_64" in (image/"package.xml").read_text(),"system image identity drift")
+        for package in PROFILES["developer-emulator"]:
+            require(android_available(android_path(sdk,package),ANDROID_PACKAGES[package]),"Emulator package drift: "+package)
         env["CODEX_EMULATOR_SDK"]=str(sdk)
     if "llvm" in paths:
         llvm=paths["llvm"]

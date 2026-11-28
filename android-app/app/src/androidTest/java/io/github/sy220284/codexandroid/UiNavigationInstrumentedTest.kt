@@ -1090,15 +1090,28 @@ class UiNavigationInstrumentedTest {
             )
         }
         try {
-            rule.onNodeWithTag("chat-user-message").assertExists()
+            // The presentation is prepared off the Compose idle clock. The
+            // lazy viewport may only compose its tail on compact/high-font layouts.
+            rule.waitUntil(10_000L) {
+                rule.onAllNodesWithTag("chat-activity-group").fetchSemanticsNodes().isNotEmpty()
+            }
+            val viewport = rule.onNodeWithTag("conversation-timeline", useUnmergedTree = true)
+                .assertIsDisplayed()
+            viewport.performScrollToNode(hasTestTag("chat-user-message"))
+            rule.onNodeWithTag("chat-user-message").assertIsDisplayed()
+            rule.onNodeWithText("检查项目结构").assertIsDisplayed()
             rule.onNodeWithTag("chat-user-prompt-marker", useUnmergedTree = true).assertDoesNotExist()
-            rule.onNodeWithTag("chat-assistant-message").assertExists()
+            viewport.performScrollToNode(hasTestTag("chat-assistant-message"))
+            rule.onNodeWithTag("chat-assistant-message").assertIsDisplayed()
+            rule.onNodeWithText("已找到项目入口").assertIsDisplayed()
+            viewport.performScrollToNode(hasTestTag("message-copy-ui-agent"))
             rule.onNodeWithTag("message-copy-ui-agent").assertExists()
             rule.onNodeWithTag("message-retry-ui-agent").assertExists()
             rule.onNodeWithTag("message-share-ui-agent").assertExists()
-            rule.onNodeWithTag("chat-activity-group").assertExists()
-            rule.onNodeWithTag("chat-activity-group").performClick()
-            rule.onNodeWithText("pwd").assertExists()
+            viewport.performScrollToNode(hasTestTag("chat-activity-group"))
+            rule.onNodeWithTag("chat-activity-group").assertIsDisplayed().performClick()
+            viewport.performScrollToNode(hasText("pwd"))
+            rule.onNodeWithText("pwd").assertIsDisplayed()
             rule.onNodeWithTag("composer-send").assertIsDisplayed()
         } finally {
             rule.runOnUiThread { vm.timeline.value = emptyList() }

@@ -8,6 +8,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 internal data class AccountVoiceOption(val voice: String, val name: String)
@@ -41,14 +42,14 @@ internal fun AccountVoiceSettings(vm: CodexViewModel, identity: String, epoch: L
     val operation = rememberCapabilityOperation(vm)
     var snapshot by remember { mutableStateOf<AccountVoiceSettingsSnapshot?>(null) }
     var menu by remember { mutableStateOf(false) }
-    val engine by vm.bridge.status.collectAsState()
-    val session by vm.bridge.connectedSession.collectAsState()
-    val accountRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val engine by vm.bridge.status.collectAsStateWithLifecycle()
+    val session by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    val accountRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
     val data by vm.data.collectEntries("account")
-    val loading by vm.loading.collectAsState()
-    val loginBusy by vm.loginBusy.collectAsState()
-    val loginId by vm.activeLoginId.collectAsState()
-    val transfer by AppDataTransfer.state.collectAsState()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val loginBusy by vm.loginBusy.collectAsStateWithLifecycle()
+    val loginId by vm.activeLoginId.collectAsStateWithLifecycle()
+    val transfer by AppDataTransfer.state.collectAsStateWithLifecycle()
     val canOperate = engine == EngineStatus.Connected && session == epoch && accountRevision == revision &&
         data["account"]?.optJSONObject("account")?.toString() == identity &&
         "account" !in loading && "accountSessionSwitch" !in loading && !loginBusy &&

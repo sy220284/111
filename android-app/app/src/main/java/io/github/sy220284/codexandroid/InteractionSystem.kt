@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** One motion language for a working console. All durations respect the in-app preference. */
 object CodexMotion {
@@ -83,7 +84,7 @@ internal fun CodexRouteEntrance(route: String, reducedMotion: Boolean, content: 
 /** State-driven reveal, never a perpetual decorative animation. */
 @Composable
 fun CodexReveal(visible: Boolean, content: @Composable () -> Unit) {
-    val reducedMotion by UiPreferences.reducedMotion.collectAsState()
+    val reducedMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     AnimatedVisibility(
         visible = visible,
         enter = expandVertically(tween(CodexMotion.duration(CodexMotion.reveal, reducedMotion))) +
@@ -138,7 +139,7 @@ fun CodexNotice(
         NoticeTone.Warning -> Ink.warning
         NoticeTone.Error -> Ink.red
     }
-    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val confirmation = remember(message, tone) { Animatable(if (tone == NoticeTone.Success && !reduced) .85f else 1f) }
     LaunchedEffect(message, tone, reduced) {
         if (reduced || tone != NoticeTone.Success) confirmation.snapTo(1f)
@@ -198,7 +199,7 @@ fun ProtocolFeedback(
 ) {
     val errors by vm.errors.collectEntries(*keys.toTypedArray())
     val loading by vm.loading.collectProjection { pending -> pending.intersect(keys.toSet()) }
-    val connection by vm.bridge.status.collectAsState()
+    val connection by vm.bridge.status.collectAsStateWithLifecycle()
     CodexReveal(loading.isNotEmpty()) {
         AtlasOperationProgress("正在处理本页请求")
     }

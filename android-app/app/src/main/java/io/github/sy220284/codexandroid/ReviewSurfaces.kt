@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 /** 代码审查的唯一业务表单；页面深链和工作区弹层共用真实 review/start。 */
@@ -20,11 +21,11 @@ fun ReviewScopePanel(
     onStarted: () -> Unit,
     onSelectThread: () -> Unit
 ) {
-    val active by vm.activeThread.collectAsState()
-    val running by vm.running.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val data by vm.data.collectAsState()
+    val active by vm.activeThread.collectAsStateWithLifecycle()
+    val running by vm.running.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val data by vm.data.collectAsStateWithLifecycle()
     val reviewDraft = vm.taskPanelDraft(active)
     val selection = reviewDraft.reviewScope
     val value = reviewDraft.reviewText

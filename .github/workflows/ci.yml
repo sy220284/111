@@ -25,7 +25,7 @@ concurrency:
 jobs:
   plan:
     name: 统一变更分类
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       full: ${{ steps.plan.outputs.full }}
@@ -57,11 +57,13 @@ jobs:
       device_mesa_threads: ${{ steps.plan.outputs.device_mesa_threads }}
       device_emulator_options: ${{ steps.plan.outputs.device_emulator_options }}
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python gh
       - name: 分类并验证调度规则
         id: plan
         env:
@@ -129,7 +131,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: 仅检出 Android UI 源码
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -155,6 +157,8 @@ jobs:
             /upstream/codex/codex-rs/app-server-protocol/src/protocol/v2/project.rs
             /upstream/codex/codex-rs/app-server-protocol/schema/json/v2/
           sparse-checkout-cone-mode: false
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python
       - name: 阻断未经审查的官方协议及字段变更
         run: |
           python3 -B -m unittest discover -s android-app/tools -p 'test_review_upstream_protocol.py'
@@ -178,10 +182,10 @@ jobs:
       - name: 一次加载源码，执行协议、功能、设计与架构调用候选审计
         run: python3 android-app/tools/run_static_audit.py --repository . --output .
       - name: 复用 Python 锁定依赖下载缓存
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/build/platform-toolchain.json', '.github/ci/requirements.lock') }}
       - name: 验证截图收集与功能验收独立记录
         run: |
           python3 -m unittest discover -s android-app/tools -p 'test_collect_ui_screenshots.py'
@@ -194,7 +198,7 @@ jobs:
         run: python3 -m unittest discover -s android-app/tools -p 'test_verify_self_update_open.py'
       - name: 保存静态协议与 UI 规范报告
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-static-reports
           path: |
@@ -221,7 +225,7 @@ jobs:
     timeout-minutes: 25
     steps:
       - name: 仅检出 Android UI 源码
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
@@ -252,12 +256,12 @@ jobs:
         with:
           mode: build
       - name: 验证 Compose、协议测试与静态检查
-        run: ./android-app/gradlew -p android-app --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+        run: bash .github/scripts/ci-gradle.sh -p android-app --dependency-verification strict :app:verifyAndroidTestRuntime :app:testDebugUnitTest :app:lintDebug :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
       - name: 复用 Python 锁定依赖下载缓存
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/build/platform-toolchain.json', '.github/ci/requirements.lock') }}
       - name: 使用真实 Kotlin 请求样例逐字段校验 Rust Schema
         run: |
           test -s android-app/app/build/protocol-fixtures/requests.json
@@ -275,7 +279,7 @@ jobs:
             --report wire-fixtures-audit.json
       - name: 保存测试与 Lint 报告
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-check-reports
           path: |
@@ -288,7 +292,7 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
       - name: 保存独立编译的 UI 与设备测试安装包
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-apks
           compression-level: 0
@@ -304,7 +308,7 @@ jobs:
           cd android-app/app/build/outputs/apk
           sha256sum debug/app-debug.apk androidTest/debug/app-debug-androidTest.apk > "$RUNNER_TEMP/ui-apk-sha256.txt"
       - name: 保存 UI 测试安装包字节凭证
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-apk-integrity
           path: ${{ runner.temp }}/ui-apk-sha256.txt
@@ -322,7 +326,7 @@ jobs:
     timeout-minutes: 35
     steps:
       - name: 检出截图采集器
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -346,8 +350,10 @@ jobs:
             /android-app/tools/verify_self_update_open.py
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" gh
       - name: 取回 UI APK
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.plan.outputs.run_compile == 'true' && 'codex-android-ui-apks' || '' }}
           artifact-ids: ${{ needs.plan.outputs.compile_apk_id }}
@@ -355,7 +361,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ needs.plan.outputs.compile_run_id }}
       - name: 取回 UI 安装包字节凭证
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: ${{ needs.plan.outputs.run_compile == 'true' && 'ui-apk-integrity' || '' }}
           artifact-ids: ${{ needs.plan.outputs.compile_integrity_id }}
@@ -432,7 +438,7 @@ jobs:
             if [ "${{ matrix.motion }}" = "true" ]; then bash -c 'status=0; timeout --kill-after=10s 360s python3 android-app/tools/run_ui_motion_checks.py --profile "${{ matrix.profile }}" || status=$?; printf "%s\\n" "$status" > ui-motion-exit; echo "Performance observation exit=$status (non-blocking)"'; fi
       - name: 保存独立分流的原始日志、截图与验收凭证
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-${{ matrix.shard }}
           path: |
@@ -467,7 +473,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -483,7 +489,9 @@ jobs:
             /docs/ui-assets/素材接入清单.json
           sparse-checkout-cone-mode: false
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python gh
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ui-shard-${{ matrix.profile }}-${{ matrix.mode }}-*
           path: ui-shards
@@ -494,10 +502,10 @@ jobs:
           TEST_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python3 android-app/tools/merge_ui_shards.py --profile ${{ matrix.profile }} --mode ${{ matrix.mode }} --root ui-shards
       - name: 复用 Python 锁定依赖下载缓存
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/pip
-          key: pip-${{ runner.os }}-${{ runner.arch }}-py312-${{ hashFiles('.github/ci/requirements.lock') }}
+          key: pip-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('tools/build/platform-toolchain.json', '.github/ci/requirements.lock') }}
       - name: 安装独立视觉审计依赖
         continue-on-error: true
         timeout-minutes: 3
@@ -515,7 +523,7 @@ jobs:
       - name: 保存视觉审计基线与差异
         if: always() && !cancelled()
         continue-on-error: true
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-visual-api${{ matrix.api }}-${{ matrix.profile }}-${{ matrix.mode }}
           path: ui-visual-evidence/
@@ -523,7 +531,7 @@ jobs:
           retention-days: 90
       - name: 保存 UI 设备测试与真实屏幕截图
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-ui-device-evidence-api${{ matrix.api }}-${{ matrix.profile }}-${{ matrix.mode }}
           path: |
@@ -552,7 +560,7 @@ jobs:
 
       - name: 保存供全矩阵核对的小型验收凭证
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ui-proof-${{ matrix.profile }}-${{ matrix.mode }}
           path: |
@@ -570,16 +578,19 @@ jobs:
     name: 四组 UI 用例与证据一致性验收
     needs: [plan, ui-collect]
     if: always() && !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.run_ui == 'true' && (needs.ui-collect.result == 'success' || needs.ui-collect.result == 'failure')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
+            tools/build
             android-app/tools
           persist-credentials: false
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: ui-proof-*
           path: ui-proofs
@@ -593,10 +604,10 @@ jobs:
     needs: [plan, native, runtime-arm64]
     if: needs.plan.outputs.run_package == 'true' && needs.native.result == 'success' && needs.runtime-arm64.result == 'success'
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: 检出 Android 工程及源码版本标记
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -618,7 +629,7 @@ jobs:
         with:
           mode: build
       - name: 取回 ARM64 原生核心
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-android-native-arm64-v8a
           run-id: ${{ needs.native.outputs.arm_run_id }}
@@ -642,18 +653,18 @@ jobs:
         shell: bash
         run: bash .github/scripts/create-android-update-fixture.sh
       - name: 编译 Android APK 和设备测试包（单元测试由独立 UI 工作流执行）
-        run: ./android-app/gradlew -p android-app --dependency-verification strict :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
+        run: bash .github/scripts/ci-gradle.sh -p android-app --dependency-verification strict :app:assembleDebug :app:assembleDebugAndroidTest -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a --no-daemon --stacktrace
       - name: 验证 ARM64 APK 的原生功能组件和 ABI
         shell: bash
         run: |
           set -euo pipefail
           APK="android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk"
           test -s "android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk"
-          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full --report "$RUNNER_TEMP/arm64-apk-audit.json"
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full --debug-executor --report "$RUNNER_TEMP/arm64-apk-audit.json"
           python3 .github/scripts/verify_git_corresponding_source.py "$APK" "$RUNNER_TEMP/git-corresponding-source.tar.xz"
 
       - name: 保存完整 APK 审计及字节摘要
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-arm64-apk-audit
           path: ${{ runner.temp }}/arm64-apk-audit.json
@@ -661,37 +672,63 @@ jobs:
           retention-days: 30
 
       - name: 上传 ARM64 安卓手机专用 APK
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-arm64-apk
           path: android-app/app/build/outputs/apk/debug/app-arm64-v8a-debug.apk
           if-no-files-found: error
           retention-days: 30
       - name: 上传同一 APK 的 Git 对应源码
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-arm64-git-corresponding-source
           path: ${{ runner.temp }}/git-corresponding-source.tar.xz
           if-no-files-found: error
           retention-days: 30
       - name: 上传设备仪器测试 APK
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-instrumentation-apk
           path: android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
           if-no-files-found: error
           retention-days: 30
 
+      - name: 生成完整 R8 专项候选的临时测试签名
+        if: needs.plan.outputs.run_sign == 'true'
+        run: bash .github/scripts/create-ci-signing-key.sh
+      - name: 构建含真实 ARM64 内核的 R8 压缩候选
+        if: needs.plan.outputs.run_sign == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash .github/scripts/ci-gradle.sh -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
+            -PcodexR8Candidate=true -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a \
+            -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
+          APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
+          test -s android-app/app/build/outputs/mapping/release/mapping.txt
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --min-sdk-version 29 "$APK"
+          mkdir -p "$RUNNER_TEMP/r8-candidate"
+          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode full --report "$RUNNER_TEMP/r8-candidate/apk-audit.json"
+          cp "$APK" android-app/app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/r8-candidate/"
+          wc -c "$APK" | tee "$RUNNER_TEMP/r8-candidate/size.txt"
+      - name: 保存完整 R8 专项候选包及真实原生组件审计
+        if: needs.plan.outputs.run_sign == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: r8-arm64-candidate-not-for-release
+          path: ${{ runner.temp }}/r8-candidate/
+          if-no-files-found: error
+          retention-days: 14
 
   runtime-test:
     name: Android ${{ needs.plan.outputs.device_release }} (API ${{ needs.plan.outputs.device_api }}) 真实内核及异常恢复验收（x86_64）
     needs: [plan, native, runtime-x86]
     if: needs.native.result == 'success' && needs.runtime-x86.result == 'success' && needs.plan.outputs.run_runtime == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - name: 检出同提交 Android 工程与原生配方
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
@@ -712,7 +749,7 @@ jobs:
         uses: ./.github/actions/ci-android
         with:
           mode: build
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-android-native-x86_64
           run-id: ${{ needs.native.outputs.x86_run_id }}
@@ -730,8 +767,16 @@ jobs:
           bash .github/scripts/assemble-product-runtime.sh x86_64 "$RUNTIME_ID" "$RUNTIME_SOURCE" "$RUNTIME_KEY" "$RUNNER_TEMP/native-x86"
           bash .github/scripts/prepare-android-patcher.sh x86_64
           bash .github/scripts/create-android-update-fixture.sh
-          ./android-app/gradlew -p android-app --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
-          python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full
+          bash .github/scripts/ci-gradle.sh -p android-app --dependency-verification strict -PcodexTargetAbi=x86_64 :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          python3 .github/scripts/audit_apk_contents.py --apk android-app/app/build/outputs/apk/debug/app-debug.apk --abi x86_64 --mode full --debug-executor
+          mkdir -p "$RUNNER_TEMP/runtime-baseline" "$RUNNER_TEMP/runtime-api37"
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/runtime-baseline/app.apk"
+          cp android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk "$RUNNER_TEMP/runtime-baseline/test.apk"
+          bash .github/scripts/ci-gradle.sh -p android-app --dependency-verification strict -PcodexTargetAbi=x86_64 -PcodexAndroid17Candidate=true :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+          cp android-app/app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/runtime-api37/app.apk"
+          cp android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk "$RUNNER_TEMP/runtime-api37/test.apk"
+          "$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging "$RUNNER_TEMP/runtime-api37/app.apk" | grep -Fx "targetSdkVersion:'37'"
+          python3 .github/scripts/audit_apk_contents.py --apk "$RUNNER_TEMP/runtime-api37/app.apk" --abi x86_64 --mode full --debug-executor
       - name: 使用 Runner 模拟器及独立镜像缓存
         uses: ./.github/actions/ci-emulator
       - name: 允许模拟器硬件加速
@@ -744,10 +789,10 @@ jobs:
           profile: ${{ needs.plan.outputs.device_runtime_profile }}
           script: |
             python3 android-app/tools/device_matrix.py --verify-resources runtime-evidence/device-resources.json
-            bash .github/scripts/run-android-runtime-tests.sh android-app/app/build/outputs/apk/debug/app-debug.apk android-app/app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk x86_64 runtime-evidence
+            bash .github/scripts/run-android-runtime-tests.sh "$RUNNER_TEMP/runtime-baseline/app.apk" "$RUNNER_TEMP/runtime-baseline/test.apk" x86_64 runtime-evidence "$RUNNER_TEMP/runtime-api37/app.apk" "$RUNNER_TEMP/runtime-api37/test.apk"
       - name: 保存真实内核验收证据
         if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-android-real-runtime-evidence
           path: runtime-evidence/
@@ -760,43 +805,48 @@ jobs:
     needs: [plan, build]
     # Independent integrity verification; the final gate still requires runtime when selected.
     if: needs.build.result == 'success' && needs.plan.outputs.run_package == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       # Jobs have separate workspaces. The APK and its audit script are both
       # required; the upload artifact contains only the APK, not repository files.
       - name: 检出 APK 安全检查脚本
-        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
           sparse-checkout: |
+            /tools/build/
             /.github/scripts/audit_apk_contents.py
           sparse-checkout-cone-mode: false
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python
       - name: 取回 ARM64 原生 APK
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-android-arm64-apk
           path: apks
       - name: 取回同一构建的完整审计凭证
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-android-arm64-apk-audit
           path: audit
       - name: 独立核对上传下载 APK 的完整字节哈希
-        run: python3 .github/scripts/audit_apk_contents.py --apk apks/app-arm64-v8a-debug.apk --abi arm64-v8a --mode full --verify-report audit/arm64-apk-audit.json
+        run: python3 .github/scripts/audit_apk_contents.py --apk apks/app-arm64-v8a-debug.apk --abi arm64-v8a --mode full --debug-executor --verify-report audit/arm64-apk-audit.json
 
   preflight:
     name: 发布脚本回归检查
     needs: plan
     if: needs.plan.outputs.run_preflight == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           persist-credentials: false
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python
       - name: 检查版本号、Shell 语法和中文发布说明
         shell: bash
         run: |
@@ -818,7 +868,6 @@ jobs:
           python3 -m unittest discover -s android-app/tools -p 'test_prepare_prebuilt_developer_runtime.py'
           bash -n android-app/tools/package_native_runtime.sh
           bash -n android-app/tools/prepare_android_v8.sh
-          bash -n android-app/tools/build_android_git.sh
           python3 -m unittest discover -s android-app/tools -p 'test_adapt_android_v8_build.py'
 
   release-signing-smoke:
@@ -828,7 +877,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           sparse-checkout: |
@@ -846,18 +895,7 @@ jobs:
         with:
           mode: build
       - name: 生成仅本次 CI 有效的测试签名
-        shell: bash
-        run: |
-          set -euo pipefail
-          STORE="$RUNNER_TEMP/release-signing-smoke.jks"
-          keytool -genkeypair -noprompt -keystore "$STORE" -storetype PKCS12 \
-            -alias 111-release -keyalg RSA -keysize 2048 -validity 1 \
-            -storepass ci-only-password -keypass ci-only-password -dname "CN=111 CI signing smoke"
-          {
-            echo "CODEX_RELEASE_KEYSTORE_PATH=$STORE"
-            echo "CODEX_RELEASE_PASSWORD=ci-only-password"
-            echo "CODEX_RELEASE_KEY_ALIAS=111-release"
-          } >> "$GITHUB_ENV"
+        run: bash .github/scripts/create-ci-signing-key.sh
       - name: 校验并装配正式版增量恢复组件
         shell: bash
         run: bash .github/scripts/prepare-android-patcher.sh arm64-v8a
@@ -865,7 +903,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./android-app/gradlew -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
+          bash .github/scripts/ci-gradle.sh -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
             -PcodexSplitAbi=true \
             -PcodexReleaseTargetAbi=arm64-v8a \
             -PcodexReleaseVersionName=0.1.0-111.999 \
@@ -874,49 +912,26 @@ jobs:
           test -s "$APK"
           python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode ui-smoke
           test ! -e "android-app/app/build/outputs/apk/release/app-x86_64-release.apk"
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
-          BADGE="$("$ANDROID_HOME/build-tools/35.0.0/aapt" dump badging "$APK" | sed -n '1p')"
+          "$ANDROID_HOME/build-tools/37.0.0/apksigner" verify --min-sdk-version 29 "$APK"
+          BADGE="$("$ANDROID_HOME/build-tools/37.0.0/aapt" dump badging "$APK" | sed -n '1p')"
           [[ "$BADGE" == *"name='io.github.sy220284.codexandroid'"* ]]
           [[ "$BADGE" == *"versionCode='999'"* ]]
           [[ "$BADGE" == *"versionName='0.1.0-111.999'"* ]]
-          cp "$APK" "$RUNNER_TEMP/unoptimized-arm64.apk"
-      - name: 编译 R8 与资源压缩专项候选包
-        shell: bash
-        run: |
-          set -euo pipefail
-          ./android-app/gradlew -p android-app --dependency-verification strict :app:lintRelease :app:assembleRelease \
-            -PcodexR8Candidate=true -PcodexSplitAbi=true -PcodexReleaseTargetAbi=arm64-v8a \
-            -PcodexReleaseVersionName=0.1.0-111.999 -PcodexReleaseVersionCode=999 --no-daemon --stacktrace
-          APK="android-app/app/build/outputs/apk/release/app-arm64-v8a-release.apk"
-          test -s "$APK"
-          test -s android-app/app/build/outputs/mapping/release/mapping.txt
-          "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --min-sdk-version 29 "$APK"
-          python3 .github/scripts/audit_apk_contents.py --apk "$APK" --abi arm64-v8a --mode ui-smoke
-          mkdir -p "$RUNNER_TEMP/r8-candidate"
-          cp "$APK" "$RUNNER_TEMP/r8-candidate/"
-          cp android-app/app/build/outputs/mapping/release/mapping.txt "$RUNNER_TEMP/r8-candidate/"
-          wc -c "$RUNNER_TEMP/unoptimized-arm64.apk" "$APK" | tee "$RUNNER_TEMP/r8-candidate/sizes.txt"
-      - name: 保存仅供专项验收的压缩候选包及体积证据
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: r8-arm64-candidate-not-for-release
-          path: ${{ runner.temp }}/r8-candidate/
-          if-no-files-found: error
-          retention-days: 14
 
 
   compatibility:
     name: MXC 和 Code Mode Host 源码适配预演
     needs: plan
     if: needs.plan.outputs.run_compat == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           filter: blob:none
           sparse-checkout: |
+            /tools/build/
             /CODEX_UPSTREAM_COMMIT
             /.github/scripts/merge_codex_upstream.py
             /.github/scripts/test_merge_codex_upstream.py
@@ -926,6 +941,8 @@ jobs:
             /android-app/tools/rehearse_upstream_upgrade.py
             /android-app/tools/test_rehearse_upstream_upgrade.py
           sparse-checkout-cone-mode: false
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python
       - name: 检验升级预演逻辑的正常和异常场景
         run: python3 -m unittest discover -s android-app/tools -p 'test_rehearse_upstream_upgrade.py'
       - name: 只检出候选 Cargo.toml 固定的 MXC 提交
@@ -961,15 +978,16 @@ jobs:
     name: 111 合并验收
     needs: [plan, native, runtime-arm64, runtime-x86, static-ui, verify-ui, ui-emulator, ui-collect, ui-evidence, build, runtime-test, verify-apk, preflight, release-signing-smoke, compatibility]
     if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           filter: blob:none
           sparse-checkout: |
+            /tools/build/
             /.github/scripts/
             /.github/ci/
             /android-app/tools/
@@ -977,6 +995,8 @@ jobs:
             /android-app/gradle/verification-metadata.xml
           sparse-checkout-cone-mode: false
           persist-credentials: false
+      - name: 安装固定 CI 工具
+        run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" python gh
       - name: 汇总并强制核对所有适用验收
         env:
           GH_TOKEN: ${{ github.token }}
@@ -992,7 +1012,7 @@ jobs:
           test -s android-app/app/gradle.lockfile || { echo "::error::须审查并提交真实依赖锁文件"; exit 1; }
           test -s android-app/gradle/verification-metadata.xml || { echo "::error::须审查并提交依赖验证元数据"; exit 1; }
       - name: 保存可核验的验收凭证
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: ci-acceptance-receipt
           path: ci-acceptance-receipt.json

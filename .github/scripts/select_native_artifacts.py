@@ -142,12 +142,12 @@ class ArtifactSelector:
         v8_host_adapter = self.run([
             "git", "ls-tree", sha, "--", "android-app/tools/adapt_android_v8_build.py"
         ])
-        git_builder = self.run([
-            "git", "ls-tree", sha, "--", "android-app/tools/build_android_git.sh"
-        ])
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
         signature = (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder,
-                     v8_host_adapter, git_builder, native_recipe(workflow, abi))
+                     v8_host_adapter, native_recipe(workflow, abi))
+        preparation = self.run(["git", "ls-tree", sha, "--", ".github/scripts/prepare-native-dependencies.sh"])
+        if preparation:
+            signature += (preparation,)
         privacy = self.run(["git", "ls-tree", sha, "--", "android-app/tools/prepare_android_realtime_privacy.py"])
         if privacy:
             signature += (privacy,)
@@ -156,10 +156,14 @@ class ArtifactSelector:
             signature += (remote_delivery,)
         if "\n  v8:\n" in workflow:
             from v8_artifacts import producer_recipe, compiler_action_recipe
+            from platform_toolchain import PROFILES, recipe as platform_recipe
             setup = tuple(compiler_action_recipe(self.run(["git", "show", f"{sha}:{p}"]))
                           for p in (".github/actions/ci-android/action.yml", ".github/actions/ci-rust/action.yml"))
-            signature += (producer_recipe(workflow), setup,
-                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py",".github/scripts/ci-android-sdk.sh",".github/scripts/ci-llvm.sh","upstream/codex/codex-rs/Cargo.lock"]))
+            locked_platform = self.run(["git", "ls-tree", sha, "--", "tools/build/platform-toolchain.json"])
+            sdk_recipe = platform_recipe(self.run(["git", "show", f"{sha}:tools/build/platform-toolchain.json"]),
+                                         host=("jdk", "python"), android=PROFILES["v8"]) if locked_platform else None
+            signature += (producer_recipe(workflow), setup, sdk_recipe,
+                          self.run(["git","ls-tree",sha,"--","android-app/tools/v8_toolchain_provenance.py",".github/scripts/ci-android-sdk.sh",".github/scripts/ci-llvm.sh","tools/build/platform_toolchain.py","tools/build/native_toolchain.py","tools/build/native-toolchain.json","upstream/codex/codex-rs/Cargo.lock"]))
         return signature
 
     def test_signature(self, sha):

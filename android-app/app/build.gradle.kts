@@ -2,6 +2,7 @@
 val releaseVersionName = providers.gradleProperty("codexReleaseVersionName").orNull
 val releaseVersionCode = providers.gradleProperty("codexReleaseVersionCode").orNull?.toIntOrNull()
 val releaseTargetAbi = providers.gradleProperty("codexReleaseTargetAbi").orNull
+val android17Candidate = providers.gradleProperty("codexAndroid17Candidate").orNull == "true"
 val r8Candidate = providers.gradleProperty("codexR8Candidate").orNull == "true"
 require(releaseTargetAbi == null || releaseTargetAbi == "arm64-v8a") {
     "正式发布目标架构只能是 arm64-v8a"
@@ -16,6 +17,7 @@ val releaseTasksRequested = gradle.startParameter.taskNames.any {
     it.contains("assembleRelease") || it.contains("bundleRelease") || it.contains("packageRelease")
 }
 if (releaseTasksRequested) {
+    require(!android17Candidate) { "Android 17 兼容性候选使用 Debug 构建" }
     require(releaseVersionName?.matches(Regex("""\d+\.\d+\.\d+-111\.\d+""")) == true) {
         "正式构建必须传入 -PcodexReleaseVersionName=0.1.0-111.N"
     }
@@ -27,18 +29,22 @@ if (releaseTasksRequested) {
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
 android {
     namespace = "io.github.sy220284.codexandroid"
-    compileSdk = 35
+    compileSdk {
+        version = release(37) { minorApiLevel = 2 }
+    }
+    buildToolsVersion = "37.0.0"
+    ndkVersion = "30.0.16248370"
 
     defaultConfig {
         applicationId = "io.github.sy220284.codexandroid"
         minSdk = 29
         targetSdk = 35
+        if (android17Candidate) targetSdk = 37
         versionCode = releaseVersionCode ?: 1
         versionName = releaseVersionName ?: "0.1.0"
         nativeTargetAbi?.takeIf { providers.gradleProperty("codexSplitAbi").orNull != "true" }?.let { ndk { abiFilters += it } }
@@ -73,7 +79,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     sourceSets.getByName("main").assets.srcDir(rootProject.file("../upstream/codex/codex-rs/model-provider/catalogs"))
     packaging {
@@ -81,6 +86,7 @@ android {
             useLegacyPackaging = true
             keepDebugSymbols += "**/libcodex_server.so"
             keepDebugSymbols += "**/libcodex_code_mode_host.so"
+            keepDebugSymbols += "**/libcodex_test_executor.so"
             keepDebugSymbols += "**/libcodex_rg.so"
             keepDebugSymbols += "**/libcodex_git.so"
             keepDebugSymbols += "**/libcodex_git_remote_http.so"
@@ -104,30 +110,40 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
+
+androidComponents.beforeVariants(androidComponents.selector().withBuildType("release")) { variant ->
+    if (android17Candidate) variant.enable = false
+}
+
 dependencies {
-    val composeBom = platform("androidx.compose:compose-bom:2025.04.01")
+    val composeBom = platform("androidx.compose:compose-bom:2026.11.01")
     implementation(composeBom)
-    implementation("androidx.activity:activity-compose:1.10.1")
-    implementation("androidx.core:core-ktx:1.16.0")
+    implementation("androidx.activity:activity-compose:1.13.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.9.0")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
-    implementation("org.commonmark:commonmark:0.24.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.11.1")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.11.1")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.11.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
+    implementation("org.commonmark:commonmark:0.33.0")
     implementation("org.nanohttpd:nanohttpd:2.3.1")
-    implementation("org.commonmark:commonmark-ext-gfm-tables:0.24.0")
-    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.24.0")
-    implementation("org.commonmark:commonmark-ext-task-list-items:0.24.0")
+    implementation("org.commonmark:commonmark-ext-gfm-tables:0.33.0")
+    implementation("org.commonmark:commonmark-ext-gfm-strikethrough:0.33.0")
+    implementation("org.commonmark:commonmark-ext-task-list-items:0.33.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")
     // JVM scheduler and flow regression tests require virtual time at the same locked coroutine version.
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
     // Stable AndroidX Test release containing the public InputManager lookup.
     // Older Espresso versions crash before Compose assertions on Android 17.
     androidTestImplementation("androidx.test:core:1.7.0")

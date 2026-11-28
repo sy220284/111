@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Verify and install both Android-native Codex executables from one trusted build.
+# Verify the product executables and debug-only executor from one trusted build.
 set -euo pipefail
 if [ "$#" -ne 3 ]; then
   echo "Usage: $0 <arm64-v8a|x86_64> <artifact-dir> <llvm-strip>" >&2
@@ -15,9 +15,17 @@ test -x "$STRIP"
 TARGET="android-app/app/src/main/jniLibs/$ABI"
 mkdir -p "$TARGET"
 NEEDS_CPP_RUNTIME=0
-ENTRIES=("codex-app-server:libcodex_server.so" "codex-code-mode-host:libcodex_code_mode_host.so")
+DEBUG_TARGET="android-app/app/src/debug/jniLibs/$ABI"
+ENTRIES=("codex-app-server:libcodex_server.so" "codex-code-mode-host:libcodex_code_mode_host.so" "codex-exec-server:libcodex_test_executor.so")
 for ENTRY in "${ENTRIES[@]}"; do
   NAME="${ENTRY%%:*}"; LIB="${ENTRY#*:}"
+  DEST="$TARGET"
+  # The standalone executor is needed only by full-core instrumentation.
+  # It must never be installed in main jniLibs or the signed release APK.
+  if [ "$NAME" = codex-exec-server ]; then
+    DEST="$DEBUG_TARGET"
+    mkdir -p "$DEST"
+  fi
   mapfile -t MATCHES < <(find "$SRC_DIR" -type f -name "$NAME")
   if [ "${#MATCHES[@]}" -ne 1 ]; then
     echo "::error::$ABI expected one $NAME, found ${#MATCHES[@]}" >&2
@@ -47,17 +55,17 @@ for ENTRY in "${ENTRIES[@]}"; do
       exit 1
     fi
   done
-  cp "$SRC" "$TARGET/$LIB"
-  chmod 755 "$TARGET/$LIB"
-  "$STRIP" --strip-all "$TARGET/$LIB"
-  readelf -h "$TARGET/$LIB" | grep -Fq "$ARCH"
-  readelf -l "$TARGET/$LIB" | grep -Fq '/system/bin/linker64'
+  cp "$SRC" "$DEST/$LIB"
+  chmod 755 "$DEST/$LIB"
+  "$STRIP" --strip-all "$DEST/$LIB"
+  readelf -h "$DEST/$LIB" | grep -Fq "$ARCH"
+  readelf -l "$DEST/$LIB" | grep -Fq '/system/bin/linker64'
   echo "$ABI $NAME installed as $LIB"
-  sha256sum "$TARGET/$LIB"
+  sha256sum "$DEST/$LIB"
 done
 
 if [ "$NEEDS_CPP_RUNTIME" -eq 1 ]; then
-  NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_HOME:?}/ndk/27.2.12479018}"
+  NDK_HOME="${ANDROID_NDK_HOME:-${ANDROID_HOME:?}/ndk/30.0.16248370}"
   CPP="$NDK_HOME/sources/cxx-stl/llvm-libc++/libs/$ABI/libc++_shared.so"
   test -s "$CPP" || { echo "::error::$ABI missing required NDK C++ runtime $CPP" >&2; exit 1; }
   cp "$CPP" "$TARGET/libc++_shared.so"

@@ -147,7 +147,7 @@ class V8ArtifactsTests(unittest.TestCase):
             lock.write_text(f'[[package]]\nname = "v8"\nversion = "{VERSION}"\n')
             ndk = root / "ndk"
             ndk.mkdir()
-            (ndk / "source.properties").write_text("Pkg.Revision = 27.2.12479018\n")
+            (ndk / "source.properties").write_text("Pkg.Revision = 30.0.16248370\n")
             subprocess.run(["git", "init", "-q", d], check=True)
             subprocess.run(["git", "-C", d, "add", "."], check=True)
             subprocess.run(["git", "-C", d, "-c", "user.name=CI", "-c", "user.email=ci@example.invalid",
@@ -175,8 +175,7 @@ class V8ArtifactsTests(unittest.TestCase):
         root = Path(__file__).resolve().parents[2]
         workflow = (root / ".github/workflows/build-native-codex.yml").read_text()
         native = workflow.split("\n  native:\n", 1)[1].split("\n  provider-contract:\n", 1)[0]
-        self.assertLess(native.index("v8_artifacts.py consume"), native.index("cat >> upstream/codex/codex-rs/core/Cargo.toml"))
-        self.assertLess(native.index("v8_artifacts.py consume"), native.index("prepare_android_remote_delivery.py\" \"$GITHUB_WORKSPACE"))
+        self.assertLess(native.index("v8_artifacts.py consume"), native.index("prepare-native-dependencies.sh"))
         self.assertIn("overwrite: true", workflow.split("\n  native:\n", 1)[0])
         producer = (root / "android-app/tools/prepare_android_v8.sh").read_text()
         self.assertIn("v8_artifacts.py\" inputs --target", producer)
@@ -184,6 +183,28 @@ class V8ArtifactsTests(unittest.TestCase):
         self.assertIn("github.event_name == 'pull_request' && 'latest' || github.sha", ci)
         self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", ci)
 
+
+    def test_complete_core_fetch_and_scoped_bindgen(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github/workflows/build-native-codex.yml").read_text()
+        native = workflow.split("\n  native:\n", 1)[1].split("\n  provider-contract:\n", 1)[0]
+        preparation = (root / ".github/scripts/prepare-native-dependencies.sh").read_text()
+        self.assertNotIn("cargo fetch --locked --target", preparation)
+        self.assertLess(preparation.index('prepare_android_remote_delivery.py" "$GITHUB_WORKSPACE'), preparation.index("cargo fetch --locked\n"))
+        self.assertLess(preparation.index("cargo fetch --locked\n"), preparation.index("cargo fetch --locked --offline"))
+        self.assertLess(native.index("prepare-native-dependencies.sh"), native.index("cargo build --locked --offline"))
+        early = workflow.split("\n  core-dependencies:\n", 1)[1].split("\n  v8:\n", 1)[0]
+        producer = workflow.split("\n  v8:\n", 1)[1].split("\n  native:\n", 1)[0]
+        self.assertIn("prepare-native-dependencies.sh", early)
+        self.assertIn("needs: [reuse, core-dependencies]", producer)
+        self.assertIn("needs.core-dependencies.result == 'success'", producer)
+        self.assertIn("cache-scope: workspace", early)
+        self.assertIn("cache-scope: workspace", native)
+        self.assertIn("cache-scope: v8", producer)
+        shell = (root / "android-app/tools/prepare_android_v8.sh").read_text()
+        self.assertNotIn('export "BINDGEN_EXTRA_CLANG_ARGS', shell)
+        self.assertIn("export RUSTY_V8_ANDROID_BINDGEN_TARGET=", shell)
+        self.assertIn("export RUSTY_V8_ANDROID_BINDGEN_SYSROOT=", shell)
 
     def test_v8_package_identity_ignores_unrelated_crates(self):
         lock = f'[[package]]\nname="v8"\nversion="{VERSION}"\nsource="registry+https://example.invalid"\nchecksum="abc"\n'
@@ -207,3 +228,23 @@ class V8ArtifactsTests(unittest.TestCase):
     def test_current_artifact_may_be_absent_when_historical_producer_exists(self):
         self.assertIsNone(current_artifact("o/r", 17, KEY,
             lambda *_: {"total_count":0,"artifacts":[]}, allow_missing=True))
+
+    def test_manual_prewarm_keeps_full_product_gate_and_cache_scope(self):
+        root = Path(__file__).resolve().parents[2]
+        workflow = (root / ".github/workflows/build-native-codex.yml").read_text()
+        producer, consumer = workflow.split("\n  v8:\n", 1)[1].split("\n  native:\n", 1)
+        recovery = consumer.split("\n  provider-contract:\n", 1)[0]
+        for block in (producer, recovery):
+            self.assertIn("SCCACHE_CLIENT_SIDE: \"1\"", block)
+            self.assertIn("SCCACHE_GHA_VERSION: ${{ matrix.v8_key }}", block)
+            self.assertIn("version: v0.20.1", block)
+            self.assertIn("'READ_ONLY' || 'READ_WRITE'", block)
+        self.assertIn("v8_only:", workflow)
+        self.assertIn("!(github.event_name == 'workflow_dispatch' && inputs.v8_only)", recovery)
+        self.assertIn('test "$V8" = success', workflow)
+        self.assertIn('test "$NATIVE" = skipped', workflow)
+        self.assertIn('test "$NATIVE" = success; test "$V8" = success', workflow)
+        shell = (root / "android-app/tools/prepare_android_v8.sh").read_text()
+        self.assertIn('--jobs v8', shell)
+        self.assertIn('v8_enable_sandbox = true', shell)
+        self.assertIn('v8_enable_pointer_compression = true', shell)

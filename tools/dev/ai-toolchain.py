@@ -37,18 +37,6 @@ def check_installed(root, name, spec):
     marker = dest / ".source.json"
     if not marker.is_file() or marker.read_text() != json.dumps(spec, sort_keys=True):
         return False
-    if name == "node":
-        home = dest / "node-current"
-        for command in ("npm", "npx"):
-            launcher = home / "bin" / command
-            if not launcher.is_symlink() or os.readlink(launcher) != "../lib/node_modules/npm/bin/"+command+"-cli.js":
-                return False
-        try:
-            version = json.loads((home / "lib/node_modules/npm/package.json").read_text())["version"]
-            if subprocess.check_output([str(home/"bin/node"), str(home/"bin/npm"), "--version"], text=True, timeout=30).strip() != version:
-                return False
-        except (OSError, ValueError, subprocess.SubprocessError):
-            return False
     if spec["probe"]:
         binary, *args = spec["probe"]
         try:
@@ -72,16 +60,6 @@ def install(root, name, archive):
         stage = pathlib.Path(temp) / "component"
         stage.mkdir()
         extract_payload(archive, spec, stage, temp)
-        if name == "node":
-            # The 777 tar producer dereferences links. Restore npm launchers to
-            # their verified package paths so relative require() resolves correctly.
-            home = stage / "node-current"
-            for command in ("npm", "npx"):
-                target = "../lib/node_modules/npm/bin/"+command+"-cli.js"
-                launcher = home / "bin" / command
-                require((launcher.parent / target).is_file(), "777 Node 缺少 npm 包: "+command)
-                launcher.unlink()
-                launcher.symlink_to(target)
         (stage / ".source.json").write_text(json.dumps(spec, sort_keys=True))
         # Never replace an unrelated version or write into a host SDK directory.
         if dest.exists():
@@ -100,9 +78,8 @@ def host_environment(root):
     env = os.environ.copy()
     missing = [n for n, s in COMPONENTS.items() if not check_installed(root, n, s)]
     require(not missing, "缺少已核验组件: " + ", ".join(missing))
-    env["PATH"] = os.pathsep.join([str(component_dir(root, "node", COMPONENTS["node"]) / "node-current/bin"),
-                                   str(component_dir(root, "actionlint", COMPONENTS["actionlint"]) / "bin"),
-                                   env.get("PATH", "")])
+    env.update(host.environment(root, ("node", "wheelhouse")))
+    env["PATH"] = os.pathsep.join([str(component_dir(root, "actionlint", COMPONENTS["actionlint"]) / "bin"), env["PATH"]])
     env["CODEX_777_RUNTIME_CACHE"] = str(component_dir(root, "runtime-cache", COMPONENTS["runtime-cache"]) / "runtime-cache")
     return env
 
@@ -110,13 +87,13 @@ def project_check():
     p = LOCK["project"]
     files = {
         "android-app/build.gradle.kts": [p["agp"], p["kotlin"]],
-        "android-app/app/build.gradle.kts": [f"compileSdk = {p['compileSdk']}", f"minSdk = {p['minSdk']}",
-                                              f"targetSdk = {p['targetSdk']}", p["composeBom"]],
+        "android-app/app/build.gradle.kts": [f"version = release({p['compileSdk']})", f"minorApiLevel = {p['compileSdkPackage'].split('.')[1]}", f"minSdk = {p['minSdk']}",
+                                              f"targetSdk = {p['targetSdk']}", p["composeBom"], p["coroutines"], p["commonmark"]],
         "android-app/gradle/wrapper/gradle-wrapper.properties": [f"gradle-{p['gradle']}-bin.zip", p["gradleDistributionSha256"]],
         "upstream/codex/codex-rs/rust-toolchain.toml": [p["rust"]],
         "android-app/tools/prepare_android_v8.sh": [p["v8"], p["v8Commit"]],
-        ".github/scripts/ci-android-sdk.sh": [p["buildTools"], p["ndk"]],
-        "tools/dev/requirements-host.lock": [f"jsonschema=={p['jsonschema']}", f"pillow=={p['pillow']}"],
+        "tools/build/platform-toolchain.json": [p["buildTools"], p["ndk"], "platforms;android-" + p["compileSdkPackage"]],
+        ".github/ci/requirements.lock": [f"jsonschema=={p['jsonschema']}", f"pillow=={p['pillow']}"],
         "android-app/tools/device-matrix.json": ['"system_image_api": "' + p["deviceImage"] + '"'],
     }
     for relative, terms in files.items():
@@ -209,8 +186,14 @@ def main():
                 "artifactId": spec["id"], "artifactName": spec["name"], "sha256": spec["sha256"]}
                 for name, spec in COMPONENTS.items()},
                 "projectVersions": LOCK["project"], "missingAndroidLocks": missing_locks, "hostInstalled": host.selected(root)}
+        for name in ("node","wheelhouse"):
+            if name not in state["hostInstalled"]:
+                state.setdefault("hostReady", {})[name] = False
+            else:
+                host.environment(root,(name,))
+                state.setdefault("hostReady", {})[name] = True
         print(json.dumps(state, ensure_ascii=False, indent=2))
-        return 1 if args.command != "plan" and (missing_locks or not all(v["ready"] for v in state["shared"].values())) else 0
+        return 1 if args.command != "plan" and (missing_locks or not all(v["ready"] for v in state["shared"].values()) or not all(state["hostReady"].values())) else 0
     command = args.args[1:] if args.args and args.args[0] == "--" else args.args
     if args.command == "gradle":
         require(not missing_locks, "111 Gradle 依赖锁/校验元数据缺失: " + ", ".join(missing_locks))

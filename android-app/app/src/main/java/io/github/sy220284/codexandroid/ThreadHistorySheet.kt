@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.Dispatchers
@@ -28,11 +29,11 @@ import java.io.IOException
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ThreadHistorySheet(vm: CodexViewModel, onDismiss: () -> Unit) {
-    val thread by vm.activeThread.collectAsState()
-    val busy by vm.running.collectAsState()
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
+    val thread by vm.activeThread.collectAsStateWithLifecycle()
+    val busy by vm.running.collectAsStateWithLifecycle()
+    val data by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
     var page by remember(thread) { mutableIntStateOf(0) }
     var target by remember(thread) { mutableStateOf<String?>(null) }
     var inspected by remember(thread) { mutableStateOf<String?>(null) }

@@ -18,6 +18,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import org.json.JSONObject
 
 /**
@@ -28,16 +29,16 @@ import org.json.JSONObject
 fun AccountPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val ctx = LocalContext.current
     val clipboard = LocalClipboardManager.current
-    val data by vm.data.collectAsState()
-    val errors by vm.errors.collectAsState()
-    val loading by vm.loading.collectAsState()
-    val loginBusy by vm.loginBusy.collectAsState()
-    val browserUrl by vm.accountLoginUrl.collectAsState()
-    val deviceCode by vm.deviceLoginCode.collectAsState()
-    val deviceUrl by vm.deviceLoginUrl.collectAsState()
-    val loginId by vm.activeLoginId.collectAsState()
-    val voiceEpoch by vm.bridge.connectedSession.collectAsState()
-    val voiceAccountRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val data by vm.data.collectAsStateWithLifecycle()
+    val errors by vm.errors.collectAsStateWithLifecycle()
+    val loading by vm.loading.collectAsStateWithLifecycle()
+    val loginBusy by vm.loginBusy.collectAsStateWithLifecycle()
+    val browserUrl by vm.accountLoginUrl.collectAsStateWithLifecycle()
+    val deviceCode by vm.deviceLoginCode.collectAsStateWithLifecycle()
+    val deviceUrl by vm.deviceLoginUrl.collectAsStateWithLifecycle()
+    val loginId by vm.activeLoginId.collectAsStateWithLifecycle()
+    val voiceEpoch by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    val voiceAccountRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
     val payload = data["account"]
     val identity = payload?.optJSONObject("account")
     val connected = identity != null

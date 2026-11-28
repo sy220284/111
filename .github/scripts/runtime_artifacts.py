@@ -16,11 +16,12 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "tools/build"))
 from transfer_progress import download
 from build_recipe import job_recipe
+from platform_toolchain import recipe as platform_recipe
 
 WORKFLOW = ".github/workflows/prepare-developer-runtime.yml"
 INPUTS = (
     "tools/runtime", "android-app/tools/prepare_prebuilt_developer_runtime.py",
-    "android-app/tools/developer_tool_launcher.c", "tools/build/component-bundle.py",
+    "android-app/tools/developer_tool_launcher.c", "tools/build/component-bundle.py", "tools/build/platform_toolchain.py",
     ".github/scripts/ci-android-sdk.sh", ".github/actions/ci-android/action.yml",
     ".github/scripts/runtime_artifacts.py",
 )
@@ -38,7 +39,9 @@ def key(source, abi):
     inputs = git("ls-tree", "-r", source, "--", *INPUTS)
     if not inputs:
         raise ValueError("Missing runtime inputs")
-    return hashlib.sha256(json.dumps([abi, recipe, inputs], separators=(",", ":")).encode()).hexdigest()
+    lock = "tools/build/platform-toolchain.json"
+    sdk = platform_recipe(git("show", f"{source}:{lock}"), host=("python",), android=("ndk",)) if git("ls-tree", source, "--", lock) else None
+    return hashlib.sha256(json.dumps([abi, recipe, inputs, sdk], separators=(",", ":")).encode()).hexdigest()
 
 def api(repo, path):
     return json.loads(subprocess.check_output(["gh", "api", f"repos/{repo}/{path}"], text=True))

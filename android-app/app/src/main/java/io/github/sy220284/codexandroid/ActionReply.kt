@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.update
 
 /**
@@ -60,7 +61,7 @@ internal fun ActionReplyRow(
         if (expanded == null) localOpen = next else requireNotNull(onExpandedChange)(next)
     }
     var draft by rememberSaveable(value) { mutableStateOf(value) }
-    val reduced by UiPreferences.reducedMotion.collectAsState()
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     val clipboard = LocalClipboardManager.current
     var clipboardEmpty by remember { mutableStateOf(false) }
     val focus = androidx.compose.ui.platform.LocalFocusManager.current
@@ -184,10 +185,10 @@ internal object AgentActionDraftPolicy {
 @Composable
 internal fun AgentActionRow(vm: CodexViewModel, title: String, detail: String, request: String,
     modifier: Modifier = Modifier, enabled: Boolean = true) {
-    val transferring by AppDataTransfer.state.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
-    val creating by vm.firstThreadStarting.collectAsState()
-    val workspace by vm.activeWorkspace.collectAsState()
+    val transferring by AppDataTransfer.state.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
+    val creating by vm.firstThreadStarting.collectAsStateWithLifecycle()
+    val workspace by vm.activeWorkspace.collectAsStateWithLifecycle()
     val agentOwner = ThreadComposerDrafts.agentKey(workspace)
     val drafts by vm.composerDrafts.collectEntries(agentOwner)
     val target = drafts[agentOwner]

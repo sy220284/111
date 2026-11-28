@@ -44,6 +44,12 @@ internal data class UpdateManifest(
         fun versionCode(version: String): Long? =
             versionPattern.matchEntire(version)?.groupValues?.get(1)?.toLongOrNull()
 
+        fun matchesUpgrade(
+            expectedName: String, expectedCode: Long, archiveName: String?,
+            archiveCode: Long, installedCode: Long
+        ): Boolean = archiveName == expectedName &&
+            archiveCode == expectedCode && archiveCode > installedCode
+
         fun parse(json: String): UpdateManifest {
             val obj = JSONObject(json)
             require(obj.getInt("schema") == 2) { "发布清单版本不受支持" }

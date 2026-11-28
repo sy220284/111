@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 
 data class Page(
@@ -91,12 +92,12 @@ fun CodexShell(vm: CodexViewModel) {
             ?.hide(androidx.core.view.WindowInsetsCompat.Type.ime())
         keyboard?.hide()
     }
-    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
-    val activeThread by vm.activeThread.collectAsState()
-    val status by vm.bridge.status.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
+    val activeThread by vm.activeThread.collectAsStateWithLifecycle()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
     val pendingCount by vm.bridge.prompts.collectProjection { it.size }
-    val reduceMotion by UiPreferences.reducedMotion.collectAsState()
+    val reduceMotion by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
     fun openDrawer() {
         focusManager.clearFocus()
         keyboard?.hide()
@@ -111,7 +112,7 @@ fun CodexShell(vm: CodexViewModel) {
     }
     val operationSnacks = remember { SnackbarHostState() }
     val app = LocalContext.current.applicationContext as CodexApplication
-    val pendingDeepLink by app.pendingDeepLink.collectAsState()
+    val pendingDeepLink by app.pendingDeepLink.collectAsStateWithLifecycle()
     LaunchedEffect(vm) {
         vm.actionFeedback.collect { receipt ->
             presentActionFeedback(operationSnacks, receipt,
@@ -239,7 +240,7 @@ fun CodexShell(vm: CodexViewModel) {
             }
         }
     }
-    val agentActionNavigation by vm.agentActionNavigation.collectAsState()
+    val agentActionNavigation by vm.agentActionNavigation.collectAsStateWithLifecycle()
     LaunchedEffect(agentActionNavigation) {
         if (agentActionNavigation != 0L) {
             move("chat")
@@ -380,7 +381,7 @@ fun CodexShell(vm: CodexViewModel) {
                     )
                 }
             ) { inset ->
-                Column(Modifier.padding(inset).fillMaxSize()) {
+                CodexPageWidth(Modifier.padding(inset)) {
                     RuntimeProtectionNotice(vm)
                     RealtimeVoiceRecoveryNotice(vm)
                     Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -474,7 +475,7 @@ private fun ChatNavigationTopBar(
 ) {
     val libraryData by vm.data.collectEntries("sidebarThreads", "threads")
     val libraryResponse = libraryData["sidebarThreads"] ?: libraryData["threads"]
-    val answerVersions by vm.answerVersions.state.collectAsState()
+    val answerVersions by vm.answerVersions.state.collectAsStateWithLifecycle()
     val conversationTitle = remember(activeThread, libraryResponse, answerVersions) {
         activeThread?.let { id ->
             val rows = records(libraryResponse)
@@ -506,13 +507,13 @@ private fun Sidebar(
     sidebarState: SidebarUiState,
     continuationLabel: String?, active: Boolean, publishDirectory: Boolean
 ) {
-    val activeWorkspace by vm.activeWorkspace.collectAsState()
+    val activeWorkspace by vm.activeWorkspace.collectAsStateWithLifecycle()
     val accountData by vm.data.collectEntries("limits")
     val accountErrors by vm.errors.collectEntries("limits")
     val limitsLoading by vm.loading.collectProjection { "limits" in it }
-    val retiring by vm.bridge.retirementBusy.collectAsState()
-    val restarting by vm.connectionRestarter.busy.collectAsState()
-    val retry by vm.recoveryDelayMs.collectAsState()
+    val retiring by vm.bridge.retirementBusy.collectAsStateWithLifecycle()
+    val restarting by vm.connectionRestarter.busy.collectAsStateWithLifecycle()
+    val retry by vm.recoveryDelayMs.collectAsStateWithLifecycle()
     val canReconnect = RuntimeStatusPresentation.canReconnect(status, retiring, restarting)
     Column(
         modifier.background(Ink.canvas).padding(horizontal = 15.dp, vertical = 12.dp),

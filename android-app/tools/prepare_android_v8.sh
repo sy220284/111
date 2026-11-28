@@ -32,7 +32,21 @@ python3 "$GITHUB_WORKSPACE/.github/scripts/v8_artifacts.py" inputs --target "$TA
 test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
   echo "Raw V8 cache reuse is disabled; use a verified complete native artifact: $CACHE" >&2; exit 1;
 }
-    : " ${ANDROID_NDK_HOME:?NDK must be installed} "
+    : "${ANDROID_NDK_HOME:?NDK must be installed}" "${LLVM_HOME:?missing official LLVM}"
+    ANDROID_API=29
+    NDK_LLVM="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64"
+    BIN="$NDK_LLVM/bin"
+    SYSROOT="$NDK_LLVM/sysroot"
+    LINKER="$BIN/${TARGET}${ANDROID_API}-clang"
+    test -x "$LINKER"
+    # libclang otherwise uses Cargo's unversioned Rust triple. NDK r30
+    # rejects it when reading Bionic headers, even after Ninja succeeded.
+    BINDGEN_TARGET_ARGS=("--target=${TARGET}${ANDROID_API}" "--sysroot=$SYSROOT")
+    printf '#include <sys/cdefs.h>
+static_assert(__ANDROID_MIN_SDK_VERSION__ == %s);
+' "$ANDROID_API" |
+        "$LLVM_HOME/bin/clang" "${BINDGEN_TARGET_ARGS[@]}" -x c++ -std=c++20 -fsyntax-only -
+    echo "Verified Android bindgen headers for ${TARGET}${ANDROID_API}"
     ROOT="$RUNNER_TEMP/rusty-v8-android"
     SRC="$ROOT/rusty_v8-src"
     WRAPPER="$ROOT/wrapper"
@@ -43,7 +57,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     }
     git -C "$SRC" submodule update --init --recursive --depth 1
     : "${LLVM_HOME:?missing official LLVM}" "${LIBCLANG_PATH:?missing official libclang}"
-    "$LLVM_HOME/bin/clang" --version | grep -E 'clang version 21\.'
+    "$LLVM_HOME/bin/clang" --version | grep -E 'clang version 23\.'
     test -s "$LIBCLANG_PATH/libclang.so"
     command -v ninja
     command -v pkg-config
@@ -56,7 +70,7 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     ln -s "$ANDROID_HOME" "$SRC/third_party/android_sdk/public"
     CFG="$SRC/build/config/android/config.gni"
     if ! grep -Eq '^[[:space:]]*android_ndk_version[[:space:]]*=' "$CFG"; then
-      printf '\ndeclare_args() {\n  android_ndk_version = "r27"\n}\n' >> "$CFG"
+      printf '\ndeclare_args() {\n  android_ndk_version = "r30"\n}\n' >> "$CFG"
     fi
     mkdir -p "$SRC/build/rust"
     if [ ! -e "$SRC/build/rust/known-target-triples.txt" ]; then
@@ -68,31 +82,23 @@ test -z "$(find "$CACHE" -mindepth 1 -maxdepth 1 -print -quit)" || {
     # rather than letting its unconditional downloader block Android builds.
     python3 "$GITHUB_WORKSPACE/android-app/tools/adapt_android_v8_build.py" "$SRC/build.rs"
     mkdir -p "$WRAPPER/.cargo"
-    BIN="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
-    LINKER="$BIN/$TARGET"29-clang
-    test -x "$LINKER"
     printf '[target.%s]\nlinker = "%s"\n' "$TARGET" "$LINKER" > "$WRAPPER/.cargo/config.toml"
-    SYSROOT="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/sysroot"
     export LIBCLANG_PATH="$LLVM_HOME/lib"
-    export "BINDGEN_EXTRA_CLANG_ARGS_$(printf '%s' "$TARGET" | tr '-' '_')=--sysroot=$SYSROOT -isystem $SRC/third_party/libc++/src/include -isystem $SYSROOT/usr/include -isystem $SYSROOT/usr/include/$TARGET"
+    # GN also invokes Linux host bindgen under Cargo TARGET. Scope Android flags to the final binding.
+    export RUSTY_V8_ANDROID_BINDGEN_TARGET="${TARGET}${ANDROID_API}"
+    export RUSTY_V8_ANDROID_BINDGEN_SYSROOT="$SYSROOT"
     export "CARGO_TARGET_$(printf '%s' "$TARGET" | tr '[:lower:]-' '[:upper:]_')_LINKER=$LINKER"
-    # The pinned rusty_v8 source does not contain buildtools/linux64/gn.
-    # Its build.rs provisions the GN binary from the matching V8 dependency
-    # versions when GN is unset; retaining a guessed path caused CI to exit
-    # before compiling a single x86_64 target.
-    if command -v gn >/dev/null 2>&1; then
-      export GN="$(command -v gn)"
-      "$GN" --version
-    else
-      unset GN
-      test -s "$SRC/tools/ninja_gn_binaries.py" || {
-        echo "Pinned rusty_v8 is missing the GN provisioning script" >&2
-        exit 1
-      }
-      echo "GN is absent; pinned rusty_v8 will provision its own matching GN"
-    fi
+    # The pinned rusty_v8 revision provisions the GN version from its own
+    # dependency manifest. A host GN override makes that input nondeterministic.
+    unset GN
+    test -s "$SRC/tools/ninja_gn_binaries.py"
     export NINJA="$(command -v ninja)"
     export V8_FROM_SOURCE=1
+    : "${SCCACHE_PATH:?official sccache must be installed before building V8}"
+    export SCCACHE="$SCCACHE_PATH"
+    "$SCCACHE" --version | grep -Fx "sccache 0.20.1"
+    "$SCCACHE" --start-server
+    JOBS="$(python3 "$GITHUB_WORKSPACE/tools/build/build_progress.py" --jobs v8)"
     export GN_ARGS='v8_enable_sandbox=true v8_enable_pointer_compression=true android_static_analysis="off"'
     # The Cargo config in WRAPPER/.cargo applies only when Cargo runs from
     # WRAPPER (or a child). --manifest-path alone does not load that config.
@@ -108,7 +114,7 @@ TOML
     printf 'fn main() {}\n' > "$PREFLIGHT/src/main.rs"
     (
       cd "$PREFLIGHT"
-      cargo build --release --target "$TARGET" -j 2
+      cargo build --release --target "$TARGET" -j "$JOBS"
     )
     ELF="$PREFLIGHT/target/$TARGET/release/android-v8-linker-preflight"
     test -s "$ELF"
@@ -119,8 +125,9 @@ TOML
     (
       cd "$SRC"
       CARGO_TARGET_DIR="$ROOT/target" cargo build --locked --release -vv -p v8 --lib \
-        --features v8_enable_sandbox --target "$TARGET" -j 2
+        --features v8_enable_sandbox --target "$TARGET" -j "$JOBS"
     )
+    "$SCCACHE" --show-stats
     GN_OUT="$ROOT/target/$TARGET/release/gn_out"
     test -s "$GN_OUT/obj/librusty_v8.a"
     test -s "$GN_OUT/src_binding.rs"
@@ -137,6 +144,8 @@ TOML
       sha256sum "$SRC/Cargo.lock" | cut -d' ' -f1
       git -C "$SRC" submodule status --recursive
       cat "$TOOL_PROVENANCE"
+      printf 'bindgen_target=%s\n' "${TARGET}${ANDROID_API}"
+      printf 'sccache_version=%s\nsccache_sha256=%s\n' "$("$SCCACHE" --version)" "$(sha256sum "$SCCACHE" | cut -d' ' -f1)"
       cat "$GN_OUT/args.gn"
     } > "$CACHE/SOURCE_PROVENANCE"
     (cd "$CACHE" && sha256sum "$ARCHIVE" "$BINDING" BUILD_INPUTS SOURCE_PROVENANCE > SHA256SUMS)

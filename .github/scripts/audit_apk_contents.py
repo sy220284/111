@@ -28,7 +28,7 @@ class ApkAuditError(ValueError):
     pass
 
 
-def audit(apk: Path, abi: str, mode: str) -> dict:
+def audit(apk: Path, abi: str, mode: str, debug_executor: bool = False) -> dict:
     if abi not in MACHINES:
         raise ApkAuditError(f"未知目标 ABI：{abi}")
     if mode not in ("ui-smoke", "full"):
@@ -44,6 +44,11 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
                 required.extend(f"lib/{abi}/{binary}" for binary in REQUIRED_RUNTIME)
                 required.extend("assets/development-runtime/development-runtime." + ext
                                 for ext in ("zip", "sha256", "version", "provenance.json", "commands.tsv"))
+            executor = f"lib/{abi}/libcodex_test_executor.so"
+            if debug_executor:
+                required.append(executor)
+            elif any(name.endswith("/libcodex_test_executor.so") for name in entries):
+                raise ApkAuditError("非完整调试 APK 混入测试专用执行器")
             missing = sorted(set(required) - entries.keys())
             if missing:
                 raise ApkAuditError("关键安装文件缺失：" + ", ".join(missing))
@@ -77,6 +82,7 @@ def audit(apk: Path, abi: str, mode: str) -> dict:
                 compressed[key] += item.compress_size
             return {
                 "apk": str(apk), "abi": abi, "mode": mode,
+                "debug_executor": debug_executor,
                 "sha256": sha256(apk),
                 "apk_bytes": apk.stat().st_size,
                 "file_count": len(entries),
@@ -96,9 +102,10 @@ def sha256(path):
     with path.open("rb") as source:
         return hashlib.file_digest(source,"sha256").hexdigest()
 
-def verify_report(apk,abi,mode,report):
+def verify_report(apk,abi,mode,report,debug_executor=False):
     data=json.loads(report.read_text(encoding="utf-8"))
-    if (data["abi"] != abi or data["mode"] != mode or data["apk_bytes"] != apk.stat().st_size
+    if (data["abi"] != abi or data["mode"] != mode or data.get("debug_executor", False) != debug_executor
+        or data["apk_bytes"] != apk.stat().st_size
         or data["sha256"] != sha256(apk)):
         raise ApkAuditError("下载 APK 与完整审计凭证字节不一致")
     return data
@@ -108,11 +115,13 @@ def main() -> int:
     parser.add_argument("--apk", type=Path, required=True)
     parser.add_argument("--abi", choices=sorted(MACHINES), required=True)
     parser.add_argument("--mode", choices=("ui-smoke", "full"), default="full")
+    parser.add_argument("--debug-executor", action="store_true", help="Require the standalone executor in a full debug APK; otherwise reject it")
     parser.add_argument("--report", type=Path)
     parser.add_argument("--verify-report",type=Path)
     args = parser.parse_args()
     try:
-        result = verify_report(args.apk,args.abi,args.mode,args.verify_report) if args.verify_report else audit(args.apk,args.abi,args.mode)
+        result = (verify_report(args.apk, args.abi, args.mode, args.verify_report, args.debug_executor)
+                  if args.verify_report else audit(args.apk, args.abi, args.mode, args.debug_executor))
     except (ApkAuditError, OSError, ValueError, KeyError) as error:
         print(f"APK 安全核验失败：{error}", file=sys.stderr)
         return 1

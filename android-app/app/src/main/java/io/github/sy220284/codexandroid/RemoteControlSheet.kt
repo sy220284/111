@@ -5,6 +5,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
@@ -18,7 +19,7 @@ private data class RemoteRevokeTarget(val environment: String, val client: JSONO
 internal fun RemoteControlSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
     val operation = rememberCapabilityOperation(vm)
     val connected by vm.bridge.status.collectProjection { it == EngineStatus.Connected }
-    val session = vm.bridge.connectedSession.collectAsState().value
+    val session = vm.bridge.connectedSession.collectAsStateWithLifecycle().value
     var status by remember { mutableStateOf<JSONObject?>(null) }
     var statusEpoch by remember { mutableStateOf<Long?>(null) }
     val statusOrder = remember(vm) { StatusResponseOrder() }

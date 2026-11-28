@@ -17,7 +17,7 @@ import time
 
 PART_SIZE = 350 * 1024 * 1024
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-NAMES = ("jdk", "android-sdk", "gradle", "rust", "cargo", "wheelhouse", "emulator", "runtime-arm64", "runtime-x86", "v8-arm64", "v8-x86", "llvm", "patcher")
+NAMES = ("node", "jdk", "android-sdk", "gradle", "rust", "cargo", "wheelhouse", "emulator", "runtime-arm64", "runtime-x86", "v8-arm64", "v8-x86", "llvm", "patcher")
 
 def digest(path):
     with path.open("rb") as stream:
@@ -29,7 +29,7 @@ def require(value, message):
 
 # Writable dependency caches are deliberately excluded. Immutable file
 # digests are anchored in the producer's published manifest pin.
-VERITY_COMPONENTS = {"jdk", "android-sdk", "rust", "wheelhouse", "emulator", "llvm", "patcher"}
+VERITY_COMPONENTS = {"node", "jdk", "android-sdk", "rust", "wheelhouse", "emulator", "llvm", "patcher"}
 VERITY_BLOCK = 4096
 VERITY_HASHES = VERITY_BLOCK // 32
 FS_IOC_ENABLE_VERITY = 0x40806685

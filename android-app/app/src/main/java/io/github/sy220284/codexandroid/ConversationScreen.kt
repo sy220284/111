@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import java.io.File
 import org.json.JSONArray
@@ -33,19 +34,19 @@ import org.json.JSONObject
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
-    val status by vm.bridge.status.collectAsState()
-    val retirement by vm.bridge.retirementBusy.collectAsState()
-    val recoveryDelay by vm.recoveryDelayMs.collectAsState()
+    val status by vm.bridge.status.collectAsStateWithLifecycle()
+    val retirement by vm.bridge.retirementBusy.collectAsStateWithLifecycle()
+    val recoveryDelay by vm.recoveryDelayMs.collectAsStateWithLifecycle()
     val conversation by vm.conversationState.collectProjection { it.header }
     val thread = conversation.threadId
     val remote = conversation.remote
     val realtimeVoice = remember(vm, thread) { thread?.let { RealtimeVoiceController(vm, it) } }
     var voiceOpen by remember(thread) { mutableStateOf(false) }
     val busy = conversation.running
-    val firstThreadStarting by vm.firstThreadStarting.collectAsState()
-    val switching by vm.threadSwitching.collectAsState()
+    val firstThreadStarting by vm.firstThreadStarting.collectAsStateWithLifecycle()
+    val switching by vm.threadSwitching.collectAsStateWithLifecycle()
     val activeTurn = conversation.turnId
-    val steering by vm.steerBusy.collectAsState()
+    val steering by vm.steerBusy.collectAsStateWithLifecycle()
     val loading by vm.loading.collectProjection { it.intersect(setOf("interrupt", "queueWrite")) }
     val latestDiff = conversation.diff
     val models by vm.data.collectEntries("account", "models", "goal:$thread", "queue:$thread", "tokenUsage:$thread")
@@ -54,16 +55,16 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val errors by vm.errors.collectEntries("protocol", "planApproval", "timeline", "conversation", "steer", "interrupt", "drafts", "draftRecovery", "composerDocuments", "attachments", "queueWrite")
     val prompts by vm.bridge.prompts.collectProjection { it.forThread(thread) }
     val selectedWorkspace = conversation.workspace
-    val previewRequests by vm.modelPreviews.requests.collectAsState()
+    val previewRequests by vm.modelPreviews.requests.collectAsStateWithLifecycle()
     val previewFailures by vm.modelPreviews.failures.collectProjection { it[thread] }
-    val previewEpoch by vm.bridge.connectedSession.collectAsState()
-    val previewAccountRevision by vm.catalogWarmup.accountRevision.collectAsState()
+    val previewEpoch by vm.bridge.connectedSession.collectAsStateWithLifecycle()
+    val previewAccountRevision by vm.catalogWarmup.accountRevision.collectAsStateWithLifecycle()
     val threadPreviews = remember(previewRequests, thread, previewEpoch, previewAccountRevision, selectedWorkspace) {
         previewRequests.filter { it.threadId == thread && it.epoch == previewEpoch &&
             it.accountRevision == previewAccountRevision && it.workspace == selectedWorkspace }
     }
     var selectedPreview by remember(thread, previewEpoch, previewAccountRevision) { mutableStateOf<ModelPreviewRequest?>(null) }
-    val agentWorkspace by vm.agentDraftWorkspace.collectAsState()
+    val agentWorkspace by vm.agentDraftWorkspace.collectAsStateWithLifecycle()
     val agentOwner = ThreadComposerDrafts.agentKey(selectedWorkspace)
     val agentDraft = thread == null && agentWorkspace == selectedWorkspace
     val draftOwner = if (remote != null) vm.composerOwner(thread, selectedWorkspace) else if (agentDraft) agentOwner else ThreadComposerDrafts.key(thread, selectedWorkspace)
@@ -71,11 +72,11 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val snapshot = composerDrafts[draftOwner] ?: ComposerDraft()
     val draft = snapshot.text
     val attachedImages = snapshot.images
-    val selectedModel by vm.modelId.collectAsState()
-    val permissionSaving by vm.securitySaveBusy.collectAsState()
+    val selectedModel by vm.modelId.collectAsStateWithLifecycle()
+    val permissionSaving by vm.securitySaveBusy.collectAsStateWithLifecycle()
     val transferBusy by AppDataTransfer.state.collectProjection { it.busy }
-    val restarting by vm.connectionRestarter.busy.collectAsState()
-    val documentOwner by vm.composerContent.documentOwner.collectAsState()
+    val restarting by vm.connectionRestarter.busy.collectAsStateWithLifecycle()
+    val documentOwner by vm.composerContent.documentOwner.collectAsStateWithLifecycle()
     val documentBusy = documentOwner == draftOwner
     var composerMenu by remember(draftOwner) { mutableStateOf("") }
     fun closeComposerMenu(route: String) { if (composerMenu == route) composerMenu = "" }
@@ -86,7 +87,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     val stopping = busy && (("interrupt" in loading) ||
         (stopRequestedForTurn != null && stopRequestedForTurn == activeTurn &&
             errors["interrupt"] == null))
-    val imported by vm.attachmentImport.collectAsState()
+    val imported by vm.attachmentImport.collectAsStateWithLifecycle()
     val attachmentBusy = imported.inProgress &&
         imported.threadKey == draftOwner
     val attachmentError = if (imported.threadKey == draftOwner)
@@ -95,14 +96,14 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     // 手机竖屏输入法打开时收起次要控件，优先保留输入和发送区。
     val compactWorkArea = CodexViewportPolicy.compactWorkArea(rememberCodexViewport().height.value,
         WindowInsets.ime.getBottom(LocalDensity.current) > 0, codexEffectiveFontScale())
-    val selectedMode by vm.selectedMode.collectAsState()
+    val selectedMode by vm.selectedMode.collectAsStateWithLifecycle()
     val goal = thread?.let { models["goal:$it"]?.optJSONObject("goal") }
     val queueData = thread?.let { models["queue:$it"] }
     val queuedInputs = remember(queueData) { records(queueData) }
     val queuePaused by vm.queuePausedThreads.collectProjection { thread != null && thread in it }
     val queueReadBusy by vm.loading.collectProjection { "queue:$thread" in it }
     val queueReadError by vm.errors.collectProjection { it["queue:$thread"] }
-    val threadProvider by vm.activeModelProvider.collectAsState()
+    val threadProvider by vm.activeModelProvider.collectAsStateWithLifecycle()
     val providerKey = ComposerProviderScope.catalogKey(if (thread != null) threadProvider
         else ComposerProviderScope.provider(snapshot.options.modelProvider))
     val scopedCatalog by vm.data.collectEntries(providerKey, "composerThread:$thread", "providers")
@@ -135,7 +136,7 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                 JSONObject().put("threadId", thread).put("limit", 100))
         }
     }
-    val planApprovalBusy by vm.planApprovalBusy.collectAsState()
+    val planApprovalBusy by vm.planApprovalBusy.collectAsStateWithLifecycle()
     var confirmPlan by remember(thread) { mutableStateOf(false) }
     val latestPlan = if (selectedMode == "plan" && !busy && !switching && thread != null) {
         val completedPlan by vm.timeline.collectProjection { timeline ->
@@ -151,9 +152,9 @@ internal fun ConversationPage(vm: CodexViewModel, navigate: (String) -> Unit) {
     } else null
     val offerPlanApproval = latestPlan != null
     val keyboard = LocalSoftwareKeyboardController.current
-    val sharing by screenShareSession.state.collectAsState()
-    val activeMediaAnalysis by vm.composerContent.mediaAnalysis.state.collectAsState()
-    val mediaResults by vm.composerContent.mediaAnalysis.results.collectAsState()
+    val sharing by screenShareSession.state.collectAsStateWithLifecycle()
+    val activeMediaAnalysis by vm.composerContent.mediaAnalysis.state.collectAsStateWithLifecycle()
+    val mediaResults by vm.composerContent.mediaAnalysis.results.collectAsStateWithLifecycle()
     val mediaModel = if (remote == null) shownModel else null
     val analysisModel = if (thread != null) mediaModel else null
     val mediaAnalysis = mediaResults[draftOwner]?.takeIf {

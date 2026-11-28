@@ -1,8 +1,11 @@
 name: GitHub Android 模拟器环境
-description: Reuse the hosted SDK; cache only the requested official system image.
+description: Provision pinned Android device tools; cache only the verified system image.
 runs:
   using: composite
   steps:
+    - name: 安装固定版本的 JDK 和 Python
+      shell: bash
+      run: python3 tools/build/platform_toolchain.py host "$RUNNER_TEMP/111-platform" jdk python
     - name: 确定实际 SDK 和镜像包
       id: image
       shell: bash
@@ -10,10 +13,10 @@ runs:
     - name: 恢复指定官方系统镜像
       id: image-cache
       if: steps.image.outputs.present == 'false'
-      uses: actions/cache/restore@5a3ec84eff668545956fd18022155c47e93e2684
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.image.outputs.path }}
-        key: android-system-image-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.key }}
+        key: android-system-image-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.key }}
     - name: 核验缓存镜像完整性
       if: steps.image-cache.outputs.cache-hit == 'true'
       shell: bash
@@ -27,7 +30,7 @@ runs:
       run: bash .github/scripts/ci-emulator-sdk.sh seal
     - name: 缓存已安装的官方系统镜像
       if: steps.image.outputs.present == 'false' && steps.image-cache.outputs.cache-hit != 'true'
-      uses: actions/cache/save@5a3ec84eff668545956fd18022155c47e93e2684
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
         path: ${{ steps.image.outputs.path }}
-        key: android-system-image-v2-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.key }}
+        key: android-system-image-v3-${{ runner.os }}-${{ runner.arch }}-${{ steps.image.outputs.key }}
