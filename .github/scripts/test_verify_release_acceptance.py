@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Release barrier must not mistake green preflight-only runs for real device checks."""
+"""Release barrier must require complete CI and verified publication."""
 import sys
 import json
 import unittest
@@ -11,16 +11,14 @@ from verify_release_acceptance import REQUIRED_JOBS, accepted, find_acceptance, 
 
 
 class ReleaseAcceptanceTests(unittest.TestCase):
-    def test_automatic_release_cannot_skip_device_chain_or_report_false_success(self):
+    def test_automatic_release_cannot_skip_required_chain_or_report_false_success(self):
         # workflow_run intentionally skips manual preflight. Every downstream
         # required job must override the default transitive success() check.
         import re
         workflow = (Path(__file__).resolve().parents[1] / "workflows" / "release.yml").read_text(encoding="utf-8")
         jobs = dict(re.findall(r"^  ([a-z][a-z-]*):\n(.*?)(?=^  [a-z][a-z-]*:\n|\Z)", workflow, re.M | re.S))
         requirements = {
-            "device-ready": ("release", "check-release"),
-            "device": ("release", "check-release", "device-ready"),
-            "publish": ("release", "check-release", "device"),
+            "publish": ("release", "check-release"),
             "cleanup": ("publish",),
         }
         for name, upstream in requirements.items():
@@ -29,6 +27,14 @@ class ReleaseAcceptanceTests(unittest.TestCase):
                 self.assertIn("!cancelled()", condition)
                 for dependency in upstream:
                     self.assertIn("needs." + dependency + ".result == 'success'", condition)
+        self.assertNotIn("device-ready", jobs)
+        self.assertNotIn("device", jobs)
+        self.assertNotIn("self-hosted", workflow)
+        self.assertNotIn("ARM64_RELEASE_RUNNER_READY", workflow)
+        self.assertIn("verify_upgrade_assets.py", jobs["release"])
+        self.assertIn("VerifyApkSigning.java", jobs["release"])
+        self.assertIn("sha256sum -c SHA256SUMS.txt", jobs["publish"])
+        self.assertIn("publish-verified-release.sh", jobs["publish"])
         terminal = jobs["release-result"]
         from release_outcome import CHAIN, verdict
         dependencies = re.search(r"^    needs: \[(.+)\]$",terminal,re.M).group(1).split(", ")

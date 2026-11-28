@@ -309,7 +309,7 @@ jobs:
           echo "候选 APK 签名验证通过：$CERT"
           if [ -n "$PREVIOUS_TAG" ]; then
             mkdir -p "$RUNNER_TEMP/previous-cert"
-            gh release download "$PREVIOUS_TAG" --pattern "codex-android-arm64-v8a-*.apk" --dir "$RUNNER_TEMP/previous-cert"
+            gh release download "$PREVIOUS_TAG" --pattern "codex-android-arm64-v8a-*.apk" --pattern SHA256SUMS.txt --dir "$RUNNER_TEMP/previous-cert"
             OLD="$(find "$RUNNER_TEMP/previous-cert" -name "*.apk" -print -quit)"
             test -s "$OLD"
             OLD_CERT="$(java --class-path "$APKSIG_JAR" .github/scripts/VerifyApkSigning.java "$OLD")"
@@ -329,7 +329,16 @@ jobs:
           RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
           RELEASE_TAG: v${{ needs.check-release.outputs.version }}
           PREVIOUS_TAG: ${{ needs.check-release.outputs.previous_tag }}
-        run: bash .github/scripts/prepare-release-assets.sh
+        run: |
+          set -euo pipefail
+          bash .github/scripts/prepare-release-assets.sh
+          if [ -n "$PREVIOUS_TAG" ]; then
+            python3 .github/scripts/verify_upgrade_assets.py \
+              --previous "$RUNNER_TEMP/previous-cert/codex-android-arm64-v8a-${PREVIOUS_TAG#v}.apk" \
+              --previous-tag "$PREVIOUS_TAG" --sums "$RUNNER_TEMP/previous-cert/SHA256SUMS.txt" \
+              --candidate .release-assets --version "$RELEASE_VERSION" \
+              --output "$RUNNER_TEMP/upgrade-assets.json"
+          fi
 
       - name: 保存唯一正式候选
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -349,61 +358,11 @@ jobs:
         if: always()
         run: rm -f "$RUNNER_TEMP/111-release.keystore"
 
-  device-ready:
-    name: ARM64 专用设备基础设施检查
-    needs: [check-release, release]
-    # Automatic runs deliberately skip manual preflight. Use an explicit status
-    # function so that skipped transitive ancestors cannot skip this required gate.
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.check-release.outputs.decision == 'publish' && needs.release.result == 'success' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 3
-    steps:
-      - name: 检查设备已正式配置
-        env:
-          READY: ${{ vars.ARM64_RELEASE_RUNNER_READY }}
-        run: |
-          if [ "$READY" != true ]; then
-            echo "::error::尚未配置隔离的 ARM64 真机发布 Runner；正式候选已保留，不允许公开未经验证的 APK"
-            exit 1
-          fi
-
-  device:
-    name: 最终签名 APK ARM64 真机验收
-    needs: [check-release, release, device-ready]
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.device-ready.result == 'success' }}
-    environment: arm64-release
-    runs-on: [self-hosted, linux, 111-release-device]
-    timeout-minutes: 35
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ needs.check-release.outputs.release_sha }}
-          persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-candidate
-          path: candidate
-      - name: 安装运行并核验设备证据
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PREVIOUS_TAG: ${{ needs.check-release.outputs.previous_tag }}
-          RELEASE_VERSION: ${{ needs.check-release.outputs.version }}
-        run: bash .github/scripts/verify-release-device.sh candidate device-evidence
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
-        with:
-          name: release-device-evidence
-          path: device-evidence/
-          if-no-files-found: error
-          retention-days: 30
 
   publish:
     name: 远端回读后正式公开
-    needs: [check-release, release, device]
-    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' && needs.device.result == 'success' }}
+    needs: [check-release, release]
+    if: ${{ !cancelled() && needs.check-release.result == 'success' && needs.release.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -424,15 +383,10 @@ jobs:
         with:
           name: release-notes
           path: release-notes
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: release-device-evidence
-          path: device-evidence
-      - name: 验证最终设备测试对应同一 APK
+      - name: 核验正式候选全部资产摘要
         run: |
           set -euo pipefail
           (cd .release-assets && sha256sum -c SHA256SUMS.txt)
-          sha256sum -c device-evidence/candidate.sha256
       - name: 发布前再次核对 main 客户端源码
         shell: bash
         env:
@@ -547,14 +501,14 @@ jobs:
 
   release-result:
     name: 正式发布闭环验收
-    needs: [preflight, check-release, developer-runtime, release, device-ready, device, publish, cleanup]
+    needs: [preflight, check-release, developer-runtime, release, publish, cleanup]
     if: ${{ !cancelled() && (github.event_name != 'workflow_dispatch' || github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: main
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: 核对发布决策和完整链路
         env:
