@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
@@ -41,46 +42,42 @@ fun CollaborationModesPage(vm: CodexViewModel) {
     }
     ScreenColumn {
         SectionIntro("协作与工作方式", "根据任务选择执行方式。计划模式先形成方案，再由你明确推进。")
-        MaterialPanel(Modifier.fillMaxWidth()) {
-            Text("新任务使用的工作方式", style = MaterialTheme.typography.titleMedium)
-            StatusPill(if (selected == "plan") "计划模式" else "标准执行模式", true)
-            Text("更改后从下一轮对话生效。不会自动开启派生智能体。", color = Ink.muted)
+        WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+            Text("新任务使用的工作方式", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+            Text(if (selected == "plan") "计划模式" else "标准执行模式",
+                style = MaterialTheme.typography.headlineSmall)
+            Text("更改后从下一轮对话生效。不会自动开启派生智能体。", color = Ink.muted,
+                style = MaterialTheme.typography.bodySmall)
         }
         IntegrationState(vm, "modes") { vm.refresh("modes", "collaborationMode/list") }
         if (running) CodexNotice("任务正在执行，结束或停止后即可切换协作方式。", NoticeTone.Info)
         else if (status != EngineStatus.Connected)
             CodexNotice("连接本机运行核心后可查看全部支持的方式。", NoticeTone.Warning,
                 actionLabel = "重新连接", onAction = { vm.connect() })
-        listOf(
-            Triple("default", "标准执行", "直接分析任务，并按允许的权限执行步骤。"),
-            Triple("plan", "先制定计划", "先展示方案与关键决策，适合复杂改造和多阶段任务。")
-        ).forEach { (id, name, description) ->
-            val canSelect = ModeSelectionPolicy.maySelect(id, planSupported, running, refreshing)
-            MaterialPanel(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    CodexIcon(if (id == "plan") CodexGlyph.Assignment else CodexGlyph.Build,
-                        null, tint = Ink.copper)
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(name, style = MaterialTheme.typography.titleMedium)
-                        Text(description, color = Ink.muted)
-                    }
-                    CodexRadio(selected == id, onClick = { vm.chooseComposerMode(id) },
-                        enabled = canSelect)
-                }
-                if (id == "plan" && !planSupported)
-                    Text("当前服务未公布该模式，请刷新模型与模式目录。", color = Ink.muted)
+        WorkSectionHeading("选择工作方式", "根据本轮任务的复杂程度选择执行路径。")
+        Column(Modifier.fillMaxWidth().selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                Triple("default", "标准执行", "直接分析任务，并按允许的权限执行步骤。"),
+                Triple("plan", "先制定计划", "先展示方案与关键决策，适合复杂改造和多阶段任务。")
+            ).forEach { (id, name, description) ->
+                val canSelect = ModeSelectionPolicy.maySelect(id, planSupported, running, refreshing)
+                AtlasChoiceRow(name,
+                    if (id == "plan" && !planSupported) "$description\n当前服务未公布该模式，请刷新模型与模式目录。" else description,
+                    selected == id, onClick = { vm.chooseComposerMode(id) }, enabled = canSelect,
+                    modifier = Modifier.testTag("collaboration-mode-" + id))
             }
         }
         if (catalog.isNotEmpty()) {
-            Text("当前核心提供的模式", style = MaterialTheme.typography.titleLarge)
-            catalog.forEach { entry ->
-                MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSectionHeading("当前核心提供的模式")
+            catalog.forEachIndexed { index, entry ->
+                if (index > 0) DividerLine()
+                WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
                     Text(entry.optString("name"), style = MaterialTheme.typography.titleMedium)
                     Text(if (entry.optString("mode") == "plan") "适合复杂任务规划"
-                        else "适合直接完成任务", color = Ink.muted)
+                        else "适合直接完成任务", color = Ink.muted,
+                        style = MaterialTheme.typography.bodySmall)
                     entry.optString("model").takeIf { it.isNotBlank() }?.let {
-                        Text("推荐模型：" + it, color = Ink.muted)
+                        Text("推荐模型：" + it, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
                     }
                 }
             }
@@ -325,7 +322,9 @@ fun McpServicesPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
 internal fun McpServiceStatusCard(server: JSONObject, startup: McpStartupReceipt? = null) {
     if (!McpAvailableServices.isUsable(server)) return
     var details by remember(server.optString("name")) { mutableStateOf(false) }
-    val toolCount = server.optJSONObject("tools")?.length() ?: 0
+    val toolsFailed = !server.isNull("toolsError") && server.optString("toolsError").isNotBlank()
+    val tools = server.optJSONObject("tools")?.takeUnless { toolsFailed }
+    val toolCount = tools?.length() ?: 0
     val resourceCount = (server.optJSONArray("resources")?.length() ?: 0) +
         (server.optJSONArray("resourceTemplates")?.length() ?: 0)
     val summary = buildList {
@@ -366,8 +365,46 @@ internal fun McpServiceStatusCard(server: JSONObject, startup: McpStartupReceipt
             "服务已连接，可用能力由智能体在任务中选择调用。"
         }, style = MaterialTheme.typography.bodyMedium, color = Ink.parchment)
         WorkSectionHeading("可用能力", "工具 $toolCount 项 · 资源 $resourceCount 项")
-        if (toolCount > 0) Text("工具 · $toolCount 项，由智能体按任务调用", style = MaterialTheme.typography.bodyMedium)
-        if (resourceCount > 0) Text("资源 · $resourceCount 项，按实际权限读取", style = MaterialTheme.typography.bodyMedium)
+        if (toolCount > 0 && tools != null) {
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
+                Text("工具 · $toolCount 项，由智能体按任务调用", style = MaterialTheme.typography.titleSmall)
+                tools.keys().asSequence().sorted().forEach { key ->
+                    val tool = tools.optJSONObject(key)
+                    if (tool != null) {
+                        val title = PresentationPolicy.meaningful(tool.optString("title")).ifBlank {
+                            PresentationPolicy.meaningful(tool.optJSONObject("annotations")?.optString("title").orEmpty())
+                        }
+                        val description = PresentationPolicy.meaningful(tool.optString("description"))
+                        if (title.isNotBlank() || description.isNotBlank()) {
+                            DividerLine()
+                            if (title.isNotBlank()) Text(title, style = MaterialTheme.typography.titleSmall)
+                            if (description.isNotBlank()) Text(description, style = MaterialTheme.typography.bodySmall,
+                                color = Ink.muted)
+                        }
+                    }
+                }
+            }
+        }
+        if (toolsFailed) CodexNotice("工具目录暂未读取成功，其他已就绪能力仍可使用。", NoticeTone.Warning)
+        if (resourceCount > 0) {
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
+                Text("资源 · $resourceCount 项，按实际权限读取", style = MaterialTheme.typography.titleSmall)
+                listOf("resources", "resourceTemplates").forEach { field ->
+                    val entries = server.optJSONArray(field)
+                    for (index in 0 until (entries?.length() ?: 0)) {
+                        val resource = entries?.optJSONObject(index) ?: continue
+                        val title = PresentationPolicy.meaningful(resource.optString("title"))
+                        val description = PresentationPolicy.meaningful(resource.optString("description"))
+                        if (title.isNotBlank() || description.isNotBlank()) {
+                            DividerLine()
+                            if (title.isNotBlank()) Text(title, style = MaterialTheme.typography.titleSmall)
+                            if (description.isNotBlank()) Text(description, style = MaterialTheme.typography.bodySmall,
+                                color = Ink.muted)
+                        }
+                    }
+                }
+            }
+        }
         Text("此处显示已经连接的服务，具体能力由智能体在任务中使用。",
             style = MaterialTheme.typography.bodySmall, color = Ink.muted)
     }

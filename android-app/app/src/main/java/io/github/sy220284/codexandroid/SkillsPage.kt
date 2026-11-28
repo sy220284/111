@@ -66,11 +66,25 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             vm.refresh("skills", "skills/list", CatalogRequestContract.workspace(vm.workingDirectory))
         }, onDiagnostics = { navigate("diagnostics") })
         if (skills.isNotEmpty()) {
-            AtlasListHeading("工作区技能 · ${skills.count { it.optBoolean("enabled") }} 项已启用", skills.size)
-            ClipboardQueryAction("使用剪贴板检索技能", query, onQuery = { query = it },
+            WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Status) {
+                Text("工作区技能", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Column(Modifier.weight(1f)) {
+                        Text(skills.size.toString(), style = MaterialTheme.typography.headlineMedium)
+                        Text("目录技能", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(skills.count { it.optBoolean("enabled") }.toString(),
+                            style = MaterialTheme.typography.headlineMedium, color = Ink.jade)
+                        Text("已启用", style = MaterialTheme.typography.labelMedium, color = Ink.muted)
+                    }
+                }
+            }
+            CatalogQueryAction("使用剪贴板检索技能", query, onQuery = { query = it },
                 onClear = { query = "" }, tag = "skills-search")
             if (query.isNotBlank()) Text("${visibleSkills.size} 项匹配", color = Ink.muted,
-                style = MaterialTheme.typography.labelMedium)
+                style = MaterialTheme.typography.labelMedium, modifier = Modifier.testTag("skills-match-count"))
         }
         if (skills.isNotEmpty() || readErrors > 0) {
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -85,29 +99,31 @@ fun SkillsPage(vm: CodexViewModel, navigate: (String) -> Unit = {}) {
             }
         }
         visibleSkills.forEach { skill ->
+            key(skill.optString("path"), skill.optString("name")) {
                 val meta = skill.optJSONObject("interface") ?: JSONObject()
-                WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Group) {
+                WorkSection(Modifier.fillMaxWidth().testTag("skills-result-row"), WorkSectionKind.Group) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CodexIcon(CodexGlyph.School, null, tint = Ink.copper)
                         Spacer(Modifier.width(12.dp))
-                        Column(Modifier.weight(1f)) {
-                            Text(PresentationPolicy.meaningful(meta.optString("displayName")).ifEmpty {
-                                PresentationPolicy.skillName(skill.optString("name")) },
-                                style = MaterialTheme.typography.titleMedium)
-                            Text(if (skill.optBoolean("enabled")) "已启用 · 可在对话中调用" else "已停用",
-                                color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                        Row(Modifier.weight(1f).heightIn(min = 56.dp)
+                            .clickable { selectedSkill = skill }.testTag("skill-open-detail"),
+                            verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text(PresentationPolicy.meaningful(meta.optString("displayName")).ifEmpty {
+                                    PresentationPolicy.skillName(skill.optString("name")) },
+                                    style = MaterialTheme.typography.titleMedium)
+                                Text(if (skill.optBoolean("enabled")) "已启用 · 可在对话中调用" else "已停用",
+                                    color = Ink.muted, style = MaterialTheme.typography.labelMedium)
+                            }
+                            CodexIcon(CodexGlyph.ChevronRight, "查看详情", tint = Ink.muted)
                         }
                         WhiteSwitch(checked = skill.optBoolean("enabled"), onCheckedChange = { enabled ->
                             confirmation = skill to enabled
                         }, enabled = "skillsWrite" !in mutationLoading && "skills" !in mutationLoading)
                     }
-                    CodexTextAction(onClick = { selectedSkill = skill },
-                        modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)
-                            .testTag("skill-open-detail")) {
-                        Text("查看详情")
-                    }
                     DividerLine()
                 }
+            }
         }
         if (query.isNotBlank() && visibleSkills.isEmpty() && filter != "errors" && skillsData != null) {
             CodexEmptyState("没有匹配的技能", "试试其他名称或清除搜索。",

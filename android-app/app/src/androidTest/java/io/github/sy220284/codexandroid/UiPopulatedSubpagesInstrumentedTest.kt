@@ -84,8 +84,10 @@ class UiPopulatedSubpagesInstrumentedTest {
             .put("name", "演示扩展服务")
             .put("runtimeStatus", "connected")
             .put("authStatus", "oAuth")
-            .put("tools", JSONObject().put("internal_database_tool", JSONObject()))
-            .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://secret-resource")))
+            .put("tools", JSONObject().put("internal_database_tool", JSONObject()
+                .put("title", "查询资料").put("description", "检索已授权资料")))
+            .put("resources", JSONArray().put(JSONObject().put("uri", "mcp://secret-resource")
+                .put("title", "资料目录")))
         val receipt = McpStartupReceipt.parse(1, JSONObject("""{"name":"演示扩展服务","status":"ready","durationMs":240}"""))
         rule.setContent { CodexTheme { McpServiceStatusCard(server, receipt) } }
         rule.onNodeWithText("演示扩展服务").assertExists()
@@ -100,11 +102,26 @@ class UiPopulatedSubpagesInstrumentedTest {
         rule.onNodeWithTag("codex-detail-sheet").assertExists()
         rule.onNodeWithText("工具 1 项 · 资源 1 项").assertExists()
         rule.onNodeWithText("已连接 · 启动耗时 240 毫秒").assertExists()
+        rule.onNodeWithText("查询资料").assertExists()
+        rule.onNodeWithText("资料目录").assertExists()
         rule.onNodeWithText("internal_database_tool").assertDoesNotExist()
         rule.onNodeWithText("mcp://secret-resource").assertDoesNotExist()
         capture("audit-mcp-detail-sheet-android.png")
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
+    }
+
+    @Test fun mcpFailedToolDiscoveryKeepsReadyResourceAndExcludesCachedTools() {
+        val server = JSONObject().put("name", "资料服务").put("runtimeStatus", "connected")
+            .put("authStatus", "oAuth").put("toolsError", "读取失败")
+            .put("tools", JSONObject().put("cached", JSONObject().put("title", "过期工具")))
+            .put("resources", JSONArray().put(JSONObject().put("title", "当前资料")))
+        rule.setContent { CodexTheme { McpServiceStatusCard(server) } }
+        rule.onNodeWithText("资料服务").performClick()
+        rule.onNodeWithText("工具 0 项 · 资源 1 项").assertExists()
+        rule.onNodeWithText("过期工具").assertDoesNotExist()
+        rule.onNodeWithText("当前资料").assertExists()
+        rule.onNodeWithText("工具目录暂未读取成功，其他已就绪能力仍可使用。").assertExists()
     }
 
     @Test fun hostedMcpAppsAreListedWithoutRegistrationOrAuthorizationControls() {
@@ -765,18 +782,32 @@ class UiPopulatedSubpagesInstrumentedTest {
                 .put(entry("image-fixture", "图像整理"))
                 .put(entry("text-fixture", "文字校对"))))))
         rule.setContent { CodexTheme { SkillsPage(vm) } }
-        rule.onNodeWithText("图像整理").assertExists()
-        rule.onNodeWithText("文字校对").assertExists()
+        rule.onNode(hasText("图像整理") and hasAnyAncestor(hasTestTag("skills-result-row"))).assertExists()
+        rule.onNode(hasText("文字校对") and hasAnyAncestor(hasTestTag("skills-result-row"))).assertExists()
         rule.runOnIdle {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
             clipboard.setPrimaryClip(android.content.ClipData.newPlainText("验收检索", "文字校对"))
         }
         rule.onNodeWithTag("skills-search").performScrollTo().performClick()
-        rule.onNodeWithText("文字校对").assertExists()
-        rule.onNodeWithText("图像整理").assertDoesNotExist()
-        rule.onNodeWithText("清除查找条件").performScrollTo().performClick()
-        rule.onNodeWithText("图像整理").assertExists()
+        rule.onNode(hasText("文字校对") and hasAnyAncestor(hasTestTag("skills-result-row"))).assertExists()
+        rule.onNode(hasText("图像整理") and hasAnyAncestor(hasTestTag("skills-result-row"))).assertDoesNotExist()
+        rule.onAllNodesWithTag("skills-result-row").assertCountEquals(1)
+        rule.onNodeWithTag("skills-search-clear").performScrollTo().performClick()
+        rule.onNode(hasText("图像整理") and hasAnyAncestor(hasTestTag("skills-result-row"))).assertExists()
+        rule.onAllNodesWithTag("skills-result-row").assertCountEquals(2)
+        rule.onNodeWithTag("skills-search-input").performScrollTo().performTextInput("图像整理")
+        rule.onNodeWithTag("skills-search-submit").performScrollTo().performClick()
+        rule.onNode(hasText("图像整理") and hasAnyAncestor(hasTestTag("skills-result-row"))).assertExists()
+        rule.onAllNodesWithTag("skills-result-row").assertCountEquals(1)
+        rule.onNodeWithTag("skills-search-input").performScrollTo().performTextClearance()
+        rule.onNodeWithTag("skills-search-input").performTextInput("没有此技能")
+        rule.onNodeWithTag("skills-search-submit").performScrollTo().performClick()
+        rule.onAllNodesWithTag("skills-result-row").assertCountEquals(0)
+        rule.onNodeWithText("没有匹配的技能").assertExists()
+        rule.onNodeWithTag("skills-match-count").assertTextEquals("0 项匹配")
+        rule.onNodeWithTag("skills-search-clear").performScrollTo().performClick()
+        rule.onAllNodesWithTag("skills-result-row").assertCountEquals(2)
     }
 
     @Test fun skillDescriptionAppearsOnlyAfterOpeningDetail() {

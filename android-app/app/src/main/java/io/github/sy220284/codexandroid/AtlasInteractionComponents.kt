@@ -34,6 +34,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
  * 组件只处理呈现和可访问操作，搜索、提交、审批、进度均由调用方的真实状态驱动。
  */
 
+/** Shared clipboard validation for both lightweight and editable directory search. */
+private fun submitClipboardQuery(
+    term: String, onQuery: (String) -> Unit, onError: (String) -> Unit
+) {
+    val query = term.trim()
+    when {
+        query.isBlank() -> onError("请先复制要查找的文字")
+        query.length > 4096 -> onError("复制的文字过长，请选择较短的内容")
+        else -> { onError(""); onQuery(query) }
+    }
+}
+
 /** Explicit clipboard action, without a text input or keyboard. */
 @Composable
 internal fun ClipboardQueryAction(
@@ -44,14 +56,76 @@ internal fun ClipboardQueryAction(
     var error by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         CodexSecondaryButton(onClick = {
-            val term = clipboard.getText()?.text?.trim().orEmpty()
-            if (term.isBlank()) error = "请先复制要查找的文字"
-            else if (term.length > 4096) error = "复制的文字过长，请选择较短的内容"
-            else { error = ""; onQuery(term) }
+            submitClipboardQuery(clipboard.getText()?.text.orEmpty(), onQuery) { error = it }
         }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)) { Text(title) }
         if (current.isNotBlank()) {
             Text(current, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink.muted)
             CodexTextAction(onClick = { error = ""; onClear() }, enabled = enabled) { Text("清除查找条件") }
+        }
+        if (error.isNotBlank()) Text(error, color = Ink.red, style = MaterialTheme.typography.bodySmall)
+    }
+}
+
+/** Search draft is local to the control; only explicit submit/paste changes the caller's query.
+ * The input and result rows have independent semantics, including for identical text.
+ */
+@Composable
+internal fun CatalogQueryAction(
+    title: String, current: String, onQuery: (String) -> Unit, onClear: () -> Unit,
+    enabled: Boolean = true, tag: String = "clipboard-query"
+) {
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    val keyboard = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val focus = androidx.compose.ui.platform.LocalFocusManager.current
+    var draft by androidx.compose.runtime.saveable.rememberSaveable(current) {
+        androidx.compose.runtime.mutableStateOf(current)
+    }
+    var error by remember { androidx.compose.runtime.mutableStateOf("") }
+    fun submit(term: String) {
+        val query = term.trim()
+        if (query.isBlank()) {
+            error = "请输入要查找的文字"
+            return
+        }
+        error = ""
+        draft = query
+        focus.clearFocus()
+        keyboard?.hide()
+        onQuery(query)
+    }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        CodexInputField(draft, { draft = it; error = "" },
+            modifier = Modifier.fillMaxWidth().testTag(tag + "-input"),
+            enabled = enabled, singleLine = true,
+            label = { Text("搜索技能名称或描述") },
+            leadingIcon = { CodexIcon(CodexGlyph.Search, null, tint = Ink.muted) },
+            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+            keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                onSearch = { if (enabled && draft.isNotBlank()) submit(draft) }))
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val stacked = !CodexViewportPolicy.fitsActions(maxWidth.value, codexEffectiveFontScale(), 2, 132f)
+            val actions: @Composable (Modifier) -> Unit = { modifier ->
+                CodexSecondaryButton(onClick = {
+                    submitClipboardQuery(clipboard.getText()?.text.orEmpty(), ::submit) { error = it }
+                }, enabled = enabled, modifier = modifier.heightIn(min = 48.dp).testTag(tag)) { Text(title) }
+            }
+            val search: @Composable (Modifier) -> Unit = { modifier ->
+                CodexPrimaryButton(onClick = { submit(draft) }, enabled = enabled && draft.isNotBlank(),
+                    modifier = modifier.heightIn(min = 48.dp).testTag(tag + "-submit")) { Text("搜索") }
+            }
+            if (stacked) Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                search(Modifier.fillMaxWidth())
+                actions(Modifier.fillMaxWidth())
+            } else Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                search(Modifier.weight(1f))
+                actions(Modifier.weight(2f))
+            }
+        }
+        if (current.isNotBlank() || draft.isNotBlank()) {
+            CodexTextAction(onClick = {
+                draft = ""; error = ""; focus.clearFocus(); keyboard?.hide(); onClear()
+            }, enabled = enabled, modifier = Modifier.testTag(tag + "-clear")) { Text("清除查找条件") }
         }
         if (error.isNotBlank()) Text(error, color = Ink.red, style = MaterialTheme.typography.bodySmall)
     }
