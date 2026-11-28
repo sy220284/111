@@ -38,7 +38,7 @@ fun AccountMetricsPage(id: String, vm: CodexViewModel, navigate: (String) -> Uni
     ScreenColumn {
         AtlasCompactChoice(selectedTab, listOf("usage" to "用量", "limits" to "额度"),
             onSelect = { selectedTab = it }, tagPrefix = "account-metrics-tab-")
-        MaterialPanel(Modifier.fillMaxWidth()) {
+        WorkSection(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CodexIcon(if (usage) CodexGlyph.Insights else CodexGlyph.Speed,
                     null, tint = Ink.copper)
@@ -151,7 +151,7 @@ private fun formatMetricNumber(raw: Any?): String =
 private fun MetricNumberCard(label: String, value: String, note: String, modifier: Modifier) {
     MaterialPanel(modifier) {
         Text(label, color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-        Text(value, style = MaterialTheme.typography.titleLarge, color = Ink.parchment)
+        Text(value, style = MaterialTheme.typography.headlineSmall, color = Ink.parchment)
         Text(note, color = Ink.muted, style = MaterialTheme.typography.bodySmall)
     }
 }
@@ -174,8 +174,13 @@ private fun LimitBucketCard(title: String, snapshot: JSONObject) {
             shown++
             val used = (window.opt("usedPercent") as? Number)?.toFloat()?.coerceIn(0f, 100f)
             if (used == null) AtlasFieldFeedback("$label：服务端未提供使用比例")
-            else AtlasOperationProgress("$label · 已使用 · 剩余 ${(100f - used).toInt()}%",
-                progress = used / 100f, indicatorColor = if (used >= 100f) Ink.red else Ink.copper)
+            else {
+                Text(label, style = MaterialTheme.typography.titleSmall)
+                Text("剩余 ${(100f - used).toInt()}%", style = MaterialTheme.typography.headlineSmall,
+                    color = if (used >= 100f) Ink.red else Ink.parchment)
+                AtlasOperationProgress("已使用 ${used.toInt()}%",
+                    progress = used / 100f, indicatorColor = if (used >= 100f) Ink.red else Ink.copper)
+            }
             val duration = window.optLong("windowDurationMins", -1L)
             val until = window.optLong("resetsAt", -1L)
             if (duration > 0) Text("窗口 " + duration + " 分钟",

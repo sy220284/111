@@ -48,7 +48,7 @@ val pages = listOf(
     Page("queue", "任务队列", "工作台", "待处理步骤与顺序", CodexGlyph.ViewList, "thread/queue/list", true),
     Page("files", "工作区文件", "项目与代码", "导入、打开和编辑工程文件", CodexGlyph.Project),
     Page("diff", "代码差异", "项目与代码", "当前任务的改动追踪", CodexGlyph.Code),
-    Page("terminal", "终端", "项目与代码", "在设备沙箱中执行命令", CodexGlyph.Terminal),
+    Page("terminal", "终端", "项目与代码", "本机命令执行与交互式终端", CodexGlyph.Terminal),
     Page("review", "代码审查", "项目与代码", "发起 Codex 审查", CodexGlyph.FactCheck, "review/start"),
     Page("models", "模型设置", "设置与账户", "默认模型、思考深度和回复详略", CodexGlyph.AutoAwesome, "model/list"),
     Page("modes", "协作模式", "能力与扩展", "计划、编码与协作模式", CodexGlyph.PeopleOutline, "collaborationMode/list"),

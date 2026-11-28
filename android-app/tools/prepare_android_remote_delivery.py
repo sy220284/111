@@ -46,6 +46,29 @@ pub struct AndroidRemoteFileChunkResponse {
     pub sha256: Option<String>,
     pub data_base64: String,
 }
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[ts(export_to = "v2/")]
+pub struct AndroidRemoteDirectoryParams {
+    pub environment_id: String,
+    pub workspace_uri: PathUri,
+    pub relative_path: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct AndroidRemoteDirectoryEntry {
+    pub name: String,
+    pub kind: String,
+}
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, JsonSchema, TS)]
+#[serde(rename_all = "camelCase")]
+#[ts(export_to = "v2/")]
+pub struct AndroidRemoteDirectoryResponse {
+    pub environment_id: String,
+    pub path_uri: PathUri,
+    pub entries: Vec<AndroidRemoteDirectoryEntry>,
+}
 '''
 
 REQUEST = '''    AndroidRemoteFileRead => "android/remoteFile/read" {
@@ -58,6 +81,11 @@ REQUEST = '''    AndroidRemoteFileRead => "android/remoteFile/read" {
         serialization: global_shared_read("environment"),
         response: v2::AndroidRemoteFileChunkResponse,
     },
+    AndroidRemoteDirectory => "android/remoteFile/listDirectory" {
+        params: v2::AndroidRemoteDirectoryParams,
+        serialization: global_shared_read("environment"),
+        response: v2::AndroidRemoteDirectoryResponse,
+    },
 '''
 
 DISPATCH = '''            ClientRequest::AndroidRemoteFileRead { params, .. } => {
@@ -66,6 +94,9 @@ DISPATCH = '''            ClientRequest::AndroidRemoteFileRead { params, .. } =>
             ClientRequest::AndroidRemoteFileChunk { params, .. } => {
                 self.environment_processor.android_remote_file_chunk(params).await
             }
+            ClientRequest::AndroidRemoteDirectory { params, .. } => {
+                self.environment_processor.android_remote_directory(params).await
+            }
 '''
 
 PROCESSOR = r'''    async fn android_delivery_target(
@@ -73,6 +104,7 @@ PROCESSOR = r'''    async fn android_delivery_target(
         id: &str,
         workspace_uri: &codex_utils_path_uri::PathUri,
         relative: &str,
+        allow_root: bool,
     ) -> Result<(Arc<codex_exec_server::Environment>, codex_utils_path_uri::PathUri), JSONRPCErrorError> {
         if id.is_empty() || id == codex_exec_server::LOCAL_ENVIRONMENT_ID {
             return Err(invalid_request("remote environment required"));
@@ -83,6 +115,9 @@ PROCESSOR = r'''    async fn android_delivery_target(
         let root = info.cwd.ok_or_else(|| invalid_request("remote workspace unavailable"))?;
         if &root != workspace_uri {
             return Err(invalid_request("remote workspace changed"));
+        }
+        if allow_root && relative.is_empty() {
+            return Ok((env, root));
         }
         if relative.is_empty() || relative.len() > 4096 ||
             relative.chars().any(char::is_control) ||
@@ -104,7 +139,7 @@ PROCESSOR = r'''    async fn android_delivery_target(
         use codex_exec_server::GetMetadataOptions;
         const MAX_BYTES: u64 = 8 * 1024 * 1024;
         let id = params.environment_id;
-        let (env, target) = self.android_delivery_target(&id, &params.workspace_uri, &params.relative_path).await?;
+        let (env, target) = self.android_delivery_target(&id, &params.workspace_uri, &params.relative_path, false).await?;
         let fs = env.get_filesystem();
         let metadata = fs.get_metadata(&target, GetMetadataOptions { follow_symlinks: false }, None)
             .await.map_err(|e| internal_error(e.to_string()))?;
@@ -143,7 +178,7 @@ PROCESSOR = r'''    async fn android_delivery_target(
             return Err(invalid_request("invalid delivery offset or source version"));
         }
         let (env, target) = self.android_delivery_target(&params.environment_id, &params.workspace_uri,
-            &params.relative_path).await?;
+            &params.relative_path, false).await?;
         let response = env.android_read_delivery_chunk(codex_exec_server::AndroidDeliveryChunkParams {
             path: target.clone(), offset: params.offset, version: params.version.clone(),
         }).await.map_err(|e| internal_error(format!("分块交付需要支持 androidDeliveryChunk 的远端执行器：{e}")))?;
@@ -168,6 +203,34 @@ PROCESSOR = r'''    async fn android_delivery_target(
             version: response.version,
             sha256: response.sha256,
             data_base64: response.data_base64,
+        }.into()))
+    }
+
+    pub(crate) async fn android_remote_directory(
+        &self,
+        params: codex_app_server_protocol::AndroidRemoteDirectoryParams,
+    ) -> Result<Option<ClientResponsePayload>, JSONRPCErrorError> {
+        let (env, target) = self.android_delivery_target(&params.environment_id,
+            &params.workspace_uri, &params.relative_path, true).await?;
+        let response = env.android_list_delivery_directory(target.clone()).await
+            .map_err(|e| internal_error(format!("安全目录浏览需要支持 androidDeliveryDirectory 的远端执行器：{e}")))?;
+        if response.entries.len() > 4096 || response.entries.iter().map(|e| e.name.len()).sum::<usize>() > 512 * 1024 {
+            return Err(invalid_request("remote directory exceeds supported listing size"));
+        }
+        let mut names = std::collections::HashSet::new();
+        for entry in &response.entries {
+            if entry.name.is_empty() || entry.name == "." || entry.name == ".." ||
+                entry.name.len() > 4096 || entry.name.contains('/') || entry.name.chars().any(char::is_control) ||
+                !matches!(entry.kind.as_str(), "file" | "directory" | "other") ||
+                !names.insert(entry.name.as_str()) {
+                return Err(invalid_request("invalid remote directory receipt"));
+            }
+        }
+        let entries = response.entries.into_iter().map(|entry|
+            codex_app_server_protocol::AndroidRemoteDirectoryEntry { name: entry.name, kind: entry.kind }
+        ).collect();
+        Ok(Some(codex_app_server_protocol::AndroidRemoteDirectoryResponse {
+            environment_id: params.environment_id, path_uri: target, entries,
         }.into()))
     }
 
@@ -231,6 +294,13 @@ pub(crate) async fn read_file_limited(
         self.call("fs/androidDeliveryChunk", &params).await
     }
 
+    pub(crate) async fn android_list_delivery_directory(
+        &self,
+        path: codex_utils_path_uri::PathUri,
+    ) -> Result<crate::protocol::AndroidDeliveryDirectoryResponse, ExecServerError> {
+        self.call("fs/androidDeliveryDirectory", &crate::protocol::AndroidDeliveryDirectoryParams { path }).await
+    }
+
     pub async fn fs_read_file(
 """),
     ("exec-server/src/environment.rs", "    pub fn get_filesystem(&self) -> Arc<dyn ExecutorFileSystem> {",
@@ -252,6 +322,15 @@ pub(crate) async fn read_file_limited(
         client.get().await?.android_read_delivery_chunk(params).await
     }
 
+    pub async fn android_list_delivery_directory(
+        &self,
+        path: codex_utils_path_uri::PathUri,
+    ) -> Result<crate::AndroidDeliveryDirectoryResponse, ExecServerError> {
+        let client = self.remote_client.as_ref().ok_or_else(||
+            ExecServerError::Protocol("remote environment required".to_owned()))?;
+        client.get().await?.android_list_delivery_directory(path).await
+    }
+
     pub fn get_filesystem(&self) -> Arc<dyn ExecutorFileSystem> {"""),
     ("exec-server/src/server/registry.rs",
      "    router.request(\n        FS_READ_FILE_METHOD,",
@@ -265,6 +344,12 @@ pub(crate) async fn read_file_limited(
         "fs/androidDeliveryChunk",
         |handler: Arc<ExecServerHandler>, params: crate::protocol::AndroidDeliveryChunkParams| async move {
             handler.android_read_delivery_chunk(params).await
+        },
+    );
+    router.request(
+        "fs/androidDeliveryDirectory",
+        |handler: Arc<ExecServerHandler>, params: crate::protocol::AndroidDeliveryDirectoryParams| async move {
+            handler.android_list_delivery_directory(params).await
         },
     );
     router.request(
@@ -284,6 +369,14 @@ pub(crate) async fn read_file_limited(
     ) -> Result<crate::protocol::AndroidDeliveryChunkResponse, JSONRPCErrorError> {
         self.require_initialized_for("filesystem")?;
         self.file_system.android_read_delivery_chunk(params).await
+    }
+
+    pub(crate) async fn android_list_delivery_directory(
+        &self,
+        params: crate::protocol::AndroidDeliveryDirectoryParams,
+    ) -> Result<crate::protocol::AndroidDeliveryDirectoryResponse, JSONRPCErrorError> {
+        self.require_initialized_for("filesystem")?;
+        self.file_system.android_list_delivery_directory(params).await
     }
 
     pub(crate) async fn fs_read_file(
@@ -312,6 +405,16 @@ pub(crate) async fn read_file_limited(
         let path = params.path.to_abs_path().map_err(|e| invalid_request(e.to_string()))?;
         crate::local_file_system_read::read_delivery_chunk(path, params.offset, params.version)
             .await.map_err(map_fs_error)
+    }
+
+    pub(crate) async fn android_list_delivery_directory(
+        &self,
+        params: crate::protocol::AndroidDeliveryDirectoryParams,
+    ) -> Result<crate::protocol::AndroidDeliveryDirectoryResponse, JSONRPCErrorError> {
+        let path = params.path.to_abs_path().map_err(|e| invalid_request(e.to_string()))?;
+        let entries = crate::no_follow::read_delivery_directory(path.as_path().to_path_buf())
+            .await.map_err(map_fs_error)?;
+        Ok(crate::protocol::AndroidDeliveryDirectoryResponse { entries })
     }
 
     pub(crate) async fn read_file(
@@ -411,10 +514,10 @@ fn cancellation_stops_a_reader_after_its_first_chunk"""),
 EXEC_CHANGES += (
     ("exec-server-protocol/src/protocol.rs",
      "/// Defaults preserve read-only opens for legacy callers.",
-     "/// Android bounded read of an ordinary remote file. First request has no\n/// version and returns a full-file digest; subsequent requests use that\n/// source version and receive only a bounded chunk.\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct AndroidDeliveryChunkParams {\n    pub path: PathUri,\n    pub offset: u64,\n    pub version: Option<String>,\n}\n\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(rename_all = \"camelCase\")]\npub struct AndroidDeliveryChunkResponse {\n    pub offset: u64,\n    pub size: u64,\n    pub version: String,\n    pub sha256: Option<String>,\n    pub data_base64: String,\n}\n\n/// Defaults preserve read-only opens for legacy callers."),
+     "/// Android bounded read of an ordinary remote file. First request has no\n/// version and returns a full-file digest; subsequent requests use that\n/// source version and receive only a bounded chunk.\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct AndroidDeliveryChunkParams {\n    pub path: PathUri,\n    pub offset: u64,\n    pub version: Option<String>,\n}\n\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(rename_all = \"camelCase\")]\npub struct AndroidDeliveryChunkResponse {\n    pub offset: u64,\n    pub size: u64,\n    pub version: String,\n    pub sha256: Option<String>,\n    pub data_base64: String,\n}\n\n/// Bounded, no-follow Android directory enumeration.\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(rename_all = \"camelCase\", deny_unknown_fields)]\npub struct AndroidDeliveryDirectoryParams {\n    pub path: PathUri,\n}\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(rename_all = \"camelCase\")]\npub struct AndroidDeliveryDirectoryEntry {\n    pub name: String,\n    pub kind: String,\n}\n#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]\n#[serde(rename_all = \"camelCase\")]\npub struct AndroidDeliveryDirectoryResponse {\n    pub entries: Vec<AndroidDeliveryDirectoryEntry>,\n}\n\n/// Defaults preserve read-only opens for legacy callers."),
     ("exec-server/src/lib.rs",
      "pub use protocol::FsReadFileResponse;",
-     "pub use protocol::AndroidDeliveryChunkParams;\npub use protocol::AndroidDeliveryChunkResponse;\npub use protocol::FsReadFileResponse;"),
+     "pub use protocol::AndroidDeliveryChunkParams;\npub use protocol::AndroidDeliveryChunkResponse;\npub use protocol::AndroidDeliveryDirectoryEntry;\npub use protocol::AndroidDeliveryDirectoryResponse;\npub use protocol::FsReadFileResponse;"),
     ("exec-server/Cargo.toml",
      "serde_json = { workspace = true }\nthiserror = { workspace = true }",
      "serde_json = { workspace = true }\nsha2 = { workspace = true }\nthiserror = { workspace = true }"),
@@ -424,6 +527,13 @@ EXEC_CHANGES += (
     ("exec-server/src/local_file_system_read.rs",
      "struct CancellableReader<R> {",
      "const DELIVERY_CHUNK_BYTES: u64 = 1024 * 1024;\n\nfn delivery_version(metadata: &std::fs::Metadata) -> io::Result<String> {\n    use sha2::{Digest, Sha256};\n    let mut identity = format!(\"{}:{:?}\", metadata.len(), metadata.modified()?);\n    #[cfg(unix)]\n    {\n        use std::os::unix::fs::MetadataExt;\n        identity.push_str(&format!(\":{}:{}:{}:{}\", metadata.dev(), metadata.ino(),\n            metadata.ctime(), metadata.ctime_nsec()));\n    }\n    #[cfg(windows)]\n    {\n        identity.push_str(&format!(\":{:?}\", metadata.created()?));\n    }\n    Ok(format!(\"{:x}\", Sha256::digest(identity.as_bytes())))\n}\n\npub(crate) async fn read_delivery_chunk(\n    path: AbsolutePathBuf,\n    offset: u64,\n    expected_version: Option<String>,\n) -> io::Result<crate::protocol::AndroidDeliveryChunkResponse> {\n    use base64::Engine as _;\n    use sha2::{Digest, Sha256};\n    use std::io::{Seek, SeekFrom};\n    let cancelled = CancellationToken::new();\n    let _cancel_on_drop = cancelled.clone().drop_guard();\n    tokio::task::spawn_blocking(move || {\n        let invalid = |message| io::Error::new(io::ErrorKind::InvalidInput, message);\n        if cancelled.is_cancelled() {\n            return Err(io::Error::other(\"file read cancelled\"));\n        }\n        let mut file = no_follow::open_file(path.as_path())?;\n        let metadata = file.metadata()?;\n        let size = metadata.len();\n        if !metadata.is_file() || size > MAX_READ_FILE_BYTES || offset > size ||\n            (expected_version.is_none() && offset != 0) {\n            return Err(invalid(\"invalid delivery size, file type or offset\"));\n        }\n        let version = delivery_version(&metadata)?;\n        if expected_version.as_ref().is_some_and(|expected| expected != &version) {\n            return Err(invalid(\"remote delivery source changed\"));\n        }\n        let count = DELIVERY_CHUNK_BYTES.min(size - offset) as usize;\n        let mut bytes = Vec::with_capacity(count);\n        let sha256 = if expected_version.is_none() {\n            // Hash the entire opened file once, retaining only its first chunk.\n            // Limit growth and cancel between bounded reads.\n            let mut digest = Sha256::new();\n            let mut total = 0u64;\n            let mut buffer = [0u8; 64 * 1024];\n            let mut reader = CancellableReader { reader: (&mut file).take(size + 1),\n                cancelled: cancelled.clone() };\n            loop {\n                let read = reader.read(&mut buffer)?;\n                if read == 0 { break; }\n                total += read as u64;\n                if total > size { return Err(invalid(\"remote delivery source grew\")); }\n                digest.update(&buffer[..read]);\n                let keep = (count - bytes.len()).min(read);\n                bytes.extend_from_slice(&buffer[..keep]);\n            }\n            if total != size { return Err(invalid(\"remote delivery source shrank\")); }\n            Some(format!(\"{:x}\", digest.finalize()))\n        } else {\n            file.seek(SeekFrom::Start(offset))?;\n            bytes.resize(count, 0);\n            CancellableReader { reader: &mut file, cancelled: cancelled.clone() }\n                .read_exact(&mut bytes)?;\n            None\n        };\n        if delivery_version(&file.metadata()?)? != version {\n            return Err(invalid(\"remote delivery source changed during read\"));\n        }\n        Ok(crate::protocol::AndroidDeliveryChunkResponse {\n            offset, size, version, sha256,\n            data_base64: base64::engine::general_purpose::STANDARD.encode(bytes),\n        })\n    }).await.map_err(|error| io::Error::other(format!(\"filesystem task failed: {error}\")))?\n}\n\nstruct CancellableReader<R> {"),
+)
+
+# Bounded enumeration through an opened directory descriptor or handle, never a second path read.
+EXEC_CHANGES += (
+    ("exec-server/src/no_follow/mod.rs", "pub(crate) fn open_file(path: &Path) -> io::Result<std::fs::File> {", "\npub(crate) async fn read_delivery_directory(path: std::path::PathBuf)\n    -> io::Result<Vec<crate::protocol::AndroidDeliveryDirectoryEntry>> {\n    tokio::task::spawn_blocking(move || imp::read_delivery_directory_sync(&path))\n        .await.map_err(|error| io::Error::other(format!(\"directory task failed: {error}\")))?\n}\n\nfn push_delivery_entry(\n    entries: &mut Vec<crate::protocol::AndroidDeliveryDirectoryEntry>,\n    bytes: &mut usize,\n    name: String,\n    kind: &str,\n) -> io::Result<()> {\n    if name == \".\" || name == \"..\" { return Ok(()); }\n    *bytes += name.len();\n    if entries.len() >= 4096 || *bytes > 512 * 1024 {\n        return Err(io::Error::new(io::ErrorKind::InvalidInput, \"directory listing exceeds 4096 entries or 512 KiB of names\"));\n    }\n    if name.is_empty() || name.len() > 4096 || name.contains('/') || name.chars().any(char::is_control) {\n        return Err(io::Error::new(io::ErrorKind::InvalidInput, \"directory contains an unsupported filename\"));\n    }\n    entries.push(crate::protocol::AndroidDeliveryDirectoryEntry { name, kind: kind.to_owned() });\n    Ok(())\n}\npub(crate) fn open_file(path: &Path) -> io::Result<std::fs::File> {"),
+    ("exec-server/src/no_follow/unix.rs", "pub(super) fn open_file_sync(path: &Path) -> io::Result<std::fs::File> {", "pub(super) fn read_delivery_directory_sync(path: &Path)\n    -> io::Result<Vec<crate::protocol::AndroidDeliveryDirectoryEntry>> {\n    let mut directory = root()?;\n    for component in components(path)? {\n        directory = open_directory(&directory, &component)?;\n    }\n    let readable = openat(&directory, \".\", OFlags::RDONLY | OFlags::DIRECTORY | OFlags::NOFOLLOW | OFlags::CLOEXEC, Mode::empty())?;\n    let mut entries = Vec::new();\n    let mut bytes = 0;\n    for entry in rustix::fs::Dir::read_from(&readable)? {\n        let entry = entry?;\n        let name = entry.file_name().to_str().map_err(|_| io::Error::new(\n            io::ErrorKind::InvalidInput, \"directory contains a non-UTF-8 filename\"))?;\n        if name == \".\" || name == \"..\" { continue; }\n        let stat = statat(&readable, entry.file_name(), AtFlags::SYMLINK_NOFOLLOW)?;\n        let kind = match stat.st_mode & libc::S_IFMT {\n            libc::S_IFREG => \"file\",\n            libc::S_IFDIR => \"directory\",\n            _ => \"other\",\n        };\n        super::push_delivery_entry(&mut entries, &mut bytes, name.to_owned(), kind)?;\n    }\n    Ok(entries)\n}\n\npub(super) fn open_file_sync(path: &Path) -> io::Result<std::fs::File> {"),
+    ("exec-server/src/no_follow/windows.rs", "pub(super) fn open_file_sync(path: &Path) -> io::Result<std::fs::File> {", "pub(super) fn read_delivery_directory_sync(path: &Path)\n    -> io::Result<Vec<crate::protocol::AndroidDeliveryDirectoryEntry>> {\n    use windows_sys::Win32::Foundation::ERROR_NO_MORE_FILES;\n    use windows_sys::Win32::Storage::FileSystem::{\n        FileIdBothDirectoryInfo, FILE_ID_BOTH_DIR_INFO, FILE_ATTRIBUTE_DIRECTORY,\n        FILE_ATTRIBUTE_REPARSE_POINT, FILE_ATTRIBUTE_DEVICE,\n    };\n    let handle = open_handle(path, FILE_GENERIC_READ, FILE_OPEN, FILE_DIRECTORY_FILE)?;\n    let mut entries = Vec::new();\n    let mut bytes = 0;\n    // The operating system's variable-length directory records require 8-byte alignment.\n    let mut buffer = vec![0u64; 8192];\n    let capacity = size_of_val(buffer.as_slice());\n    let name_offset = std::mem::offset_of!(FILE_ID_BOTH_DIR_INFO, FileName);\n    loop {\n        buffer.fill(0);\n        let success = unsafe { GetFileInformationByHandleEx(handle.as_raw_handle(),\n            FileIdBothDirectoryInfo, buffer.as_mut_ptr().cast(), capacity as u32) };\n        if success == 0 {\n            let error = io::Error::last_os_error();\n            if error.raw_os_error() == Some(ERROR_NO_MORE_FILES as i32) { break; }\n            return Err(error);\n        }\n        let invalid = || io::Error::new(io::ErrorKind::InvalidData, \"invalid directory record\");\n        let mut offset = 0usize;\n        loop {\n            if offset > capacity.saturating_sub(size_of::<FILE_ID_BOTH_DIR_INFO>()) { return Err(invalid()); }\n            let base = unsafe { buffer.as_ptr().cast::<u8>().add(offset) };\n            let info = unsafe { ptr::read_unaligned(base.cast::<FILE_ID_BOTH_DIR_INFO>()) };\n            let length = info.FileNameLength as usize;\n            let next = info.NextEntryOffset as usize;\n            let record_end = if next == 0 { capacity - offset } else { next };\n            if length == 0 || length % 2 != 0 || record_end > capacity - offset ||\n                name_offset.checked_add(length).is_none_or(|end| end > record_end) { return Err(invalid()); }\n            let units = (0..length / 2).map(|i| unsafe {\n                ptr::read_unaligned(base.add(name_offset + i * 2).cast::<u16>())\n            }).collect::<Vec<_>>();\n            let name = String::from_utf16(&units).map_err(|_| invalid())?;\n            let attrs = info.FileAttributes;\n            let kind = if attrs & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DEVICE) != 0 { \"other\" }\n                else if attrs & FILE_ATTRIBUTE_DIRECTORY != 0 { \"directory\" } else { \"file\" };\n            super::push_delivery_entry(&mut entries, &mut bytes, name, kind)?;\n            if next == 0 { break; }\n            offset += next;\n        }\n    }\n    Ok(entries)\n}\n\npub(super) fn open_file_sync(path: &Path) -> io::Result<std::fs::File> {"),
 )
 
 def adapt(source, old, new):

@@ -20,6 +20,7 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean,
     val saving by vm.securitySaveBusy.collectAsStateWithLifecycle()
     val status by vm.bridge.status.collectAsStateWithLifecycle()
     val workspace by vm.activeWorkspace.collectAsStateWithLifecycle()
+    val remote by vm.conversationState.collectProjection { it.remote }
     var confirmFull by remember(workspace) { mutableStateOf(false) }
     val currentWorkspace = data["composerPermissionWorkspace"]?.optString("cwd") == workspace
     val isolated = AnswerWorkspaceStore.isolated(java.io.File(vm.workingDirectory), workspace)
@@ -52,6 +53,8 @@ internal fun ComposerPermissionControl(vm: CodexViewModel, enabled: Boolean,
         }
         if (open) CodexFloatingMenu(title = "执行权限", onDismiss = onDismiss, wide = true,
             description = if (isolated) "回答版本使用独立工作目录，仅可选择只读或工作区权限。" else "选择后自动保存，后续发送的任务采用此权限。") {
+            if (remote == null) Text("此处选择 Codex 执行权限；本机系统级文件和网络隔离尚未验证。",
+                color = Ink.muted, style = MaterialTheme.typography.bodySmall)
             Text("可用权限方案", modifier = Modifier.testTag("security-profiles-heading"),
                 style = MaterialTheme.typography.labelMedium, color = Ink.muted)
             ProtocolFeedback(vm, listOf("composerPermissionConfig", "securityRequirements", "permissionProfiles"),

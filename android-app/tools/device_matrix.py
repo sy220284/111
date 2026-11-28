@@ -20,6 +20,12 @@ def dimensions(profile, mode):
         "font_scale": 1.0 if mode == "baseline" else spec["font_scale"]}
 
 MODES = ("baseline", "adaptive")
+
+def audit_theme(mode):
+    if mode not in MODES:
+        raise ValueError(f"未知验收模式：{mode}")
+    return "light" if mode == "baseline" else "dark"
+
 # Keep complete test classes together; split the 68 navigation cases from the other 84 UI cases.
 SHARDS = {
     "navigation": ("UiNavigationInstrumentedTest",),

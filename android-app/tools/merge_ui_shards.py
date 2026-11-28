@@ -10,7 +10,7 @@ import sys
 from pathlib import Path
 
 from collect_ui_screenshots import REQUIRED_SCREENS, valid_png, write_evidence
-from device_matrix import CONFIG, PROFILES, MODES, SHARDS, dimensions, minimum_tests, shard_classes
+from device_matrix import CONFIG, PROFILES, MODES, SHARDS, dimensions, minimum_tests, shard_classes, audit_theme
 from run_ui_device_checks import PACKAGE
 sys.path.insert(0,str(Path(__file__).resolve().parents[2]/'.github/scripts'))
 from ui_shard_reuse import INPUT, ORIGIN, check_input, verify_origin
@@ -76,6 +76,7 @@ def merge(root, output, profile, mode, source, compile_proof=None, repo=None):
         screenshot_errors.extend(f"{shard}: {x}" for x in report.get("screenshot_observation", {}).get("errors", []))
         try:
             manifest = read(directory / folder / "manifest.json")
+            require(report.get("audit_theme") == manifest.get("audit_theme") == audit_theme(mode), f"{shard}: wrong or missing audit theme")
             require(all(manifest.get(k) == v for k,v in expected.items()), f"{shard}: screenshot source or device mismatch")
             require(all(report.get(k) == manifest.get(k) for k in ("build_fingerprint", "physical_size", "physical_density_dpi", "android_release", "width_dp", "height_dp", "run_id")), f"{shard}: screenshot and test identity mismatch")
             present = manifest["present"]
@@ -134,7 +135,7 @@ def merge(root, output, profile, mode, source, compile_proof=None, repo=None):
     manifest_path = destination / "manifest.json"
     try:
         manifest = read(manifest_path)
-        manifest.update({k: report[k] for k in ("profile", "mode", "commit", "run_id", "shard_run_ids", "android_api", "android_release", "page_size", "build_fingerprint", "physical_size", "physical_density_dpi", "width_px", "height_px", "density_dpi", "font_scale", "width_dp", "height_dp")})
+        manifest.update({k: report[k] for k in ("profile", "mode", "commit", "run_id", "shard_run_ids", "android_api", "android_release", "page_size", "build_fingerprint", "physical_size", "physical_density_dpi", "width_px", "height_px", "density_dpi", "font_scale", "width_dp", "height_dp", "audit_theme")})
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         screenshot_errors.append("Gallery manifest: " + str(exc))

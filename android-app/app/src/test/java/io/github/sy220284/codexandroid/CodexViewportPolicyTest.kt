@@ -68,6 +68,21 @@ class CodexViewportPolicyTest {
         assertFalse(CodexViewportPolicy.compactWorkArea(800f, false, 1.5f))
     }
 
+    @Test fun overlaysAndPanelPaddingFitNarrowWindowsAndLargeScreens() {
+        assertEquals(296f, CodexViewportPolicy.overlayWidth(320f), 0f)
+        assertEquals(361f, CodexViewportPolicy.overlayWidth(393f), 0f)
+        assertEquals(440f, CodexViewportPolicy.overlayWidth(800f), 0f)
+        for (width in listOf(40f, 240f, 320f, 393f, 600f, 840f))
+            for (height in listOf(80f, 240f, 480f, 800f)) {
+                val panel = CodexViewportPolicy.overlayWidth(width)
+                assertTrue(panel > 0 && panel < width)
+                val spacing = CodexViewportPolicy.panelSpacing(panel, height)
+                assertTrue(spacing.horizontal * 2 < panel)
+                assertTrue(spacing.vertical * 2 < height)
+                assertEquals(if (height < 480f) 8f else 12f, spacing.gap, 0f)
+            }
+    }
+
     @Test fun sheetsUseVisibleHeightRatherThanNominalScreenHeight() {
         assertEquals(275.2f, CodexViewportPolicy.sheetHeight(320f, .86f), .01f)
         assertEquals(352f, CodexViewportPolicy.sheetHeight(400f, .88f), .01f)

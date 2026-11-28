@@ -2,7 +2,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
-from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, SHARDS
+from device_matrix import CONFIG, MODES, PROFILES, dimensions, INDEPENDENT_IDS, independent_device, SHARDS, audit_theme
 from verify_ui_matrix_evidence import validate
 
 class MatrixEvidenceTests(unittest.TestCase):
@@ -15,13 +15,14 @@ class MatrixEvidenceTests(unittest.TestCase):
                 ids = [f"Example#test{i}" for i in range(CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))]
                 if independent_device(profile,mode): ids+=sorted(INDEPENDENT_IDS)
                 self.write(folder/f"ui-{mode}-diagnosis.json", dict(dimensions(profile,mode),
-                    status="passed", commit="head", profile=profile, mode=mode,
+                    status="passed", commit="head", profile=profile, mode=mode, audit_theme=audit_theme(mode),
                     android_api=CONFIG["api"], page_size=CONFIG["page_size"], build_fingerprint="android",
                     missing_screens=[], screenshot_collection_exit=0, run_id=profile+mode, shard_run_ids={s:profile+mode+s for s in SHARDS},
                     tested_apk_sha256={"debug/app-debug.apk":"a"*64,"androidTest/debug/app-debug-androidTest.apk":"b"*64},
                     shard_source_commits={s:"head" for s in SHARDS},shard_origins={}, tests=len(ids), test_ids=ids))
                 self.write(folder/"ui-visual-evidence/report.json", {"status":"baseline_pending","structural_errors":[]})
                 if mode=="baseline":
+                    (folder/"ui-motion-exit").write_text("0\n")
                     self.write(folder/"ui-motion-diagnosis.json",{"status":"passed","tests":1})
                     self.write(folder/"ui-motion-performance.json",{"frames":12,
                         "frame_ns":[20_000_000]*12,"deadline_ns":[16_666_667]*12,
@@ -34,7 +35,19 @@ class MatrixEvidenceTests(unittest.TestCase):
     def test_complete_four_mode_matrix(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
-            self.assertEqual((CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))*4+len(INDEPENDENT_IDS),validate(root,"head")["executions"])
+            result = validate(root,"head")
+            self.assertEqual((CONFIG["minimum_ui_tests"]-len(INDEPENDENT_IDS))*4+len(INDEPENDENT_IDS),result["executions"])
+            self.assertEqual("passed", result["functional_status"])
+            self.assertEqual("manual_review_required", result["design_review"]["status"])
+    def test_wrong_theme_blocks_design_approval_only(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            path=root/"ui-proof-mainstream-adaptive/ui-adaptive-diagnosis.json"
+            data=json.loads(path.read_text()); data["audit_theme"]="light"; self.write(path,data)
+            result=validate(root,"head")
+            self.assertEqual("passed",result["functional_status"])
+            self.assertEqual("blocked",result["design_review"]["status"])
+
     def test_wrong_test_set_same_count_is_rejected(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
@@ -47,25 +60,36 @@ class MatrixEvidenceTests(unittest.TestCase):
             with self.assertRaises(ValueError): validate(root,"different")
             (root/"ui-proof-mainstream-adaptive").rename(root/"unexpected")
             with self.assertRaises(ValueError): validate(root,"head")
-    def test_visual_and_motion_failures_are_observations(self):
+    def test_visual_and_motion_failures_block_design_approval_only(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
-            self.write(root/"ui-proof-mainstream-baseline/ui-motion-performance.json",{"frames":0})
-            (root/"ui-proof-mainstream-baseline/ui-visual-evidence/report.json").unlink()
-            result = validate(root,"head")
-            report = next(x for x in result["observations"] if x["profile"] == "mainstream" and x["mode"] == "baseline")
-            self.assertEqual("failed_or_unavailable", report["motion"]["status"])
-            self.assertEqual("unavailable", report["visual"]["status"])
+            folder=root/"ui-proof-mainstream-baseline"
+            self.write(folder/"ui-motion-performance.json",{"frames":0})
+            (folder/"ui-visual-evidence/report.json").unlink()
+            result=validate(root,"head")
+            self.assertEqual("passed",result["functional_status"])
+            self.assertEqual("blocked",result["design_review"]["status"])
+            self.assertEqual(2,len(result["design_review"]["issues"]))
 
-    def test_reports_multiple_failed_devices_without_accepting_them(self):
+    def test_failed_motion_exit_and_missing_screenshot_block_design_approval(self):
         with tempfile.TemporaryDirectory() as d:
             root=Path(d); self.build(root)
-            self.write(root/"ui-proof-mainstream-baseline/ui-motion-diagnosis.json", {"status":"failed"})
+            (root/"ui-proof-mainstream-baseline/ui-motion-exit").write_text("124\n")
+            path=root/"ui-proof-ultra-adaptive/ui-adaptive-diagnosis.json"
+            report=json.loads(path.read_text()); report["missing_screens"]=["diff-reader"]
+            self.write(path,report)
+            result=validate(root,"head")
+            self.assertEqual("blocked",result["design_review"]["status"])
+            self.assertEqual(2,len(result["design_review"]["issues"]))
+
+    def test_reports_failed_functional_device_without_accepting_it(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d); self.build(root)
+            self.write(root/"ui-proof-mainstream-baseline/ui-motion-diagnosis.json",{"status":"failed"})
             (root/"ui-proof-ultra-adaptive/ui-adaptive-diagnosis.json").unlink()
             with self.assertRaises(ValueError) as caught:
                 validate(root,"head")
-            self.assertNotIn("mainstream/baseline", str(caught.exception))
-            self.assertIn("ultra/adaptive", str(caught.exception))
+            self.assertIn("ultra/adaptive",str(caught.exception))
 
     def test_installer_contract_must_run_once_on_designated_device(self):
         with tempfile.TemporaryDirectory() as d:
@@ -100,9 +124,9 @@ class MatrixEvidenceTests(unittest.TestCase):
                             {"very_slow_frames":3}):
                 with self.subTest(changes=changes):
                     self.write(path,dict(valid,**changes))
-                    result = validate(root,"head")
-                    report = next(x for x in result["observations"] if x["profile"] == "mainstream" and x["mode"] == "baseline")
-                    self.assertEqual("failed_or_unavailable", report["motion"]["status"])
+                    result=validate(root,"head")
+                    self.assertEqual("blocked",result["design_review"]["status"])
+                    self.assertEqual("passed",result["functional_status"])
             self.write(path,valid)
             self.assertEqual(4,validate(root,"head")["device_configurations"])
 

@@ -6,6 +6,15 @@ import android.os.SystemClock
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 
+/** Test-only theme selection is explicit for every device configuration. */
+internal fun applyAuditTheme() {
+    val theme = InstrumentationRegistry.getArguments().getString("auditTheme") ?: return
+    require(theme == "light" || theme == "dark") { "未知验收主题：$theme" }
+    InstrumentationRegistry.getInstrumentation().runOnMainSync {
+        UiPreferences.setDarkMode(theme == "dark")
+    }
+}
+
 /** AOSP ClipboardOverlayWindow 的标题固定为 ClipboardOverlay，且窗口不获取焦点。 */
 internal fun hasClipboardOverlayWindow(dump: String): Boolean =
     Regex("""(?m)^\s*Window #\d+ Window\{[^\n]*\bClipboardOverlay\b""").containsMatchIn(dump)
@@ -16,17 +25,20 @@ internal fun hasClipboardOverlayWindow(dump: String): Boolean =
  * Android 某些系统版本及屏宽下 getRootInActiveWindow() 会暂时返回 null，
  * 因此单独依赖该接口会错误拒绝正常的 Compose 弹层。
  */
-internal fun captureVerifiedDisplayScreenshot(fileName: String) {
+internal fun captureVerifiedDisplayScreenshot(fileName: String, assertSubject: (() -> Unit)? = null) {
     // Keep rejected evidence out of the gallery without altering functional tests.
     try {
-        captureOwnedDisplayScreenshot(fileName)
+        captureOwnedDisplayScreenshot(fileName, assertSubject)
     } catch (failure: Exception) {
+        InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null)
+            ?.let { File(it, fileName).delete() }
         android.util.Log.w("UiScreenshotObservation", "SCREENSHOT_FAILED $fileName", failure)
         println("SCREENSHOT_FAILED $fileName: " + failure.message)
+
     }
 }
 
-private fun captureOwnedDisplayScreenshot(fileName: String) {
+private fun captureOwnedDisplayScreenshot(fileName: String, assertSubject: (() -> Unit)?) {
     val instrumentation = InstrumentationRegistry.getInstrumentation()
     val automation = instrumentation.uiAutomation
     val target = instrumentation.targetContext
@@ -48,6 +60,21 @@ private fun captureOwnedDisplayScreenshot(fileName: String) {
             "系统未提供有效前台窗口信息：$fileName"
         }
         return accessible to dump
+    }
+
+    fun checkSubject() {
+        val expectedTheme = if (fileName == "audit-dark-200font-appearance-android.png") "dark"
+            else InstrumentationRegistry.getArguments().getString("auditTheme")
+        if (expectedTheme != null) {
+            check(UiPreferences.darkMode.value == (expectedTheme == "dark")) {
+                "截图主题与验收配置不一致：$fileName / $expectedTheme"
+            }
+        }
+        try {
+            assertSubject?.invoke()
+        } catch (failure: AssertionError) {
+            throw IllegalStateException("截图实际页面不符合预期：$fileName", failure)
+        }
     }
 
     fun checkOwner(): String {
@@ -79,11 +106,13 @@ private fun captureOwnedDisplayScreenshot(fileName: String) {
         dump = checkOwner()
     }
     check(!hasClipboardOverlayWindow(dump)) { "系统剪贴板浮层仍遮挡截图：$fileName" }
+    checkSubject()
     val image = requireNotNull(automation.takeScreenshot()) {
         "Android 全屏截图失败：$fileName"
     }
     try {
         check(!hasClipboardOverlayWindow(checkOwner())) { "截图期间出现系统剪贴板浮层：$fileName" }
+        checkSubject()
         val directory = requireNotNull(target.getExternalFilesDir(null)) {
             "设备未提供测试截图目录"
         }

@@ -78,7 +78,7 @@ internal fun assertV8ThemeContrast(rule: ComposeContentTestRule) {
 /** Freeze the real Compose clock: only the incoming page is present, displacement
  * converges to its resting position, and reduced motion has no entrance displacement. */
 internal fun assertV8RouteMotion(rule: ComposeContentTestRule) {
-    var route by mutableStateOf("original")
+    var route by mutableStateOf("settings")
     var reduced by mutableStateOf(false)
     rule.setContent {
         CodexTheme {
@@ -89,27 +89,41 @@ internal fun assertV8RouteMotion(rule: ComposeContentTestRule) {
             }
         }
     }
-    val resting = rule.onNodeWithTag("route-original").fetchSemanticsNode().boundsInRoot.top
+    val resting = rule.onNodeWithTag("route-settings").fetchSemanticsNode().boundsInRoot
     rule.mainClock.autoAdvance = false
     try {
-        rule.runOnIdle { route = "incoming" }
+        rule.runOnIdle { route = "chat" }
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
-        rule.onNodeWithTag("route-original").assertDoesNotExist()
-        val incoming = rule.onNodeWithTag("route-incoming")
+        rule.onNodeWithTag("route-settings").assertDoesNotExist()
+        val incoming = rule.onNodeWithTag("route-chat")
         val start = incoming.fetchSemanticsNode().boundsInRoot.top
-        assertTrue("进入动画应有位移：start=$start resting=$resting", start > resting + 1f)
+        assertTrue("进入动画应有位移：start=$start resting=$resting", start > resting.top + 1f)
         rule.mainClock.advanceTimeBy(100L)
         val middle = incoming.fetchSemanticsNode().boundsInRoot.top
         assertTrue("中间帧应趋向静止位置：start=$start middle=$middle resting=$resting",
-            middle < start && middle >= resting - 1f)
+            middle < start && middle >= resting.top - 1f)
         rule.mainClock.advanceTimeBy(CodexMotion.navigation.toLong() + 32L)
-        assertEquals(resting, incoming.fetchSemanticsNode().boundsInRoot.top, 1f)
-        rule.runOnIdle { reduced = true; route = "reduced" }
+        assertEquals(resting.top, incoming.fetchSemanticsNode().boundsInRoot.top, 1f)
+        rule.runOnIdle { route = "providers" }
         rule.mainClock.advanceTimeByFrame()
         rule.mainClock.advanceTimeByFrame()
-        rule.onNodeWithTag("route-incoming").assertDoesNotExist()
-        assertEquals(resting, rule.onNodeWithTag("route-reduced").fetchSemanticsNode().boundsInRoot.top, 1f)
+        rule.onNodeWithTag("route-chat").assertDoesNotExist()
+        val detail = rule.onNodeWithTag("route-providers")
+        val detailStart = detail.fetchSemanticsNode().boundsInRoot.left
+        assertTrue("二级页应从右侧进入", detailStart > resting.left + 1f)
+        rule.mainClock.advanceTimeBy(100L)
+        val detailMiddle = detail.fetchSemanticsNode().boundsInRoot.left
+        assertTrue(detailMiddle < detailStart && detailMiddle >= resting.left - 1f)
+        rule.mainClock.advanceTimeBy(CodexMotion.navigation.toLong() + 32L)
+        assertEquals(resting.left, detail.fetchSemanticsNode().boundsInRoot.left, 1f)
+        rule.runOnIdle { reduced = true; route = "appearance" }
+        rule.mainClock.advanceTimeByFrame()
+        rule.mainClock.advanceTimeByFrame()
+        rule.onNodeWithTag("route-providers").assertDoesNotExist()
+        val snapped = rule.onNodeWithTag("route-appearance").fetchSemanticsNode().boundsInRoot
+        assertEquals(resting.top, snapped.top, 1f)
+        assertEquals(resting.left, snapped.left, 1f)
     } finally {
         rule.mainClock.autoAdvance = true
     }

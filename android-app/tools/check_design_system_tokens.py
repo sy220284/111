@@ -69,12 +69,15 @@ def verify(source: str, spec: str) -> list[str]:
         for mode, palette in (('亮色', actual), ('深色', dark_actual)):
             if not all(k in palette for k in ('canvas', 'parchment', 'muted', 'coral')):
                 continue
-            bg = luminosity(palette['canvas'])
-            for key in ('parchment', 'muted', 'coral'):
-                fg = luminosity(palette[key])
-                value = (max(fg, bg) + .05) / (min(fg, bg) + .05)
-                if value < 4.5:
-                    errors.append(mode + ' Ink.' + key + ' 对比度低于 4.5:1')
+            for surface in ('canvas', 'panel', 'recessed', 'elevated'):
+                if surface not in palette:
+                    continue
+                bg = luminosity(palette[surface])
+                for key in ('parchment', 'muted', 'coral'):
+                    fg = luminosity(palette[key])
+                    value = (max(fg, bg) + .05) / (min(fg, bg) + .05)
+                    if value < 4.5:
+                        errors.append(mode + ' Ink.' + key + ' 与 ' + surface + ' 对比度低于 4.5:1')
             if 'controlBorder' in palette:
                 fg = luminosity(palette['controlBorder'])
                 for surface in ('canvas', 'panel', 'recessed', 'elevated'):

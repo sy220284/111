@@ -95,11 +95,12 @@ fun AccountSessionsSheet(vm: CodexViewModel, onDismiss: () -> Unit) {
                     }
                 }
                 if (entries.isNotEmpty()) item { AtlasListHeading("可切换账号", entries.size, suffix = "个") }
-                items(entries, key = { it.optString("sessionId") }) { session ->
+                items(entries.sortedByDescending { it.optString("sessionId") == currentSession || it.optBoolean("isActive") },
+                    key = { it.optString("sessionId") }) { session ->
                     val sid = session.optString("sessionId")
                     val active = sid == currentSession || session.optBoolean("isActive")
                     val workspaces = session.optJSONArray("workspaces") ?: JSONArray()
-                    MaterialPanel(Modifier.fillMaxWidth()) {
+                    WorkSection(Modifier.fillMaxWidth(), if (active) WorkSectionKind.Status else WorkSectionKind.Group) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CodexIcon(CodexGlyph.AccountCircle, null, tint = Ink.copper)
                             Spacer(Modifier.width(9.dp))

@@ -117,7 +117,10 @@ internal fun FeatureSwitchPage(vm: CodexViewModel) {
                         Text(row.title, style = MaterialTheme.typography.titleMedium)
                         Text(row.stageLabel + " · 默认" + if (row.defaultEnabled) "开启" else "关闭",
                             color = Ink.muted, style = MaterialTheme.typography.labelMedium)
-                        restriction?.let { Text(it, color = Ink.muted, style = MaterialTheme.typography.labelMedium) }
+                        Text(if (restriction != null) "受策略限制" else if (row.enabled) "当前已开启" else "当前已关闭",
+                            color = if (restriction != null) Ink.warning else if (row.enabled) Ink.jade else Ink.muted,
+                            style = MaterialTheme.typography.labelMedium)
+                        restriction?.let { Text(it, color = Ink.warning, style = MaterialTheme.typography.bodySmall) }
                     }
                     WhiteSwitch(row.enabled, { enabled ->
                         if (FeatureSwitchPolicy.needsConfirmation(row)) confirm = row to enabled

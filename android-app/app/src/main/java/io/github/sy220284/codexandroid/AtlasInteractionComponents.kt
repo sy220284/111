@@ -1,6 +1,9 @@
 package io.github.sy220284.codexandroid
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.semantics.heading
 import androidx.compose.foundation.background
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -47,8 +50,10 @@ internal fun ClipboardQueryAction(
             else { error = ""; onQuery(term) }
         }, enabled = enabled, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)) { Text(title) }
         if (current.isNotBlank()) {
-            Text(current, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink.muted)
-            CodexTextAction(onClick = { error = ""; onClear() }, enabled = enabled) { Text("清除查找条件") }
+            Text(current, maxLines = 2, overflow = TextOverflow.Ellipsis, color = Ink.muted,
+                modifier = Modifier.testTag(tag + "-value"))
+            CodexTextAction(onClick = { error = ""; onClear() }, enabled = enabled,
+                modifier = Modifier.testTag(tag + "-clear")) { Text("清除查找条件") }
         }
         if (error.isNotBlank()) Text(error, color = Ink.red, style = MaterialTheme.typography.bodySmall)
     }
@@ -145,7 +150,7 @@ fun AtlasSequenceBadge(
     ) {
         Box(contentAlignment = Alignment.Center) {
             Text(position.toString(), style = MaterialTheme.typography.labelLarge,
-                color = if (position == 1) androidx.compose.ui.graphics.Color.White else Ink.parchment)
+                color = if (position == 1) Ink.canvas else Ink.parchment)
         }
     }
 }
@@ -216,7 +221,7 @@ fun AtlasListHeading(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Column(Modifier.weight(1f)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Text("$total $suffix", color = Ink.muted,
                 style = MaterialTheme.typography.labelMedium)
         }
@@ -231,17 +236,9 @@ fun AtlasLoadingResults(
     modifier: Modifier = Modifier,
     placeholderRows: Int = 3
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth().testTag("atlas-loading-results"),
-        shape = RoundedCornerShape(18.dp),
-        color = Ink.panel,
-        border = BorderStroke(1.dp, Ink.border)
-    ) {
-        Column(Modifier.padding(15.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Text(title, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
-            CodexSkeletonRows(placeholderRows)
-        }
+    WorkSection(modifier.fillMaxWidth().testTag("atlas-loading-results"), WorkSectionKind.Group) {
+        Text(title, color = Ink.muted, style = MaterialTheme.typography.bodyMedium)
+        CodexSkeletonRows(placeholderRows)
     }
 }
 
@@ -265,7 +262,7 @@ fun AtlasSettingsActionRow(
         border = if (outlined) BorderStroke(1.dp, Ink.border) else null
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp),
+            modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(horizontal = 14.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -293,11 +290,14 @@ fun AtlasChoiceRow(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
+    val reduced by UiPreferences.reducedMotion.collectAsStateWithLifecycle()
+    val background by animateColorAsState(if (selected) Ink.copper.copy(alpha = .09f) else Ink.canvas,
+        tween(CodexMotion.duration(CodexMotion.selection, reduced)), label = "choice-background")
     Surface(
         modifier = modifier.fillMaxWidth().heightIn(min = 56.dp)
             .codexSelectable(selected, enabled, onClick),
-        color = if (selected) Ink.panel else Ink.canvas,
-        border = BorderStroke(if (selected) 2.dp else 1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border),
+        color = background,
+        border = BorderStroke(1.dp, if (selected) Ink.copper else if (enabled) Ink.controlBorder else Ink.border),
         shape = RoundedCornerShape(15.dp)
     ) {
         Row(Modifier.padding(horizontal = 12.dp, vertical = 8.dp),

@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.Modifier
@@ -35,7 +36,7 @@ private object InkLight {
     val controlBorder = Color(0xFF7B8992)
     val parchment = Color(0xFF263139)
     val muted = Color(0xFF56646D)
-    val coral = Color(0xFFC8483E) // Accessible foreground on white-icon actions (contrast 4.7:1)
+    val coral = Color(0xFFB94037) // Primary emphasis; contrast on all four light work surfaces
     val coralSoft = Color(0xFFFF806F) // Reference hue for non-text decoration
     val copper = Color(0xFF805A3F)
     val copperDim = Color(0xFFB8A18D)
@@ -155,15 +156,15 @@ fun CodexTheme(content: @Composable () -> Unit) {
         typography = Typography(
             displaySmall = androidx.compose.ui.text.TextStyle(fontSize = (34 * fontScale).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.8).sp),
             headlineSmall = androidx.compose.ui.text.TextStyle(fontSize = (26 * fontScale).sp, fontWeight = FontWeight.SemiBold, letterSpacing = (-0.4).sp),
-            titleLarge = androidx.compose.ui.text.TextStyle(fontSize = (20 * fontScale).sp, fontWeight = FontWeight.SemiBold),
-            titleMedium = androidx.compose.ui.text.TextStyle(fontSize = (16 * fontScale).sp, fontWeight = FontWeight.SemiBold),
+            titleLarge = androidx.compose.ui.text.TextStyle(fontSize = (20 * fontScale).sp, lineHeight = (27 * fontScale).sp, fontWeight = FontWeight.SemiBold),
+            titleMedium = androidx.compose.ui.text.TextStyle(fontSize = (16 * fontScale).sp, lineHeight = (22 * fontScale).sp, fontWeight = FontWeight.SemiBold),
             bodyLarge = androidx.compose.ui.text.TextStyle(fontSize = (15 * fontScale).sp, lineHeight = (23 * fontScale).sp),
             bodyMedium = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (21 * fontScale).sp),
-            labelMedium = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, fontWeight = FontWeight.Medium),
-            labelSmall = androidx.compose.ui.text.TextStyle(fontSize = (11 * fontScale).sp),
-            bodySmall = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp),
-            labelLarge = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp),
-            titleSmall = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, fontWeight = FontWeight.Medium)
+            labelMedium = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, lineHeight = (18 * fontScale).sp, fontWeight = FontWeight.Medium),
+            labelSmall = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, lineHeight = (17 * fontScale).sp),
+            bodySmall = androidx.compose.ui.text.TextStyle(fontSize = (12 * fontScale).sp, lineHeight = (18 * fontScale).sp),
+            labelLarge = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (20 * fontScale).sp, fontWeight = FontWeight.Medium),
+            titleSmall = androidx.compose.ui.text.TextStyle(fontSize = (14 * fontScale).sp, lineHeight = (20 * fontScale).sp, fontWeight = FontWeight.Medium)
         ),
         shapes = Shapes(
             small = RoundedCornerShape(10.dp),
@@ -197,6 +198,43 @@ fun MaterialPanel(modifier: Modifier = Modifier, content: @Composable ColumnScop
             verticalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
             content = content
         )
+    }
+}
+
+/** Business content is open by default; a reading surface is reserved for artifacts and output.
+ * Keep MaterialPanel for independent decisions and controls that really need containment. */
+internal enum class WorkSectionKind { Content, Group, Status, Reading }
+
+@Composable
+internal fun WorkSection(
+    modifier: Modifier = Modifier,
+    kind: WorkSectionKind = WorkSectionKind.Content,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    val compact by UiPreferences.compact.collectAsStateWithLifecycle()
+    val gap = if (compact) 8.dp else 12.dp
+    when (kind) {
+        WorkSectionKind.Content, WorkSectionKind.Group -> {
+            Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(
+                if (kind == WorkSectionKind.Group) gap / 2 else gap), content = content)
+        }
+        WorkSectionKind.Status, WorkSectionKind.Reading -> {
+            Surface(modifier.fillMaxWidth(), color = if (kind == WorkSectionKind.Reading) Ink.recessed else Ink.elevated,
+                contentColor = Ink.parchment, shape = RoundedCornerShape(12.dp), tonalElevation = 0.dp) {
+                Column(Modifier.padding(if (compact) 10.dp else 14.dp),
+                    verticalArrangement = Arrangement.spacedBy(gap), content = content)
+            }
+        }
+    }
+}
+
+/** Stable, accessible section hierarchy for task, directory and settings content. */
+@Composable
+internal fun WorkSectionHeading(title: String, detail: String = "", modifier: Modifier = Modifier) {
+    Column(modifier.fillMaxWidth().padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium, color = Ink.parchment,
+            modifier = Modifier.semantics { heading() })
+        if (detail.isNotBlank()) Text(detail, style = MaterialTheme.typography.bodySmall, color = Ink.muted)
     }
 }
 
@@ -247,9 +285,12 @@ fun StatusPill(text: String, good: Boolean = true, tone: StatusTone = if (good) 
         StatusTone.Warning -> Ink.warning
         StatusTone.Danger -> Ink.red
     }
-    Surface(color = Ink.canvas, border = BorderStroke(1.dp, color.copy(alpha = .46f)),
-        shape = RoundedCornerShape(99.dp)) {
-        Text(text, color = color, modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp), style = MaterialTheme.typography.labelMedium)
+    Surface(color = color.copy(alpha = .07f), shape = RoundedCornerShape(8.dp)) {
+        Row(Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            Box(Modifier.size(6.dp).background(color, RoundedCornerShape(3.dp)))
+            Text(text, color = color, style = MaterialTheme.typography.labelMedium)
+        }
     }
 }
 
@@ -314,7 +355,7 @@ fun WhiteSwitch(
     Switch(
         checked = checked,
         onCheckedChange = onCheckedChange,
-        modifier = modifier,
+        modifier = modifier.then(if (onCheckedChange != null) Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp) else Modifier),
         enabled = enabled,
         colors = SwitchDefaults.colors(
             checkedTrackColor = Ink.copper,

@@ -11,6 +11,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -57,7 +59,8 @@ internal fun TimelineActivityGroup(
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
             .clickable { expandedOverride = !expanded }.padding(horizontal = 4.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            CodexIcon(if (failed > 0) CodexGlyph.TaskError else if (active) CodexGlyph.TaskRunning else CodexGlyph.AutoAwesome,
+            if (active && failed == 0) CodexActivityIndicator(Modifier.size(18.dp), color = Ink.coral, strokeWidth = 2.dp)
+            else CodexIcon(if (failed > 0) CodexGlyph.TaskError else CodexGlyph.AutoAwesome,
                 null, tint = if (failed > 0) Ink.red else Ink.muted, modifier = Modifier.size(18.dp))
             Column(Modifier.weight(1f)) {
                 Text((if (active) "正在执行 · " else if (liveProcess) "执行记录 · " else "已完成执行 · ") + group.size + " 项活动" +
@@ -72,7 +75,11 @@ internal fun TimelineActivityGroup(
         note?.let { Text(it, Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
             color = Ink.muted, style = MaterialTheme.typography.labelSmall) }
         CodexReveal(visible = expanded) {
-            Column(Modifier.fillMaxWidth().padding(start = 4.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
+            val rail = if (failed > 0) Ink.red else if (active) Ink.coral else Ink.border
+            Column(Modifier.fillMaxWidth().padding(start = 8.dp)
+                .drawBehind {
+                    drawLine(rail, Offset(0f, 0f), Offset(0f, size.height), strokeWidth = 2.dp.toPx())
+                }.padding(start = 10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (displayed.size < group.size && liveProcess && expandedOverride != true) {
                     CodexTextAction(onClick = { expandedOverride = true },
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
@@ -138,8 +145,11 @@ internal fun TimelineStepCard(
                                 verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 SelectionContainer { Text(shownText, style = MaterialTheme.typography.bodyLarge,
                                     color = Ink.parchment) }
-                                if (item.status == "sending") Text("正在发送", color = Ink.muted,
-                                    style = MaterialTheme.typography.labelSmall)
+                                if (item.status == "sending") Row(verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    CodexActivityIndicator(Modifier.size(13.dp), color = Ink.muted, strokeWidth = 2.dp)
+                                    Text("正在发送", color = Ink.muted, style = MaterialTheme.typography.labelSmall)
+                                }
                                 NativeTimelineMedia(item, raw, workspaceRoot)
                             }
                         }

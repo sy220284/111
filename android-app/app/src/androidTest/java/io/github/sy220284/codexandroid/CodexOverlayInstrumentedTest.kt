@@ -26,6 +26,8 @@ import org.junit.Test
 
 /** Verifies a real Material 3 overlay, including explicit dismiss without side effects. */
 class CodexOverlayInstrumentedTest {
+    @org.junit.Before fun prepareAuditTheme() = applyAuditTheme()
+
     @get:Rule val rule = createComposeRule()
 
     @Test fun clipboardOverlayIsDetectedEvenWhenAppRetainsFocus() {
@@ -62,6 +64,23 @@ class CodexOverlayInstrumentedTest {
         rule.onNodeWithTag("codex-detail-close").performClick()
         rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
         rule.runOnIdle { assertEquals(1, accepted) }
+    }
+
+    @Test fun detailCloseCanBeRetriedAfterBusyOperationCompletes() {
+        var blocked by mutableStateOf(true)
+        var visible by mutableStateOf(true)
+        rule.setContent {
+            CodexTheme {
+                if (visible) CodexDetailSheet("正在处理", onDismiss = { if (!blocked) visible = false }) {
+                    Text("等待业务操作结束")
+                }
+            }
+        }
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertExists()
+        rule.runOnIdle { blocked = false }
+        rule.onNodeWithTag("codex-detail-close").performClick()
+        rule.onNodeWithTag("codex-detail-sheet").assertDoesNotExist()
     }
 
     @Test fun sidebarFilterPanelKeepsQueryAndSelectionWhenReopened() {

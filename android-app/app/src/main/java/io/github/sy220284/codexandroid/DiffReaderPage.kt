@@ -84,10 +84,10 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
         state = listState,
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(11.dp)
+        verticalArrangement = Arrangement.spacedBy(0.dp)
     ) {
         item {
-            MaterialPanel(Modifier.fillMaxWidth()) {
+            WorkSection(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     CodexIcon(CodexGlyph.Diff, contentDescription = null,
                         tint = Ink.copper, modifier = Modifier.size(23.dp))
@@ -172,7 +172,7 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
             visibleFiles.forEach { index ->
                 val file = files[index]
                 item(key = "diff-heading-${fileKeys[index]}") {
-                    MaterialPanel(Modifier.fillMaxWidth()) {
+                    WorkSection(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 6.dp), WorkSectionKind.Status) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CodexIcon(if (file.binary) CodexGlyph.Attachment
                                 else CodexGlyph.Description,
@@ -212,9 +212,12 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                             else -> Ink.muted
                         }
                         Surface(
-                            color = Ink.recessed,
-                            shape = RoundedCornerShape(5.dp),
-                            border = BorderStroke(.5.dp, Ink.border.copy(alpha = .32f)),
+                            color = when {
+                                tone == Ink.jade -> Ink.jade.copy(alpha = .06f)
+                                tone == Ink.red -> Ink.red.copy(alpha = .06f)
+                                else -> Ink.recessed
+                            },
+                            shape = androidx.compose.ui.graphics.RectangleShape,
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
@@ -224,7 +227,8 @@ fun DiffReaderPage(vm: CodexViewModel, navigate: (String) -> Unit) {
                                         numbers.new?.toString().orEmpty())
                                         .joinToString(" ", transform = { it.padStart(4) }),
                                     modifier = Modifier.padding(start = 4.dp, top = 3.dp)
-                                        .width(76.dp).testTag("diff-line-numbers-$index-$lineIndex"),
+                                        .width((76f * codexEffectiveFontScale().coerceIn(1f, 1.5f)).dp)
+                                        .testTag("diff-line-numbers-$index-$lineIndex"),
                                     color = Ink.muted,
                                     fontFamily = FontFamily.Monospace,
                                     style = MaterialTheme.typography.labelMedium,

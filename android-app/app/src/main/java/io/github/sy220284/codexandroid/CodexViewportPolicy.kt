@@ -32,10 +32,29 @@ internal object CodexViewportPolicy {
 
     fun pageSpacing(width: Float, height: Float, compact: Boolean): CodexPageSpacing {
         require(width > 0 && height > 0)
-        val horizontal = minOf(if (compact || width < 350f) 12f else 18f, width / 8f)
+        val horizontal = minOf(when {
+            compact || width < 350f -> 12f
+            width >= 600f -> 24f
+            else -> 18f
+        }, width / 8f)
         val short = height < 480f
         return CodexPageSpacing(horizontal, if (compact || short) 12f else 20f,
             if (compact || short) 11f else 16f)
+    }
+
+    /** Dialog width includes real window margins, without consuming them twice. */
+    fun overlayWidth(width: Float): Float {
+        require(width > 0)
+        val margin = minOf(if (width < 350f) 12f else 16f, width / 8f)
+        return minOf(440f, width - margin * 2)
+    }
+
+    /** Protect header, footer and readable width when a keyboard reduces the available height. */
+    fun panelSpacing(width: Float, height: Float): CodexPageSpacing {
+        require(width > 0 && height > 0)
+        val horizontal = minOf(if (width < 320f) 12f else 20f, width / 8f)
+        val short = height < 480f
+        return CodexPageSpacing(horizontal, if (short) 10f else 16f, if (short) 8f else 12f)
     }
 
     fun compactWorkArea(height: Float, imeVisible: Boolean, fontScale: Float): Boolean {

@@ -99,6 +99,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
     var historicalLoading by remember(session.processId) { mutableStateOf(false) }
     var historicalError by remember(session.processId) { mutableStateOf("") }
     val activeWorkspace by vm.activeWorkspace.collectAsStateWithLifecycle()
+    val activeThread by vm.activeThread.collectAsStateWithLifecycle()
     val consoleScroll = key(session.processId) { rememberScrollState() }
     var followConsoleTail by remember(session.processId) { mutableStateOf(true) }
     var automaticConsoleScroll by remember(session.processId) { mutableStateOf(false) }
@@ -112,8 +113,8 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
         snapshotFlow { Triple(consoleScroll.isScrollInProgress,
             consoleScroll.value >= consoleScroll.maxValue - 24, automaticConsoleScroll) }
             .collect { (scrolling, atEnd, automatic) ->
-                if (!scrolling && atEnd) followConsoleTail = true
-                else if (scrolling && !automatic) followConsoleTail = false
+                if (!scrolling && atEnd && !automatic) followConsoleTail = true
+                else if (scrolling && !automatic && !automaticConsoleScroll) followConsoleTail = false
             }
     }
     LaunchedEffect(consoleScroll, session.processId) {
@@ -121,15 +122,13 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
             if (followConsoleTail) {
                 withFrameNanos { }
                 if (followConsoleTail && consoleScroll.value < consoleScroll.maxValue) {
-                    kotlinx.coroutines.coroutineScope {
-                        launch {
-                            automaticConsoleScroll = true
-                            try {
-                                consoleScroll.scrollTo(consoleScroll.maxValue)
-                            } finally {
-                                automaticConsoleScroll = false
-                            }
+                    automaticConsoleScroll = true
+                    try {
+                        kotlinx.coroutines.coroutineScope {
+                            launch { consoleScroll.scrollTo(consoleScroll.maxValue) }
                         }
+                    } finally {
+                        automaticConsoleScroll = false
                     }
                 }
             }
@@ -144,9 +143,10 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("本地终端", style = MaterialTheme.typography.titleLarge)
-                    Text("工作区 · " + File(activeWorkspace).relativeTo(
-                        File(vm.workingDirectory)).path.takeIf { it != "." }
-                        ?.let { "projects/" + it }.orEmpty().ifBlank { "projects/" },
+                    Text((if (session.running) "执行中 · " else "新命令位置 · ") + (if (session.running) session.workspace ?: activeWorkspace else activeWorkspace).let { directory ->
+                        File(directory).toRelativeString(File(vm.workingDirectory)).takeIf { it.isNotBlank() && it != "." }
+                            ?.let { "projects/" + it } ?: "projects/"
+                    },
                         color = Ink.muted, style = MaterialTheme.typography.labelSmall)
                 }
                 CodexIcon(CodexGlyph.Terminal, contentDescription = null, tint = Ink.muted)
@@ -158,7 +158,12 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                 Column(Modifier.fillMaxSize().verticalScroll(consoleScroll),
                     verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (session.processId.isNotEmpty()) {
-                    MaterialPanel(Modifier.fillMaxWidth()) {
+                    WorkSection(Modifier.fillMaxWidth()) {
+                        session.workspace?.let { directory ->
+                            Text("执行位置 · " + File(directory).toRelativeString(File(vm.workingDirectory))
+                                .let { if (it.isBlank() || it == ".") "projects/" else "projects/$it" },
+                                style = MaterialTheme.typography.labelSmall, color = Ink.muted)
+                        }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CodexIcon(
                                 if (session.running) CodexGlyph.Terminal
@@ -235,7 +240,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                         }
                         transcriptError?.takeIf(String::isNotBlank)?.let { ErrorText(it) }
                     }
-                    MaterialPanel(Modifier.fillMaxWidth()) {
+                    WorkSection(Modifier.fillMaxWidth(), WorkSectionKind.Reading) {
                         TerminalOutputHeader(vm, session.processId, renderedOutput, session.outputTruncated) { text ->
                             readerOutput = "终端标准输出" to text
                         }
@@ -315,11 +320,12 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                                 color = if (exportStatus.contains("失败")) Ink.red else Ink.jade,
                                 style = MaterialTheme.typography.labelMedium)
                         DividerLine()
+                        // The scroll destination is actual output, never export controls.
                         TerminalOutputPreview(session.processId, session.running, renderedOutput)
                     }
                 } else {
-                    MaterialPanel(Modifier.fillMaxWidth().heightIn(min = minOf(consoleHeight.value, 172f).dp)
-                        .testTag("terminal-console-empty")) {
+                    WorkSection(Modifier.fillMaxWidth().heightIn(min = (consoleHeight.value * .70f).dp)
+                        .testTag("terminal-console-empty"), WorkSectionKind.Reading) {
                         Text("等待执行命令", style = MaterialTheme.typography.titleMedium)
                         DividerLine()
                         SelectionContainer {
@@ -341,6 +347,24 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                 }
                 }
             }
+        }
+        if (session.processId.isNotEmpty() && !followConsoleTail && consoleScroll.canScrollForward) {
+            CodexTextAction(
+                onClick = {
+                    if (!automaticConsoleScroll) {
+                        followConsoleTail = true
+                        automaticConsoleScroll = true
+                        scope.launch {
+                            try {
+                                consoleScroll.scrollTo(consoleScroll.maxValue)
+                            } finally {
+                                automaticConsoleScroll = false
+                            }
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().testTag("terminal-return-latest")
+            ) { Text("返回最新输出") }
         }
         if (session.running) {
             MaterialPanel(Modifier.fillMaxWidth().testTag("terminal-active-controls")) {
@@ -464,7 +488,7 @@ fun TerminalPage(vm: CodexViewModel, embedded: Boolean = false, navigate: ((Stri
                 if (navigate != null) CodexTextAction(onClick = {
                     val instruction = if (command.isBlank()) "请协助我检查当前工作区，提出需要执行的命令及原因。"
                         else "请先检查以下命令的目的、风险与执行位置；根据当前任务提出执行建议：\n" + command
-                    if (appendTaskInstruction(vm, vm.activeThread.value, instruction)) navigate("chat")
+                    if (appendTaskInstruction(vm, activeThread, instruction)) navigate("chat")
                 }, enabled = !session.running && !terminalStarting, modifier = Modifier.fillMaxWidth().testTag("terminal-agent-assist")) {
                     Text("交给 Codex 检查")
                 }

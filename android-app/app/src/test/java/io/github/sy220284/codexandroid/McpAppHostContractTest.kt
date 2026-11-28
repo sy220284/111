@@ -55,13 +55,30 @@ class McpAppHostContractTest {
     private fun call(server: String = "local") = JSONObject().put("server", server).put("tool", "start")
         .put("mcpAppUi", JSONObject().put("resourceUri", "ui://local/view"))
         .put("arguments", JSONObject().put("id", 1)).put("result", JSONObject().put("content", JSONArray()))
+    @Test fun hostThemeChangesDuringAndAfterHandshakeWithoutDuplicates() {
+        val host = McpAppHostContract(call())
+        assertNull(host.themeChanged("dark"))
+        val initial = host.initialize(JSONObject().put("protocolVersion", "2026-01-26")
+            .put("appInfo", JSONObject()).put("appCapabilities", JSONObject()), "light")
+        assertEquals("light", initial.getJSONObject("hostContext").getString("theme"))
+        assertNull(host.themeChanged("dark"))
+        val messages = host.initialized("dark")
+        assertEquals(listOf("ui/notifications/tool-input", "ui/notifications/tool-result",
+            "ui/notifications/host-context-changed"), messages.map { it.getString("method") })
+        assertEquals("dark", messages.last().getJSONObject("params").getString("theme"))
+        assertNull(host.themeChanged("dark"))
+        val update = requireNotNull(host.themeChanged("light"))
+        assertEquals("ui/notifications/host-context-changed", update.getString("method"))
+        assertEquals("light", update.getJSONObject("params").getString("theme"))
+        assertNull(host.themeChanged("light"))
+    }
     @Test fun handshakeAndScopedToolCatalog() {
         val host = McpAppHostContract(call())
         assertFalse(host.ready)
         host.initialize(JSONObject().put("protocolVersion", "2026-01-26")
             .put("appInfo", JSONObject()).put("appCapabilities", JSONObject()), "dark")
         assertEquals(listOf("ui/notifications/tool-input", "ui/notifications/tool-result"),
-            host.initialized().map { it.getString("method") })
+            host.initialized("dark").map { it.getString("method") })
         assertTrue(host.ready)
         val tool = JSONObject().put("name", "refresh").put("_meta", JSONObject().put("ui",
             JSONObject().put("visibility", JSONArray().put("model"))))
