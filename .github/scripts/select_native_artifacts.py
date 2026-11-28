@@ -145,7 +145,7 @@ class ArtifactSelector:
         workflow = self.run(["git", "show", f"{sha}:.github/workflows/build-native-codex.yml"])
         signature = (upstream, parent_cargo, patcher, code_mode_adapter, v8_builder,
                      v8_host_adapter, native_recipe(workflow, abi))
-        preparation = self.run(["git", "ls-tree", sha, "--", ".github/scripts/prepare-native-dependencies.sh"])
+        preparation = self.run(["git", "ls-tree", sha, "--", ".github/scripts/prepare-native-dependencies.sh", "android-app/tools/resolve_codex_catalog_version.py"])
         if preparation:
             signature += (preparation,)
         privacy = self.run(["git", "ls-tree", sha, "--", "android-app/tools/prepare_android_realtime_privacy.py"])

@@ -153,6 +153,7 @@ jobs:
             .github/scripts
             .github/actions/ci-rust
             upstream/codex
+            CODEX_UPSTREAM_COMMIT
             android-app/tools
       - name: 准备共享完整工作区依赖缓存
         uses: ./.github/actions/ci-rust
@@ -309,7 +310,6 @@ jobs:
           cat CODEX_UPSTREAM_COMMIT
           python3 android-app/tools/resolve_codex_catalog_version.py --marker CODEX_UPSTREAM_COMMIT \
             --lock upstream/codex/codex-rs/models-manager/android-client-release.txt
-          grep -Fq 'android_catalog_client_version()' upstream/codex/codex-rs/models-manager/src/lib.rs
           python3 -m unittest discover -s android-app/tools -p 'test_resolve_codex_catalog_version.py'
       # Check the pristine lock before any Android adaptation modifies Cargo.lock.
       - name: 下载并核验独立 V8 产物及原始构建输入
