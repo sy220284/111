@@ -143,7 +143,11 @@ class CoreStartupInstrumentedTest {
         val secret = File(root, "outside.bin").apply { writeText("outside workspace") }
         android.system.Os.symlink(secret.absolutePath, File(workspace, "escape.bin").absolutePath)
         File(workspace, "nested").apply { mkdir(); File(this, "readme.txt").writeText("nested") }
-        android.system.Os.symlink(root.absolutePath, File(workspace, "escape-dir").absolutePath)
+        val outsideDirectory = File(root, "outside-directory").apply {
+            check(mkdir())
+            File(this, "nested").apply { check(mkdir()); File(this, "secret.txt").writeText("outside") }
+        }
+        android.system.Os.symlink(outsideDirectory.absolutePath, File(workspace, "escape-dir").absolutePath)
         val port = ServerSocket(0).use { it.localPort }
         // The upstream App Server accepts its own options, not the full Codex CLI subcommands.
         val executable = File(app.applicationInfo.nativeLibraryDir, "libcodex_test_executor.so")
@@ -199,7 +203,7 @@ class CoreStartupInstrumentedTest {
                 assertEquals("other", kinds["escape-dir"])
                 assertEquals("other", kinds["escape.bin"])
                 assertEquals("readme.txt", directory("nested").getJSONArray("entries").getJSONObject(0).getString("name"))
-                for (path in listOf("..", "escape-dir", "escape-dir/workspace", "receipt.bin", "/")) {
+                for (path in listOf("..", "escape-dir", "escape-dir/nested", "receipt.bin", "/")) {
                     org.junit.Assert.assertTrue("目录读取接受了不安全路径：$path", runCatching { directory(path) }.isFailure)
                 }
                 suspend fun chunk(path: String, offset: Long = 0, version: String? = null) =
@@ -249,6 +253,8 @@ class CoreStartupInstrumentedTest {
             bridge.close()
             executor.destroy()
             if (!executor.waitFor(5, TimeUnit.SECONDS)) executor.destroyForcibly()
+            java.nio.file.Files.deleteIfExists(File(workspace, "escape-dir").toPath())
+            java.nio.file.Files.deleteIfExists(File(workspace, "escape.bin").toPath())
             root.deleteRecursively()
         }
     }
