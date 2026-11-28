@@ -54,15 +54,10 @@ class ComposerProviderScopeTest {
         assertEquals("localImage", request.getJSONArray("input").getJSONObject(1).getString("type"))
     }
 
-    @Test fun neverSendsAnotherProvidersModel() {
-        ComposerProviderScope.requireModel(catalog, "deepseek-flash", "")
-        assertThrows(IllegalArgumentException::class.java) {
-            ComposerProviderScope.requireModel(catalog, "gpt", "")
-        }
+    @Test fun defaultSelectionPreservesExplicitConfiguredModel() {
         assertEquals("deepseek-flash", ComposerProviderScope.initialModel(catalog, "", null, true))
-        assertThrows(IllegalArgumentException::class.java) {
-            ComposerProviderScope.initialModel(catalog, "", "gpt", true)
-        }
+        assertEquals("custom-alias", ComposerProviderScope.initialModel(catalog, "", "custom-alias", true))
+        assertEquals("explicit", ComposerProviderScope.initialModel(emptyList(), "explicit", null, true))
         assertThrows(IllegalStateException::class.java) {
             ComposerProviderScope.initialModel(emptyList(), "", null, true)
         }
@@ -94,9 +89,22 @@ class ComposerProviderScopeTest {
         assertEquals(listOf("thread/read"), methods)
         assertEquals("account-model", ComposerProviderScope.submission(
             config, "thread", "account-model", "default", ComposerTaskOptions(), rpc = rpc).model)
+        methods.clear()
+        val custom = ComposerProviderScope.submission(config, "thread", "custom-alias", "default", ComposerTaskOptions(), rpc = rpc)
+        assertEquals("custom-alias", custom.model)
+        assertEquals(listOf("thread/read"), methods)
         assertTrue(runCatching {
-            ComposerProviderScope.submission(config, "thread", "deepseek-flash", "default", ComposerTaskOptions(), rpc = rpc)
+            ComposerProviderScope.submission(config, "thread", "deepseek-flash", "default",
+                ComposerTaskOptions(modelProvider = "deepseek"), rpc = rpc)
         }.isFailure)
+        methods.clear()
+        val explicit = ComposerProviderScope.submission(config, null, "custom-alias", "default",
+            ComposerTaskOptions(modelProvider = "openai"), rpc = rpc)
+        assertEquals("custom-alias", explicit.model)
+        assertTrue(methods.isEmpty())
+        val plan = ComposerProviderScope.submission(config, "thread", "", "plan", ComposerTaskOptions(), rpc = rpc)
+        assertEquals("gpt-6.2-sol", plan.effectiveConfig?.optString("model"))
+        assertEquals(listOf("thread/read"), methods)
         assertTrue(ComposerProviderScope.isAccountModelRejection(
             "The 'gpt-6.2-sol' model is not supported when using Codex with a ChatGPT account."))
         assertTrue(ComposerProviderScope.isAccountModelRejection("model_not_in_accessible_catalog"))

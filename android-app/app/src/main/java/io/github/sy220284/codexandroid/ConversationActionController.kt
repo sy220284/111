@@ -38,8 +38,8 @@ internal class ConversationActionController(private val vm: CodexViewModel) {
             ComposerModelPolicy.model(records(data.value[ComposerProviderScope.catalogKey(provider)]), model.orEmpty())
         }
         if (modelProvider != null) {
-            if (model.isNullOrBlank() || targetModel == null) {
-                errors.value = errors.value + ("conversation" to "目标模型目录已变化，请重新选择")
+            if (model.isNullOrBlank()) {
+                errors.value = errors.value + ("conversation" to "请选择目标模型")
                 return@with
             }
             params.put("modelProvider", modelProvider).put("model", model)

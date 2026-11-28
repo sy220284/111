@@ -813,6 +813,8 @@ impl ModelsManager for OpenAiModelsManager {
                     | SelectedCatalog::Fallback(models) => models,
                 };
                 let model = match &self.catalog_source {
+                    CatalogSource::Default if self.endpoint_client.account_catalog_required() =>
+                        models.iter().find(|candidate| candidate.slug == model).cloned(),
                     CatalogSource::Default => find_model_from_candidates(model, models),
                     CatalogSource::ExplicitProvider(_) => models
                         .iter()
@@ -1009,7 +1011,9 @@ impl OpenAiModelsManager {
                         | CodexErrorDetails::GatewayLoginRequired(_)
                 );
 
-                if is_provider_catalog && (access_denied || credentials_rejected) {
+                if (is_provider_catalog || self.endpoint_client.account_catalog_required())
+                    && (access_denied || credentials_rejected)
+                {
                     {
                         let mut current = self.remote_models.write().await;
                         let CatalogState {

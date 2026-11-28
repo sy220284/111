@@ -29,20 +29,11 @@ internal object ComposerProviderScope {
         return draftProvider ?: configuredProvider
     }
 
-    fun requireModel(catalog: List<JSONObject>, model: String, effort: String) {
-        require(model.isBlank() || ComposerModelPolicy.model(catalog, model) != null) {
-            "所选模型不在当前服务商可用目录中，请重新选择"
-        }
-        ComposerModelPolicy.requireEffort(catalog, model, effort)
-    }
-
     fun initialModel(catalog: List<JSONObject>, requested: String, configured: String?, requireCatalog: Boolean): String {
         if (requested.isNotBlank()) return requested
         if (!requireCatalog) return ""
-        val configuredModel = configured?.let { ComposerModelPolicy.model(catalog, it) }
-        require(configured == null || configuredModel != null) { "当前默认模型与服务商不匹配，请重新设置默认模型" }
-        return configuredModel?.let { it.optString("id").ifBlank { it.optString("model") } }
-            ?: catalog.firstOrNull { !it.optBoolean("hidden") && it.optBoolean("isDefault") }?.let { it.optString("id").ifBlank { it.optString("model") } }
+        if (configured != null) return configured
+        return catalog.firstOrNull { !it.optBoolean("hidden") && it.optBoolean("isDefault") }?.let { it.optString("id").ifBlank { it.optString("model") } }
             ?: catalog.firstOrNull { !it.optBoolean("hidden") }?.let { it.optString("id").ifBlank { it.optString("model") } }
             ?: error("当前服务商没有可用模型，请检查授权或模型目录")
     }
@@ -76,18 +67,21 @@ internal object ComposerProviderScope {
         // account/read describes the globally configured provider, not necessarily
         // the selected thread/workspace. The native manager owns account discovery
         // and the actual default; do not infer authorization from another provider.
-        val selectDefault = submittedThread == null && (provider != "openai" || provider != configuredProvider)
-        val requiresCatalog = hasImages || mediaKinds.isNotEmpty() ||
-            chosenModel.isNotBlank() || chosenMode == "plan" || selectDefault
+        val configuredModel = if (provider == configuredProvider)
+            ComposerProviderScope.provider(config.optString("model")) else null
+        val inherited = existing?.let { ComposerProviderScope.provider(it.optString("model")) }
+        val selectDefault = submittedThread == null && provider != configuredProvider && chosenModel.isBlank()
+        val needsPlanDefault = chosenMode == "plan" && chosenModel.isBlank() &&
+            inherited == null && configuredModel == null
+        // Explicit text tasks already carry an exact model/provider. Directory
+        // absence cannot prove that inference is unauthorized (aliases, custom models).
+        val requiresCatalog = hasImages || mediaKinds.isNotEmpty() || selectDefault || needsPlanDefault
         val catalog = if (requiresCatalog)
             records(rpc("model/list", ComposerProviderScope.request(provider)))
             else emptyList()
-        val configuredModel = if (provider == configuredProvider)
-            ComposerProviderScope.provider(config.optString("model")) else null
         val requestModel = if (submittedThread == null)
             ComposerProviderScope.initialModel(catalog, chosenModel, configuredModel, selectDefault)
             else chosenModel
-        ComposerProviderScope.requireModel(catalog, requestModel, chosenOptions.effort)
         val imageModel = requestModel.ifBlank {
             if (existing != null) {
                 ComposerProviderScope.provider(existing.optString("model")).orEmpty()

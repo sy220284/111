@@ -39,7 +39,7 @@ internal object ComposerModelPolicy {
         if (modelId.isBlank()) emptyList() else
             model(catalog, modelId)?.optJSONArray("supportedReasoningEfforts")?.let { array ->
                 (0 until array.length()).mapNotNull { array.optJSONObject(it)?.optString("reasoningEffort") }
-            }.orEmpty().filter { it.isNotBlank() && it != "ultra" }.distinct()
+            }.orEmpty().filter { it.isNotBlank() }.distinct()
     fun choose(options: ComposerTaskOptions, provider: String, id: String,
         catalog: List<JSONObject>): ComposerTaskOptions {
         val key = "$provider/$id"
